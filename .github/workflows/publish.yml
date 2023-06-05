@@ -1,0 +1,37 @@
+name: Publish
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+      - name: Install build requires
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install build setuptools
+      - name: Build wheel
+        run: python3 -m build --wheel
+      - name: Publish package to Gemfury
+        run: bash scripts/publish.sh
+        env:
+          GEMFURY_PUSH_TOKEN: ${{ secrets.GEMFURY_PUSH_TOKEN }}
+      # - name: Publish package to PyPi
+      #   uses: pypa/gh-action-pypi-publish@v1.8.6
+      #   with:
+      #     user: __token__
+      #     password: ${{ secrets.PYPI_API_TOKEN }}

@@ -1,0 +1,90 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "functime"
+version = "0.1.0"
+description = "Production-first time series models and pipelines. Modern, functional, and fast."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "IndexHub Team", email = "admin@indexhub.ai"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "holidays",
+    "httpx",
+    "numpy",
+    "pandas",
+    "polars",
+    "pyarrow",
+    "rich>=12.0.0",
+    "scipy",
+    "toml",
+    "typer>=0.6.1",
+]
+
+[project.urls]
+Homepage = "https://docs.functime.ai"
+
+[project.optional-dependencies]
+test = [
+    "coverage[toml]",
+    "pytest-benchmark",
+    "pytest-memray",
+    "pytest-timeout",
+    "pytest",
+]
+doc = [
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings-python",
+]
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+
+[tool.pytest.ini_options]
+addopts = [
+  "--strict-config",
+  "--strict-markers",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "benchmark: marks tests as part of benchmarking",
+]
+xfail_strict = true
+
+[tool.coverage.run]
+parallel = true
+source = [
+    "tests",
+    "functime"
+]
+context = '${CONTEXT}'
+
+[tool.ruff]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "B905",  # `zip()` without an explicit `strict=` parameter
+]

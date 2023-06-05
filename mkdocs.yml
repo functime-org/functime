@@ -1,0 +1,49 @@
+site_name: functime
+site_url: https://docs.functime.ai/
+
+theme:
+  name: "material"
+  favicon: img/logo_dark.png
+  logo: img/logo.png
+  palette:
+    primary: black
+  features:
+    - content.code.copy
+    - content.tabs.link
+
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+            show_source: false
+            show_bases: false
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - footnotes
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - Quick Start: index.md
+  - Installation: installation.md
+  - API Reference:
+    - forecasting: ref/forecasting.md
+    - auto_forecasting: ref/auto-forecasting.md
+    - feature_extraction: ref/feature-extraction.md
+    - cross_validation: ref/cross-validation.md
+    - metrics: ref/metrics.md
+
+extra:
+  analytics:
+    provider: google
+    property: G-CYGTL9FJ4R
