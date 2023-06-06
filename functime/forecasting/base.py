@@ -72,7 +72,7 @@ class ForecasterClient:
         return self._stub_id is not None
 
     def fit(self, y: DF_TYPE, X: Optional[DF_TYPE] = None):
-        """Fit the forecaster to the data and return the estimator ID."""
+        """Fit the forecaster to the data and return the estimator's stub ID."""
         y = coerce_df_to_pa_table(y)
         if X is not None:
             X = coerce_df_to_pa_table(X)

@@ -79,7 +79,7 @@ def list_cli(
             table.add_row(id)
     else:
         table = Table(
-            "Estimator ID",
+            "Stub ID",
             "Model ID",
             "Model Params",
             "Stats",
