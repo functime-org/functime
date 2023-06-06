@@ -6,4 +6,4 @@ sys.path.append(os.getcwd())
 
 from setuptools import setup  # noqa
 
-setup()
+setup(packages=["functime"])
