@@ -27,3 +27,5 @@ jobs:
         run: python -m build --wheel
       - name: Publish package to PyPi
         uses: pypa/gh-action-pypi-publish@v1.8.6
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
