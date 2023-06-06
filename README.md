@@ -44,35 +44,20 @@ functime login
 ```python
 import polars as pl
 from functime.cross_validation import train_test_split
-from functime.feature_extraction import add_calendar_effects, add_holiday_effects
 from functime.forecasting import LightGBM
 from functime.metrics import mase
-
-# Specify forecast horizon (the number of periods to predict into the future)
-fh = 3
-freq = "1mo"
 
 # Load example data
 y = pl.read_parquet("https://bit.ly/commodities-data")
 entity_col, time_col = y.columns[:2]
 
-# Add calendar and holiday effects
-X = (
-    y.select([entity_col, time_col])
-    .pipe(add_calendar_effects(["month", "year"]))
-    .collect()
-)
-
 # Time series split
-y_train, y_test = y.pipe(train_test_split(test_size=fh))
-X_train, X_test = X.pipe(train_test_split(test_size=fh))
+y_train, y_test = y.pipe(train_test_split(test_size=3))
 
-# Specify model
-model = LightGBM(freq="1mo", lags=12, straight="recursive")
-
-# Fit then predict
-model.fit(y=y_train, X=X_train)
-y_pred = model.predict(fh=fh, X=X_test)
+# Fit-predict
+model = LightGBM(freq="1mo", lags=24, max_horizons=3, strategy="ensemble")
+model.fit(y=y_train)
+y_pred = model.predict(fh=3)
 
 # Score forecasts in parallel
 scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
@@ -80,8 +65,40 @@ scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 All predictions and scores are returned as `Polars` DataFrames.
 ```
 >>> y_pred
+shape: (213, 3)
+┌────────────────┬─────────────────────┬─────────────┐
+│ commodity_type ┆ time                ┆ price       │
+│ ---            ┆ ---                 ┆ ---         │
+│ str            ┆ datetime[ns]        ┆ f64         │
+╞════════════════╪═════════════════════╪═════════════╡
+│ Wheat, US HRW  ┆ 2023-01-01 00:00:00 ┆ 240.337497  │
+│ Wheat, US HRW  ┆ 2023-02-01 00:00:00 ┆ 250.851552  │
+│ Wheat, US HRW  ┆ 2023-03-01 00:00:00 ┆ 252.102028  │
+│ Beef           ┆ 2023-01-01 00:00:00 ┆ 4.271976    │
+│ …              ┆ …                   ┆ …           │
+│ Coconut oil    ┆ 2023-03-01 00:00:00 ┆ 1140.930346 │
+│ Copper         ┆ 2023-01-01 00:00:00 ┆ 7329.806663 │
+│ Copper         ┆ 2023-02-01 00:00:00 ┆ 7484.565165 │
+│ Copper         ┆ 2023-03-01 00:00:00 ┆ 7486.160195 │
+└────────────────┴─────────────────────┴─────────────┘
 
->>> scores
+>>> scores.sort("mase")
+shape: (71, 2)
+┌──────────────────────┬────────────┐
+│ commodity_type       ┆ mase       │
+│ ---                  ┆ ---        │
+│ str                  ┆ f64        │
+╞══════════════════════╪════════════╡
+│ Rice, Viet Namese 5% ┆ 0.308148   │
+│ Palm kernel oil      ┆ 0.554886   │
+│ Coconut oil          ┆ 1.051424   │
+│ Cocoa                ┆ 1.32211    │
+│ …                    ┆ …          │
+│ Sugar, US            ┆ 73.346233  │
+│ Sugar, world         ┆ 81.304941  │
+│ Phosphate rock       ┆ 85.936644  │
+│ Sugar, EU            ┆ 170.319435 │
+└──────────────────────┴────────────┘
 ```
 
 ## Deployment
