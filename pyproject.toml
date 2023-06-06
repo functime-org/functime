@@ -37,6 +37,9 @@ dependencies = [
     "typer>=0.6.1",
 ]
 
+[project.scripts]
+functime = "functime.__main__:main"
+
 [project.urls]
 Homepage = "https://docs.functime.ai"
 
@@ -53,6 +56,9 @@ doc = [
     "mkdocs-material",
     "mkdocstrings-python",
 ]
+
+[tool.setuptools]
+packages = ["functime"]
 
 [tool.isort]
 profile = "black"
