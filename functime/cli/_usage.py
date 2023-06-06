@@ -1,6 +1,7 @@
 import httpx
 from rich.console import Console
 from rich.table import Table
+from typing import Union
 
 from functime.config import API_CALL_TIMEOUT, FUNCTIME_SERVER_URL
 from functime.io.auth import require_token
@@ -54,8 +55,8 @@ def usage_cli():
 
 
 def format_usage_line(
-    used: int | float | None,
-    limit: int | float,
+    used: Union[int, float, None],
+    limit: Union[int, float],
     unit: str,
     title: str,
 ):

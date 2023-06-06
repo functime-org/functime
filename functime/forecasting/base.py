@@ -1,5 +1,5 @@
 from io import BytesIO
-from typing import Literal, Optional, Self
+from typing import Literal, Optional, Self, Union
 
 import httpx
 import pandas as pd
@@ -11,7 +11,7 @@ from functime.io.auth import require_token
 from functime.io.serialize import deserialize_bytes, serialize_bytes
 
 FORECAST_STRATEGIES = Optional[Literal["direct", "recursive", "naive"]]
-DF_TYPE = pl.LazyFrame | pl.DataFrame | pa.Table | pd.DataFrame
+DF_TYPE = Union[pl.LazyFrame, pl.DataFrame, pa.Table, pd.DataFrame]
 SUPPORTED_FORECASTERS = [
     "auto_elastic_net",
     "auto_knn",
@@ -32,7 +32,7 @@ class ForecasterClient:
     """Functime forecaster client"""
 
     _server_url = FUNCTIME_SERVER_URL
-    _stub_id: str | None = None
+    _stub_id: Optional[str] = None
 
     def __init__(self, **kwargs):
         self.model_kwargs = kwargs
