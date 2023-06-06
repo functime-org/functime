@@ -3,13 +3,14 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "functime"
-version = "0.1.0"
-description = "Production-first time series models and pipelines. Modern, functional, and fast."
+name = "functime-client"
+version = "0.1.1"
+description = "The easiest way to run and deploy time-series ML (forecasting and classification) in the Cloud."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.7"
 authors = [
-    { name = "IndexHub Team", email = "admin@indexhub.ai"},
+    { name = "Chris Lo", email = "chris@functime.ai"},
+    { name = "Daryl Lim", email = "daryl@functime.ai"},
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -18,6 +19,8 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Scientific/Engineering",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
