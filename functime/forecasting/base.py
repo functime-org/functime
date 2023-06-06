@@ -1,5 +1,5 @@
 from io import BytesIO
-from typing import Literal, Optional, Self, Union
+from typing import Literal, Optional, Union
 
 import httpx
 import pandas as pd
@@ -48,7 +48,7 @@ class ForecasterClient:
         return self.fit_predict(y=y, fh=fh, freq=freq, X=X, X_future=X_future)
 
     @classmethod
-    def from_deployed(cls, stub_id: str, **kwargs) -> Self:
+    def from_deployed(cls, stub_id: str, **kwargs):
         """Load a ForecasterClient from a deployed estimator."""
         # Pull model metadata?
         response = _api_call(
@@ -71,7 +71,7 @@ class ForecasterClient:
     def is_fitted(self) -> bool:
         return self._stub_id is not None
 
-    def fit(self, y: DF_TYPE, X: Optional[DF_TYPE] = None) -> Self:
+    def fit(self, y: DF_TYPE, X: Optional[DF_TYPE] = None):
         """Fit the forecaster to the data and return the estimator ID."""
         y = coerce_df_to_pa_table(y)
         if X is not None:
