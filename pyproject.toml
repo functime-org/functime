@@ -27,7 +27,7 @@ classifiers = [
 ]
 dependencies = [
     "holidays",
-    "httpx",
+    "httpx[http2]",
     "numpy",
     "pandas",
     "polars",
