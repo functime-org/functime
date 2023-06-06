@@ -106,6 +106,7 @@ shape: (71, 2)
 `functime` deploys and trains your forecasting models the moment you call any `.fit` method.
 Run the `functime list` CLI command to list all deployed models.
 To view data and forecasts usage, run the `functime usage` CLI command.
+![Example CLI usage](static/gifs/functime_cli_usage.gif)
 
 You can reuse a deployed model for predictions anywhere using the `stub_id` variable.
 ```python
