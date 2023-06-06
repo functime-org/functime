@@ -1,5 +1,5 @@
 <div align="center">
-    <h1>Run and deploy time-series machine learning, remarkably fast</h1>
+    <h1>Run and scale time-series machine learning in the Cloud</h1>
 <br />
 
 ![functime](https://github.com/indexhub-ai/functime/raw/main/static/images/functime_banner.png)
@@ -13,10 +13,11 @@
 </div>
 
 ---
-`functime` is a powerful and easy-to-use API for AutoML forecasting and time-series embeddings.
+**functime** is a powerful and easy-to-use [Cloud service](https://functime.ai) for AutoML forecasting and time-series embeddings.
+This `functime-client` Python library provides a scikit-learn interface and command-line tool to interact with `functime` Cloud.
 
 Want to use `functime` for seamless time-series analytics across your data team?
-Looking for production-grade AI/ML forecasting and time-series search that scales?
+Looking for fully-managed production-grade AI/ML forecasting and time-series search that scales?
 Book a [15 minute discovery call](https://calendly.com/functime-indexhub) to learn more about `functime`'s Team / Enterprise plans.
 
 ## Highlights
@@ -104,35 +105,12 @@ shape: (71, 2)
 ## Deployment
 `functime` deploys and trains your forecasting models the moment you call any `.fit` method.
 Run the `functime list` CLI command to list all deployed models.
-```bash
-❯ functime list
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━┓
-┃ Stub ID                              ┃ Model ID     ┃ Model Params ┃ Stats             ┃ Created At ┃ Last Used  ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━┩
-│ 51a96242-8826-4096-92aa-737f414a8047 │ linear_model │ lags = 12    │ Dataframe: y      │ 2023-06-06 │ 2023-06-06 │
-│                                      │              │              │ N bytes = 7342440 │ 15:49:42   │ 15:49:52   │
-│                                      │              │              │ N entities = 359  │            │            │
-│                                      │              │              │                   │            │            │
-│ a246653d-6d7d-45c6-93d2-5dd59b18c16b │ lightgbm     │ lags = 12    │ Dataframe: y      │ 2023-06-06 │ 2023-06-06 │
-│                                      │              │              │ N bytes = 7342440 │ 15:57:05   │ 15:59:16   │
-│                                      │              │              │ N entities = 359  │            │            │
-│                                      │              │              │                   │            │            │
-└──────────────────────────────────────┴──────────────┴──────────────┴───────────────────┴────────────┴────────────┘
-```
+To view data and forecasts usage, run the `functime usage` CLI command.
 
 You can reuse a deployed model for predictions anywhere using the `stub_id` variable.
 ```python
-```
-
-```bash
-❯ functime usage
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
-┃ Metric                       ┃ Limit   ┃ Used            ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
-│ Data Used (MB)               │ 2500    │ 143.43 (5.74%)  │
-│ Forecasts Used (predictions) │ 1000000 │ 258480 (25.85%) │
-│ Max Request Size (MB)        │ 250     │ -               │
-└──────────────────────────────┴─────────┴─────────────────┘
+forecaster = LinearModel.from_deployment(stub_id)
+y_pred = forecaster.predict(fh=3)
 ```
 
 ## License
