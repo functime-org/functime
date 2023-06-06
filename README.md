@@ -105,10 +105,34 @@ shape: (71, 2)
 `functime` deploys and trains your forecasting models the moment you call any `.fit` method.
 Run the `functime list` CLI command to list all deployed models.
 ```bash
+❯ functime list
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━┓
+┃ Stub ID                              ┃ Model ID     ┃ Model Params ┃ Stats             ┃ Created At ┃ Last Used  ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━┩
+│ 51a96242-8826-4096-92aa-737f414a8047 │ linear_model │ lags = 12    │ Dataframe: y      │ 2023-06-06 │ 2023-06-06 │
+│                                      │              │              │ N bytes = 7342440 │ 15:49:42   │ 15:49:52   │
+│                                      │              │              │ N entities = 359  │            │            │
+│                                      │              │              │                   │            │            │
+│ a246653d-6d7d-45c6-93d2-5dd59b18c16b │ lightgbm     │ lags = 12    │ Dataframe: y      │ 2023-06-06 │ 2023-06-06 │
+│                                      │              │              │ N bytes = 7342440 │ 15:57:05   │ 15:59:16   │
+│                                      │              │              │ N entities = 359  │            │            │
+│                                      │              │              │                   │            │            │
+└──────────────────────────────────────┴──────────────┴──────────────┴───────────────────┴────────────┴────────────┘
 ```
 
 You can reuse a deployed model for predictions anywhere using the `stub_id` variable.
 ```python
+```
+
+```bash
+❯ functime usage
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
+┃ Metric                       ┃ Limit   ┃ Used            ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
+│ Data Used (MB)               │ 2500    │ 143.43 (5.74%)  │
+│ Forecasts Used (predictions) │ 1000000 │ 258480 (25.85%) │
+│ Max Request Size (MB)        │ 250     │ -               │
+└──────────────────────────────┴─────────┴─────────────────┘
 ```
 
 ## License
