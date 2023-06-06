@@ -32,7 +32,7 @@ def _remove_api_call(token, endpoint: str, params: dict):
 @deploy_cli.command(help="Remove a model deployment.", no_args_is_help=True)
 def remove(
     estimator_ids: Optional[List[str]] = typer.Argument(
-        None, help="The ID(s) of the estimator(s) to remove."
+        None, help="The stub ID(s) of the estimator(s) to remove."
     ),
     all: bool = typer.Option(False, help="Remove all estimators."),
 ):
