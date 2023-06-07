@@ -9,6 +9,7 @@ description = "The easiest way to run and deploy time-series ML (forecasting and
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [
+    { name = "functime Team", email = "team@functime.ai" },
     { name = "Chris Lo", email = "chris@functime.ai"},
     { name = "Daryl Lim", email = "daryl@functime.ai"},
 ]
