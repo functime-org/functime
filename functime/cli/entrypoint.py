@@ -3,6 +3,7 @@ import typer
 from ._deploy import deploy_cli
 from ._list import list_cli
 from ._login import login_cli
+from ._token import token_cli
 from ._usage import usage_cli
 
 
@@ -35,9 +36,8 @@ def functime(
 
 
 entrypoint_cli_typer.add_typer(deploy_cli)
-entrypoint_cli_typer.command("login", help="Authenticate and login with Auth0.")(
-    login_cli
-)
+entrypoint_cli_typer.add_typer(token_cli)
+entrypoint_cli_typer.command("login", help="Authenticate and login.")(login_cli)
 entrypoint_cli_typer.command("list", help="List deployed estimators.")(list_cli)
 entrypoint_cli_typer.command("usage", help="View your usage.")(usage_cli)
 entrypoint_cli = typer.main.get_command(entrypoint_cli_typer)
