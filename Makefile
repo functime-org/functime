@@ -13,7 +13,7 @@ clean:
 	rm -rf build/
 	rm -rf dist/
 	rm -rf *.egg-info
-	$(PY) -m pip uninstall functime-client -y
+	$(PY) -m pip uninstall functime -y
 
 rebuild: clean build
 

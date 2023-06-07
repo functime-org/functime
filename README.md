@@ -4,8 +4,8 @@
 
 ![functime](https://github.com/indexhub-ai/functime/raw/main/static/images/functime_banner.png)
 
-[![Python](https://img.shields.io/pypi/pyversions/functime-client)](https://pypi.org/project/functime-client/)
-[![PyPi](https://img.shields.io/pypi/v/functime-client?color=blue)](https://pypi.org/project/functime-client/)
+[![Python](https://img.shields.io/pypi/pyversions/functime)](https://pypi.org/project/functime/)
+[![PyPi](https://img.shields.io/pypi/v/functime?color=blue)](https://pypi.org/project/functime/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![GitHub Publish to PyPI](https://github.com/indexhub-ai/functime/actions/workflows/publish.yml/badge.svg)](https://github.com/indexhub-ai/functime/actions/workflows/publish.yml)
 [![GitHub Build Docs](https://github.com/indexhub-ai/functime/actions/workflows/docs.yml/badge.svg)](https://github.com/indexhub-ai/functime/actions/workflows/docs.yml)
@@ -14,11 +14,11 @@
 
 ---
 **functime** is a powerful and easy-to-use [Cloud service](https://functime.ai) for AutoML forecasting and time-series embeddings.
-This `functime-client` Python library provides a scikit-learn interface and command-line tool to interact with `functime` Cloud.
+The `functime` [Python package](https://pypi.org/project/functime/) provides a scikit-learn API and command-line interface to interact with **functime Cloud**.
 
-Want to use `functime` for seamless time-series analytics across your data team?
-Looking for fully-managed production-grade AI/ML forecasting and time-series search that scales?
-Book a [15 minute discovery call](https://calendly.com/functime-indexhub) to learn more about `functime`'s Team / Enterprise plans.
+Want to use **functime** for seamless time-series analytics across your data team?
+Looking for fully-managed production-grade AI/ML forecasting and time-series search?
+Book a [15 minute discovery call](https://calendly.com/functime-indexhub) to learn more about functime's Team / Enterprise plans.
 
 ## Highlights
 - **Fast:** Forecast 100,000 time series in seconds *on your laptop*
@@ -33,15 +33,15 @@ Book a [15 minute discovery call](https://calendly.com/functime-indexhub) to lea
 View detailed [list of features](https://docs.functime.ai/features/) including forecasters, preprocessors, feature extractors, and time-series splitters.
 
 ## Getting Started
-1. First, install `functime` via the [pip](https://pypi.org/project/functime-client) package manager.
+1. First, install `functime` via the [pip](https://pypi.org/project/functime) package manager.
 ```bash
-pip install "functime-client"
+pip install functime
 ```
-2. Then sign-up for a free `functime` Cloud account via the command-line interface (CLI).
+1. Then sign-up for a free `functime` Cloud account via the command-line interface (CLI).
 ```bash
 functime login
 ```
-3. That's it! You can begin forecasting at scale using the `scikit-learn` fit-predict interface.
+1. That's it! You can begin forecasting at scale using the `scikit-learn` fit-predict interface.
 ```python
 import polars as pl
 from functime.cross_validation import train_test_split

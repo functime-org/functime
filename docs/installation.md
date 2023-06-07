@@ -1,9 +1,9 @@
 # Installation
 
-functime is published as Python package called `functime-client`.
+functime is published as [Python package in PyPI](https://pypi.org/project/functime/) called `functime`.
 To install the latest functime release, run the following command:
 ```bash
-pip install functime-client
+pip install functime
 ```
 Then login with the command `functime login`, which triggers an interactive login experience through your browser.
 ## Usage Limits
