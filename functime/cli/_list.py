@@ -1,28 +1,17 @@
 import datetime
 
-import httpx
 import typer
 from rich.console import Console
 from rich.table import Table
 
-from functime.config import API_CALL_TIMEOUT, FUNCTIME_SERVER_URL
-from functime.io.auth import require_token
+from functime.io.client import FunctimeH2Client
 
 
-@require_token
-def _get_list_response(token, **params):
-    with httpx.Client(http2=True) as client:
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        }
+def _get_list_response(**params):
+    with FunctimeH2Client() as client:
         response = client.get(
-            FUNCTIME_SERVER_URL + "/list_models",
-            headers=headers,
-            params=params,
-            timeout=API_CALL_TIMEOUT,
+            "/list_models", headers={"Content-Type": "application/json"}, params=params
         )
-        response.raise_for_status()
     return response.json()
 
 

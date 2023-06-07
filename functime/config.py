@@ -15,6 +15,7 @@ AUTH0_DOMAIN = "functime.us.auth0.com"
 AUTH0_CLIENT_ID = "8NNUOaC3yI1PBdpsZdvxBwuKvVq03RpK"
 AUTH_FLOW_TIMEOUT = 120
 API_CALL_TIMEOUT = 60
+API_CALL_MAX_RETRIES = 3
 
 
 def _read_user_config():
