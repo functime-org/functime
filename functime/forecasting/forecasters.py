@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 from .base import ForecasterClient
 
@@ -9,12 +9,13 @@ class BaseForecaster(ForecasterClient):
     def __init__(
         self,
         lags: int,
+        freq: Union[str, None],
         max_horizons: Optional[int] = None,
         strategy: FORECAST_STRATEGIES = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
-            lags=lags, max_horizons=max_horizons, strategy=strategy, **kwargs
+            freq=freq, lags=lags, max_horizons=max_horizons, strategy=strategy, **kwargs
         )
 
 
