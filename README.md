@@ -37,11 +37,11 @@ View detailed [list of features](https://docs.functime.ai/features/) including f
 ```bash
 pip install functime
 ```
-1. Then sign-up for a free `functime` Cloud account via the command-line interface (CLI).
+2. Then sign-up for a free `functime` Cloud account via the command-line interface (CLI).
 ```bash
 functime login
 ```
-1. That's it! You can begin forecasting at scale using the `scikit-learn` fit-predict interface.
+3. That's it! You can begin forecasting at scale using functime's `scikit-learn` fit-predict API.
 ```python
 import polars as pl
 from functime.cross_validation import train_test_split
@@ -77,10 +77,6 @@ shape: (213, 3)
 │ Wheat, US HRW  ┆ 2023-03-01 00:00:00 ┆ 252.102028  │
 │ Beef           ┆ 2023-01-01 00:00:00 ┆ 4.271976    │
 │ …              ┆ …                   ┆ …           │
-│ Coconut oil    ┆ 2023-03-01 00:00:00 ┆ 1140.930346 │
-│ Copper         ┆ 2023-01-01 00:00:00 ┆ 7329.806663 │
-│ Copper         ┆ 2023-02-01 00:00:00 ┆ 7484.565165 │
-│ Copper         ┆ 2023-03-01 00:00:00 ┆ 7486.160195 │
 └────────────────┴─────────────────────┴─────────────┘
 
 >>> scores.sort("mase")
@@ -95,10 +91,6 @@ shape: (71, 2)
 │ Coconut oil          ┆ 1.051424   │
 │ Cocoa                ┆ 1.32211    │
 │ …                    ┆ …          │
-│ Sugar, US            ┆ 73.346233  │
-│ Sugar, world         ┆ 81.304941  │
-│ Phosphate rock       ┆ 85.936644  │
-│ Sugar, EU            ┆ 170.319435 │
 └──────────────────────┴────────────┘
 ```
 
@@ -106,6 +98,7 @@ shape: (71, 2)
 `functime` deploys and trains your forecasting models the moment you call any `.fit` method.
 Run the `functime list` CLI command to list all deployed models.
 To view data and forecasts usage, run the `functime usage` CLI command.
+
 ![Example CLI usage](static/gifs/functime_cli_usage.gif)
 
 You can reuse a deployed model for predictions anywhere using the `stub_id` variable.
