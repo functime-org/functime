@@ -75,12 +75,16 @@ class FunctimeH2Client:
                 ):
                     time.sleep(timeout)
             except httpx.HTTPError as e:
-                if e.response.status_code != 401:
-                    self.console.print(f"[red]{e}[/red]")
-                    raise e
-                # Current token is invalid, get a new one
-                with self.console.status(
-                    "[yellow]Retrying with new token...[/yellow]", spinner="dots"
-                ):
-                    self.token = get_access_token(use_cache=False)
+                if e.response.status_code == 401:
+                    with self.console.status(
+                        "[yellow]Retrying with new token...[/yellow]", spinner="dots"
+                    ):
+                        self.token = get_access_token(use_cache=False)
+                    continue
+                if e.response.status_code == 400:
+                    detail = e.response.json().get("detail")
+                    raise ValueError(detail) from e
+                self.console.print(f"[red]{e}[/red]")
+                raise e
+
         raise httpx.HTTPError(f"Failed to authenticate after {self.n_retries} tries.")
