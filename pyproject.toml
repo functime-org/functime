@@ -41,7 +41,7 @@ dependencies = [
 functime = "functime.__main__:main"
 
 [project.urls]
-Homepage = "https://docs.functime.ai"
+Homepage = "https://github.com/indexhub-ai/functime"
 
 [project.optional-dependencies]
 test = [
