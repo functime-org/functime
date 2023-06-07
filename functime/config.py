@@ -7,9 +7,12 @@ USER_CONFIG_PATH: str = os.environ.get("FUNCTIME_CONFIG_PATH") or os.path.expand
     "~/.functime.toml"
 )
 
-FUNCTIME_SERVER_URL = "https://functional-analytics--functime-api-endpoint.modal.run"
-AUTH0_DOMAIN = "functime.eu.auth0.com"
-AUTH0_CLIENT_ID = "urVlQUUnQDKWlKu1VLAFgRo37uWubCLE"
+FUNCTIME_SERVER_URL = (
+    os.environ.get("FUNCTIME_SERVER_URL")
+    or "https://functional-analytics--functime-api-endpoint.modal.run"
+)
+AUTH0_DOMAIN = "functime.us.auth0.com"
+AUTH0_CLIENT_ID = "8NNUOaC3yI1PBdpsZdvxBwuKvVq03RpK"
 AUTH_FLOW_TIMEOUT = 120
 API_CALL_TIMEOUT = 60
 
