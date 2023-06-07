@@ -1,12 +1,19 @@
 .DEFAULT_GOAL := help
 
 BASE ?= master
+PY ?= python3
+
+edit:
+	$(PY) -m pip install -e .
 
 build:
-	pip install -e .
+	$(PY) -m pip install .
 
 clean:
+	rm -rf build/
+	rm -rf dist/
 	rm -rf *.egg-info
+	$(PY) -m pip uninstall functime-client -y
 
 
 .PHONY: help
