@@ -41,11 +41,10 @@ class ForecasterClient:
         self,
         y: DF_TYPE,
         fh: int,
-        freq: Optional[str] = None,
         X: Optional[DF_TYPE] = None,
         X_future: Optional[DF_TYPE] = None,
     ) -> pl.DataFrame:
-        return self.fit_predict(y=y, fh=fh, freq=freq, X=X, X_future=X_future)
+        return self.fit_predict(y=y, fh=fh, X=X, X_future=X_future)
 
     @classmethod
     def from_deployed(cls, stub_id: str, **kwargs):
@@ -72,7 +71,7 @@ class ForecasterClient:
         return self._stub_id is not None
 
     def fit(self, y: DF_TYPE, X: Optional[DF_TYPE] = None):
-        """Fit the forecaster to the data and return the estimator's stub ID."""
+        """Fit the forecaster to the data and return the estimator ID."""
         y = coerce_df_to_pa_table(y)
         if X is not None:
             X = coerce_df_to_pa_table(X)
@@ -88,9 +87,7 @@ class ForecasterClient:
         self._stub_id = response_json["estimator_id"]
         return self
 
-    def predict(
-        self, fh: int, freq: Optional[str] = None, X: Optional[DF_TYPE] = None
-    ) -> pl.DataFrame:
+    def predict(self, fh: int, X: Optional[DF_TYPE] = None) -> pl.DataFrame:
         """Predict using the forecaster."""
         if not self.is_fitted:
             raise RuntimeError("Forecaster has not been fitted yet.")
@@ -101,7 +98,6 @@ class ForecasterClient:
             endpoint="/predict",
             estimator_id=self._stub_id,
             fh=fh,
-            freq=freq,
             X=X,
             model_id=self.model,
             **{k: v for k, v in self.model_kwargs.items() if v is not None},
@@ -114,7 +110,6 @@ class ForecasterClient:
         self,
         y: pa.Table,
         fh: int,
-        freq: Optional[str] = None,
         X: Optional[pa.Table] = None,
         X_future: Optional[pa.Table] = None,
     ) -> pl.DataFrame:
@@ -128,7 +123,6 @@ class ForecasterClient:
             endpoint="/fit_predict",
             y=y,
             fh=fh,
-            freq=freq,
             X=X,
             X_future=X_future,
             model_id=self.model,
