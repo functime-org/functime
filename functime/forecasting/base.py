@@ -1,13 +1,11 @@
 from io import BytesIO
 from typing import Literal, Optional, Union
 
-import httpx
 import pandas as pd
 import polars as pl
 import pyarrow as pa
 
-from functime.config import API_CALL_TIMEOUT, FUNCTIME_SERVER_URL
-from functime.io.auth import require_token
+from functime.io.client import FunctimeH2Client
 from functime.io.serialize import deserialize_bytes, serialize_bytes
 
 FORECAST_STRATEGIES = Optional[Literal["direct", "recursive", "naive"]]
@@ -31,7 +29,6 @@ SUPPORTED_FORECASTERS = [
 class ForecasterClient:
     """Functime forecaster client"""
 
-    _server_url = FUNCTIME_SERVER_URL
     _stub_id: Optional[str] = None
 
     def __init__(self, **kwargs):
@@ -51,7 +48,6 @@ class ForecasterClient:
         """Load a ForecasterClient from a deployed estimator."""
         # Pull model metadata?
         response = _api_call(
-            url=cls._server_url,
             endpoint="/stub/from_deployed",
             estimator_id=stub_id,
             model_id=cls.model,
@@ -76,11 +72,11 @@ class ForecasterClient:
         if X is not None:
             X = coerce_df_to_pa_table(X)
         response = _api_call(
-            url=self._server_url,
             endpoint="/fit",
             y=y,
             X=X,
             model_id=self.model,
+            msg="Running fit",
             **{k: v for k, v in self.model_kwargs.items() if v is not None},
         )
         response_json = response.json()
@@ -94,12 +90,12 @@ class ForecasterClient:
         if X is not None:
             X = coerce_df_to_pa_table(X)
         response = _api_call(
-            url=self._server_url,
             endpoint="/predict",
             estimator_id=self._stub_id,
             fh=fh,
             X=X,
             model_id=self.model,
+            msg="Running predict",
             **{k: v for k, v in self.model_kwargs.items() if v is not None},
         )
         y_pred_bytes = response.content
@@ -119,13 +115,13 @@ class ForecasterClient:
         if X_future is not None:
             X_future = coerce_df_to_pa_table(X_future)
         response = _api_call(
-            url=self._server_url,
             endpoint="/fit_predict",
             y=y,
             fh=fh,
             X=X,
             X_future=X_future,
             model_id=self.model,
+            msg="Running fit-predict",
             **{k: v for k, v in self.model_kwargs.items() if v is not None},
         )
         table_bytes = response.content
@@ -145,10 +141,9 @@ def coerce_df_to_pa_table(df: DF_TYPE) -> pa.Table:
     raise TypeError(f"Unsupported type: {type(df)}")
 
 
-@require_token
-def _api_call(token, *, url: str, endpoint: str, **kwargs):
-    headers = {"Authorization": f"Bearer {token}"}
+def _api_call(*, endpoint: str, **kwargs):
     # kwargs is flat
+    msg = kwargs.pop("msg", None)
     files = {}
     y = kwargs.pop("y", None)
     X = kwargs.pop("X", None)
@@ -162,13 +157,10 @@ def _api_call(token, *, url: str, endpoint: str, **kwargs):
     if X_future is not None:
         X_future_bytes = serialize_bytes(X_future)
         files["X_future"] = BytesIO(X_future_bytes)
-    with httpx.Client(http2=True) as client:
+    with FunctimeH2Client(msg=msg) as client:
         response = client.post(
-            url + endpoint,
-            headers=headers,
+            endpoint,
             files=files or None,
             params=kwargs,
-            timeout=kwargs.get("timeout", API_CALL_TIMEOUT),
         )
-        response.raise_for_status()
     return response

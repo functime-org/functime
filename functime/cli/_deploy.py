@@ -1,31 +1,24 @@
 from typing import List, Optional
 
-import httpx
 import typer
 from rich.console import Console
 
-from functime.config import API_CALL_TIMEOUT, FUNCTIME_SERVER_URL
-from functime.io.auth import require_token
+from functime.io.client import FunctimeH2Client
 
 deploy_cli = typer.Typer(
     name="deploy", help="Manage deployed models.", no_args_is_help=True
 )
 
 
-@require_token
-def _remove_api_call(token, endpoint: str, params: dict):
-    with httpx.Client(http2=True) as client:
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        }
+def _remove_api_call(params: dict, msg: str):
+    with FunctimeH2Client(msg=msg) as client:
         response = client.post(
-            FUNCTIME_SERVER_URL + endpoint,
-            headers=headers,
+            "/deploy/remove",
+            headers={
+                "Content-Type": "application/json",
+            },
             json=params,
-            timeout=API_CALL_TIMEOUT,
         )
-    response.raise_for_status()
     return response.json()
 
 
@@ -43,12 +36,12 @@ def remove(
     if not typer.confirm(confirm_msg):
         console.print("[blue]Stopped.[/blue]")
         return
-    with console.status("[blue]Removing estimators...[/blue]", spinner="dots"):
-        params = {
-            "all": all,
-            "estimator_ids": estimator_ids,
-        }
-        removed = _remove_api_call("/deploy/remove", params)
+    # with console.status("[blue]Removing estimators...[/blue]", spinner="dots"):
+    params = {
+        "all": all,
+        "estimator_ids": estimator_ids,
+    }
+    removed = _remove_api_call(params, "Removing estimators")
     if removed:
         console.print(f"[green]Successfully removed {removed}![/green]")
     else:

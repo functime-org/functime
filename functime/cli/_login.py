@@ -51,7 +51,7 @@ def login_cli():
                 " - please go to this URL manually and complete the flow:"
             )
         console.print(f"\n[link={web_url}]{web_url}[/link]\n")
-    with Console().status(
+    with console.status(
         "[blue]Waiting for authentication from functime server...[/blue]",
         spinner="dots",
     ):

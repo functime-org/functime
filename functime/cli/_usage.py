@@ -1,53 +1,26 @@
 from typing import Union
 
-import httpx
 from rich.console import Console
 from rich.table import Table
 
 from functime.cli.utils import apply_color, format_url
-from functime.config import API_CALL_TIMEOUT, FUNCTIME_SERVER_URL
-from functime.io.auth import require_token
+from functime.io.client import FunctimeH2Client
 
 
-@require_token
-def _get_usage_response(token, **params):
-    with httpx.Client(http2=True) as client:
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        }
+def _get_usage_response(**params):
+    with FunctimeH2Client() as client:
         response = client.get(
-            FUNCTIME_SERVER_URL + "/usage",
-            headers=headers,
+            "/usage",
+            headers={
+                "Content-Type": "application/json",
+            },
             params=params,
-            timeout=API_CALL_TIMEOUT,
         )
-        response.raise_for_status()
     return response.json()
 
 
 def usage_cli():
     res = _get_usage_response()
-    """
-   response = {
-        "Data Used": {
-            "unit": "MB",
-            "used": usage["mb_used"],
-            "limit": mb_limit,
-        },
-        "Forecasts Used": {
-            "unit": "preds",
-            "used": usage["forecasts_used"],
-            "limit": forecast_limit,
-        },
-        "Single Request Limit": {
-            "unit": "MB",
-            "used": None,
-            "limit": single_req_limit,
-        },
-    }
-
-    """
     usage = res["usage"]
     tier = res["tier"]
     console = Console()
