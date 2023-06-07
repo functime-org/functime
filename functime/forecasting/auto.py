@@ -8,12 +8,12 @@ FORECAST_STRATEGIES = Optional[Literal["direct", "recursive", "ensemble"]]
 class BaseAutoForecaster(ForecasterClient):
     def __init__(
         self,
-        fh: int,
         freq: str,
         min_lags: int = 3,
         max_lags: int = 12,
         max_horizons: Optional[int] = None,
         strategy: FORECAST_STRATEGIES = None,
+        test_size: int = 1,
         step_size: int = 1,
         n_splits: int = 5,
         time_budget: int = 5,
@@ -23,12 +23,12 @@ class BaseAutoForecaster(ForecasterClient):
         **kwargs,
     ):
         super().__init__(
-            fh=fh,
             freq=freq,
             min_lags=min_lags,
             max_lags=max_lags,
             max_horizons=max_horizons,
             strategy=strategy,
+            test_size=test_size,
             step_size=step_size,
             n_splits=n_splits,
             time_budget=time_budget,
@@ -44,8 +44,6 @@ class AutoElasticNet(BaseAutoForecaster):
 
     Parameters
     ----------
-    fh : int
-        Number of lags.
     freq : str
         Offset alias as dictated.
     min_lags : int
@@ -58,6 +56,8 @@ class AutoElasticNet(BaseAutoForecaster):
     strategy : Optional[str]
         Forecasting strategy. Currently supports "recursive", "direct",
         and "ensemble" of both recursive and direct strategies.
+    test_size : int
+        Number of lags.
     step_size : int
         Step size between backtest windows.
     n_splits : int
@@ -80,8 +80,6 @@ class AutoKNN(BaseAutoForecaster):
 
     Parameters
     ----------
-    fh : int
-        Number of lags.
     freq : str
         Offset alias as dictated.
     min_lags : int
@@ -94,6 +92,8 @@ class AutoKNN(BaseAutoForecaster):
     strategy : Optional[str]
         Forecasting strategy. Currently supports "recursive", "direct",
         and "ensemble" of both recursive and direct strategies.
+    test_size : int
+        Number of lags.
     step_size : int
         Step size between backtest windows.
     n_splits : int
@@ -116,8 +116,6 @@ class AutoLasso(BaseAutoForecaster):
 
     Parameters
     ----------
-    fh : int
-        Number of lags.
     freq : str
         Offset alias as dictated.
     min_lags : int
@@ -130,6 +128,8 @@ class AutoLasso(BaseAutoForecaster):
     strategy : Optional[str]
         Forecasting strategy. Currently supports "recursive", "direct",
         and "ensemble" of both recursive and direct strategies.
+    test_size : int
+        Number of lags.
     step_size : int
         Step size between backtest windows.
     n_splits : int
@@ -152,8 +152,6 @@ class AutoLightGBM(BaseAutoForecaster):
 
     Parameters
     ----------
-    fh : int
-        Number of lags.
     freq : str
         Offset alias as dictated.
     min_lags : int
@@ -166,6 +164,8 @@ class AutoLightGBM(BaseAutoForecaster):
     strategy : Optional[str]
         Forecasting strategy. Currently supports "recursive", "direct",
         and "ensemble" of both recursive and direct strategies.
+    test_size : int
+        Number of lags.
     step_size : int
         Step size between backtest windows.
     n_splits : int
@@ -188,8 +188,6 @@ class AutoLinearModel(BaseAutoForecaster):
 
     Parameters
     ----------
-    fh : int
-        Number of lags.
     freq : str
         Offset alias as dictated.
     min_lags : int
@@ -202,6 +200,8 @@ class AutoLinearModel(BaseAutoForecaster):
     strategy : Optional[str]
         Forecasting strategy. Currently supports "recursive", "direct",
         and "ensemble" of both recursive and direct strategies.
+    test_size : int
+        Number of lags.
     step_size : int
         Step size between backtest windows.
     n_splits : int
@@ -224,8 +224,6 @@ class AutoRidge(BaseAutoForecaster):
 
     Parameters
     ----------
-    fh : int
-        Number of lags.
     freq : str
         Offset alias as dictated.
     min_lags : int
@@ -238,6 +236,8 @@ class AutoRidge(BaseAutoForecaster):
     strategy : Optional[str]
         Forecasting strategy. Currently supports "recursive", "direct",
         and "ensemble" of both recursive and direct strategies.
+    test_size : int
+        Number of lags.
     step_size : int
         Step size between backtest windows.
     n_splits : int
