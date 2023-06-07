@@ -15,6 +15,7 @@ clean:
 	rm -rf *.egg-info
 	$(PY) -m pip uninstall functime-client -y
 
+rebuild: clean build
 
 .PHONY: help
 help:  ## Display this help screen
