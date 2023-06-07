@@ -3,7 +3,7 @@ from typing import Union
 from rich.console import Console
 from rich.table import Table
 
-from functime.cli.utils import apply_color, format_url
+from functime.cli._styling import apply_color, format_url
 from functime.io.client import FunctimeH2Client
 
 

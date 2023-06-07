@@ -1,6 +1,6 @@
 from typing import Literal, Optional, Union
 
-from .base import ForecasterClient
+from ._base import ForecasterClient
 
 FORECAST_STRATEGIES = Optional[Literal["direct", "recursive", "ensemble"]]
 

@@ -1,10 +1,10 @@
 import typer
 
-from ._deploy import deploy_cli
-from ._list import list_cli
-from ._login import login_cli
-from ._token import token_cli
-from ._usage import usage_cli
+from functime.cli.deploy import deploy_cli
+from functime.cli.list import list_cli
+from functime.cli.login import login_cli
+from functime.cli.token import token_cli
+from functime.cli.usage import usage_cli
 
 
 def version_callback(value: bool):
