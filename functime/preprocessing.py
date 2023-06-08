@@ -6,7 +6,7 @@ from typing_extensions import Literal
 
 from functime.base import transformer
 from functime.base.model import ModelState
-from functime.offsets import strip_freq_alias
+from functime.offsets import _strip_freq_alias
 
 PL_FLOAT_DTYPES = [pl.Float32, pl.Float64]
 PL_INT_DTYPES = [pl.Int8, pl.Int16, pl.Int32, pl.Int64]
@@ -89,7 +89,7 @@ def roll(
 ):
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
-        offset_n, offset_alias = strip_freq_alias(freq)
+        offset_n, offset_alias = _strip_freq_alias(freq)
         values = pl.all().exclude([entity_col, time_col])
         stat_exprs = {
             "mean": lambda w: values.mean().suffix(f"__rolling_mean_{w}"),
