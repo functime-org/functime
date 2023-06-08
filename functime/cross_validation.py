@@ -46,7 +46,7 @@ def get_split(
 
 
 def train_test_split(test_size: int):
-    """Return train/test splits.
+    """Return a time-ordered train set and test set given `test_size`.
 
     Parameters
     ----------
