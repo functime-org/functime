@@ -16,7 +16,7 @@ from typing import List, Tuple, Union
 OFFSET_ALIASES = {"s", "m", "h", "d", "w", "mo", "y", "i"}
 
 
-def strip_freq_alias(freq: str) -> Tuple[int, str]:
+def _strip_freq_alias(freq: str) -> Tuple[int, str]:
     """Return (index count, offset string) given Polars offset alias.
 
     For example, `freq = "3mo"` returns `(3, "mo")`.
@@ -35,19 +35,8 @@ def freq_to_sp(freq: str, include_dec: bool = False) -> Union[List[int], List[fl
     Parameters
     ----------
     freq : str
-        Offset alias as dictated by the following string language:
-        - 1s    (1 second)
-        - 1m    (1 minute)
-        - 1h    (1 hour)
-        - 1d    (1 day)
-        - 1w    (1 week)
-        - 1mo   (1 calendar month)
-        - 1y    (1 calendar year)
-
-        Note: represent quarterly offset as "3mo" and
-        half-hourly offset as "30m".
-
-    include_dec : bool, default=False
+        Offset alias.
+    include_dec : bool
         If True, return floating point seasonal periods.
         Otherwise, all seasonal periods are rounded down
         to the nearest integer.
@@ -73,7 +62,7 @@ def freq_to_sp(freq: str, include_dec: bool = False) -> Union[List[int], List[fl
         "mo": [12.0],
         "3mo": [4.0],
     }
-    n, alias = strip_freq_alias(freq)
+    n, alias = _strip_freq_alias(freq)
     alias = (
         f"{n}{alias}"
         if ((alias.endswith("m") and n == 30) or (alias.endswith("mo") and n == 3))
