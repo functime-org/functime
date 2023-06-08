@@ -19,64 +19,31 @@ def PL_NUMERIC_COLS(*exclude):
     return pl.col(PL_NUMERIC_DTYPES).exclude(exclude)
 
 
-def cache_categoricals(X: pl.DataFrame):
-    return X.with_columns(pl.col(pl.Categorical).cast(pl.Utf8).cast(pl.Categorical))
-
-
-def resample_panel(
-    X: pl.DataFrame, freq: str, agg_method: str, impute_method: Union[str, int, float]
-) -> pl.DataFrame:
-    entity_col, time_col, target_col = X.columns
-    agg_exprs = {
-        "sum": pl.sum(target_col),
-        "mean": pl.mean(target_col),
-        "median": pl.median(target_col),
-    }
-    X_new = (
-        # Defensive resampling
-        X.lazy()
-        .groupby_dynamic(time_col, every=freq, by=entity_col)
-        .agg(agg_exprs[agg_method])
-        # Must defensive sort columns otherwise time_col and target_col
-        # positions are incorrectly swapped in lazy
-        .select([entity_col, time_col, target_col])
-        # Reindex full (entity, time) index
-        .pipe(reindex_panel(freq=freq, sort=True))
-        # Impute gaps after reindex
-        .pipe(impute(impute_method))
-        # Defensive fill null with 0 for impute method `ffill`
-        .fill_null(0)
-        .collect()
-    )
-    return X_new
-
-
-def coerce_panel(y0: pl.DataFrame):
-    """Coerces panel `y1` to match `y0`'s column names, datatypes, and (entity, time) index."""
-
-    def transform(y1: pl.DataFrame):
-        entity_col, time_col = y0.columns[:2]
-        idx = y0.select([entity_col, time_col]).lazy()
-        y1_new = (
-            y1.lazy()
-            .rename({col0: col1 for col0, col1 in zip(y0.columns, y1.columns)})
-            .select([pl.col(col).cast(dtype) for col, dtype in y0.schema.items()])
-            .pipe(lambda df: idx.join(df, on=[entity_col, time_col], how="left"))
-        )
-        return y1_new
-
-    return transform
-
-
 @transformer
-def coerce_dtypes(schema: Mapping[str, pl.DataType]):
+def resample_panel(freq: str, agg_method: str, impute_method: Union[str, int, float]):
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        X_new = X.with_columns(
-            [pl.col(col).cast(dtype) for col, dtype in schema.items()]
+        entity_col, time_col, target_col = X.columns
+        agg_exprs = {
+            "sum": pl.sum(target_col),
+            "mean": pl.mean(target_col),
+            "median": pl.median(target_col),
+        }
+        X_new = (
+            # Defensive resampling
+            X.lazy()
+            .groupby_dynamic(time_col, every=freq, by=entity_col)
+            .agg(agg_exprs[agg_method])
+            # Must defensive sort columns otherwise time_col and target_col
+            # positions are incorrectly swapped in lazy
+            .select([entity_col, time_col, target_col])
+            # Reindex full (entity, time) index
+            .pipe(reindex_panel(freq=freq, sort=True))
+            # Impute gaps after reindex
+            .pipe(impute(impute_method))
+            # Defensive fill null with 0 for impute method `ffill`
+            .fill_null(0)
         )
-        artifacts = {"X_new": X_new}
-        return artifacts
-
+        return X_new
     return transform
 
 
