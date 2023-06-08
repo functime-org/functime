@@ -20,7 +20,7 @@ def PL_NUMERIC_COLS(*exclude):
 
 
 @transformer
-def resample_panel(freq: str, agg_method: str, impute_method: Union[str, int, float]):
+def resample(freq: str, agg_method: str, impute_method: Union[str, int, float]):
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col, target_col = X.columns
         agg_exprs = {
