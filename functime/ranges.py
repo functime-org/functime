@@ -2,7 +2,7 @@ from typing import Optional
 
 import polars as pl
 
-from functime.offsets import strip_freq_alias
+from functime.offsets import _strip_freq_alias
 
 
 def make_future_ranges(
@@ -31,7 +31,7 @@ def make_future_ranges(
             )
         else:
             time_unit = time_unit or "us"
-            offset_n, offset_alias = strip_freq_alias(freq)
+            offset_n, offset_alias = _strip_freq_alias(freq)
             # Make date ranges
             future_ranges = cutoffs.select(
                 [
