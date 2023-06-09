@@ -152,7 +152,7 @@ def test_forecaster_with_kwargs(test_dataset):
     y, freq = test_dataset
     alpha = 0.001
     model = Lasso(freq=freq, lags=3, alpha=alpha, fit_intercept=False).fit(y=y)
-    regressor = model.artifacts["regressor"]
+    regressor = model.state.artifacts["regressor"]
     params = regressor.get_params()
     assert params["alpha"] == alpha
     assert params["fit_intercept"] is False
@@ -162,7 +162,7 @@ def test_auto_forecaster_with_kwargs(test_dataset):
     y, freq = test_dataset
     max_iter = 50
     model = AutoLasso(freq=freq, max_iter=max_iter).fit(y)
-    regressor = model.artifacts["regressor"]
+    regressor = model.states.artifacts["regressor"]
     params = regressor.get_params()
     assert params["max_iter"] == max_iter
 
@@ -171,7 +171,7 @@ def test_auto_forecaster_with_kwargs(test_dataset):
 def test_forecaster_strategies(strategy, test_dataset):
     y, freq = test_dataset
     model = Lasso(freq=freq, lags=3, strategy=strategy).fit(y=y)
-    artifacts = model.artifacts
+    artifacts = model.state.artifacts
     if strategy == "recursive":
         assert "regressor" in artifacts
     elif strategy == "direct":
@@ -184,7 +184,7 @@ def test_forecaster_strategies(strategy, test_dataset):
 def test_auto_forecaster_strategies(strategy, test_dataset):
     y, freq = test_dataset
     model = AutoLasso(freq=freq, strategy=strategy).fit(y=y)
-    artifacts = model.artifacts
+    artifacts = model.state.artifacts
     if strategy == "recursive":
         assert "regressor" in artifacts
     elif strategy == "direct":
