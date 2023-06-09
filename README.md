@@ -31,7 +31,7 @@ Book a [15 minute discovery call](https://calendly.com/functime-indexhub) to lea
 - Utilities to add calendar effects, special events (e.g. holidays), weather patterns, and economic trends
 - Supports recursive, direct, and ensemble forecast strategies
 
-**Note:** ALl preprocessors, time-series splitters, and forecasting metrics are implemented with [`Polars`](https://www.pola.rs/) and open-sourced under the Apache-2.0 license.
+**Note:** All preprocessors, time-series splitters, and forecasting metrics are implemented with [`Polars`](https://www.pola.rs/) and open-sourced under the Apache-2.0 license. Contributions are always welcome.
 
 ## Getting Started
 1. First, install `functime` via the [pip](https://pypi.org/project/functime) package manager.
