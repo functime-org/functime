@@ -1,0 +1,57 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: Quickstart
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  quickstart-prod:
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+    runs-on: ubuntu-latest-4-cores
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python3 -m pip install --upgrade pip
+        pip install .
+    - name: Authenticate to functime Cloud
+      run: functime token set --token-id $TOKEN_ID --token-secret $TOKEN_SECRET
+      env:
+        TOKEN_ID: ${{ secrets.FUNCTIME__PROD__TOKEN_ID }}
+        TOKEN_SECRET: ${{ secrets.FUNCTIME__PROD__TOKEN_SECRET }}
+    - name: Run Quickstart
+      run: python docs/code/quickstart.py
+
+  quickstart-staging:
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+    runs-on: ubuntu-latest-4-cores
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python3 -m pip install --upgrade pip
+        pip install .
+    - name: Authenticate to functime Cloud
+      run: functime token set --token-id $TOKEN_ID --token-secret $TOKEN_SECRET
+      env:
+        TOKEN_ID: ${{ secrets.FUNCTIME__STAGING__TOKEN_ID }}
+        TOKEN_SECRET: ${{ secrets.FUNCTIME__STAGING__TOKEN_SECRET }}
+    - name: Run Quickstart
+      run: python docs/code/quickstart.py
