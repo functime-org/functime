@@ -1,4 +1,4 @@
-from typing import List, Mapping, Union
+from typing import List, Union
 
 import polars as pl
 from scipy.stats import boxcox_normmax
@@ -44,6 +44,7 @@ def resample(freq: str, agg_method: str, impute_method: Union[str, int, float]):
             .fill_null(0)
         )
         return X_new
+
     return transform
 
 

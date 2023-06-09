@@ -6,7 +6,7 @@ from .auto import (
     AutoLinearModel,
     AutoRidge,
 )
-from .forecasters import KNN, ElasticNet, Lasso, LinearModel, Ridge, LightGBM
+from .forecasters import KNN, ElasticNet, Lasso, LightGBM, LinearModel, Ridge
 
 __all__ = [
     "AutoElasticNet",
