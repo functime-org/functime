@@ -152,32 +152,48 @@ def test_forecaster_with_kwargs(test_dataset):
     y, freq = test_dataset
     alpha = 0.001
     model = Lasso(freq=freq, lags=3, alpha=alpha, fit_intercept=False).fit(y=y)
-    regressor = model.state.artifacts["regressor"]
-    params = regressor.get_params()
-    assert params["alpha"] == alpha
-    assert params["fit_intercept"] is False
+    regressor_params = model.get_regressor_params()
+    assert regressor_params["alpha"] == alpha
+    assert regressor_params["fit_intercept"] is False
 
 
 def test_auto_forecaster_with_kwargs(test_dataset):
     y, freq = test_dataset
     max_iter = 50
     model = AutoLasso(freq=freq, max_iter=max_iter).fit(y)
-    regressor = model.states.artifacts["regressor"]
-    params = regressor.get_params()
-    assert params["max_iter"] == max_iter
+    regressor_params = model.get_regressor_params()
+    assert regressor_params["max_iter"] == max_iter
 
 
 @pytest.mark.parameterize("strategy", ["recursive", "direct", "ensemble"])
 def test_forecaster_strategies(strategy, test_dataset):
     y, freq = test_dataset
-    model = Lasso(freq=freq, lags=3, strategy=strategy).fit(y=y)
-    artifacts = model.state.artifacts
+    max_horizons = 3
+    model = Lasso(freq=freq, lags=3, strategy=strategy, max_horizons=max_horizons).fit(
+        y=y
+    )
+    params = model.get_regressor_params()
+    expected_params = {
+        "alpha": 1.0,
+        "copy_X": True,
+        "fit_intercept": True,
+        "max_iter": 1000,
+        "positive": False,
+        "precompute": False,
+        "random_state": None,
+        "selection": "cyclic",
+        "tol": 0.0001,
+        "warm_start": False,
+    }
     if strategy == "recursive":
-        assert "regressor" in artifacts
+        assert params == expected_params
     elif strategy == "direct":
-        assert "regressors" in artifacts
+        assert params == [expected_params] * max_horizons
     else:
-        assert "recursive" in artifacts and "direct" in artifacts
+        assert params == {
+            "recursive": expected_params,
+            "direct": [expected_params] * max_horizons,
+        }
 
 
 @pytest.fixture(params=["recursive", "direct", "ensemble"])
