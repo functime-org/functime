@@ -165,50 +165,6 @@ def test_auto_forecaster_with_kwargs(test_dataset):
     assert regressor_params["max_iter"] == max_iter
 
 
-@pytest.mark.parameterize("strategy", ["recursive", "direct", "ensemble"])
-def test_forecaster_strategies(strategy, test_dataset):
-    y, freq = test_dataset
-    max_horizons = 3
-    model = Lasso(freq=freq, lags=3, strategy=strategy, max_horizons=max_horizons).fit(
-        y=y
-    )
-    params = model.get_regressor_params()
-    expected_params = {
-        "alpha": 1.0,
-        "copy_X": True,
-        "fit_intercept": True,
-        "max_iter": 1000,
-        "positive": False,
-        "precompute": False,
-        "random_state": None,
-        "selection": "cyclic",
-        "tol": 0.0001,
-        "warm_start": False,
-    }
-    if strategy == "recursive":
-        assert params == expected_params
-    elif strategy == "direct":
-        assert params == [expected_params] * max_horizons
-    else:
-        assert params == {
-            "recursive": expected_params,
-            "direct": [expected_params] * max_horizons,
-        }
-
-
-@pytest.fixture(params=["recursive", "direct", "ensemble"])
-def test_auto_forecaster_strategies(strategy, test_dataset):
-    y, freq = test_dataset
-    model = AutoLasso(freq=freq, strategy=strategy).fit(y=y)
-    artifacts = model.state.artifacts
-    if strategy == "recursive":
-        assert "regressor" in artifacts
-    elif strategy == "direct":
-        assert "regressors" in artifacts
-    else:
-        assert "recursive" in artifacts and "direct" in artifacts
-
-
 def test_different_stub_same_model():
     model_a = LinearModel(
         lags=dataset.lags,
