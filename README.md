@@ -22,15 +22,15 @@ Book a [15 minute discovery call](https://calendly.com/functime-indexhub) to lea
 
 ## Highlights
 - **Fast:** Forecast 100,000 time series in seconds *on your laptop*
-- **Efficient:** Embarrassingly parallel feature engineering for time-series using [`Polars`](https://www.pola.rs/)
-- **Battle-tested:** Automated machine learning algorithms that deliver real business impact and win competitions
-- Every forecaster supports **exogenous features**
+- **Efficient:** Embarrassingly parallel [feature engineering](https://docs.functime.ai/ref/preprocessing/) for time-series using [`Polars`](https://www.pola.rs/)
+- **Battle-tested:** Machine learning algorithms that deliver real business impact and win competitions
+- **Exogenous features:** supported by every forecaster
 - **Backtesting** with expanding window and sliding window splitters
-- Automated lags and **hyperparameter tuning** using [`FLAML`](https://github.com/microsoft/FLAML)
+- **AutoML**: Automated lags and hyperparameter tuning using [`FLAML`](https://github.com/microsoft/FLAML)
 - Utilities to add calendar effects, special events (e.g. holidays), weather patterns, and economic trends
 - Supports recursive, direct, and ensemble forecast strategies
 
-View detailed [list of features](https://docs.functime.ai/features/) including forecasters, preprocessors, feature extractors, and time-series splitters.
+**Note:** ALl preprocessors, time-series splitters, and forecasting metrics are implemented with [`Polars`](https://www.pola.rs/) and open-sourced under the Apache-2.0 license.
 
 ## Getting Started
 1. First, install `functime` via the [pip](https://pypi.org/project/functime) package manager.
