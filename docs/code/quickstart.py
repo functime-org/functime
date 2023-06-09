@@ -39,14 +39,13 @@ forecaster.fit(y=y_train)
 y_pred = forecaster.predict(fh=test_size)
 # Score
 scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
-# Retrieve "artifacts"
-artifacts = forecaster.state.artifacts
-
 print("✅ Predictions (univariate):\n", y_pred.sort(entity_col))
 print("💯 Scores (univariate):\n", scores)
-print(
-    f"✨ Best parameters (univariate):\n{json.dumps(artifacts['best_params'], indent=4)}"
-)
+
+# Retrieve "artifacts"
+artifacts = forecaster.state.artifacts
+best_params = artifacts["best_params"]
+print(f"✨ Best parameters (y only):\n{json.dumps(artifacts['best_params'], indent=4)}")
 
 
 # With exogenous features
@@ -58,14 +57,14 @@ forecaster.fit(y=y_train)
 y_pred = forecaster.predict(fh=test_size)
 # Score
 scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
+
+print("✅ Predictions (with X):\n", y_pred.sort(entity_col))
+print("💯 Scores (with X):\n", scores)
+
 # Retrieve "artifacts"
 artifacts = forecaster.state.artifacts
-
-print("✅ Predictions (with exogenous variables):\n", y_pred.sort(entity_col))
-print("💯 Scores (with exogenous variables):\n", scores)
-print(
-    f"✨ Best parameters (with exogenous variables):\n{json.dumps(artifacts['best_params'], indent=4)}"
-)
+best_params = artifacts["best_params"]
+print(f"✨ Best parameters (with X):\n{json.dumps(best_params, indent=4)}")
 
 elapsed_time = default_timer() - start_time
 print(f"⏱️ Elapsed time: {elapsed_time}")
