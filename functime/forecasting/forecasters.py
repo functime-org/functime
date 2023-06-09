@@ -8,8 +8,8 @@ FORECAST_STRATEGIES = Optional[Literal["direct", "recursive", "ensemble"]]
 class BaseForecaster(ForecasterClient):
     def __init__(
         self,
-        lags: int,
         freq: Union[str, None],
+        lags: int,
         max_horizons: Optional[int] = None,
         strategy: FORECAST_STRATEGIES = None,
         **kwargs,
