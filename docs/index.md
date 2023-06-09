@@ -304,7 +304,7 @@ forecaster = AutoLightGBM(
 forecaster.fit(y=y_train)
 
 # Get best lags and model hyperparameters
-best_params = forecast.state.artifacts["best_params"]
+best_params = forecast.best_params
 ```
 
 !!! tip "Sane Hyperparameter Defaults"
