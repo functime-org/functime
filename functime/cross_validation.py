@@ -62,11 +62,13 @@ def train_test_split(test_size: int):
     def split(X: pl.LazyFrame) -> pl.LazyFrame:
         X = X.lazy()  # Defensive
         train_split = (
-            X.groupby(X.columns[0]).agg(pl.all().slice(0, pl.count() - test_size))
+            X.groupby(X.columns[0])
+            .agg(pl.all().slice(0, pl.count() - test_size))
             .explode(pl.all().exclude(X.columns[0]))
         )
         test_split = (
-            X.groupby(X.columns[0]).agg(pl.all().slice(-1 * test_size, test_size))
+            X.groupby(X.columns[0])
+            .agg(pl.all().slice(-1 * test_size, test_size))
             .explode(pl.all().exclude(X.columns[0]))
         )
         return train_split, test_split

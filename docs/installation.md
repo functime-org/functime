@@ -10,4 +10,3 @@ Then login with the command `functime login`, which triggers an interactive logi
 
 `functime`'s free tier comes with 2GiB of data uploads, 10 deployed forecasters, and up to 1 million predictions.
 Need an upgrade? Book a 15 minute discovery call on [Calendly](https://calendly.com/functime-indexhub).
-

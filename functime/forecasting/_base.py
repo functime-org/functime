@@ -5,8 +5,8 @@ import pandas as pd
 import polars as pl
 import pyarrow as pa
 
-from functime.io.client import FunctimeH2Client
 from functime.io._serialize import deserialize_bytes, serialize_bytes
+from functime.io.client import FunctimeH2Client
 
 FORECAST_STRATEGIES = Optional[Literal["direct", "recursive", "naive"]]
 DF_TYPE = Union[pl.LazyFrame, pl.DataFrame, pa.Table, pd.DataFrame]
