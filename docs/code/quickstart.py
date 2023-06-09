@@ -32,7 +32,7 @@ X_train, X_test = train_test_split(test_size)(X)
 # Univariate time-series fit with automated lags
 # and hyperparameter tuning
 forecaster = AutoLightGBM(
-    freq=freq, test_size=test_size, min_lags=3, max_lags=6, n_splits=3, time_budget=10
+    freq=freq, test_size=test_size, min_lags=20, max_lags=24, n_splits=3, time_budget=10
 )
 forecaster.fit(y=y_train)
 # Predict
@@ -50,7 +50,7 @@ print(f"✨ Best parameters (y only):\n{json.dumps(artifacts['best_params'], ind
 
 # With exogenous features
 forecaster = AutoLightGBM(
-    test_size=test_size, freq=freq, min_lags=3, max_lags=6, n_splits=3, time_budget=10
+    test_size=test_size, freq=freq, min_lags=20, max_lags=24, n_splits=3, time_budget=10
 )
 forecaster.fit(y=y_train)
 # Predict

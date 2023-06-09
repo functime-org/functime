@@ -70,7 +70,7 @@ from functime.forecasting import LinearModel
 from functime.metrics import mase
 
 # Fit
-forecaster = LinearModel(lags=12, freq="1mo")
+forecaster = LinearModel(lags=24, freq="1mo")
 forecaster.fit(y=y_train)
 
 # Predict
@@ -110,7 +110,7 @@ scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
     ```python
     from functime.forecasting import LinearModel
 
-    y_pred = LinearModel(lags=12, freq="1mo")(
+    y_pred = LinearModel(lags=24, freq="1mo")(
         y=y_train,
         fh=28,
         X=X_train,
@@ -157,7 +157,7 @@ from functime.forecasting import LinearModel
 from functime.metrics import mase
 
 # Fit
-forecaster = LinearModel(lags=12, freq="1mo")
+forecaster = LinearModel(lags=24, freq="1mo")
 forecaster.fit(y=y_train)
 
 # Predict
@@ -206,7 +206,7 @@ Every `forecaster` supports exogenous regressors.
 ```python
 from functime.forecasting import LinearModel
 
-forecaster = LinearModel(lags=12, fit_intercept=False, freq="1mo")
+forecaster = LinearModel(lags=24, fit_intercept=False, freq="1mo")
 forecaster.fit(y=y_train, X=X_train)
 y_pred = forecaster.predict(fh=3, X=X_test)
 ```
@@ -246,12 +246,12 @@ The best model is the model with the lowest average RMSE (root mean squared erro
 from functime.forecasting import AutoLinearModel
 
 # Fit then predict
-forecaster = AutoLinearModel(min_lags=3, max_lags=6, freq="1mo")
+forecaster = AutoLinearModel(min_lags=20, max_lags=24, freq="1mo")
 forecaster.fit(y=y_train, X=X_train)
 y_pred = forecaster.predict(fh=3, X=X_test)
 
 # Fit and predict
-y_pred = AutoLinearModel(min_lags=3, max_lags=6, freq="1mo")(
+y_pred = AutoLinearModel(min_lags=20, max_lags=24, freq="1mo")(
     y=y_train,
     X=X_train,
     X_future=X_test,
@@ -295,8 +295,8 @@ time_budget = 420
 # Fit model
 forecaster = AutoLightGBM(
     freq="1mo',
-    min_lags=3,
-    max_lags=6,
+    min_lags=20,
+    max_lags=24,
     time_budget=time_budget,
     search_space=search_space,
     points_to_evaluate=points_to_evaluate
