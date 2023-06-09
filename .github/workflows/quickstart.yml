@@ -26,7 +26,7 @@ jobs:
         python3 -m pip install --upgrade pip
         pip install .
     - name: Authenticate to functime Cloud
-      run: functime token set --token-id $TOKEN_ID --token-secret $TOKEN_SECRET
+      run: functime token set --token-id $TOKEN_ID --token-secret $TOKEN_SECRET  --no-verify
       env:
         TOKEN_ID: ${{ secrets.FUNCTIME__PROD__TOKEN_ID }}
         TOKEN_SECRET: ${{ secrets.FUNCTIME__PROD__TOKEN_SECRET }}
@@ -49,7 +49,7 @@ jobs:
         python3 -m pip install --upgrade pip
         pip install .
     - name: Authenticate to functime Cloud
-      run: functime token set --token-id $TOKEN_ID --token-secret $TOKEN_SECRET
+      run: functime token set --token-id $TOKEN_ID --token-secret $TOKEN_SECRET  --no-verify
       env:
         TOKEN_ID: ${{ secrets.FUNCTIME__STAGING__TOKEN_ID }}
         TOKEN_SECRET: ${{ secrets.FUNCTIME__STAGING__TOKEN_SECRET }}
