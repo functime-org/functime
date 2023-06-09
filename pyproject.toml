@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "functime"
 version = "0.1.5"
-description = "The easiest way to run and deploy time-series ML (forecasting and classification) in the Cloud."
+description = "The easiest way to run and scale time-series machine learning in the Cloud."
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [
