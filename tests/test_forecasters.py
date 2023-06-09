@@ -4,11 +4,17 @@ from typing import Optional
 
 import polars as pl
 import pytest
+from fastapi import HTTPException
 from joblib import Parallel, delayed
+from polars.testing import assert_frame_equal
 
-from functime.forecasting import LinearModel
+from functime.forecasting import AutoLasso, AutoLinearModel, Lasso, LinearModel
+from functime.metrics import smape
 
-STRATEGIES = ["recursive", "direct", "ensemble"]
+
+@pytest.fixture(params=["recursive", "direct", "ensemble"])
+def strategy(request):
+    return request.param
 
 
 @pytest.fixture(autouse=True)
@@ -17,9 +23,17 @@ def delete_deployed_models():
     subprocess.call("functime deploy remove --all")
 
 
+@pytest.fixture
+def test_dataset():
+    y = pl.read_parquet("data/tourism.parquet")
+    freq = "1mo"
+    return y, freq
+
+
 @dataclass
 class DatasetPath:
     y: str
+    y_test: pl.DataFrame
     X: Optional[str] = None
     X_future: Optional[str] = None
 
@@ -36,6 +50,7 @@ class ForecastParams:
 @dataclass
 class Dataset:
     y: pl.DataFrame
+    y_test: pl.DataFrame
     params: ForecastParams
     X: Optional[pl.DataFrame] = None
     X_future: Optional[pl.DataFrame] = None
@@ -44,44 +59,50 @@ class Dataset:
 @pytest.fixture(
     params=[
         (
-            "commodities",
-            "data/commodities.parquet",
-        ),
-        (
             "m4_1d",
-            DatasetPath("data/m4_1d_train.parquet"),
+            DatasetPath("data/m4_1d_train.parquet", "data/m4_1d_test.parquet"),
             ForecastParams(lags=30, min_lags=24, max_lags=30, fh=30),
         ),
         (
             "m4_1h",
-            DatasetPath("data/m4_1h_train.parquet"),
+            DatasetPath("data/m4_1h_train.parquet", "data/m4_1h_test.parquet"),
             ForecastParams(lags=24, min_lags=20, max_lags=24, fh=24),
         ),
         (
             "m4_1mo",
-            DatasetPath("data/m4_1mo_train.parquet"),
+            DatasetPath("data/m4_1mo_train.parquet", "data/m4_1mo_test.parquet"),
             ForecastParams(lags=12, min_lags=8, max_lags=12, fh=12),
         ),
         (
             "m4_1w",
-            DatasetPath("data/m4_1w_train.parquet"),
+            DatasetPath("data/m4_1w_train.parquet", "data/m4_1w_test.parquet"),
             ForecastParams(lags=6, min_lags=4, max_lags=6, fh=6),
         ),
         (
             "m4_3mo",
-            DatasetPath("data/m4_3mo_train.parquet"),
+            DatasetPath("data/m4_3mo_train.parquet", "data/m4_3mo_test.parquet"),
             ForecastParams(lags=4, min_lags=2, max_lags=4, fh=4),
         ),
         (
             "m5_sample",
             DatasetPath(
                 "data/m5_y_train_sample.parquet",
+                "data/m5_y_test_sample.parquet",
                 "data/m5_X_train_sample.parquet",
                 "data/m5_X_test_sample.parquet",
             ),
-            ForecastParams(lags=4, min_lags=2, max_lags=4, fh=4),
+            ForecastParams(lags=28, min_lags=24, max_lags=28, fh=28),
         ),
-        # ("m5_full", dict(y="data/m5_y_train.parquet", X="data/m5_X_train.parquet"), dict(lags=4, min_lags=2, max_lags=4, fh=4)),
+        # (
+        #     "m5_full",
+        #     DatasetPath(
+        #         "data/m5_y_train.parquet",
+        #         "data/m5_y_test.parquet",
+        #         "data/m5_X_train.parquet",
+        #         "data/m5_X_test.parquet",
+        #     ),
+        #     ForecastParams(lags=28, min_lags=24, max_lags=28, fh=28),
+        # ),
     ],
     ids=lambda params: params[0],
 )
@@ -94,26 +115,82 @@ def dataset(request):
     return dataset
 
 
-def test_fit_predict(dataset):
-    pass
+@pytest.fixture(
+    params=[
+        ("linear", lambda dataset: LinearModel(lags=dataset.lags, freq=dataset.freq)),
+        (
+            "auto_linear",
+            lambda dataset: AutoLinearModel(
+                freq=dataset.freq, min_lags=dataset.min_lags, max_lags=dataset.max_lags
+            ),
+        ),
+    ],
+    ids=lambda params: params[0],
+)
+def forecaster(request):
+    return request.param[1]
+
+
+def test_fit_predict(dataset, forecaster):
+    model = forecaster(dataset)
+    y_pred = model.fit_predict(
+        y=dataset.y, X=dataset.X, X_future=dataset.X_future, fh=dataset.fh
+    )
+    score = smape(y_pred=y_pred, y_true=dataset.y_test)
+    assert score < 0.4
 
 
 def test_fit_then_predict(dataset):
-    pass
+    model = forecaster(dataset)
+    model.fit(y=dataset.y, X=dataset.X)
+    y_pred = model.predict(fh=dataset.fh, X=dataset.X_future)
+    score = smape(y_pred=y_pred, y_true=dataset.y_test)
+    assert score < 0.4
 
 
-def test_fit_predict_with_kwargs(dataset):
-    pass
+def test_forecaster_with_kwargs(test_dataset):
+    y, freq = test_dataset
+    alpha = 0.001
+    model = Lasso(freq=freq, lags=3, alpha=alpha, fit_intercept=False).fit(y=y)
+    regressor = model.artifacts["regressor"]
+    params = regressor.get_params()
+    assert params["alpha"] == alpha
+    assert params["fit_intercept"] is False
 
 
-@pytest.mark.parametrize("strategy", STRATEGIES)
-def test_strategies():
-    pass
+def test_auto_forecaster_with_kwargs(test_dataset):
+    y, freq = test_dataset
+    max_iter = 50
+    model = AutoLasso(freq=freq, max_iter=max_iter).fit(y)
+    regressor = model.artifacts["regressor"]
+    params = regressor.get_params()
+    assert params["max_iter"] == max_iter
 
 
-@pytest.mark.parametrize("strategy", STRATEGIES)
-def test_auto_strategies():
-    pass
+@pytest.mark.parameterize("strategy", ["recursive", "direct", "ensemble"])
+def test_forecaster_strategies(strategy, test_dataset):
+    y, freq = test_dataset
+    model = Lasso(freq=freq, lags=3, strategy=strategy).fit(y=y)
+    artifacts = model.artifacts
+    if strategy == "recursive":
+        assert "regressor" in artifacts
+    elif strategy == "direct":
+        assert "regressors" in artifacts
+    else:
+        assert "recursive" in artifacts and "direct" in artifacts
+
+
+@pytest.fixture(params=["recursive", "direct", "ensemble"])
+def test_auto_forecaster_strategies(strategy, test_dataset):
+    y, freq = test_dataset
+    model = AutoLasso(freq=freq, strategy=strategy).fit(y=y)
+    artifacts = model.artifacts
+    if strategy == "recursive":
+        assert "regressor" in artifacts
+    elif strategy == "direct":
+        assert "regressors" in artifacts
+    else:
+        assert "recursive" in artifacts and "direct" in artifacts
 
 
 def test_different_stub_same_model():
@@ -130,13 +207,31 @@ def test_different_stub_same_model():
     assert model_a.stub_id != model_b.stub_id
 
 
-def test_from_deployment():
+def test_from_deployment(test_dataset):
     """Identical predictions for in-memory and from deployed forecasters."""
-    forecaster = LinearModel(
-        lags=dataset.lags,
-        freq=dataset.freq,
+    y, freq = test_dataset
+    model = LinearModel(
+        freq=freq,
+        lags=3,
     )
-    forecaster.fit(y=dataset.y, X=dataset.X)
+    model.fit(y=y)
+    stub_id = model.stub_id
+    # From deployed
+    fitted_model = LinearModel.from_deployed(stub_id=stub_id)
+    assert_frame_equal(model.predict(fh=3), fitted_model.predict(fh=3))
+
+
+def test_different_model_from_deployed(test_dataset):
+    """Raises HTTPException with status code 400"""
+    y, freq = test_dataset
+    forecaster = LinearModel(
+        freq=freq,
+        lags=3,
+    )
+    forecaster.fit(y=y)
+    stub_id = forecaster.stub_id
+    with pytest.raises(HTTPException):
+        Lasso.from_deployed(stub_id=stub_id)
 
 
 @pytest.mark.parametrize("n_iter", [2, 4, 16])
@@ -153,10 +248,27 @@ def test_parallel_inference(n_iter, fitted_forecaster):
     )
 
 
-def test_different_model_from_deployed():
-    """Raises HTTPException with status code 400"""
+def test_fit_deploys_model():
+    """Check estimator gets deployed in modal and redis"""
     pass
 
 
-def test_usage_limits():
+def test_fit_updates_mb_usage():
+    """Check that fit updates usage by the correct mb amount
+    The total mb amount should be the sum of bytes of y + X + X_future
+    """
+    pass
+
+
+def test_predict_updates_forecasts_usage():
+    """Check that predict updates the forecast usage by the number of entities in y"""
+
+
+def test_maxed_out_data_usage():
+    """Raises HTTPException: Payment required"""
+    pass
+
+
+def test_maxed_out_prediction_usage():
+    """Raises HTTPException: Payment required"""
     pass
