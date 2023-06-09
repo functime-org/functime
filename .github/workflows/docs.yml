@@ -5,7 +5,8 @@ on:
 permissions:
   contents: write
 jobs:
-  deploy:
+  docs:
+    name: Publish Docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
