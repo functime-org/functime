@@ -9,6 +9,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![GitHub Publish to PyPI](https://github.com/indexhub-ai/functime/actions/workflows/publish.yml/badge.svg)](https://github.com/indexhub-ai/functime/actions/workflows/publish.yml)
 [![GitHub Build Docs](https://github.com/indexhub-ai/functime/actions/workflows/docs.yml/badge.svg)](https://github.com/indexhub-ai/functime/actions/workflows/docs.yml)
+[![GitHub Run Quickstart](https://github.com/indexhub-ai/functime/actions/workflows/quickstart.yml/badge.svg)](https://github.com/indexhub-ai/functime/actions/workflows/quickstart.yml)
 
 </div>
 
