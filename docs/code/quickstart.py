@@ -29,14 +29,10 @@ freq = "1mo"
 y_train, y_test = train_test_split(test_size)(y)
 X_train, X_test = train_test_split(test_size)(X)
 
-# Univariate time-series fit
+# Univariate time-series fit with automated lags
+# and hyperparameter tuning
 forecaster = AutoLightGBM(
-    test_size=test_size,
-    freq=freq,
-    min_lags=3,
-    max_lags=6,
-    n_splits=3,
-    time_budget=10
+    test_size=test_size, freq=freq, min_lags=3, max_lags=6, n_splits=3, time_budget=10
 )
 forecaster.fit(y=y_train)
 # Predict
@@ -48,17 +44,14 @@ artifacts = forecaster.state.artifacts
 
 print("✅ Predictions (univariate):\n", y_pred.sort(entity_col))
 print("💯 Scores (univariate):\n", scores)
-print(f"✨ Best parameters (univariate):\n{json.dumps(artifacts['best_params'], indent=4)}")
+print(
+    f"✨ Best parameters (univariate):\n{json.dumps(artifacts['best_params'], indent=4)}"
+)
 
 
 # With exogenous features
 forecaster = AutoLightGBM(
-    test_size=test_size,
-    freq=freq,
-    min_lags=3,
-    max_lags=6,
-    n_splits=3,
-    time_budget=10
+    test_size=test_size, freq=freq, min_lags=3, max_lags=6, n_splits=3, time_budget=10
 )
 forecaster.fit(y=y_train)
 # Predict
@@ -70,7 +63,14 @@ artifacts = forecaster.state.artifacts
 
 print("✅ Predictions (with exogenous variables):\n", y_pred.sort(entity_col))
 print("💯 Scores (with exogenous variables):\n", scores)
-print(f"✨ Best parameters (with exogenous variables):\n{json.dumps(artifacts['best_params'], indent=4)}")
+print(
+    f"✨ Best parameters (with exogenous variables):\n{json.dumps(artifacts['best_params'], indent=4)}"
+)
 
 elapsed_time = default_timer() - start_time
 print(f"⏱️ Elapsed time: {elapsed_time}")
+
+
+# Load fitted forecaster from deployment
+fitted_forecaster = AutoLightGBM.from_deployed(stub_id=forecaster.stub_id)
+y_pred = fitted_forecaster.predict(fh=test_size, freq=freq)
