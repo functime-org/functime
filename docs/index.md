@@ -358,7 +358,7 @@ View reference for [`sliding_window_split`](https://docs.functime.ai/ref/cross-v
             step_size=1,
             n_splits=3
         )
-    
+
         # Forecasts at 10th and 90th percentile
         y_pred_quantiles = conformalize(y_pred, y_resids, alphas=[0.1, 0.9])
         ```
