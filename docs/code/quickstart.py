@@ -32,11 +32,11 @@ X_train, X_test = train_test_split(test_size)(X)
 # Univariate time-series fit with automated lags
 # and hyperparameter tuning
 forecaster = AutoLightGBM(
-    test_size=test_size, freq=freq, min_lags=3, max_lags=6, n_splits=3, time_budget=10
+    freq=freq, test_size=test_size, min_lags=3, max_lags=6, n_splits=3, time_budget=10
 )
 forecaster.fit(y=y_train)
 # Predict
-y_pred = forecaster.predict(fh=test_size, freq=freq)
+y_pred = forecaster.predict(fh=test_size)
 # Score
 scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 # Retrieve "artifacts"
@@ -55,7 +55,7 @@ forecaster = AutoLightGBM(
 )
 forecaster.fit(y=y_train)
 # Predict
-y_pred = forecaster.predict(fh=test_size, freq=freq)
+y_pred = forecaster.predict(fh=test_size)
 # Score
 scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 # Retrieve "artifacts"
@@ -73,4 +73,4 @@ print(f"⏱️ Elapsed time: {elapsed_time}")
 
 # Load fitted forecaster from deployment
 fitted_forecaster = AutoLightGBM.from_deployed(stub_id=forecaster.stub_id)
-y_pred = fitted_forecaster.predict(fh=test_size, freq=freq)
+y_pred = fitted_forecaster.predict(fh=test_size)
