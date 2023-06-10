@@ -81,6 +81,7 @@ class ForecasterClient:
         )
         response_json = response.json()
         self._stub_id = response_json["estimator_id"]
+        self._extra_params = response_json["extra_params"]
         return self
 
     def predict(self, fh: int, X: Optional[DF_TYPE] = None) -> pl.DataFrame:
