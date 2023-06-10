@@ -62,13 +62,16 @@ scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 print("✅ Predictions (with X):\n", y_pred.sort(entity_col))
 print("💯 Scores (with X):\n", scores)
 
-# Direct strategy forecasting
-forecaster = LightGBM(**best_params, max_horizons=test_size, strategy="direct")
-y_pred = forecaster.predict(fh=test_size)
+# "Direct" strategy forecasting
+best_params["max_horizons"] = test_size  # Override max_horizons
+best_params["strategy"] = "direct"  # Override strategy
+# Predict using the "functional" API
+y_pred = LightGBM(**best_params)(y=y_train, fh=test_size)
 
-# Ensemble strategy forecasting
-forecaster = LightGBM(**best_params, max_horizons=test_size, strategy="ensemble")
-y_pred = forecaster.predict(fh=test_size)
+# "Ensemble" strategy forecasting
+best_params["strategy"] = "ensemble"  # Override strategy
+# Predict using the "functional" API
+y_pred = LightGBM(**best_params)(y=y_train, fh=test_size)
 
 # Load fitted forecaster from deployment
 fitted_forecaster = AutoLightGBM.from_deployed(stub_id=forecaster.stub_id)
