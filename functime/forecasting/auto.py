@@ -38,6 +38,12 @@ class BaseAutoForecaster(ForecasterClient):
             **kwargs,
         )
 
+    @property
+    def best_params(self):
+        if not self.is_fitted:
+            return None
+        return self._extra_params.get("best_params")
+
 
 class AutoElasticNet(BaseAutoForecaster):
     """ElasticNet forecaster with automated hyperparameter tuning.
@@ -45,7 +51,7 @@ class AutoElasticNet(BaseAutoForecaster):
     Parameters
     ----------
     freq : str
-        Offset alias.
+        Offset alias as dictated.
     min_lags : int
         Minimum number of lagged target values.
     max_lags : int
@@ -57,7 +63,7 @@ class AutoElasticNet(BaseAutoForecaster):
         Forecasting strategy. Currently supports "recursive", "direct",
         and "ensemble" of both recursive and direct strategies.
     test_size : int
-        Forecast horizon per backtest window.
+        Number of lags.
     step_size : int
         Step size between backtest windows.
     n_splits : int
@@ -81,7 +87,7 @@ class AutoKNN(BaseAutoForecaster):
     Parameters
     ----------
     freq : str
-        Offset alias.
+        Offset alias as dictated.
     min_lags : int
         Minimum number of lagged target values.
     max_lags : int
@@ -93,7 +99,7 @@ class AutoKNN(BaseAutoForecaster):
         Forecasting strategy. Currently supports "recursive", "direct",
         and "ensemble" of both recursive and direct strategies.
     test_size : int
-        Forecast horizon per backtest window.
+        Number of lags.
     step_size : int
         Step size between backtest windows.
     n_splits : int
@@ -117,7 +123,7 @@ class AutoLasso(BaseAutoForecaster):
     Parameters
     ----------
     freq : str
-        Offset alias.
+        Offset alias as dictated.
     min_lags : int
         Minimum number of lagged target values.
     max_lags : int
@@ -129,7 +135,7 @@ class AutoLasso(BaseAutoForecaster):
         Forecasting strategy. Currently supports "recursive", "direct",
         and "ensemble" of both recursive and direct strategies.
     test_size : int
-        Forecast horizon per backtest window.
+        Number of lags.
     step_size : int
         Step size between backtest windows.
     n_splits : int
@@ -153,7 +159,7 @@ class AutoLightGBM(BaseAutoForecaster):
     Parameters
     ----------
     freq : str
-        Offset alias.
+        Offset alias as dictated.
     min_lags : int
         Minimum number of lagged target values.
     max_lags : int
@@ -165,7 +171,7 @@ class AutoLightGBM(BaseAutoForecaster):
         Forecasting strategy. Currently supports "recursive", "direct",
         and "ensemble" of both recursive and direct strategies.
     test_size : int
-        Forecast horizon per backtest window.
+        Number of lags.
     step_size : int
         Step size between backtest windows.
     n_splits : int
@@ -189,7 +195,7 @@ class AutoLinearModel(BaseAutoForecaster):
     Parameters
     ----------
     freq : str
-        Offset alias.
+        Offset alias as dictated.
     min_lags : int
         Minimum number of lagged target values.
     max_lags : int
@@ -201,7 +207,7 @@ class AutoLinearModel(BaseAutoForecaster):
         Forecasting strategy. Currently supports "recursive", "direct",
         and "ensemble" of both recursive and direct strategies.
     test_size : int
-        Forecast horizon per backtest window.
+        Number of lags.
     step_size : int
         Step size between backtest windows.
     n_splits : int
@@ -225,7 +231,7 @@ class AutoRidge(BaseAutoForecaster):
     Parameters
     ----------
     freq : str
-        Offset alias.
+        Offset alias as dictated.
     min_lags : int
         Minimum number of lagged target values.
     max_lags : int
@@ -237,7 +243,7 @@ class AutoRidge(BaseAutoForecaster):
         Forecasting strategy. Currently supports "recursive", "direct",
         and "ensemble" of both recursive and direct strategies.
     test_size : int
-        Forecast horizon per backtest window.
+        Number of lags.
     step_size : int
         Step size between backtest windows.
     n_splits : int
