@@ -104,7 +104,7 @@ To view data and forecasts usage, run the `functime usage` CLI command.
 
 You can reuse a deployed model for predictions anywhere using the `stub_id` variable.
 ```python
-forecaster = LinearModel.from_deployment(stub_id)
+forecaster = LinearModel.from_deployed(stub_id)
 y_pred = forecaster.predict(fh=3)
 ```
 
