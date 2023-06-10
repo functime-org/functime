@@ -9,7 +9,7 @@ from functime.cli.usage import usage_cli
 
 def version_callback(value: bool):
     if value:
-        __version__ = "0.1.5"
+        __version__ = "0.1.6"
 
         typer.echo(f"functime version: {__version__}")
         raise typer.Exit()
