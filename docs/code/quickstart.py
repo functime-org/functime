@@ -31,7 +31,7 @@ X_train, X_test = train_test_split(test_size)(X)
 
 # Univariate AutoML time-series fit with automated lags
 # and hyperparameter tuning
-forecaster = AutoLightGBM(
+auto_forecaster = AutoLightGBM(
     freq=freq,
     test_size=test_size,
     min_lags=20,
@@ -39,16 +39,16 @@ forecaster = AutoLightGBM(
     n_splits=3,
     time_budget=10,
 )
-forecaster.fit(y=y_train)
+auto_forecaster.fit(y=y_train)
 # Predict
-y_pred = forecaster.predict(fh=test_size)
+y_pred = auto_forecaster.predict(fh=test_size)
 # Score
 scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 print("✅ Predictions (univariate):\n", y_pred.sort(entity_col))
 print("💯 Scores (univariate):\n", scores)
 
 # Retrieve AutoML "artifacts"
-best_params = forecaster.best_params
+best_params = auto_forecaster.best_params
 print(f"✨ Best parameters (y only):\n{json.dumps(best_params, indent=4)}")
 
 # Multivariate non-AutoML
@@ -74,7 +74,7 @@ best_params["strategy"] = "ensemble"  # Override strategy
 y_pred = LightGBM(**best_params)(y=y_train, fh=test_size)
 
 # Load fitted forecaster from deployment
-fitted_forecaster = AutoLightGBM.from_deployed(stub_id=forecaster.stub_id)
+fitted_forecaster = AutoLightGBM.from_deployed(stub_id=auto_forecaster.stub_id)
 y_pred = fitted_forecaster.predict(fh=test_size)
 
 elapsed_time = default_timer() - start_time
