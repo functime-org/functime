@@ -11,8 +11,5 @@ The following files, directories and their subdirectories are licensed under Apa
 ```
 functime/metrics
 funtime/cross_validation.py
-funtime/offsets.py
 funtime/preprocessing.py
-funtime/ranges.py
-funtime/stats.py
 ```
