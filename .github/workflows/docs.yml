@@ -11,5 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
-      - run: pip install mkdocs-material mkdocstrings-python
+      - run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install mkdocs-material mkdocstrings-python
       - run: mkdocs gh-deploy --force
