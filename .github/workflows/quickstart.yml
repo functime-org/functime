@@ -24,7 +24,7 @@ jobs:
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
-        pip install .
+        python3 -m pip install .
     - name: Authenticate to functime Cloud
       run: functime token set --token-id $TOKEN_ID --token-secret $TOKEN_SECRET  --no-verify
       env:
@@ -49,7 +49,7 @@ jobs:
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
-        pip install .
+        python3 -m pip install .
     - name: Authenticate to functime Cloud
       run: functime token set --token-id $TOKEN_ID --token-secret $TOKEN_SECRET  --no-verify
       env:
