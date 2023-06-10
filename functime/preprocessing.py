@@ -19,6 +19,10 @@ def PL_NUMERIC_COLS(*exclude):
     return pl.col(PL_NUMERIC_DTYPES).exclude(exclude)
 
 
+def cache_categoricals(X: pl.DataFrame):
+    return X.with_columns(pl.col(pl.Categorical).cast(pl.Utf8).cast(pl.Categorical))
+
+
 @transformer
 def resample(freq: str, agg_method: str, impute_method: Union[str, int, float]):
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
