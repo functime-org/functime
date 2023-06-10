@@ -6,6 +6,11 @@ name: Quickstart
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - 'functime/**'
+      - 'pyproject.toml'
+      - 'docs/code/quickstart.py'
+      - '.github/workflows/quickstart.yml'
   pull_request:
     branches: [ "main" ]
 
