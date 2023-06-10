@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Mapping, Union
 
 import polars as pl
 from scipy.stats import boxcox_normmax
@@ -19,8 +19,14 @@ def PL_NUMERIC_COLS(*exclude):
     return pl.col(PL_NUMERIC_DTYPES).exclude(exclude)
 
 
-def cache_categoricals(X: pl.DataFrame):
-    return X.with_columns(pl.col(pl.Categorical).cast(pl.Utf8).cast(pl.Categorical))
+@transformer
+def coerce_dtypes(schema: Mapping[str, pl.DataType]):
+    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+        X_new = X.cast({pl.col(col).cast(dtype) for col, dtype in schema.items()})
+        artifacts = {"X_new": X_new}
+        return artifacts
+
+    return transform
 
 
 @transformer
@@ -47,7 +53,8 @@ def resample(freq: str, agg_method: str, impute_method: Union[str, int, float]):
             # Defensive fill null with 0 for impute method `ffill`
             .fill_null(0)
         )
-        return X_new
+        artifacts = {"X_new": X_new}
+        return artifacts
 
     return transform
 
