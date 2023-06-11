@@ -15,6 +15,22 @@ def add_calendar_effects(
         Literal["minute", "hour", "day", "weekday", "week", "month", "quarter", "year"]
     ],
 ):
+    """Extract calendar effects from time column, returns calendar effects as categorical columns.
+
+    Parameters
+    ----------
+    attrs : list of str
+        List of calendar effects to be applied to the time column:\n
+        - "minute"
+        - "hour"
+        - "day"
+        - "weekday"
+        - "week"
+        - "month"
+        - "quarter"
+        - "year"
+    """
+
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         time_col = pl.col(X.columns[1])
         X_new = X.with_columns(
@@ -34,6 +50,17 @@ def add_calendar_effects(
 
 @transformer
 def add_holiday_effects(country_codes: List[str], freq: str):
+    """Extract holiday effects from time column for specified ISO-2 country codes and frequency.
+
+    Parameters
+    ----------
+    country_codes : List[str]
+        A list of ISO-2 country codes.
+    freq : str
+        Sampling frequency at which to group data.
+        Must be specified as an offset alias supported by Polars.
+    """
+
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         time_col = X.columns[1]
         dt_min_max = X.select(
