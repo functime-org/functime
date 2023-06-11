@@ -1,18 +1,5 @@
 from typing import List, Tuple, Union
 
-### Polars offset aliases:
-# 1ns (1 nanosecond)
-# 1us (1 microsecond)
-# 1ms (1 millisecond)
-# 1s (1 second)
-# 1m (1 minute)
-# 1h (1 hour)
-# 1d (1 day)
-# 1w (1 week)
-# 1mo (1 calendar month)
-# 1y (1 calendar year)
-# 1i (1 index count)
-
 OFFSET_ALIASES = {"s", "m", "h", "d", "w", "mo", "y", "i"}
 
 
@@ -35,7 +22,21 @@ def freq_to_sp(freq: str, include_dec: bool = False) -> Union[List[int], List[fl
     Parameters
     ----------
     freq : str
-        Offset alias.
+        Offset alias supported by Polars.
+
+        The offset is dictated by the following string language:\n
+        - 1ns (1 nanosecond)
+        - 1us (1 microsecond)
+        - 1ms (1 millisecond)
+        - 1s (1 second)
+        - 1m (1 minute)
+        - 1h (1 hour)
+        - 1d (1 day)
+        - 1w (1 week)
+        - 1mo (1 calendar month)
+        - 1q (1 calendar quarter)
+        - 1y (1 calendar year)
+        - 1i (1 index count)
     include_dec : bool
         If True, return floating point seasonal periods.
         Otherwise, all seasonal periods are rounded down
