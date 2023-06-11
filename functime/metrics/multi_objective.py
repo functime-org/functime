@@ -39,7 +39,6 @@ def summarize_scores(
     ----------
     scores : pl.DataFrame
         DataFrame of scores. N rows of entities by M columns of metrics.
-
     agg_method : str
         Method ("mean", "median") to aggregate scores across entities by.
 
@@ -62,7 +61,7 @@ def score_forecast(
 ) -> pl.DataFrame:
     """Return DataFrame of forecast metrics across entities.
 
-    Metrics returned:
+    Metrics returned:\n
     - MAE
     - MASE
     - MSE
@@ -72,17 +71,14 @@ def score_forecast(
     - SMAPE
     - Underforecast
 
-    Note: MAPE is excluded to avoid potential divide by zero errors.
-    We recommend looking at SMAPE instead.
+    Note: SMAPE is used instead of MAPE to avoid potential divide by zero errors.
 
     Parameters
     ----------
     y_true : pl.DataFrame
         Ground truth (correct) target values.
-
     y_pred : pl.DataFrame
         Predicted values.
-
     y_train : pl.DataFrame
         Observed training values.
 
@@ -116,7 +112,7 @@ def score_backtest(
 ) -> pl.DataFrame:
     """Return DataFrame of forecast metrics across entities.
 
-    Metrics returned:
+    Metrics returned:\n
     - MAE
     - MASE
     - MSE
@@ -133,12 +129,11 @@ def score_backtest(
     ----------
     y_true : pl.DataFrame
         Ground truth (correct) target values.
-
-    y_pred : pl.DataFrame
-        Predicted values.
-
-    y_train : pl.DataFrame
-        Observed training values.
+    y_preds : pl.DataFrame
+        Stacked predicted values across CV splits.
+        DataFrame contains four columns: entity, time, target, "split".
+    agg_method : str
+        Method ("mean", "median") to aggregate scores across entities by.
 
     Returns
     -------
