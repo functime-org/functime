@@ -25,7 +25,7 @@ class ElasticNet(BaseForecaster):
     Parameters
     ----------
     freq : str
-        Offset alias.
+        Offset alias supported by Polars.
     lags : int
         Number of lagged target variables.
     max_horizons: Optional[int]
@@ -45,7 +45,7 @@ class KNN(BaseForecaster):
     Parameters
     ----------
     freq : str
-        Offset alias.
+        Offset alias supported by Polars.
     lags : int
         Number of lagged target variables.
     max_horizons: Optional[int]
@@ -65,7 +65,7 @@ class Lasso(BaseForecaster):
     Parameters
     ----------
     freq : str
-        Offset alias.
+        Offset alias supported by Polars.
     lags : int
         Number of lagged target variables.
     max_horizons: Optional[int]
@@ -85,7 +85,7 @@ class LightGBM(BaseForecaster):
     Parameters
     ----------
     freq : str
-        Offset alias.
+        Offset alias supported by Polars.
     lags : int
         Number of lagged target variables.
     max_horizons: Optional[int]
@@ -105,7 +105,7 @@ class LinearModel(BaseForecaster):
     Parameters
     ----------
     freq : str
-        Offset alias.
+        Offset alias supported by Polars.
     lags : int
         Number of lagged target variables.
     max_horizons: Optional[int]
@@ -125,7 +125,7 @@ class Ridge(BaseForecaster):
     Parameters
     ----------
     freq : str
-        Offset alias.
+        Offset alias supported by Polars.
     lags : int
         Number of lagged target variables.
     max_horizons: Optional[int]
