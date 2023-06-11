@@ -21,6 +21,14 @@ def PL_NUMERIC_COLS(*exclude):
 
 @transformer
 def coerce_dtypes(schema: Mapping[str, pl.DataType]):
+    """Coerces the column datatypes of a DataFrame using the provided schema.
+
+    Parameters
+    ----------
+    schema : Mapping[str, pl.DataType]
+        A dictionary-like object mapping column names to the desired data types.
+    """
+
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         X_new = X.cast({pl.col(col).cast(dtype) for col, dtype in schema.items()})
         artifacts = {"X_new": X_new}
@@ -31,6 +39,20 @@ def coerce_dtypes(schema: Mapping[str, pl.DataType]):
 
 @transformer
 def resample(freq: str, agg_method: str, impute_method: Union[str, int, float]):
+    """
+    Resamples and transforms a DataFrame using the specified frequency, aggregation method, and imputation method.
+
+    Parameters
+    ----------
+    freq : str
+        Offset alias supported by Polars.
+    agg_method : str
+        The aggregation method to use for resampling. Supported values are 'sum', 'mean', and 'median'.
+    impute_method : Union[str, int, float]
+        The method used for imputing missing values. If a string, supported values are 'ffill' (forward fill)
+        and 'bfill' (backward fill). If an int or float, missing values will be filled with the provided value.
+    """
+
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col, target_col = X.columns
         agg_exprs = {
@@ -61,6 +83,14 @@ def resample(freq: str, agg_method: str, impute_method: Union[str, int, float]):
 
 @transformer
 def lag(lags: List[int]):
+    """Applies lag transformation to a LazyFrame.
+
+    Parameters
+    ----------
+    lags : List[int]
+        A list of lag values to apply.
+    """
+
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col = X.columns[0]
         time_col = X.columns[1]
@@ -99,6 +129,27 @@ def roll(
     stats: List[Literal["mean", "min", "max", "mlm", "sum", "std", "cv"]],
     freq: str,
 ):
+    """
+    Performs rolling window calculations on specified columns of a DataFrame.
+
+    Parameters
+    ----------
+    window_sizes : List[int]
+        A list of integers representing the window sizes for the rolling calculations.
+    stats : List[Literal["mean", "min", "max", "mlm", "sum", "std", "cv"]]
+        A list of statistical measures to calculate for each rolling window.\n
+        Supported values are:\n
+        - 'mean' for mean
+        - 'min' for minimum
+        - 'max' for maximum
+        - 'mlm' for maximum minus minimum
+        - 'sum' for sum
+        - 'std' for standard deviation
+        - 'cv' for coefficient of variation
+    freq : str
+        Offset alias supported by Polars.
+    """
+
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
         offset_n, offset_alias = _strip_freq_alias(freq)
@@ -145,6 +196,18 @@ def roll(
 
 @transformer
 def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = True):
+    """
+    Performs scaling and rescaling operations on the numeric columns of a DataFrame.
+
+    Parameters
+    ----------
+    use_mean : bool
+        Whether to subtract the mean from the numeric columns. Defaults to True.
+    use_std : bool
+        Whether to divide the numeric columns by the standard deviation. Defaults to True.
+    rescale_bool : bool
+        Whether to rescale boolean columns to the range [-1, 1]. Defaults to True.
+    """
 
     if not (use_mean or use_std):
         raise ValueError("At least one of `use_mean` or `use_std` must be set to True")
@@ -226,6 +289,24 @@ def impute(
         Union[int, float],
     ]
 ):
+    """
+    Performs missing value imputation on numeric columns of a DataFrame.
+
+    Parameters
+    ----------
+    method : Union[str, int, float]
+        The imputation method to use.
+
+        Supported methods are:\n
+        - 'mean': Replace missing values with the mean of the corresponding column.
+        - 'median': Replace missing values with the median of the corresponding column.
+        - 'fill': Replace missing values with the mean for float columns and the median for integer columns.
+        - 'ffill': Forward fill missing values.
+        - 'bfill': Backward fill missing values.
+        - 'interpolate': Interpolate missing values using linear interpolation.
+        - int or float: Replace missing values with the specified constant.
+    """
+
     def method_to_expr(entity_col, time_col):
         """Fill-in methods."""
         return {
@@ -268,6 +349,16 @@ def impute(
 
 @transformer
 def diff(order: int, sp: int = 1):
+    """Difference time-series in panel data given order and seasonal period.
+
+    Parameters
+    ----------
+    order : int
+        The order to difference.
+    sp : int
+        Seasonal periodicity.
+    """
+
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         def _diff(X):
             X_new = (
@@ -327,6 +418,18 @@ def diff(order: int, sp: int = 1):
 
 @transformer
 def boxcox(method: str = "mle"):
+    """Applies the Box-Cox transformation to numeric columns in a DataFrame.
+
+    Parameters
+    ----------
+    method : str
+        The method used to determine the lambda parameter of the Box-Cox transformation.
+
+        Supported methods:\n
+        - `mle`: maximum likelihood estimation
+        - `pearsonr`: Pearson correlation coefficient
+    """
+
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         idx_cols = X.columns[:2]
         entity_col, time_col = idx_cols
@@ -376,6 +479,16 @@ def boxcox(method: str = "mle"):
 
 @transformer
 def reindex_panel(freq: str, sort: bool = False):
+    """Reindexes a panel DataFrame to a specified frequency.
+
+    Parameters
+    ----------
+    freq : str
+        Offset alias supported by Polars.
+    sort : bool
+        If True, sort DataFrame by the entity and time columns.
+    """
+
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         # Create new index
         entity_col = X.columns[0]
@@ -415,8 +528,19 @@ def reindex_panel(freq: str, sort: bool = False):
 
 @transformer
 def zero_pad(freq: str, include_null: bool = True, include_nan: bool = True):
+    """Reindexes a panel DataFrame to a specified frequency and fills nulls/nans with zeros.
+
+    Parameters
+    ----------
+    freq : str
+        Offset alias supported by Polars.
+    include_null : bool
+        If True, fill null values with zeros.
+    include_nan : bool
+        If True, fill NaN values with zeros.
+    """
+
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        """Reindex panel then fill nulls / nans with 0."""
         target_cols = X.columns[2:]
         transform = reindex_panel(freq=freq)
 
