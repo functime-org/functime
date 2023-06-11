@@ -42,7 +42,9 @@ nav:
     - preprocessing: ref/preprocessing.md
     - feature_extraction: ref/feature-extraction.md
     - cross_validation: ref/cross-validation.md
+    - offsets: ref/offsets.md
     - metrics: ref/metrics.md
+    - multi_objective: ref/multi-objective.md
 
 extra:
   analytics:

@@ -24,7 +24,6 @@ def mae(y_true: pl.DataFrame, y_pred: pl.DataFrame) -> pl.DataFrame:
     ----------
     y_true : pl.DataFrame
         Ground truth (correct) target values.
-
     y_pred : pl.DataFrame
         Predicted values.
 
@@ -45,7 +44,6 @@ def mfe(y_true: pl.DataFrame, y_pred: pl.DataFrame) -> pl.DataFrame:
     ----------
     y_true : pl.DataFrame
         Ground truth (correct) target values.
-
     y_pred : pl.DataFrame
         Predicted values.
 
@@ -66,7 +64,6 @@ def mape(y_true: pl.DataFrame, y_pred: pl.DataFrame):
     ----------
     y_true : pl.DataFrame
         Ground truth (correct) target values.
-
     y_pred : pl.DataFrame
         Predicted values.
 
@@ -87,7 +84,6 @@ def mse(y_true: pl.DataFrame, y_pred: pl.DataFrame):
     ----------
     y_true : pl.DataFrame
         Ground truth (correct) target values.
-
     y_pred : pl.DataFrame
         Predicted values.
 
@@ -108,7 +104,6 @@ def rmse(y_true: pl.DataFrame, y_pred: pl.DataFrame):
     ----------
     y_true : pl.DataFrame
         Ground truth (correct) target values.
-
     y_pred : pl.DataFrame
         Predicted values.
 
@@ -131,7 +126,6 @@ def smape(y_true: pl.DataFrame, y_pred: pl.DataFrame):
     ----------
     y_true : pl.DataFrame
         Ground truth (correct) target values.
-
     y_pred : pl.DataFrame
         Predicted values.
 
@@ -156,10 +150,8 @@ def mase(
     ----------
     y_true : pl.DataFrame
         Ground truth (correct) target values.
-
     y_pred : pl.DataFrame
         Predicted values.
-
     y_train : pl.DataFrame
         Observed training values.
 
@@ -194,10 +186,8 @@ def rmsse(
     ----------
     y_true : pl.DataFrame
         Ground truth (correct) target values.
-
     y_pred : pl.DataFrame
         Predicted values.
-
     y_train : pl.DataFrame
         Observed training values.
 
@@ -232,7 +222,6 @@ def overforecast(y_true: pl.DataFrame, y_pred: pl.DataFrame) -> pl.DataFrame:
     ----------
     y_true : pl.DataFrame
         Ground truth (correct) target values.
-
     y_pred : pl.DataFrame
         Predicted values.
 
@@ -255,7 +244,6 @@ def underforecast(y_true: pl.DataFrame, y_pred: pl.DataFrame) -> pl.DataFrame:
     ----------
     y_true : pl.DataFrame
         Ground truth (correct) target values.
-
     y_pred : pl.DataFrame
         Predicted values.
 
