@@ -104,8 +104,9 @@ To view data and forecasts usage, run the `functime usage` CLI command.
 ![Example CLI usage](static/gifs/functime_cli_usage.gif)
 
 You can reuse a deployed model for predictions anywhere using the `stub_id` variable.
+Note: the `.from_deployed` model class must be the same as during `.fit`.
 ```python
-forecaster = LinearModel.from_deployed(stub_id)
+forecaster = LightGBM.from_deployed(stub_id)
 y_pred = forecaster.predict(fh=3)
 ```
 
