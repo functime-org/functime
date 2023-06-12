@@ -22,10 +22,11 @@ from functime.metrics import (
 @dataclass(frozen=True)
 class Metrics:
     mae: float
+    mse: float
     smape: float
+    rmse: float
     rmsse: float
     mase: float
-    bias: float
     overforecast: float
     underforecast: float
 
