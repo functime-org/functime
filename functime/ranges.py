@@ -53,7 +53,9 @@ def make_future_ranges(
             [
                 pl.col(entity_col),
                 pl.arange(
-                    pl.ones(len(cutoffs)), pl.ones(len(cutoffs)) + fh, eager=False
+                    pl.ones(len(cutoffs), eager=False),
+                    pl.ones(len(cutoffs), eager=False) + fh,
+                    eager=False,
                 ).alias(time_col),
             ]
         )
