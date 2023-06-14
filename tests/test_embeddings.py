@@ -60,3 +60,20 @@ def test_minirocket_on_gunpoint(gunpoint_dataset):
 
     # test predictions (on Gunpoint, should be > 99% accurate)
     assert accuracy > 0.97
+
+
+@pytest.mark.parametrize("size", [25, 50, 75, 100, 125, 150])
+@pytest.mark.benchmark(group="embeddings")
+def test_mr(benchmark, gunpoint_dataset, size):
+    # each row is 1 time series, each column is 1 time point
+    X_training, _, _, _ = gunpoint_dataset
+
+    # Keep everything as np.ndarray
+    X_training = X_training.to_numpy()[:size]
+
+    # Minirocket takes in numpy array with columnar format
+    X_training_transform = benchmark(embed, X_training)
+
+    # test shape of transformed training data -> (number of training
+    # examples, nearest multiple of 84 < 10,000)
+    np.testing.assert_equal(X_training_transform.shape, (len(X_training), 9_996))
