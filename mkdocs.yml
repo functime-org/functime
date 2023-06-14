@@ -36,6 +36,8 @@ markdown_extensions:
 nav:
   - Quick Start: index.md
   - Installation: installation.md
+  - Forecasting: forecasting.md
+  - Embeddings: embeddings.md
   - API Reference:
     - forecasting: ref/forecasting.md
     - auto_forecasting: ref/auto-forecasting.md
