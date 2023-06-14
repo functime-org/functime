@@ -52,6 +52,19 @@ from functime.metrics import mase
 
 # Load example data
 y = pl.read_parquet("https://bit.ly/commodities-data")
+# All data must be in the following format:
+# shape: (47_583, 3)
+# ┌────────────────┬─────────────────────┬─────────┐
+# │ commodity_type ┆ time                ┆ price   │
+# │ ---            ┆ ---                 ┆ ---     │
+# │ str            ┆ datetime[ns]        ┆ f64     │
+# ╞════════════════╪═════════════════════╪═════════╡
+# │ Aluminum       ┆ 1960-03-01 00:00:00 ┆ 511.47  │
+# │ Aluminum       ┆ 1960-04-01 00:00:00 ┆ 511.47  │
+# │ …              ┆ …                   ┆ …       │
+# │ Zinc           ┆ 2023-02-01 00:00:00 ┆ 3133.84 │
+# │ Zinc           ┆ 2023-03-01 00:00:00 ┆ 2967.46 │
+# └────────────────┴─────────────────────┴─────────┘
 entity_col, time_col = y.columns[:2]
 
 # Time series split
