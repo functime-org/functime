@@ -75,6 +75,10 @@ model = LightGBM(freq="1mo", lags=24, max_horizons=3, strategy="ensemble")
 model.fit(y=y_train)
 y_pred = model.predict(fh=3)
 
+# functime ❤️ functional design
+# fit-predict in a single line
+y_pred = LightGBM(freq="1mo", lags=24)(y=y_train, fh=3)
+
 # Score forecasts in parallel
 scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 ```
