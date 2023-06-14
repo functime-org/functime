@@ -1,3 +1,4 @@
+from base64 import b64decode
 from io import BytesIO
 
 import numpy as np
@@ -38,9 +39,9 @@ def embed(
             files={"X": arr_bytes},
             params=kwargs,
         )
-    res_json = response.json()
+    data = response.json()
     # Reconstruct the np.array from the json
-    emb = np.array(res_json["embeddings"], dtype=res_json["dtype"]).reshape(
-        (res_json["rows"], res_json["cols"])
+    emb = np.frombuffer(b64decode(data["embeddings"]), dtype=data["dtype"]).reshape(
+        (data["rows"], data["cols"])
     )
     return emb
