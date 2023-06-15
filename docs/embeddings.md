@@ -12,7 +12,7 @@ They are commonly used for the following tasks:
 - **Clustering:** Where time-series are assigned labels (e.g. normal vs irregular heart rate)
 - **Anomaly detection:** Where outliers with unexpected regime / trend changes are identified
 
-!!! example "To see time-series embedding in action, check out our code examples"
+!!! example "To see time-series embeddings in action, check out our code examples"
 
     - **Search** with e-commerce data
     - **Classification** with health biometrics
@@ -44,4 +44,4 @@ They are commonly used for the following tasks:
 ## How can I retrieve K-nearest embeddings quickly?
 
 To search over many embeddings quickly, we recommend using a vector database.
-Our current recommendation is [LanceDB](https://github.com/lancedb/lancedb) for its time-travel, fast KNN implementations, and easy-to-use API.
+Our current recommendation is [LanceDB](https://github.com/lancedb/lancedb) for its first-class support for time-travel, fast distance metrics, and easy-to-use API.
