@@ -3,7 +3,7 @@
 ## What are embeddings?
 
 Time-series embeddings measure the relatedness of time-series.
-Embeddings are more accurate and efficient compared to statistical methods (e.g. Catch22) for characteristing time-series.[^1]
+Embeddings are more accurate and efficient compared to statistical methods (e.g. Catch22) for characterizing time-series.[^1]
 Embeddings have applications across many domains from finance to IoT monitoring.
 They are commonly used for the following tasks:
 
