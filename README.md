@@ -19,7 +19,7 @@ The `functime` [Python package](https://pypi.org/project/functime/) provides a s
 **functime** also comes with open-sourced [Apache 2.0](https://github.com/indexhub-ai/functime/blob/HEAD/LICENSING.md) time-series [preprocessing](https://docs.functime.ai/ref/preprocessing/) (box-cox, differencing etc), cross-validation [splitters](https://docs.functime.ai/ref/cross-validation/) (expanding and sliding window), and forecast [metrics](https://docs.functime.ai/ref/metrics/) (MASE, SMAPE etc). All optimized as [lazy Polars](https://pola-rs.github.io/polars-book/user-guide/lazy/using/) transforms.
 
 Want to use **functime** for seamless time-series analytics across your data team
-Looking for fully-managed production-grade AI/ML forecasting and time-series search?
+Looking for fully-managed production-grade AI/ML forecasting and time-series embeddings?
 Book a [15 minute discovery call](https://calendly.com/functime-indexhub) to learn more about functime's Team / Enterprise plans.
 
 ## Highlights
@@ -43,7 +43,10 @@ pip install functime
 ```bash
 functime login
 ```
-3. That's it! You can begin forecasting at scale using functime's `scikit-learn` fit-predict API.
+3. That's it! You can execute time series predictions at scale using functime's `scikit-learn` fit-predict API.
+
+### Forecasting
+
 ```python
 import polars as pl
 from functime.cross_validation import train_test_split
@@ -52,19 +55,6 @@ from functime.metrics import mase
 
 # Load example data
 y = pl.read_parquet("https://bit.ly/commodities-data")
-# All data must be in the following format:
-# shape: (47_583, 3)
-# ┌────────────────┬─────────────────────┬─────────┐
-# │ commodity_type ┆ time                ┆ price   │
-# │ ---            ┆ ---                 ┆ ---     │
-# │ str            ┆ datetime[ns]        ┆ f64     │
-# ╞════════════════╪═════════════════════╪═════════╡
-# │ Aluminum       ┆ 1960-03-01 00:00:00 ┆ 511.47  │
-# │ Aluminum       ┆ 1960-04-01 00:00:00 ┆ 511.47  │
-# │ …              ┆ …                   ┆ …       │
-# │ Zinc           ┆ 2023-02-01 00:00:00 ┆ 3133.84 │
-# │ Zinc           ┆ 2023-03-01 00:00:00 ┆ 2967.46 │
-# └────────────────┴─────────────────────┴─────────┘
 entity_col, time_col = y.columns[:2]
 
 # Time series split
@@ -82,35 +72,66 @@ y_pred = LightGBM(freq="1mo", lags=24)(y=y_train, fh=3)
 # Score forecasts in parallel
 scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 ```
-All predictions and scores are returned as `Polars` DataFrames.
-```
->>> y_pred
-shape: (213, 3)
-┌────────────────┬─────────────────────┬─────────────┐
-│ commodity_type ┆ time                ┆ price       │
-│ ---            ┆ ---                 ┆ ---         │
-│ str            ┆ datetime[ns]        ┆ f64         │
-╞════════════════╪═════════════════════╪═════════════╡
-│ Wheat, US HRW  ┆ 2023-01-01 00:00:00 ┆ 240.337497  │
-│ Wheat, US HRW  ┆ 2023-02-01 00:00:00 ┆ 250.851552  │
-│ Wheat, US HRW  ┆ 2023-03-01 00:00:00 ┆ 252.102028  │
-│ Beef           ┆ 2023-01-01 00:00:00 ┆ 4.271976    │
-│ …              ┆ …                   ┆ …           │
-└────────────────┴─────────────────────┴─────────────┘
 
->>> scores.sort("mase")
-shape: (71, 2)
-┌──────────────────────┬────────────┐
-│ commodity_type       ┆ mase       │
-│ ---                  ┆ ---        │
-│ str                  ┆ f64        │
-╞══════════════════════╪════════════╡
-│ Rice, Viet Namese 5% ┆ 0.308148   │
-│ Palm kernel oil      ┆ 0.554886   │
-│ Coconut oil          ┆ 1.051424   │
-│ Cocoa                ┆ 1.32211    │
-│ …                    ┆ …          │
-└──────────────────────┴────────────┘
+### Classification
+
+```python
+import polars as pl
+import functime
+from sklearn.linear_model import RidgeClassifierCV
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+from sklearn.pipeline import make_pipeline
+
+# Load GunPoint dataset (150 observations, 150 timestamps)
+X_y_train = pl.read_parquet("https://bit.ly/gunpoint-train")
+X_y_test = pl.read_parquet("https://bit.ly/gunpoint-test")
+
+# Train-test split
+X_train, y_train = X_y_train.select(pl.all().exclude("label")), X_y_train.select("label")
+X_test, y_test = X_y_test.select(pl.all().exclude("label")), X_y_test.select("label")
+
+X_train_embs = functime.embeddings.embed(X_train, model="minirocket")
+
+# Fit classifier on the embeddings
+classifier = make_pipeline(
+    StandardScaler(with_mean=False),
+    RidgeClassifierCV(alphas=np.logspace(-3, 3, 10)),
+)
+classifier.fit(X_train_embs, y_train)
+
+# Predict and
+X_test_embs = embed(X_test, model="minirocket")
+labels = classifier.predict(X_test_embs)
+accuracy = accuracy_score(predictions, y_test)
+```
+
+### Clustering
+
+```python
+import functime
+import polars as pl
+from hdbscan import HDBSCAN
+from umap import UMAP
+from functime.preprocessing import roll
+
+# Load S&P500 panel data from 2022-06-01 to 2023-06-01
+# Columns: ticker, time, price
+y = pl.read_parquet("https://bit.ly/sp500-data")
+
+# Create embeddings
+embeddings = functime.embeddings.embed(y_ma_60, model="minirocket")
+
+# Reduce dimensionality with UMAP
+reducer = UMAP(n_components=500, n_neighbors=10, metric="manhattan")
+umap_embeddings = reducer.fit_transform(embeddings)
+
+# Cluster with HDBSCAN
+clusterer = HDBSCAN(metric="minkowski", p=1)
+estimator.fit(X)
+
+# Get predicted cluster labels
+labels = estimator.predict(X)
 ```
 
 ## Deployment

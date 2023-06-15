@@ -4,365 +4,260 @@
 
 ## Production-ready time series models
 
-**functime** is a machine learning library for time-series predictions that just works.
+**functime** is a machine learning library for time-series predictions that [just works](https://www.functime.ai/).
 
-- **Fast:** Forecast 100,000 time series in seconds *on your laptop*
-- **Cloud-native:** Instantly run, deploy, and serve predictive models
-- **Efficient:** Embarressingly parallel feature engineering using [**Polars**](https://www.pola.rs/) *
+- **Fully-featured:** Powerful and easy-to-use API for [AutoML forecasting](#forecasting-highlights) and [time-series embeddings](#embeddings-highlights) (classification, anomaly detection, and clustering)
+- **Fast:** Forecast and classify [100,000 time series](#global-forecasting) in seconds *on your laptop*
+- **Cloud-native:** Instantly run, deploy, and serve predictive time-series models
+- **Efficient:** Embarressingly parallel feature engineering using [Polars](https://www.pola.rs/) *
 - **Battle-tested:** Algorithms that deliver real business impact and win competitions
-- **Scalable-by-default:** Every model is designed to fit and predict / transform [collections of time series](#global-forecasting)
-
-## Additional Highlights
-
-- Every forecaster supports **exogenous features**
-- Utilities to add calendar effects, special events (e.g. holidays), weather patterns (coming soon), and economic trends (coming soon)
-- **Backtesting** with expanding window and sliding window splitters
-- Automated lags and **hyperparameter tuning** using [`FLAML`](https://github.com/microsoft/FLAML)
-- **Probablistic forecasts** via quantile regression and conformal prediction
-- Supports recursive and direct forecast strategies
 
 ## Installation
 
 Check out this [guide](installation.md) to install functime. Requires Python 3.8+.
 
-## Example Usage
-
-??? tip "Show me the code: `quickstart.py`"
-
-    Want to go straight into code?
-    Run through every example in "Quick Start" with the following script:
-
-    ```python
-    import polars as pl
-
-    from functime.cross_validation import train_test_split
-    from functime.feature_extraction import (
-        add_calendar_effects,
-        add_holiday_effects
-    )
-
-    # Load data
-    y = pl.read_parquet("https://bit.ly/commodities-data")
-    entity_col, time_col = y.columns[:2]
-    X = (
-        y.select([entity_col, time_col])
-        .pipe(add_calendar_effects(["weekday", "month", "year"]))
-        .pipe(add_holiday_effects(country_codes=["US"], freq="1d"))
-        .collect()
-    )
-
-    print("🎯 Target variable (y):\n", y)
-    print("📉 Exogenous variables (X):\n", X)
-
-    # Train-test splits
-    test_size = 3
-    freq = "1mo"
-    y_train, y_test = train_test_split(test_size)(y)
-    X_train, X_test = train_test_split(test_size)(X)
-    ```
-
 ## Forecasting
 
-Load a collection of time series, also known as panel data, into [`polars.LazyFrames`](https://pola-rs.github.io/polars/py-polars/html/reference/lazyframe/index.html) (recommended) or `polars.DataFrames` and split them into train/test subsets.
+Point and probablistic forecasts using machine learning.
+Includes utilities to support the full forecasting lifecycle:
+preprocessing, feature extraction, time-series cross-validation / splitters, backtesting, AutoML, hyperparameter tuning, and scoring.
 
-```python
-from functime.forecasting import LinearModel
-from functime.metrics import mase
+- Every forecaster supports **exogenous features**
+- **Backtesting** with expanding window and sliding window splitters
+- **Automated lags and hyperparameter tuning** using [`FLAML`](https://github.com/microsoft/FLAML)
+- **Probablistic forecasts** via quantile regression and conformal prediction
+- **Forecast metrics** (e.g. MASE, SMAPE, CRPS) for scoring in parallel
+- Supports **recursive and direct** forecast strategies
 
-# Fit
-forecaster = LinearModel(lags=24, freq="1mo")
-forecaster.fit(y=y_train)
+View the [full walkthrough](forecasting.md) on forecasting with `functime`.
 
-# Predict
-y_pred = forecaster.predict(fh=3)
+## Embeddings
 
-# Score
-scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
-```
+Time-series embeddings measure the relatedness of time-series.
+Embeddings are more accurate and efficient compared to statistical methods (e.g. Catch22) for characteristing time-series.[^1]
+Embeddings have applications across many domains from finance to IoT monitoring.
+They are commonly used for the following tasks:
 
-!!! info "Supported Data Schemas"
+- **Matching:** Where time-series are ranked by similarity to a given time-series
+- **Classification:** Where time-series are grouped together by matching patterns
+- **Clustering:** Where time-series are assigned labels (e.g. normal vs irregular heart rate)
+- **Anomaly detection:** Where outliers with unexpected regime / trend changes are identified
 
-    `X: polars.LazyFrame | polars.DataFrame` and `y: polars.LazyFrame | polars.DataFrame` must contain at least three columns.
-    The first column must represent the `entity` / `series_id` dimension.
-    The second column must represent the `time` dimension as an integer, `pl.Date`, or `pl.Datetime` series.
-    Remaining columns are considered as features.
+View the [full walkthrough](embeddings.md) on time-series embeddings with `functime`.
 
-!!! tip "functime ❤️ currying"
+[^1]: Middlehurst, M., Schäfer, P., & Bagnall, A. (2023). Bake off redux: a review and experimental evaluation of recent time series classification algorithms. arXiv preprint arXiv:2304.13029.
 
-    Every `transformer` and `splitter` are [curried functions](https://composingprograms.com/pages/16-higher-order-functions.html#currying).
+## Quick Examples
 
-    ```python
-    from functime.preprocessing import boxcox, impute
-    from functime.cross_validation import expanding_window_split
+??? info "Input Data Schemas"
 
-    # Use df.pipe to chain operations together
-    X_splits: pl.LazyFrame = (
-        X.pipe(boxcox(method="mle"))
-        .pipe(impute(method="linear"))
-        .pipe(expanding_window_split(test_size=28, n_splits=3, step_size=1))
-    )
-    # Call .collect to execute query
-    X_splits = X_splits.collect()
+    Forecasters, preprocessors, and splitters take a **panel dataset** where the first two columns represent entity (e.g. commodty name) and time (e.g. date). Subsequent columns represent observed values (e.g. price).
+
+    ```
+    >>> y_panel
+    shape: (47_583, 3)
+
+    commodity_type   time         price
+    ------------------------------------
+    Aluminum         1960-01-01    511.47
+                     1960-02-01    511.47
+                     1960-03-01    511.47
+                     1960-04-01    511.47
+                     1960-05-01    511.47
+    ...                     ...       ...
+    Zinc             2022-11-01   2938.92
+                     2022-12-01   3129.48
+                     2023-01-01   3309.81
+                     2023-02-01   3133.84
+                     2023-03-01   2967.46
     ```
 
-    You can also use any `forecaster` as a curried function to run fit-predict in a single line of code.
+    The `functime.embeddings.embed()` function takes a **wide dataset** where each row represents a single time-series.
 
-    ```python
-    from functime.forecasting import LinearModel
+    ```
+    >>> X_y_wide
+    shape: (150, 151)
 
-    y_pred = LinearModel(lags=24, freq="1mo")(
-        y=y_train,
-        fh=28,
-        X=X_train,
-        X_future=X_test
-    )
+    label     t0        t1     ...    t148      t149
+    --------------------------------------------------
+    1     -1.125013 -1.131338  ... -1.206178 -1.218422
+    2     -0.626956 -0.625919  ... -0.612058 -0.606422
+    2     -2.001163 -1.999575  ... -1.071147 -1.323383
+    1     -1.004587 -0.999843  ... -1.044226 -1.043262
+    1     -0.742625 -0.743770  ... -0.670519 -0.657403
+    ...         ...       ...  ...       ...       ...
+    2     -0.580006 -0.583332  ... -0.548831 -0.553552
+    1     -0.728153 -0.730242  ... -0.686448 -0.690183
+    2     -0.738012 -0.736301  ... -0.608616 -0.612177
+    2     -1.265111 -1.256093  ... -1.193374 -1.192835
+    1     -1.427205 -1.408303  ... -1.153119 -1.222043
     ```
 
-??? warning "functime is lazy"
 
-    `transformers` and `splitters` in `cross_validation`, `feature_extraction`, and `preprocessing` are lazy.
-    These callables return `LazyFrames`, which represents a Lazy computation graph/query against the input `DataFrame` / `LazyFrame`.
-    **No computation is run until the `collect()` method is called on the `LazyFrame`.**
-
-    `X` and `y` should be preprocessed lazily for optimal performance.
-    Lazy evaluation allows `polars` to optimize all operations on the input `DataFrame` / `LazyFrame` at once.
-    Lazy preprocessing in `functime` allows for more efficient `groupby` operations.
-
-    With lazy transforms, operations series-by-series (e.g. `boxcox`, `impute`, `diff`) are chained in parallel: `groupby` is only called once.
-    By contrast, with eager transforms, operations series-by-series is called in sequence: `groupby-aggregate` is called per transform.
-
-### Global Forecasting
-
-Every `forecaster` exposes a scikit-learn `fit` and `predict` API.
-The `fit` method takes `y` and `X` (optional).
-The `predict` method takes the forecast horizon `fh: int`, frequency alias `freq: str`, and `X` (optional).
-
-??? info "Supported Frequency Aliases"
-
-    - 1ns (1 nanosecond)
-    - 1us (1 microsecond)
-    - 1ms (1 millisecond)
-    - 1s (1 second)
-    - 1m (1 minute)
-    - 1h (1 hour)
-    - 1d (1 day)
-    - 1w (1 week)
-    - 1mo (1 calendar month)
-    - 1y (1 calendar year)
-    - 1i (1 index count)
-
+### Forecasting
 
 ```python
-from functime.forecasting import LinearModel
+import polars as pl
+from functime.cross_validation import train_test_split
+from functime.forecasting import LightGBM
 from functime.metrics import mase
 
-# Fit
-forecaster = LinearModel(lags=24, freq="1mo")
-forecaster.fit(y=y_train)
+# Load commodities price data
+y = pl.read_parquet("https://bit.ly/commodities-data")
+entity_col, time_col = y.columns[:2]
 
-# Predict
-y_pred = forecaster.predict(fh=3)
+# Time series split
+y_train, y_test = y.pipe(train_test_split(test_size=3))
 
-# Score
+# Fit-predict
+model = LightGBM(freq="1mo", lags=24, max_horizons=3, strategy="ensemble")
+model.fit(y=y_train)
+y_pred = model.predict(fh=3)
+
+# functime ❤️ functional design
+# fit-predict in a single line
+y_pred = LightGBM(freq="1mo", lags=24)(y=y_train, fh=3)
+
+# Score forecasts in parallel
 scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 ```
+### Classification
 
-!!! question "Global vs Local Forecasting"
-
-    **`functime` only supports global forecasters.**
-    Global forecasters fit and predict a collection of time series using a single model.
-    Local forecasters (e.g. ARIMA, ETS, Theta) fit and predict one series per model.
-    Example collections of time series, which are also known as panel data, include:
-
-    - Sales across product in a retail store
-    - Churn rates across customer segments
-    - Sensor data across devices in a factory
-    - Delivery times across trucks in a logistics fleet
-
-    Global forecasters, trained on a collection of similar time series, consistently outperform local forecasters.[^1]
-    Most notably, all top 50 competitors in the M5 Forecasting Competition used a global LightGBM forecasting model.[^2]
-
-    [^1]: Montero-Manso, P., & Hyndman, R. J. (2021). Principles and algorithms for forecasting groups of time series: Locality and globality. International Journal of Forecasting, 37(4), 1632-1653.
-
-    [^2]: Makridakis, S., Spiliotis, E., & Assimakopoulos, V. (2022). M5 accuracy competition: Results, findings, and conclusions. International Journal of Forecasting.
-
-!!! tip "Save 100x in Cloud spend"
-
-    Local forecasting is expensive and slow.
-    To productionize forecasts at scale (>1,000 series), local models have no choice but distributed computing.
-    Every fit-predict call per local model per series are executed in parallel across the distributed cluster.
-    Running a distributed cluster, however, is a significant cost and time sink for any data team.
-
-    **`functime` believes that the vast majority of businesses do not need distributed computing to produce high-quality forecasts**.
-    Every `forecaster`, `transformer`, `splitter`, and `metric` in `functime` operates globally across collections of time series.
-    We rewrote every time series operation in `polars` for blazing fast multi-threaded parallelism.
-
-    Stop using Databricks to scale your forecasts. Use `functime`.
-
-### Exogenous Features
-
-Every `forecaster` supports exogenous regressors.
+The following dataset represents velocity measurements from two gunslingers (label 1 and label 2) over 150 time periods (columns t0, t1, ..., t149) over 75 trials (rows).
+In this example, we assign each sequence of measurement to one of the two gunsligners.
 
 ```python
-from functime.forecasting import LinearModel
+import polars as pl
+import functime
+from sklearn.linear_model import RidgeClassifierCV
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+from sklearn.pipeline import make_pipeline
 
-forecaster = LinearModel(lags=24, fit_intercept=False, freq="1mo")
-forecaster.fit(y=y_train, X=X_train)
-y_pred = forecaster.predict(fh=3, X=X_test)
-```
+# Load GunPoint dataset (150 observations, 150 timestamps)
+X_y_train = pl.read_parquet("https://bit.ly/gunpoint-train")
+X_y_test = pl.read_parquet("https://bit.ly/gunpoint-test")
 
-### Forecast Strategies
-
-`functime` supports three forecast strategies: `recursive`, `direct` multi-step, and a simple ensemble of both `recursive` and `direct`.
-
-```python
-from functime.forecasting import LinearModel
-
-# Recursive (Default)
-recursive_model = LinearModel(strategy="recursive")
-y_pred_rec = recursive_model(y_train, fh)
-
-# Direct
-max_horizons = 12  # Number of direct models
-direct_model = = LinearModel(strategy="direct",max_horizons=max_horizons, freq="1mo")
-y_pred_dir = recursive_model(y_train, fh)
-
-# Ensemble
-ensemble_model = LinearModel(strategy="ensemble", max_horizons=max_horizons, freq="1mo")
-y_pred_ens = ensemble_model(y=y_train, fh=3)
-```
-where `max_horizons` is the number of models specific to each forecast horizon.
-For example, if `max_horizons = 12`, then twelve forecasters are fitted in total: the 1-step ahead forecast, the 2-steps ahead forecast, the 3-steps ahead forecast, ..., and the final 12-steps ahead forecast.
-
-### AutoML
-
-#### Optimal Lag Length
-
-`auto_{model}` forecasters automatically select the optimal number of lags via cross-validation.
-These forecasters conduct a search over possible models within `min_lags` and `max_lags`.
-The best model is the model with the lowest average RMSE (root mean squared error) across splits.
-
-```python
-from functime.forecasting import AutoLinearModel
-
-# Fit then predict
-forecaster = AutoLinearModel(min_lags=20, max_lags=24, freq="1mo")
-forecaster.fit(y=y_train, X=X_train)
-y_pred = forecaster.predict(fh=3, X=X_test)
-
-# Fit and predict
-y_pred = AutoLinearModel(min_lags=20, max_lags=24, freq="1mo")(
-    y=y_train,
-    X=X_train,
-    X_future=X_test,
-    fh=3
+# Train-test split
+X_train, y_train = (
+    X_y_train.select(pl.all().exclude("label")),
+    X_y_train.select("label")
 )
+X_test, y_test = (
+    X_y_test.select(pl.all().exclude("label")),
+    X_y_test.select("label")
+)
+
+X_train_embs = functime.embeddings.embed(X_train, model="minirocket")
+
+# Fit classifier on the embeddings
+classifier = make_pipeline(
+    StandardScaler(with_mean=False),
+    RidgeClassifierCV(alphas=np.logspace(-3, 3, 10)),
+)
+classifier.fit(X_train_embs, y_train)
+
+# Predict and
+X_test_embs = embed(X_test, model="minirocket")
+labels = classifier.predict(X_test_embs)
+accuracy = accuracy_score(predictions, y_test)
 ```
 
-#### Hyperparameter Tuning
-`auto_{model}` forecasters automatically select the optimal number of lags via cross-validation.
-These forecasters conduct a search over possible models within `min_lags` and `max_lags`.
-The best model is the model with the lowest average RMSE (root mean squared error) across splits.
+### Clustering
 
-`functime` uses [`FLAML`](https://microsoft.github.io/FLAML/docs/getting-started) under the hood to conduct hyperparameter tuning.
+In this example, we cluster S&P 500 companies into groups with similar price patterns.
 
 ```python
-from flaml import tune
-from functime.forecasting import AutoLightGBM
+import functime
+import polars as pl
+from hdbscan import HDBSCAN
+from umap import UMAP
+from functime.preprocessing import roll
 
-# Specify search space, initial conditions, and time budget
-search_space = {
-    "reg_alpha": tune.loguniform(1e-08, 10.0),
-    "reg_lambda": tune.loguniform(1e-08, 10.0),
-    "num_leaves": tune.randint(
-        2, 2**max_depth if max_depth > 0 else 2**DEFAULT_TREE_DEPTH
-    ),
-    "colsample_bytree": tune.uniform(0.4, 1.0),
-    "subsample": tune.uniform(0.4, 1.0),
-    "subsample_freq": tune.randint(1, 7),
-    "min_child_samples": tune.qlograndint(5, 100, 5),
-}
-points_to_evaluate = [
-    {
-        "num_leaves": 31,
-        "colsample_bytree": 1.0,
-        "subsample": 1.0,
-        "min_child_samples": 20,
-    }
-]
-time_budget = 420
+# Load S&P500 panel data from 2022-06-01 to 2023-06-01
+# Columns: ticker, time, price
+y = pl.read_parquet("https://bit.ly/sp500-data")
 
-# Fit model
-forecaster = AutoLightGBM(
-    freq="1mo',
-    min_lags=20,
-    max_lags=24,
-    time_budget=time_budget,
-    search_space=search_space,
-    points_to_evaluate=points_to_evaluate
+# Reduce noise by smoothing the time series using
+# functime's `roll` function: 60-days moving average
+y_ma_60 = (
+    y.pipe(roll(window_sizes=[60], stats=["mean"], freq="1d"))
+    .drop_nulls()
+    # Pivot from panel to wide format
+    .pivot(
+        values="price__rolling_mean_60",
+        columns="time",
+        index="ticker"
+    )
+    # Remember all functime transforms are lazy!
+    .collect()
 )
-forecaster.fit(y=y_train)
 
-# Get best lags and model hyperparameters
-best_params = forecast.best_params
+# Create embeddings
+embeddings = functime.embeddings.embed(y_ma_60, model="minirocket")
+
+# Reduce dimensionality with UMAP
+reducer = UMAP(n_components=500, n_neighbors=10, metric="manhattan")
+umap_embeddings = reducer.fit_transform(embeddings)
+
+# Cluster with HDBSCAN
+clusterer = HDBSCAN(metric="minkowski", p=1)
+estimator.fit(X)
+
+# Get predicted cluster labels
+labels = estimator.predict(X)
 ```
 
-!!! tip "Sane Hyperparameter Defaults"
+### Splitters
+View API reference for [`functime.cross_validation`](https://docs.functime.ai/ref/cross-validation/).
+`functime` currently supports expanding window and rolling window splitters.
+Splitters are used for cross-validation and backtesting.
 
-    Sane defaults are used if `search_space` or `points_to_evaluate` are left as `None`.
-    `functime` specify default hyperparameters search spaces according to best-practices from industry, top Kaggle solutions, and research.
+### Preprocessing
+View API reference for [`functime.preprocessing`](https://docs.functime.ai/ref/cross-validation/).
+Preprocessors take in a `polars.DataFrame` or `polars.LazyFrame` as input and **always returns a `polars.LazyFrame`**.
+No computation is run until the collect() method is called on the LazyFrame.
+This allows Polars to [optimize the whole query](https://pola-rs.github.io/polars-book/user-guide/lazy/optimizations/) before execution.
 
+```python
+from functime.preprocessing import boxcox, impute
+from functime.cross_validation import expanding_window_split
 
-### Backtesting
+# Use df.pipe to chain operations together
+X_splits: pl.LazyFrame = (
+    X.pipe(boxcox(method="mle"))
+    .pipe(impute(method="linear"))
+    .pipe(expanding_window_split(test_size=28, n_splits=3, step_size=1))
+)
+# Call .collect to execute query
+X_splits = X_splits.collect()
+```
 
-#### Expanding Window
-View reference for [`expanding_window_split`](https://docs.functime.ai/ref/cross-validation/#functime.cross_validation.expanding_window_split).
+## Time Series Data
 
-#### Sliding Window
-View reference for [`sliding_window_split`](https://docs.functime.ai/ref/cross-validation/#functime.cross_validation.sliding_window_split).
+### External Data
 
-#### Backtest Function
+Easily enrich your own data with `functime`'s built-in datasets. Datasets include calendar effects, holidays, weather patterns, economic data, and seasonality features (i.e. Fourier Series).
 
-#### Best Practices
+### Example Data
 
-### Probablistic Forecasts
+It is easy to get started with `functime`.
+Our GitHub repo contains a growing number of time-series data stored as `parquet` files:
 
-!!! success "Quantile and Conformal Prediction Intervals"
+- M4 Competition (daily, weekly, monthly, quarterly, yearly)[^2]
+- M5 Competition[^3]
+- Australian tourism[^4]
+- Commodities prices[^5]
+- Gunpoint measurements[^6]
+- Japanese vowels [^7]
 
-    `functime` supports two methods for generating prediction intervals:
+[^2]: https://mofc.unic.ac.cy/m4/
+[^3]: https://mofc.unic.ac.cy/m5-competition/
+[^4]: https://www.abs.gov.au/statistics/industry/tourism-and-transport/overseas-arrivals-and-departures-australia
+[^5]: https://www.imf.org/en/Research/commodity-prices
+[^6]: http://www.timeseriesclassification.com/description.php?Dataset=GunPoint
+[^7]: http://www.timeseriesclassification.com/description.php?Dataset=JapaneseVowels
 
-    === "Quantile"
+## Contact Us
 
-        ```python
-        from functime.forecasting import AutoLightGBM
-
-        # Forecasts at 10th and 90th percentile
-        y_pred_10 = AutoLightGBM(alpha=0.1, freq="1d")(y=y_train, fh=28)
-        y_pred_90 = AutoLightGBM(alpha=0.9, freq="1d")(y=y_train, fh=28)
-        ```
-
-    === "Conformal"
-
-        Only ensemble batch prediction intervals (EnbPI) from the paper [Conformal prediction interval for dynamic time-series](https://arxiv.org/abs/2010.09107) are currently supported.
-
-        ```python
-        from functime.conformal import conformalize
-
-        # First run backtest with `residualize` set to `True`
-        y_preds, y_conformal_scores = backtest(
-            forecaster,
-            y=y_train,
-            X=X_train,
-            fh=3,
-            freq="1mo",
-            step_size=1,
-            n_splits=3
-        )
-
-        # Forecasts at 10th and 90th percentile
-        y_pred_quantiles = conformalize(y_pred, y_resids, alphas=[0.1, 0.9])
-        ```
-
-### Future Direction
-
-Follow us on [LinkedIn](https://www.linkedin.com/company/functime/) to receive the latest updates.
+Book a quick 15 minute discovery call on [Calendly](https://calendly.com/functime-indexhub).
