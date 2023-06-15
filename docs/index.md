@@ -49,9 +49,8 @@ View the [full walkthrough](embeddings.md) on time-series embeddings with `funct
 
 ## Quick Examples
 
-??? info "Required Data Schemas"
+??? info "Input Data Schemas"
 
-    ## Forecasting
     Forecasters, preprocessors, and splitters take a **panel dataset** where the first two columns represent entity (e.g. commodty name) and time (e.g. date). Subsequent columns represent observed values (e.g. price).
 
     ```
@@ -73,12 +72,12 @@ View the [full walkthrough](embeddings.md) on time-series embeddings with `funct
                      2023-03-01   2967.46
     ```
 
-    ## Embeddings
     The `functime.embeddings.embed()` function takes a **wide dataset** where each row represents a single time-series.
 
     ```
     >>> y_wide
     shape: (150, 151)
+
     label     t0        t1     ...    t148      t149
     --------------------------------------------------
     1     -1.125013 -1.131338  ... -1.206178 -1.218422
@@ -137,8 +136,14 @@ X_y_train = pl.read_parquet("https://bit.ly/gunpoint-train")
 X_y_test = pl.read_parquet("https://bit.ly/gunpoint-test")
 
 # Train-test split
-X_train, y_train = X_y_train.select(pl.all().exclude("label")), X_y_train.select("label")
-X_test, y_test = X_y_test.select(pl.all().exclude("label")), X_y_test.select("label")
+X_train, y_train = (
+    X_y_train.select(pl.all().exclude("label")),
+    X_y_train.select("label")
+)
+X_test, y_test = (
+    X_y_test.select(pl.all().exclude("label")),
+    X_y_test.select("label")
+)
 
 X_train_embs = functime.embeddings.embed(X_train, model="minirocket")
 
@@ -187,11 +192,7 @@ y_ma_60 = (
 embeddings = functime.embeddings.embed(y_ma_60, model="minirocket")
 
 # Reduce dimensionality with UMAP
-reducer = UMAP(
-    n_components=500,
-    n_neighbors=10,
-    metric="manhattan",
-)
+reducer = UMAP(n_components=500, n_neighbors=10, metric="manhattan")
 umap_embeddings = reducer.fit_transform(embeddings)
 
 # Cluster with HDBSCAN
@@ -202,7 +203,30 @@ estimator.fit(X)
 labels = estimator.predict(X)
 ```
 
+### Splitters
+View API reference for [`functime.cross_validation`](https://docs.functime.ai/ref/cross-validation/).
+`functime` currently supports expanding window and rolling window splitters.
+Splitters are used for cross-validation and backtesting.
+
 ### Preprocessing
+View API reference for [`functime.preprocessing`](https://docs.functime.ai/ref/cross-validation/).
+Preprocessors take in a `polars.DataFrame` or `polars.LazyFrame` as input and **always returns a `polars.LazyFrame`**.
+No computation is run until the collect() method is called on the LazyFrame.
+This allows Polars to [optimize the whole query](https://pola-rs.github.io/polars-book/user-guide/lazy/optimizations/) before execution.
+
+```python
+from functime.preprocessing import boxcox, impute
+from functime.cross_validation import expanding_window_split
+
+# Use df.pipe to chain operations together
+X_splits: pl.LazyFrame = (
+    X.pipe(boxcox(method="mle"))
+    .pipe(impute(method="linear"))
+    .pipe(expanding_window_split(test_size=28, n_splits=3, step_size=1))
+)
+# Call .collect to execute query
+X_splits = X_splits.collect()
+```
 
 ## Time Series Data
 
