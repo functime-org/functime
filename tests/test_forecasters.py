@@ -20,7 +20,7 @@ def strategy(request):
 @pytest.fixture(autouse=True)
 def delete_deployed_models():
     yield
-    subprocess.call("functime deploy remove --all")
+    subprocess.call(["functime", "deploy", "remove", "--all"])
 
 
 @pytest.fixture
