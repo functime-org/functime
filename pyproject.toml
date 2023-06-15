@@ -51,6 +51,8 @@ test = [
     "pytest-memray",
     "pytest-timeout",
     "pytest",
+    "scikit-learn",
+    "fastapi"
 ]
 doc = [
     "mkdocs",

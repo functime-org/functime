@@ -20,7 +20,7 @@ def strategy(request):
 @pytest.fixture(autouse=True)
 def delete_deployed_models():
     yield
-    subprocess.call("functime deploy remove --all")
+    subprocess.call(["functime", "deploy", "remove", "--all"])
 
 
 @pytest.fixture
@@ -234,6 +234,7 @@ def test_fit_updates_mb_usage():
 
 def test_predict_updates_forecasts_usage():
     """Check that predict updates the forecast usage by the number of entities in y"""
+    pass
 
 
 def test_maxed_out_data_usage():

@@ -6,6 +6,7 @@ on:
     paths:
       - 'functime/**'
       - 'pyproject.toml'
+      - "tests/**"
       - '.github/workflows/test.yml'
   pull_request:
     types: [ review_requested ]
@@ -45,7 +46,7 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install .
+          python3 -m pip install ".[test]"
       - name: Authenticate to functime Cloud
         run: functime token set --token-id $TOKEN_ID --token-secret $TOKEN_SECRET  --no-verify
       - name: Test Cloud functions
@@ -69,7 +70,7 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install .
+          python3 -m pip install ".[test]"
       - name: Authenticate to functime Cloud
         run: functime token set --token-id $TOKEN_ID --token-secret $TOKEN_SECRET  --no-verify
       - name: Test Cloud functions
