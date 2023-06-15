@@ -19,7 +19,7 @@ The `functime` [Python package](https://pypi.org/project/functime/) provides a s
 **functime** also comes with open-sourced [Apache 2.0](https://github.com/indexhub-ai/functime/blob/HEAD/LICENSING.md) time-series [preprocessing](https://docs.functime.ai/ref/preprocessing/) (box-cox, differencing etc), cross-validation [splitters](https://docs.functime.ai/ref/cross-validation/) (expanding and sliding window), and forecast [metrics](https://docs.functime.ai/ref/metrics/) (MASE, SMAPE etc). All optimized as [lazy Polars](https://pola-rs.github.io/polars-book/user-guide/lazy/using/) transforms.
 
 Want to use **functime** for seamless time-series analytics across your data team
-Looking for fully-managed production-grade AI/ML forecasting and time-series search?
+Looking for fully-managed production-grade AI/ML forecasting and time-series embeddings?
 Book a [15 minute discovery call](https://calendly.com/functime-indexhub) to learn more about functime's Team / Enterprise plans.
 
 ## Highlights

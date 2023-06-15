@@ -38,7 +38,7 @@ Embeddings are more accurate and efficient compared to statistical methods (e.g.
 Embeddings have applications across many domains from finance to IoT monitoring.
 They are commonly used for the following tasks:
 
-- **Search:** Where time-series are ranked by similarity to a given time-series
+- **Matching:** Where time-series are ranked by similarity to a given time-series
 - **Classification:** Where time-series are grouped together by matching patterns
 - **Clustering:** Where time-series are assigned labels (e.g. normal vs irregular heart rate)
 - **Anomaly detection:** Where outliers with unexpected regime / trend changes are identified
@@ -75,7 +75,7 @@ View the [full walkthrough](embeddings.md) on time-series embeddings with `funct
     The `functime.embeddings.embed()` function takes a **wide dataset** where each row represents a single time-series.
 
     ```
-    >>> y_wide
+    >>> X_y_wide
     shape: (150, 151)
 
     label     t0        t1     ...    t148      t149
@@ -123,6 +123,9 @@ scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 ```
 ### Classification
 
+The following dataset represents velocity measurements from two gunslingers (label 1 and label 2) over 150 time periods (columns t0, t1, ..., t149) over 75 trials (rows).
+In this example, we assign each sequence of measurement to one of the two gunsligners.
+
 ```python
 import polars as pl
 import functime
@@ -161,6 +164,8 @@ accuracy = accuracy_score(predictions, y_test)
 ```
 
 ### Clustering
+
+In this example, we cluster S&P 500 companies into groups with similar price patterns.
 
 ```python
 import functime
