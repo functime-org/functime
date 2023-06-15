@@ -6,6 +6,7 @@ on:
     paths:
       - 'functime/**'
       - 'pyproject.toml'
+      - "tests/**"
       - '.github/workflows/test.yml'
   pull_request:
     types: [ review_requested ]
