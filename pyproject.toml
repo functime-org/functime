@@ -51,7 +51,7 @@ test = [
     "pytest-memray",
     "pytest-timeout",
     "pytest",
-    "sklearn",
+    "scikit-learn",
     "fastapi"
 ]
 doc = [
