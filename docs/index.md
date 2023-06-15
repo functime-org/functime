@@ -49,6 +49,52 @@ View the [full walkthrough](embeddings.md) on time-series embeddings with `funct
 
 ## Quick Examples
 
+??? info "Required Data Schemas"
+
+    ## Forecasting
+    Forecasters, preprocessors, and splitters take a **panel dataset** where the first two columns represent entity (e.g. commodty name) and time (e.g. date). Subsequent columns represent observed values (e.g. price).
+
+    ```
+    >>> y_panel
+    shape: (47_583, 3)
+
+    commodity_type   time         price
+    ------------------------------------
+    Aluminum         1960-01-01    511.47
+                     1960-02-01    511.47
+                     1960-03-01    511.47
+                     1960-04-01    511.47
+                     1960-05-01    511.47
+    ...                     ...       ...
+    Zinc             2022-11-01   2938.92
+                     2022-12-01   3129.48
+                     2023-01-01   3309.81
+                     2023-02-01   3133.84
+                     2023-03-01   2967.46
+    ```
+
+    ## Embeddings
+    The `functime.embeddings.embed()` function takes a **wide dataset** where each row represents a single time-series.
+
+    ```
+    >>> y_wide
+    shape: (150, 151)
+    label     t0        t1     ...    t148      t149
+    --------------------------------------------------
+    1     -1.125013 -1.131338  ... -1.206178 -1.218422
+    2     -0.626956 -0.625919  ... -0.612058 -0.606422
+    2     -2.001163 -1.999575  ... -1.071147 -1.323383
+    1     -1.004587 -0.999843  ... -1.044226 -1.043262
+    1     -0.742625 -0.743770  ... -0.670519 -0.657403
+    ...         ...       ...  ...       ...       ...
+    2     -0.580006 -0.583332  ... -0.548831 -0.553552
+    1     -0.728153 -0.730242  ... -0.686448 -0.690183
+    2     -0.738012 -0.736301  ... -0.608616 -0.612177
+    2     -1.265111 -1.256093  ... -1.193374 -1.192835
+    1     -1.427205 -1.408303  ... -1.153119 -1.222043
+    ```
+
+
 ### Forecasting
 
 ```python
@@ -57,10 +103,7 @@ from functime.cross_validation import train_test_split
 from functime.forecasting import LightGBM
 from functime.metrics import mase
 
-# Load example data in "panel" format:
-# Column 1. Entity (e.g. commodity name)
-# Column 2. Time (e.g. date)
-# Column 3. Value (e.g. price)
+# Load commodities price data
 y = pl.read_parquet("https://bit.ly/commodities-data")
 entity_col, time_col = y.columns[:2]
 
@@ -82,156 +125,81 @@ scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 ### Classification
 
 ```python
-import numpy as np
 import polars as pl
+import functime
 from sklearn.linear_model import RidgeClassifierCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
 from sklearn.pipeline import make_pipeline
-from functime.embeddings import embed
 
-# Load GunPoint dataset
-data_url = "https://github.com/indexhub-ai/functime/raw/main/data"
+# Load GunPoint dataset (150 observations, 150 timestamps)
+X_y_train = pl.read_parquet("https://bit.ly/gunpoint-train")
+X_y_test = pl.read_parquet("https://bit.ly/gunpoint-test")
 
 # Train-test split
-X_y_train = pl.read_parquet(f"{data_url}/gunpoint_train.parquet")
-X_y_test = pl.read_parquet(f"{data_url}/gunpoint_test.parquet")
+X_train, y_train = X_y_train.select(pl.all().exclude("label")), X_y_train.select("label")
+X_test, y_test = X_y_test.select(pl.all().exclude("label")), X_y_test.select("label")
 
-X_train = X_y_train.select(pl.all().exclude("label"))
-y_train = X_y_train.select("label")
-X_test = X_y_test.select(pl.all().exclude("label"))
-y_test = X_y_test.select("label")
+X_train_embs = functime.embeddings.embed(X_train, model="minirocket")
 
-# `embed()` takes in a list of time series as a 2D numpy array
-# The transformation returns an embedding for each time series
-# i.e. [[ts-0], ... [ts-N]] -> [[emb-0], ... [emb-N]]
-X_train_embs = embed(X_train, model="minirocket")
-
-# The training embeddings ndarray has the shape:
-# (Number of training time series, Closest multiple of 84 < 10,000 => 9996)
-# where ~10,000 is the recommended number of features
-np.testing.assert_equal(X_train_embs.shape, (len(X_train), 9_996))
-
-# Fit an sklearn classifier on the embeddings
+# Fit classifier on the embeddings
 classifier = make_pipeline(
     StandardScaler(with_mean=False),
     RidgeClassifierCV(alphas=np.logspace(-3, 3, 10)),
 )
 classifier.fit(X_train_embs, y_train)
 
+# Predict and
 X_test_embs = embed(X_test, model="minirocket")
-
-# Similarly, the test embeddings ndarray has the shape:
-# (Number of test time series, Closest multiple of 84 < 10,000 => 9996)
-np.testing.assert_equal(X_test_embs.shape, (len(X_test), 9_996))
-
-# Predict (alternatively: 'classifier.score(X_test_embs, y_test)')
-predictions = classifier.predict(X_test_embs)
+labels = classifier.predict(X_test_embs)
 accuracy = accuracy_score(predictions, y_test)
 ```
+
 ### Clustering
 
 ```python
-import numpy as np
+import functime
 import polars as pl
-import pandas as pd
-import pyarrow as pa
-import yfinance as yf
-import requests
-import hdbscan
-import umap
-from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import silhouette_score
-from functime.embeddings import embed
+from hdbscan import HDBSCAN
+from umap import UMAP
 from functime.preprocessing import roll
 
+# Load S&P500 panel data from 2022-06-01 to 2023-06-01
+# Columns: ticker, time, price
+y = pl.read_parquet("https://bit.ly/sp500-data")
 
-# Download S&P 500 stock prices
-start_date = "2022-06-01"
-end_date = "2023-06-01"
-
-url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-response = requests.get(
-    url,
-    headers={
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/91.0.4472.124 Safari/537.36"
-        )
-    },
-)
-data = pd.read_html(response.text)[0]
-tickers = [sym.replace(".", "-") for sym in data["Symbol"].to_list()]
-stock_prices = yf.download(
-    tickers, start_date, end_date, auto_adjust=True
-)["Close"]
-
-# Replace the column names with a more readable format
-schema = [f"{sec} ({sect})" for sec, sect in zip(securities, sectors)]
-df = pl.DataFrame(stock_prices, schema=schema).fill_null(strategy="zero")
-
-# Reduce noise by smoothing the time series. We first `melt` the wide format
-# data into long (panel) format to use with `roll()`, as it expects data in
-# the format: [entity_col, time_col, target_col]
-df_melted = (
-    df.hstack([pl.Series("time", stock_prices.index)])
-    .melt(id_vars="time", variable_name="ticker", value_name="price")
-    .select(["ticker", "time", "price"])
-)
-smoothed_df = (
-    df_melted.pipe(roll(window_sizes=[60], stats=["mean"], freq="1d"))
+# Reduce noise by smoothing the time series using
+# functime's `roll` function: 60-days moving average
+y_ma_60 = (
+    y.pipe(roll(window_sizes=[60], stats=["mean"], freq="1d"))
     .drop_nulls()
+    # Pivot from panel to wide format
+    .pivot(
+        values="price__rolling_mean_60",
+        columns="time",
+        index="ticker"
+    )
+    # Remember all functime transforms are lazy!
     .collect()
 )
 
-# Return the data back into wide format
-df = (
-    smoothed_df.pivot(
-        values=f"price__rolling_mean_{window_sz}",
-        columns="ticker",
-        index="time"
-    )
-    .sort(by=pl.col("time"))
-    .drop("time")
-)
-
 # Create embeddings
-# As Polars dataframes are built on Apache Arrow's columnar memory format,
-# we need to transpose the ndarray into row-major format for `embed()`
-X = df.to_numpy()
-embeddings = embed(X.T, model="minirocket")
-
+embeddings = functime.embeddings.embed(y_ma_60, model="minirocket")
 
 # Reduce dimensionality with UMAP
-reducer = umap.UMAP(
-    n_components=500, n_neighbors=10, metric="manhattan", random_state=0
+reducer = UMAP(
+    n_components=500,
+    n_neighbors=10,
+    metric="manhattan",
 )
 umap_embeddings = reducer.fit_transform(embeddings)
-clusterer = hdbscan.HDBSCAN(gen_min_span_tree=True, metric="minkowski", p=1)
 
 # Cluster with HDBSCAN
-# We use GridSearchCV to find the best parameters for the clusterer
-def hdbscan_scorer(estimator, X_):
-    estimator.fit(X_)
-    return estimator.relative_validity_
+clusterer = HDBSCAN(metric="minkowski", p=1)
+estimator.fit(X)
 
-params = {
-    "min_samples": np.arange(5, 30),
-    "min_cluster_size": np.arange(5, 30),
-}
-grid = GridSearchCV(
-    clusterer, param_grid=params, scoring=hdbscan_scorer, n_jobs=-1, cv=5
-)
-grid.fit(umap_embeddings)
-
-# View best clusterer parameters
-estimator = grid.best_estimator_
-labels = estimator.labels_
-cluster_labels = np.unique(labels)
-n_labels = len(cluster_labels)
-n_clustered = np.sum((labels >= 0))
-coverage = n_clustered / umap_embeddings.shape[0]
+# Get predicted cluster labels
+labels = estimator.predict(X)
 ```
 
 ### Preprocessing
