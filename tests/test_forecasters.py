@@ -234,6 +234,7 @@ def test_fit_updates_mb_usage():
 
 def test_predict_updates_forecasts_usage():
     """Check that predict updates the forecast usage by the number of entities in y"""
+    pass
 
 
 def test_maxed_out_data_usage():
