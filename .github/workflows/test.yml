@@ -38,7 +38,13 @@ jobs:
       TOKEN_ID: ${{ secrets.FUNCTIME__PROD__TOKEN_ID }}
       TOKEN_SECRET: ${{ secrets.FUNCTIME__PROD__TOKEN_SECRET }}
     steps:
+      - name: Install Git LFS
+        run: |
+          sudo apt-get update
+          sudo apt-get install git-lfs
       - uses: actions/checkout@v3
+        with:
+          lfs: true
       - name: Set up Python 3
         uses: actions/setup-python@v3
         with:
@@ -62,7 +68,13 @@ jobs:
       TOKEN_ID: ${{ secrets.FUNCTIME__STAGING__TOKEN_ID }}
       TOKEN_SECRET: ${{ secrets.FUNCTIME__STAGING__TOKEN_SECRET }}
     steps:
+      - name: Install Git LFS
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y git-lfs
       - uses: actions/checkout@v3
+        with:
+          lfs: true
       - name: Set up Python 3
         uses: actions/setup-python@v3
         with:
