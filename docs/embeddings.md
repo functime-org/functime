@@ -2,18 +2,15 @@
 
 ## What are embeddings?
 
-Time-series embeddings measure the relatedness of time-series. Embeddings are
-more accurate and efficient compared to statistical methods (e.g. Catch22) for
-characterizing time-series.[^1] Embeddings have applications across many domains
-from finance to IoT monitoring. They are commonly used for the following tasks:
+Time-series embeddings measure the relatedness of time-series.
+Embeddings are more accurate and efficient compared to statistical methods (e.g. Catch22) for characterizing time-series.[^1]
+Embeddings have applications across many domains from finance to IoT monitoring.
+They are commonly used for the following tasks:
 
-- **Matching:** Where time-series are ranked by similarity to a given
-  time-series
-- **Classification:** Where time-series are assigned labels (e.g. normal vs
-  irregular heart rate)
+- **Matching:** Where time-series are ranked by similarity to a given time-series
+- **Classification:** Where time-series are assigned labels (e.g. normal vs irregular heart rate)
 - **Clustering:** Where time-series are grouped together by matching patterns
-- **Anomaly detection:** Where outliers with unexpected regime / trend changes
-  are identified
+- **Anomaly detection:** Where outliers with unexpected regime / trend changes are identified
 
 !!! tip "To see time-series embeddings in action, check out our code examples"
 
@@ -23,15 +20,17 @@ from finance to IoT monitoring. They are commonly used for the following tasks:
 
     [Browse use-cases](#what-are-the-use-cases){ .md-button .md-button--primary }
 
+
 ## How to compute embeddings?
 
-The `functime.embeddings.embed()` function takes a **wide dataset** where each
-row represents a single time-series.
+The `functime.embeddings.embed()` function takes a **wide dataset** where each row represents a single time-series.
 
-!!! example "Wide data example" The following dataset represents velocity
-measurements from two robots (label 1 and label 2) over 150 time periods
-(columns t0, t1, ..., t149) and 75 trials (rows). ``` >>> X_y_wide =
-pl.read_parquet("https://bit.ly/gunpoint-train") >>> X_y_wide shape: (150, 151)
+!!! example "Wide data example"
+    The following dataset represents velocity measurements from two robots (label 1 and label 2) over 150 time periods (columns t0, t1, ..., t149) and 75 trials (rows).
+    ```
+    >>> X_y_wide = pl.read_parquet("https://bit.ly/gunpoint-train")
+    >>> X_y_wide
+    shape: (150, 151)
 
     label     t0        t1     ...    t148      t149
     --------------------------------------------------
@@ -57,22 +56,15 @@ X_embs = functime.embeddings.embed(X, model="minirocket")
 
 ## How are embeddings computed?
 
-`functime` offers `RustyRocket`, which is currently the fastest implementation
-of MINIROCKET[^1] (MINImally RandOm Convolutional KErnel Transform). The
-MINIROCKET algorithm consistently tops time-series classification benchmarks in
-speed and accuracy.
+`functime` offers `RustyRocket`, which is currently the fastest implementation of MINIROCKET[^1] (MINImally RandOm Convolutional KErnel Transform). The MINIROCKET algorithm consistently tops time-series classification benchmarks in speed and accuracy.
 
-[^1]: Dempster, A., Schmidt, D. F., & Webb, G. I. (2021, August). Minirocket: A
-very fast (almost) deterministic transform for time series classification. In
-Proceedings of the 27th ACM SIGKDD conference on knowledge discovery & data
-mining (pp. 248-257).
+[^1]: Dempster, A., Schmidt, D. F., & Webb, G. I. (2021, August). Minirocket: A very fast (almost) deterministic transform for time series classification. In Proceedings of the 27th ACM SIGKDD conference on knowledge discovery & data mining (pp. 248-257).
 
 ## What are the use-cases?
 
 ### Classification (Health)
 
-In this example, we classify 750 fetal electrocardiogram visits (fetal heartbeat
-measurements) from 42 women.
+In this example, we classify 750 fetal electrocardiogram visits (fetal heartbeat measurements) from 42 women.
 
 ```python
 import polars as pl
@@ -113,8 +105,7 @@ accuracy = accuracy_score(predictions, y_test)
 
 ### Clustering (Finance)
 
-In this example, we cluster S&P 500 companies into groups with similar price
-patterns.
+In this example, we cluster S&P 500 companies into groups with similar price patterns.
 
 ```python
 import functime
@@ -157,19 +148,13 @@ estimator.fit(X)
 labels = estimator.predict(X)
 ```
 
-The reduced embeddings can be visualized with a scatter plot.
-![Embeddings](static/gifs/embeddings_clip.gif)
-
 ## What's next?
 
-Time-series embeddings are a disruptive new technique for data mining with
-extremely large numbers of time-series. If you have an interesting use-case, we
-would love to hear from you! Let's chat over a
-[15 minute call](https://calendly.com/functime-indexhub).
+Time-series embeddings are a disruptive new technique for data mining with extremely large numbers of time-series.
+If you have an interesting use-case, we would love to hear from you!
+Let's chat over a [15 minute call](https://calendly.com/functime-indexhub).
 
 ## How can I retrieve K-nearest embeddings quickly?
 
 To search over many embeddings quickly, we recommend using a vector database.
-Our current recommendation is [LanceDB](https://github.com/lancedb/lancedb) for
-its first-class support for time-travel, fast distance metrics, and easy-to-use
-API.
+Our current recommendation is [LanceDB](https://github.com/lancedb/lancedb) for its first-class support for time-travel, fast distance metrics, and easy-to-use API.
