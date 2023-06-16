@@ -147,6 +147,9 @@ estimator.fit(X)
 # Get predicted cluster labels
 labels = estimator.predict(X)
 ```
+The reduced embeddings can be visualized with a scatter plot.
+![Embeddings](img/embeddings_clip.gif)
+
 
 ## What's next?
 
