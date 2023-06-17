@@ -54,6 +54,9 @@ X = X_y_wide.select(pl.all().exclude("label"))
 X_embs = functime.embeddings.embed(X, model="minirocket")
 ```
 
+The embeddings can be reduced into 2D / 3D and visualized with a scatter plot.
+![Embeddings](img/embeddings_clip.gif)
+
 ## How are embeddings computed?
 
 `functime` offers `RustyRocket`, which is currently the fastest implementation of MINIROCKET[^1] (MINImally RandOm Convolutional KErnel Transform). The MINIROCKET algorithm consistently tops time-series classification benchmarks in speed and accuracy.
@@ -147,9 +150,6 @@ estimator.fit(X)
 # Get predicted cluster labels
 labels = estimator.predict(X)
 ```
-The reduced embeddings can be visualized with a scatter plot.
-![Embeddings](img/embeddings_clip.gif)
-
 
 ## What's next?
 
