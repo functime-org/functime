@@ -1,6 +1,5 @@
 import polars as pl
 import pytest
-from polars.testing import assert_frame_equal
 
 from functime.cross_validation import (
     expanding_window_split,
@@ -25,86 +24,71 @@ def step_size(request):
 
 
 def test_train_test_split(test_size, pl_y, benchmark):
+    def _split(y):
+        y_train, y_test = train_test_split(test_size)(y)
+        return pl.collect_all([y_train, y_test])
 
-    splits = benchmark(lambda y: train_test_split(test_size)(y).collect(), pl_y)
+    y_train, y_test = benchmark(_split, pl_y)
 
-    y = pl_y.collect()
-    entity_col, time_col, value_col = y.columns
-    assert splits.columns == [
-        entity_col,
-        f"{time_col}__train",
-        f"{value_col}__train",
-        f"{time_col}__test",
-        f"{value_col}__test",
-    ]
+    # Check column names
+    entity_col, time_col = pl_y.columns[:2]
+    assert y_train.columns == y_test.columns
 
     # Check train window lengths
-    train_lengths = splits.select(
-        [entity_col, pl.col(f"{time_col}__train").arr.lengths()]
-    ).sort(by=entity_col)
-    expected_train_lengths = (
-        y.groupby(entity_col)
-        .agg(pl.count().alias(f"{time_col}__train"))
-        .with_columns(pl.col(f"{time_col}__train") - test_size)
-        .sort(by=entity_col)
+    ts_lengths = (
+        pl_y.groupby(entity_col, maintain_order=True)
+        .agg(pl.col(time_col).count())
+        .collect()
     )
-    assert_frame_equal(train_lengths, expected_train_lengths)
+    train_lengths = y_train.groupby(entity_col, maintain_order=True).agg(
+        pl.col(time_col).count()
+    )
+    assert (
+        (ts_lengths.select("time") - train_lengths.select("time")) == test_size
+    ).select(pl.all().all())[0, 0]
 
-    # Check test window lengths = test_size
-    test_lengths = splits.select(
-        pl.col(f"{time_col}__test").arr.lengths().alias("count")
-    )
-    assert (test_lengths == test_size).select(pl.all().all())[0, 0]
+    # Check test window lengths
+    test_lengths = y_test.groupby(entity_col).agg(pl.col(time_col).count())
+    assert (test_lengths.select("time") == test_size).select(pl.all().all())[0, 0]
 
 
 def test_expanding_window_split(test_size, n_splits, step_size, pl_y, benchmark):
+    def _split(y):
+        cv = expanding_window_split(
+            test_size=test_size, n_splits=n_splits, step_size=step_size
+        )
+        splits = cv(y)
+        return {i: pl.collect_all(s) for i, s in splits.items()}
 
-    cv = expanding_window_split(
-        test_size=test_size, n_splits=n_splits, step_size=step_size
-    )
-    splits = benchmark(lambda y: cv(y).collect(), pl_y)
+    splits = benchmark(_split, pl_y)
+    entity_col, time_col = pl_y.columns[:2]
 
-    y = pl_y.collect()
-    entity_col, time_col, value_col = y.columns
-    cv_split_cols = []
-    for i in range(n_splits):
-        cv_split_cols += [
-            f"{time_col}__train_{i}",
-            f"{value_col}__train_{i}",
-            f"{time_col}__test_{i}",
-            f"{value_col}__test_{i}",
-        ]
-
-    assert splits.columns == [entity_col, *cv_split_cols]
-
-    # Check test window lengths = test_size
-    test_lengths = splits.select([pl.col(f"^{time_col}__test_.*$").arr.lengths()])
-    expected = pl.DataFrame({col: [True] for col in test_lengths.columns})
-    assert_frame_equal((test_lengths == test_size).select(pl.all().all()), expected)
+    for split in splits.values():
+        _, y_test = split
+        # Check test window lengths
+        test_lengths = y_test.groupby(entity_col, maintain_order=True).agg(
+            pl.col(time_col).count()
+        )
+        assert (test_lengths.select("time") == test_size).select(pl.all().all())[0, 0]
 
 
 def test_sliding_window_split(test_size, n_splits, step_size, pl_y, benchmark):
+    def _split(y):
+        cv = sliding_window_split(
+            test_size=test_size,
+            n_splits=n_splits,
+            step_size=step_size,
+        )
+        splits = cv(y)
+        return {i: pl.collect_all(s) for i, s in splits.items()}
 
-    cv = sliding_window_split(
-        test_size=test_size,
-        n_splits=n_splits,
-        step_size=step_size,
-    )
-    splits = benchmark(lambda y: cv(y).collect(), pl_y)
+    splits = benchmark(_split, pl_y)
+    entity_col, time_col = pl_y.columns[:2]
 
-    y = pl_y.collect()
-    entity_col, time_col, value_col = y.columns
-    cv_split_cols = []
-    for i in range(n_splits):
-        cv_split_cols += [
-            f"{time_col}__train_{i}",
-            f"{value_col}__train_{i}",
-            f"{time_col}__test_{i}",
-            f"{value_col}__test_{i}",
-        ]
-    assert splits.columns == [entity_col, *cv_split_cols]
-
-    # Check test window lengths = test_size
-    test_lengths = splits.select([pl.col(f"^{time_col}__test_.*$").arr.lengths()])
-    expected = pl.DataFrame({col: [True] for col in test_lengths.columns})
-    assert_frame_equal((test_lengths == test_size).select(pl.all().all()), expected)
+    for split in splits.values():
+        _, y_test = split
+        # Check test window lengths
+        test_lengths = y_test.groupby(entity_col, maintain_order=True).agg(
+            pl.col(time_col).count()
+        )
+        assert (test_lengths.select("time") == test_size).select(pl.all().all())[0, 0]

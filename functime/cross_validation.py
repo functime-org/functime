@@ -1,48 +1,7 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import numpy as np
 import polars as pl
-
-
-def get_split(
-    entity_col: str,
-    time_col: str,
-    target_col: str,
-    y_splits: pl.LazyFrame,
-    X_splits: Optional[pl.LazyFrame] = None,
-    feature_cols: Optional[List[str]] = None,
-):
-
-    y_cols = [entity_col, time_col, target_col]
-    X_cols = None if X_splits is None else [entity_col, time_col, *feature_cols]
-
-    def _get_split(splits: pl.DataFrame, i: int) -> Tuple[pl.LazyFrame, pl.LazyFrame]:
-        array_cols = pl.all().exclude(entity_col)
-        train_cols = [entity_col, pl.col(f"^*__train_{i}$")]
-        test_cols = [entity_col, pl.col(f"^*__test_{i}$")]
-        train_split = splits.select(train_cols).explode(array_cols).lazy()
-        test_split = splits.select(test_cols).explode(array_cols).lazy()
-        return train_split, test_split
-
-    def get_y_split(i: int):
-        y_train, y_test = _get_split(y_splits, i)
-        # Remove split label suffix
-        y_train = y_train.rename({x: y for x, y in zip(y_train.columns, y_cols)})
-        y_test = y_test.rename({x: y for x, y in zip(y_test.columns, y_cols)})
-        return y_train, y_test, None, None
-
-    def get_X_y_split(i: int):
-        y_train, y_test = _get_split(y_splits, i)
-        X_train, X_test = _get_split(X_splits, i)
-        # Remove split label suffix
-        y_train = y_train.rename({x: y for x, y in zip(y_train.columns, y_cols)})
-        y_test = y_test.rename({x: y for x, y in zip(y_test.columns, y_cols)})
-        X_train = X_train.rename({x: y for x, y in zip(X_train.columns, X_cols)})
-        X_test = X_test.rename({x: y for x, y in zip(X_test.columns, X_cols)})
-        return y_train, y_test, X_train, X_test
-
-    fn = get_y_split if X_splits is None else get_X_y_split
-    return fn
 
 
 def train_test_split(test_size: int):
@@ -61,15 +20,16 @@ def train_test_split(test_size: int):
 
     def split(X: pl.LazyFrame) -> pl.LazyFrame:
         X = X.lazy()  # Defensive
+        entity_col = X.columns[0]
         train_split = (
-            X.groupby(X.columns[0])
+            X.groupby(entity_col)
             .agg(pl.all().slice(0, pl.count() - test_size))
-            .explode(pl.all().exclude(X.columns[0]))
+            .explode(pl.all().exclude(entity_col))
         )
         test_split = (
-            X.groupby(X.columns[0])
+            X.groupby(entity_col)
             .agg(pl.all().slice(-1 * test_size, test_size))
-            .explode(pl.all().exclude(X.columns[0]))
+            .explode(pl.all().exclude(entity_col))
         )
         return train_split, test_split
 
@@ -82,32 +42,33 @@ def _window_split(
     n_splits: int,
     step_size: int,
     window_size: Optional[int] = None,
-) -> pl.LazyFrame:
+) -> List[pl.LazyFrame]:
     X = X.lazy()  # Defensive
     backward_steps = np.arange(1, n_splits) * step_size + test_size
     cutoffs = np.flip(np.concatenate([np.array([test_size]), backward_steps]))
+    entity_col = X.columns[0]
     if window_size:
         # Sliding window CV
         train_exprs = [
-            pl.all()
-            .slice(pl.count() - x - window_size, window_size)
-            .suffix(f"__train_{i}")
-            for i, x in enumerate(cutoffs)
+            pl.all().slice(pl.count() - cutoff - window_size, window_size)
+            for cutoff in cutoffs
         ]
     else:
         # Expanding window CV
-        train_exprs = [
-            pl.all().slice(0, pl.count() - x).suffix(f"__train_{i}")
-            for i, x in enumerate(cutoffs)
-        ]
-    test_exprs = [
-        pl.all().slice(-cutoffs[i], test_size).suffix(f"__test_{i}")
-        for i in range(n_splits)
-    ]
-    exprs = zip(train_exprs, test_exprs)
-    splits = X.groupby(X.columns[0]).agg(
-        [window for windows in exprs for window in windows]
-    )
+        train_exprs = [pl.all().slice(0, pl.count() - cutoff) for cutoff in cutoffs]
+
+    test_exprs = [pl.all().slice(-cutoffs[i], test_size) for i in range(n_splits)]
+    train_test_exprs = zip(train_exprs, test_exprs)
+    splits = {}
+    for i, train_test_expr in enumerate(train_test_exprs):
+        train_expr, test_expr = train_test_expr
+        train_split = (
+            X.groupby(entity_col).agg(train_expr).explode(pl.all().exclude(entity_col))
+        )
+        test_split = (
+            X.groupby(entity_col).agg(test_expr).explode(pl.all().exclude(entity_col))
+        )
+        splits[i] = train_split, test_split
     return splits
 
 
@@ -142,7 +103,8 @@ def expanding_window_split(
     Returns
     -------
     splitter : Callable[pl.LazyFrame, pl.LazyFrame]
-        Function that takes a panel LazyFrame and returns a LazyFrame of train / test splits.
+        Function that takes a panel LazyFrame and Dict of (train, test) splits, where
+        the key represents the split number (1,2,...,n_splits) and the value is a tuple of LazyFrames.
     """
 
     def split(X: pl.LazyFrame) -> pl.LazyFrame:
@@ -184,7 +146,8 @@ def sliding_window_split(
     Returns
     -------
     splitter : Callable[pl.LazyFrame, pl.LazyFrame]
-        Function that takes a panel LazyFrame and returns a LazyFrame of train / test splits.
+        Function that takes a panel LazyFrame and Dict of (train, test) splits, where
+        the key represents the split number (1,2,...,n_splits) and the value is a tuple of LazyFrames.
     """
 
     def split(X: pl.LazyFrame) -> pl.LazyFrame:
