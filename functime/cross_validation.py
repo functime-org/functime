@@ -73,9 +73,7 @@ def _window_split(
 
 
 def expanding_window_split(
-    test_size: int,
-    n_splits: int = 5,
-    step_size: int = 1,
+    test_size: int, n_splits: int = 5, step_size: int = 1, eager: bool = False
 ):
     """Return train/test splits using expanding window splitter.
 
@@ -99,6 +97,8 @@ def expanding_window_split(
         Number of splits.
     step_size : int, default=1
         Step size between windows.
+    eager : bool, default=False
+        If True return DataFrames. Otherwise, return LazyFrames.
 
     Returns
     -------
@@ -108,7 +108,10 @@ def expanding_window_split(
     """
 
     def split(X: pl.LazyFrame) -> pl.LazyFrame:
-        return _window_split(X, test_size, n_splits, step_size)
+        splits = _window_split(X, test_size, n_splits, step_size)
+        if eager:
+            splits = {i: pl.collect_all(s) for i, s in splits.items()}
+        return splits
 
     return split
 
@@ -118,6 +121,7 @@ def sliding_window_split(
     n_splits: int = 5,
     step_size: int = 1,
     window_size: int = 10,
+    eager: bool = False,
 ):
     """Return train/test splits using sliding window splitter.
     Split time series repeatedly into a fixed-length training and test set.
@@ -142,6 +146,8 @@ def sliding_window_split(
         Step size between windows.
     window_size: int, default=10
         Window size for training.
+    eager : bool, default=False
+        If True return DataFrames. Otherwise, return LazyFrames.
 
     Returns
     -------
@@ -151,6 +157,9 @@ def sliding_window_split(
     """
 
     def split(X: pl.LazyFrame) -> pl.LazyFrame:
-        return _window_split(X, test_size, n_splits, step_size, window_size)
+        splits = _window_split(X, test_size, n_splits, step_size, window_size)
+        if eager:
+            splits = {i: pl.collect_all(s) for i, s in splits.items()}
+        return splits
 
     return split
