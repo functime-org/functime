@@ -1,10 +1,10 @@
-from typing import List, Optional
+from typing import Mapping, Optional, Tuple
 
 import numpy as np
 import polars as pl
 
 
-def train_test_split(test_size: int):
+def train_test_split(test_size: int) -> Tuple[pl.LazyFrame, pl.LazyFrame]:
     """Return a time-ordered train set and test set given `test_size`.
 
     Parameters
@@ -14,8 +14,8 @@ def train_test_split(test_size: int):
 
     Returns
     -------
-    splitter : Callable[pl.LazyFrame, pl.LazyFrame]
-        Function that takes a panel LazyFrame and returns a LazyFrame of train / test splits.
+    splitter : Callable[pl.LazyFrame, Tuple[pl.LazyFrame, pl.LazyFrame]]
+        Function that takes a panel LazyFrame and returns tuple of train / test LazyFrames.
     """
 
     def split(X: pl.LazyFrame) -> pl.LazyFrame:
@@ -42,7 +42,7 @@ def _window_split(
     n_splits: int,
     step_size: int,
     window_size: Optional[int] = None,
-) -> List[pl.LazyFrame]:
+) -> Mapping[int, Tuple[pl.LazyFrame, pl.LazyFrame]]:
     X = X.lazy()  # Defensive
     backward_steps = np.arange(1, n_splits) * step_size + test_size
     cutoffs = np.flip(np.concatenate([np.array([test_size]), backward_steps]))
@@ -102,7 +102,7 @@ def expanding_window_split(
 
     Returns
     -------
-    splitter : Callable[pl.LazyFrame, pl.LazyFrame]
+    splitter : Callable[pl.LazyFrame, Mapping[int, Tuple[pl.LazyFrame, pl.LazyFrame]]]
         Function that takes a panel LazyFrame and Dict of (train, test) splits, where
         the key represents the split number (1,2,...,n_splits) and the value is a tuple of LazyFrames.
     """
@@ -145,7 +145,7 @@ def sliding_window_split(
 
     Returns
     -------
-    splitter : Callable[pl.LazyFrame, pl.LazyFrame]
+    splitter : Callable[pl.LazyFrame, Mapping[int, Tuple[pl.LazyFrame, pl.LazyFrame]]]
         Function that takes a panel LazyFrame and Dict of (train, test) splits, where
         the key represents the split number (1,2,...,n_splits) and the value is a tuple of LazyFrames.
     """
