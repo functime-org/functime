@@ -1,5 +1,5 @@
 <div align="center">
-    <h1>Run and scale time-series machine learning</h1>
+    <h1>Time-series machine learning and embeddings at scale</h1>
 <br />
 
 ![functime](https://github.com/indexhub-ai/functime/raw/main/static/images/functime_banner.png)
