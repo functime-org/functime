@@ -73,16 +73,14 @@ scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 
     ```python
     from functime.preprocessing import boxcox, impute
-    from functime.cross_validation import expanding_window_split
 
     # Use df.pipe to chain operations together
-    X_splits: pl.LazyFrame = (
+    X_new: pl.LazyFrame = (
         X.pipe(boxcox(method="mle"))
         .pipe(impute(method="linear"))
-        .pipe(expanding_window_split(test_size=28, n_splits=3, step_size=1))
     )
     # Call .collect to execute query
-    X_splits = X_splits.collect()
+    X_new = X_splits.collect()
     ```
 
     You can also use any `forecaster` as a curried function to run fit-predict in a single line of code.
