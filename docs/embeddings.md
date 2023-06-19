@@ -10,16 +10,19 @@ They are commonly used for the following tasks:
 - **Matching:** Where time-series are ranked by similarity to a given time-series
 - **Classification:** Where time-series are assigned labels (e.g. normal vs irregular heart rate)
 - **Clustering:** Where time-series are grouped together by matching patterns
-- **Anomaly detection:** Where outliers with unexpected regime / trend changes are identified
+- **Anomaly detection:** Where outliers with unexpected trend changes are identified
 
 !!! tip "To see time-series embeddings in action, check out our code examples"
 
     - **Classification** with health biometrics (fetal heartbeat data)
     - **Clustering** with S&P 500 stock prices
-    - **Anomaly detection** with retail data (churn detection)
+    - **Anomaly detection** with user behavior on their laptops
+
+    Other potential use-cases for time series embeddings include:
+    - Churn prevention by matching purchasing patterns of active users to past users that churned
+    - Classifying measurements over time from IoT / robotic sensors to different model types or environments
 
     [Browse use-cases](#what-are-the-use-cases){ .md-button .md-button--primary }
-
 
 ## How to compute embeddings?
 
@@ -149,6 +152,39 @@ estimator.fit(X)
 
 # Get predicted cluster labels
 labels = estimator.predict(X)
+```
+
+### Anomaly Detection (User Behavior)
+
+In this example, we compare time series embeddings for laptop activity (CPU and RAM usage) across 12 users.
+Anomalies are identified by unusual distance away from the midpoint of all embeddings.
+In particular, we use the 1.5 IQR (interquartile range) method given the distribution of distances from the midpoint.
+
+```python
+import functime
+import polars as pl
+import numpy as np
+from scipy.stats import iqr
+
+# Load memory usage data
+y = pl.read_parquet("https://github.com/indexhub-ai/functime/raw/main/data/laptop.parquet", columns=["user", "timestamp", "memory"])
+
+# Create embeddings
+embeddings = functime.embeddings.embed(y, model="minirocket")
+
+# Compute midpoint and distances from midpoint
+midpoint = np.mean(embeddings, axis=0)
+distances = np.linalg.norm(embeddings-midpoint, axis=1)
+
+# Compute IQR
+q_low = np.quantile(distances, q=0.1)
+q_high = np.quantile(distances, q=0.9)
+
+# Identify outliers
+outliers = (
+    pl.DataFrame({"user": range(12), "distance": distances})
+    .filter(pl.col("distance") < q_high & pl.col("distance") > q_high)
+)
 ```
 
 ## What's next?
