@@ -93,7 +93,6 @@ View the [full walkthrough](embeddings.md) on time-series embeddings with `funct
     1     -1.427205 -1.408303  ... -1.153119 -1.222043
     ```
 
-
 ### Forecasting
 
 ```python
@@ -221,16 +220,13 @@ This allows Polars to [optimize the whole query](https://pola-rs.github.io/polar
 
 ```python
 from functime.preprocessing import boxcox, impute
-from functime.cross_validation import expanding_window_split
 
 # Use df.pipe to chain operations together
-X_splits: pl.LazyFrame = (
+X_new: pl.LazyFrame = (
     X.pipe(boxcox(method="mle"))
     .pipe(impute(method="linear"))
-    .pipe(expanding_window_split(test_size=28, n_splits=3, step_size=1))
 )
 # Call .collect to execute query
-X_splits = X_splits.collect()
 ```
 
 ## Time Series Data
