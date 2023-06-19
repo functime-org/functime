@@ -1,13 +1,18 @@
 from base64 import b64decode
 from io import BytesIO
+from typing import Union
 
 import numpy as np
+import polars as pl
+import pandas as pd
 
 from functime.io.client import FunctimeH2Client
 
+DF_TYPE = Union[pl.DataFrame, pl.LazyFrame, pd.DataFrame, np.ndarray]
+
 
 def embed(
-    X: np.ndarray,
+    X: DF_TYPE,
     model: str = "minirocket",
     **kwargs,
 ) -> np.ndarray:
@@ -27,6 +32,8 @@ def embed(
     """
     endpoint = "/embed"
 
+    X = coerce_df_to_ndarray(X)
+
     kwargs = kwargs or {}
     arr_bytes = BytesIO(X.tobytes())
     dtype = str(X.dtype)
@@ -45,3 +52,14 @@ def embed(
         (data["rows"], data["cols"])
     )
     return emb
+
+def coerce_df_to_ndarray(df: DF_TYPE) -> np.ndarray:
+    if isinstance(df, np.ndarray):
+        return df
+    if isinstance(df, pl.DataFrame):
+        return df.to_numpy()
+    if isinstance(df, pl.LazyFrame):
+        return df.collect().to_numpy()
+    if isinstance(df, pd.DataFrame):
+        return df.to_numpy()
+    raise TypeError(f"Expected DataFrame, got {type(df)}")
