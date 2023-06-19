@@ -244,15 +244,17 @@ Our GitHub repo contains a growing number of time-series data stored as `parquet
 - M5 Competition[^3]
 - Australian tourism[^4]
 - Commodities prices[^5]
-- Gunpoint measurements[^6]
-- Japanese vowels [^7]
+- User laptop activity[^6]
+- Gunpoint measurements[^7]
+- Japanese vowels [^8]
 
 [^2]: https://mofc.unic.ac.cy/m4/
 [^3]: https://mofc.unic.ac.cy/m5-competition/
 [^4]: https://www.abs.gov.au/statistics/industry/tourism-and-transport/overseas-arrivals-and-departures-australia
 [^5]: https://www.imf.org/en/Research/commodity-prices
-[^6]: http://www.timeseriesclassification.com/description.php?Dataset=GunPoint
-[^7]: http://www.timeseriesclassification.com/description.php?Dataset=JapaneseVowels
+[^6]: https://www.sciencedirect.com/science/article/pii/S2352340920306612
+[^7]: http://www.timeseriesclassification.com/description.php?Dataset=GunPoint
+[^8]: http://www.timeseriesclassification.com/description.php?Dataset=JapaneseVowels
 
 ## Contact Us
 
