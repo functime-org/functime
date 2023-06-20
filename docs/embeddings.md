@@ -3,7 +3,7 @@
 ## What are embeddings?
 
 Time-series embeddings measure the relatedness of time-series.
-Embeddings are more accurate and efficient compared to statistical methods (e.g. Catch22) for characterizing time-series.[^1]
+Embeddings are **orders of magnitude** more accurate and efficient compared to statistical methods (e.g. Catch22) for characterizing time-series.[^1]
 Embeddings have applications across many domains from finance to IoT monitoring.
 They are commonly used for the following tasks:
 
@@ -62,7 +62,7 @@ The embeddings can be reduced into 2D / 3D and visualized with a scatter plot.
 
 ## How are embeddings computed?
 
-`functime` offers `RustyRocket`, which is currently the fastest implementation of MINIROCKET[^1] (MINImally RandOm Convolutional KErnel Transform). The MINIROCKET algorithm consistently tops time-series classification benchmarks in speed and accuracy.
+`functime` offers `RustyRocket`, which is currently the fastest implementation of MINIROCKET[^1] (MINImally RandOm Convolutional KErnel Transform). The MINIROCKET algorithm consistently tops time-series classification benchmarks in both speed and accuracy.
 
 [^1]: Dempster, A., Schmidt, D. F., & Webb, G. I. (2021, August). Minirocket: A very fast (almost) deterministic transform for time series classification. In Proceedings of the 27th ACM SIGKDD conference on knowledge discovery & data mining (pp. 248-257).
 
