@@ -8,6 +8,7 @@ Embeddings have applications across many domains from finance to IoT monitoring.
 They are commonly used for the following tasks:
 
 - **Matching:** Where time-series are ranked by similarity to a given time-series
+- **Win / Loss:** Where a binary outcome (e.g. sports game) is predicted using event histories (e.g. trajectory of the ball)
 - **Classification:** Where time-series are assigned labels (e.g. normal vs irregular heart rate)
 - **Clustering:** Where time-series are grouped together by matching patterns
 - **Anomaly detection:** Where outliers with unexpected trend changes are identified
