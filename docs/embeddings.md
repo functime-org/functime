@@ -5,7 +5,7 @@
 Time-series embeddings measure the relatedness of time-series.
 Embeddings are **orders of magnitude** more accurate and efficient compared to statistical methods (e.g. Catch22) for characterizing time-series.[^1]
 Embeddings have applications across many domains from finance to IoT monitoring.
-They are commonly used for the following tasks:
+They can be used to solve the following predictive tasks:
 
 - **Matching:** Where time-series are ranked by similarity to a given time-series
 - **Win / Loss:** Where a binary outcome (e.g. sports game) is predicted using event histories (e.g. trajectory of the ball)
