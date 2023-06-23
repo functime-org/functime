@@ -9,7 +9,7 @@ USER_CONFIG_PATH: str = os.environ.get("FUNCTIME_CONFIG_PATH") or os.path.expand
 
 FUNCTIME_SERVER_URL = (
     os.environ.get("FUNCTIME_SERVER_URL")
-    or "https://functional-analytics--prod-functime-api-endpoint.modal.run"
+    or "https://descendant-ai--prod-functime-api-endpoint.modal.run"
 )
 AUTH0_DOMAIN = "functime.us.auth0.com"
 AUTH0_CLIENT_ID = "8NNUOaC3yI1PBdpsZdvxBwuKvVq03RpK"
