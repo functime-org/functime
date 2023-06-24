@@ -82,8 +82,8 @@ from sklearn.metrics import accuracy_score
 from sklearn.pipeline import make_pipeline
 
 # Load dataset (150 observations, 150 timestamps)
-X_y_train = pl.read_parquet("https://github.com/indexhub-ai/functime/raw/main/data/fetal_test.parquet")
-X_y_test = pl.read_parquet("https://github.com/indexhub-ai/functime/raw/main/data/fetal_train.parquet")
+X_y_train = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/fetal_test.parquet")
+X_y_test = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/fetal_train.parquet")
 
 # Train-test split
 X_train, y_train = (
@@ -123,7 +123,7 @@ from functime.preprocessing import roll
 
 # Load S&P500 panel data from 2022-06-01 to 2023-06-01
 # Columns: ticker, time, price
-y = pl.read_parquet("https://github.com/indexhub-ai/functime/raw/main/data/sp500.parquet")
+y = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/sp500.parquet")
 
 # Reduce noise by smoothing the time series using
 # functime's `roll` function: 60-days moving average
@@ -168,7 +168,7 @@ import numpy as np
 from scipy.stats import iqr
 
 # Load memory usage data
-y = pl.read_parquet("https://github.com/indexhub-ai/functime/raw/main/data/laptop.parquet", columns=["user", "timestamp", "memory"])
+y = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/laptop.parquet", columns=["user", "timestamp", "memory"])
 
 # Create embeddings
 embeddings = functime.embeddings.embed(y, model="minirocket")

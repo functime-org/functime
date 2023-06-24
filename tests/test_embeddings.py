@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler
 
 from functime.embeddings import embed
 
-DATA_URL = "https://github.com/indexhub-ai/functime/raw/main/data/"
+DATA_URL = "https://github.com/descendant-ai/functime/raw/main/data/"
 
 
 @pytest.fixture(scope="module")
