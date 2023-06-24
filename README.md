@@ -2,13 +2,13 @@
     <h1>Time-series machine learning and embeddings at scale</h1>
 <br />
 
-![functime](https://github.com/indexhub-ai/functime/raw/main/static/images/functime_banner.png)
+![functime](https://github.com/descendant-ai/functime/raw/main/static/images/functime_banner.png)
 [![Python](https://img.shields.io/pypi/pyversions/functime)](https://pypi.org/project/functime/)
 [![PyPi](https://img.shields.io/pypi/v/functime?color=blue)](https://pypi.org/project/functime/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![GitHub Publish to PyPI](https://github.com/indexhub-ai/functime/actions/workflows/publish.yml/badge.svg)](https://github.com/indexhub-ai/functime/actions/workflows/publish.yml)
-[![GitHub Build Docs](https://github.com/indexhub-ai/functime/actions/workflows/docs.yml/badge.svg)](https://docs.functime.ai/)
-[![GitHub Run Quickstart](https://github.com/indexhub-ai/functime/actions/workflows/quickstart.yml/badge.svg)](https://github.com/indexhub-ai/functime/actions/workflows/quickstart.yml)
+[![GitHub Publish to PyPI](https://github.com/descendant-ai/functime/actions/workflows/publish.yml/badge.svg)](https://github.com/descendant-ai/functime/actions/workflows/publish.yml)
+[![GitHub Build Docs](https://github.com/descendant-ai/functime/actions/workflows/docs.yml/badge.svg)](https://docs.functime.ai/)
+[![GitHub Run Quickstart](https://github.com/descendant-ai/functime/actions/workflows/quickstart.yml/badge.svg)](https://github.com/descendant-ai/functime/actions/workflows/quickstart.yml)
 
 </div>
 
@@ -149,4 +149,4 @@ y_pred = forecaster.predict(fh=3)
 ```
 
 ## License
-`functime` is distributed under [AGPL-3.0-only](LICENSE). For Apache-2.0 exceptions, see [LICENSING.md](https://github.com/indexhub-ai/functime/blob/HEAD/LICENSING.md).
+`functime` is distributed under [AGPL-3.0-only](LICENSE). For Apache-2.0 exceptions, see [LICENSING.md](https://github.com/descendant-ai/functime/blob/HEAD/LICENSING.md).
