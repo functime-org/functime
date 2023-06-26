@@ -9,6 +9,9 @@ edit:
 build:
 	$(PY) -m pip install .
 
+build-test:
+	$(PY) -m pip install ".[test]"
+
 clean:
 	rm -rf build/
 	rm -rf dist/
