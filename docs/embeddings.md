@@ -1,4 +1,4 @@
-# Time Series Embeddings
+# Temporal Embeddings
 
 ## What are embeddings?
 
