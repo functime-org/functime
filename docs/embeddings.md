@@ -2,7 +2,7 @@
 
 ## What are embeddings?
 
-Time-series embeddings measure the relatedness of time-series.
+Temporal embeddings measure the relatedness of time-series.
 Embeddings are **orders of magnitude** more accurate and efficient compared to statistical methods (e.g. Catch22) for characterizing time-series.[^1]
 Embeddings have applications across many domains from finance to IoT monitoring.
 They can be used to solve the following predictive tasks:
@@ -13,13 +13,13 @@ They can be used to solve the following predictive tasks:
 - **Clustering:** Where time-series are grouped together by matching patterns
 - **Anomaly detection:** Where outliers with unexpected trend changes are identified
 
-!!! tip "To see time-series embeddings in action, check out our code examples"
+!!! tip "To see temporal embeddings in action, check out our code examples"
 
     - **Classification** with health biometrics (fetal heartbeat data)
     - **Clustering** with S&P 500 stock prices
     - **Anomaly detection** with user behavior on their laptops
 
-    Other potential use-cases for time series embeddings include:
+    Other potential use-cases for temporal embeddings include:
     - Churn prevention by matching purchasing patterns of active users to past users that churned
     - Classifying measurements over time from IoT / robotic sensors to different model types or environments
 
@@ -157,7 +157,7 @@ labels = estimator.predict(X)
 
 ### Anomaly Detection (User Behavior)
 
-In this example, we compare time series embeddings for laptop activity (CPU and RAM usage) across 12 users.
+In this example, we compare temporal embeddings for laptop activity (CPU and RAM usage) across 12 users.
 Anomalies are identified by unusual distance away from the midpoint of all embeddings.
 In particular, we use the 1.5 IQR (interquartile range) method given the distribution of distances from the midpoint.
 
@@ -190,7 +190,7 @@ outliers = (
 
 ## What's next?
 
-Time-series embeddings are a disruptive new technique for data mining with extremely large numbers of time-series.
+Temporal embeddings are a disruptive new technique for data mining with extremely large numbers of time-series.
 If you have an interesting use-case, we would love to hear from you!
 Let's chat over a [15 minute call](https://calendly.com/functime-indexhub).
 

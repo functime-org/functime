@@ -13,13 +13,13 @@
 </div>
 
 ---
-**functime** is a powerful [Python library]((https://pypi.org/project/functime/)) for production-ready AutoML forecasting and time-series embeddings.
+w**functime** is a powerful [Python library]((https://pypi.org/project/functime/)) for production-ready AutoML forecasting and temporal embeddings.
 Forecasting and embeddings are run and deployed in **functime Cloud**, which is accessed via an scikit-learn API and command line interface.
 
 **functime** also comes with time-series [preprocessing](https://docs.functime.ai/ref/preprocessing/) (box-cox, differencing etc), cross-validation [splitters](https://docs.functime.ai/ref/cross-validation/) (expanding and sliding window), and forecast [metrics](https://docs.functime.ai/ref/metrics/) (MASE, SMAPE etc). All optimized as [lazy Polars](https://pola-rs.github.io/polars-book/user-guide/lazy/using/) transforms.
 
 Want to use **functime** for seamless time-series analytics across your data team
-Looking for fully-managed production-grade AI/ML forecasting and time-series embeddings?
+Looking for fully-managed production-grade AI/ML forecasting and temporal embeddings?
 Book a [15 minute discovery call](https://calendly.com/functime-indexhub) to learn more about functime's Team / Enterprise plans.
 
 ## Highlights
