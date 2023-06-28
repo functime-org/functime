@@ -6,7 +6,7 @@
 
 **functime** is a machine learning library for time-series predictions that [just works](https://www.functime.ai/).
 
-- **Fully-featured:** Powerful and easy-to-use API for [AutoML forecasting](#forecasting-highlights) and [time-series embeddings](#embeddings-highlights) (classification, anomaly detection, and clustering)
+- **Fully-featured:** Powerful and easy-to-use API for [AutoML forecasting](#forecasting-highlights) and [temporal embeddings](#embeddings-highlights) (classification, anomaly detection, and clustering)
 - **Fast:** Forecast and classify [100,000 time series](#global-forecasting) in seconds *on your laptop*
 - **Cloud-native:** Instantly run, deploy, and serve predictive time-series models
 - **Efficient:** Embarressingly parallel feature engineering using [Polars](https://www.pola.rs/) *
@@ -33,7 +33,7 @@ View the [full walkthrough](forecasting.md) on forecasting with `functime`.
 
 ## Embeddings
 
-Time-series embeddings measure the relatedness of time-series.
+Temporal embeddings measure the relatedness of time-series.
 Embeddings are more accurate and efficient compared to statistical methods (e.g. Catch22) for characteristing time-series.[^1]
 Embeddings have applications across many domains from finance to IoT monitoring.
 They are commonly used for the following tasks:
@@ -43,7 +43,7 @@ They are commonly used for the following tasks:
 - **Clustering:** Where time-series are assigned labels (e.g. normal vs irregular heart rate)
 - **Anomaly detection:** Where outliers with unexpected regime / trend changes are identified
 
-View the [full walkthrough](embeddings.md) on time-series embeddings with `functime`.
+View the [full walkthrough](embeddings.md) on temporal embeddings with `functime`.
 
 [^1]: Middlehurst, M., Schäfer, P., & Bagnall, A. (2023). Bake off redux: a review and experimental evaluation of recent time series classification algorithms. arXiv preprint arXiv:2304.13029.
 
