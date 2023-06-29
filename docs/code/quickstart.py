@@ -11,7 +11,7 @@ from functime.metrics import mase
 start_time = default_timer()
 
 # Load data
-y = pl.read_parquet("https://bit.ly/commodities-data")
+y = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/commodities.parquet")
 entity_col, time_col = y.columns[:2]
 X = (
     y.select([entity_col, time_col])

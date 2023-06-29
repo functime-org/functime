@@ -15,7 +15,7 @@ Load a collection of time series, also known as panel data, into a [`polars.Lazy
 
 ```python
 # Load data
-y = pl.read_parquet("https://bit.ly/commodities-data")
+y = pl.read_parquet("c")
 entity_col, time_col = y.columns[:2]
 X = (
     y.select([entity_col, time_col])
