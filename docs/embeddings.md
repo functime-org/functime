@@ -32,7 +32,7 @@ The `functime.embeddings.embed()` function takes a **wide dataset** where each r
 !!! example "Wide data example"
     The following dataset represents velocity measurements from two robots (label 1 and label 2) over 150 time periods (columns t0, t1, ..., t149) and 75 trials (rows).
     ```
-    >>> X_y_wide = pl.read_parquet("https://bit.ly/gunpoint-train")
+    >>> X_y_wide = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/gunpoint_train.parquet")
     >>> X_y_wide
     shape: (150, 151)
 
@@ -168,7 +168,10 @@ import numpy as np
 from scipy.stats import iqr
 
 # Load memory usage data
-y = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/laptop.parquet", columns=["user", "timestamp", "memory"])
+y = pl.read_parquet(
+    "https://github.com/descendant-ai/functime/raw/main/data/behacom.parquet",
+    columns=["user", "timestamp", "system_average_mem"]
+)
 
 # Create embeddings
 embeddings = functime.embeddings.embed(y, model="minirocket")
