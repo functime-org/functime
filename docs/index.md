@@ -102,7 +102,7 @@ from functime.forecasting import LightGBM
 from functime.metrics import mase
 
 # Load commodities price data
-y = pl.read_parquet("https://bit.ly/commodities-data")
+y = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/commodities.parquet")
 entity_col, time_col = y.columns[:2]
 
 # Time series split
@@ -134,8 +134,8 @@ from sklearn.metrics import accuracy_score
 from sklearn.pipeline import make_pipeline
 
 # Load GunPoint dataset (150 observations, 150 timestamps)
-X_y_train = pl.read_parquet("https://bit.ly/gunpoint-train")
-X_y_test = pl.read_parquet("https://bit.ly/gunpoint-test")
+X_y_train = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/gunpoint_train.parquet")
+X_y_test = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/gunpoint_test.parquet")
 
 # Train-test split
 X_train, y_train = (
@@ -175,7 +175,7 @@ from functime.preprocessing import roll
 
 # Load S&P500 panel data from 2022-06-01 to 2023-06-01
 # Columns: ticker, time, price
-y = pl.read_parquet("https://bit.ly/sp500-data")
+y = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/sp500.parquet")
 
 # Reduce noise by smoothing the time series using
 # functime's `roll` function: 60-days moving average
