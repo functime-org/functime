@@ -556,3 +556,25 @@ def zero_pad(freq: str, include_null: bool = True, include_nan: bool = True):
         return artifacts
 
     return transform
+
+
+@transformer
+def trim(direction: Literal["both", "left", "right"] = "both"):
+    
+    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+        entity_col, time_col = X.columns[:2]
+        maxmin = X.groupby(entity_col).agg(pl.col(time_col).min()).select(pl.col(time_col).max())
+        minmax = X.groupby(entity_col).agg(pl.col(time_col).max()).select(pl.col(time_col).min())
+        start, end = pl.collect_all([minmax, maxmin])
+        start, end = start.item(), end.item()
+        if direction == "both":
+            expr = (pl.col(time_col) >= start) & (pl.col(time_col) <= end)
+        elif direction  == "left":
+            expr = pl.col(time_col) >= start
+        else:
+            expr = pl.col(time_col) <= start
+        X_new = X.filter(expr)
+        artifacts = {"X_new": X_new}
+        return artifacts
+
+    return transform
