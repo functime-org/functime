@@ -27,7 +27,7 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install ".[test]"
       - name: Test local functions
-        run: pytest -k "not test_forecasters" --benchmark-disable
+        run: pytest tests -k "not test_forecasters" --benchmark-disable
 
   test-prod:
     strategy:
@@ -56,7 +56,7 @@ jobs:
       - name: Authenticate to functime Cloud
         run: functime token set --token-id $TOKEN_ID --token-secret $TOKEN_SECRET  --no-verify
       - name: Test Cloud functions
-        run: pytest -k "test_forecasters" --benchmark-disable
+        run: pytest tests -k "test_forecasters" --benchmark-disable
 
   test-staging:
     strategy:
@@ -86,4 +86,4 @@ jobs:
       - name: Authenticate to functime Cloud
         run: functime token set --token-id $TOKEN_ID --token-secret $TOKEN_SECRET  --no-verify
       - name: Test Cloud functions
-        run: pytest -k "test_forecasters" --benchmark-disable
+        run: pytest tests -k "test_forecasters" --benchmark-disable
