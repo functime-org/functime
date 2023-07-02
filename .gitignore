@@ -133,3 +133,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 Cargo.lock
+
+# macOS
+.DS_Store
