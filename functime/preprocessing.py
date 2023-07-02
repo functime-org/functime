@@ -38,6 +38,35 @@ def coerce_dtypes(schema: Mapping[str, pl.DataType]):
 
 
 @transformer
+def time_to_arange(keep_col: bool = False):
+    """Coerces time column into arange per entity.
+    
+    Parameters
+    ----------
+    keep_col : bool
+        If True, keep original time column and suffix range column with "__range".
+    """
+
+    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+        entity_col, time_col = X.columns[:2]
+        range_expr = pl.arange(0, pl.col(time_col).count()).alias(time_col)
+        other_cols = pl.all().exclude(time_col)
+        if keep_col:
+            range_expr = range_expr.suffix("__arange")
+            other_cols = pl.all().exclude(f"{time_col}__arange")
+        X_new = (
+            X.groupby(entity_col)
+            .agg([range_expr, other_cols])
+            .explode(pl.all().exclude(entity_col))
+            .select([entity_col, time_col, pl.all().exclude([entity_col, time_col])])
+        )
+        artifacts = {"X_new": X_new}
+        return artifacts
+    
+    return transform
+
+
+@transformer
 def resample(freq: str, agg_method: str, impute_method: Union[str, int, float]):
     """
     Resamples and transforms a DataFrame using the specified frequency, aggregation method, and imputation method.
