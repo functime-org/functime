@@ -55,7 +55,7 @@ The `functime.embeddings.embed()` function takes a **wide dataset** where each r
 import functime
 
 X = X_y_wide.select(pl.all().exclude("label"))
-X_embs = functime.embeddings.embed(X, model="minirocket")
+X_embs = functime.embeddings.embed(X)
 ```
 
 The embeddings can be reduced into 2D / 3D and visualized with a scatter plot.
@@ -63,7 +63,7 @@ The embeddings can be reduced into 2D / 3D and visualized with a scatter plot.
 
 ## How are embeddings computed?
 
-`functime` offers `RustyRocket`, which is currently the fastest implementation of MINIROCKET[^1] (MINImally RandOm Convolutional KErnel Transform). The MINIROCKET algorithm consistently tops time-series classification benchmarks in both speed and accuracy.
+`functime` offers a next-generation convolutional embedding model built upon the MINIROCKET[^1] paper. Our model transforms time-series of any length, dimension (AKA multivariate time-series), and frequency into a 10,000 dimensional vector.
 
 [^1]: Dempster, A., Schmidt, D. F., & Webb, G. I. (2021, August). Minirocket: A very fast (almost) deterministic transform for time series classification. In Proceedings of the 27th ACM SIGKDD conference on knowledge discovery & data mining (pp. 248-257).
 
@@ -95,7 +95,7 @@ X_test, y_test = (
     X_y_test.select("label")
 )
 
-X_train_embs = functime.embeddings.embed(X_train, model="minirocket")
+X_train_embs = functime.embeddings.embed(X_train)
 
 # Fit classifier on the embeddings
 classifier = make_pipeline(
@@ -105,7 +105,7 @@ classifier = make_pipeline(
 classifier.fit(X_train_embs, y_train)
 
 # Predict and
-X_test_embs = embed(X_test, model="minirocket")
+X_test_embs = embed(X_test)
 labels = classifier.predict(X_test_embs)
 accuracy = accuracy_score(predictions, y_test)
 ```
@@ -141,7 +141,7 @@ y_ma_60 = (
 )
 
 # Create embeddings
-embeddings = functime.embeddings.embed(y_ma_60, model="minirocket")
+embeddings = functime.embeddings.embed(y_ma_60)
 
 # Reduce dimensionality with UMAP
 reducer = UMAP(n_components=500, n_neighbors=10, metric="manhattan")
@@ -174,7 +174,7 @@ y = pl.read_parquet(
 )
 
 # Create embeddings
-embeddings = functime.embeddings.embed(y, model="minirocket")
+embeddings = functime.embeddings.embed(y)
 
 # Compute midpoint and distances from midpoint
 midpoint = np.mean(embeddings, axis=0)
