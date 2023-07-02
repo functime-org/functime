@@ -4,13 +4,15 @@ import numpy as np
 import polars as pl
 
 
-def train_test_split(test_size: int) -> Tuple[pl.LazyFrame, pl.LazyFrame]:
+def train_test_split(test_size: int, eager: bool = False) -> Tuple[pl.LazyFrame, pl.LazyFrame]:
     """Return a time-ordered train set and test set given `test_size`.
 
     Parameters
     ----------
     test_size : int
         Number of test samples.
+    eager : bool
+        If True, evaluate immediately and returns tuple of train-test `DataFrame`.
 
     Returns
     -------
@@ -31,6 +33,8 @@ def train_test_split(test_size: int) -> Tuple[pl.LazyFrame, pl.LazyFrame]:
             .agg(pl.all().slice(-1 * test_size, test_size))
             .explode(pl.all().exclude(entity_col))
         )
+        if eager:
+            train_split, test_split = pl.collect_all([train_split, test_split])
         return train_split, test_split
 
     return split
