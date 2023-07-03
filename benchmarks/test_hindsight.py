@@ -3,10 +3,8 @@ import polars.selectors as ps
 import pytest
 import logging
 import cloudpickle
-import random
 
 from base64 import b64encode, b64decode
-from collections import defaultdict
 from typing import List, Tuple, Optional
 from functime_backend.classification import Hindsight
 
@@ -72,10 +70,11 @@ def split_iid_data(
 
     # Train test split
     data = data.lazy()
+    # Cannot combine 'streaming' with 'common_subplan_elimination'. CSE will be turned off.
     X_y_train, X_y_test = pl.collect_all([
         data.filter(~pl.col(session_col).is_in(test_session_ids)),
         data.filter(pl.col(session_col).is_in(test_session_ids))
-    ], streaming=True)
+    ])
 
     # Split into X, y
     X_cols = [session_col, time_col, pl.all().exclude([session_col, time_col, *label_cols])]
@@ -100,11 +99,10 @@ def split_autocorrelated_data(
     # Assumes autocorrelation from past to future sessions
     data = data.lazy()
     train_idx = data.groupby(session_col).agg(pl.col(time_col).slice(-test_size)).explode(time_col)
-    print(train_idx.collect())
-    print(data.collect())
     X_y_train = train_idx.join(data, how="left", on=[session_col, time_col])
     X_y_test = data.join(X_y_train.select([session_col, time_col]), how="anti", on=[session_col, time_col])
-    X_y_train, X_y_test = pl.collect_all([X_y_train, X_y_test], streaming=True)
+    # Cannot combine 'streaming' with 'common_subplan_elimination'. CSE will be turned off.
+    X_y_train, X_y_test = pl.collect_all([X_y_train, X_y_test])
 
     # Split into X, y
     X_cols = [session_col, time_col, pl.all().exclude([session_col, time_col, *label_cols])]
@@ -115,6 +113,23 @@ def split_autocorrelated_data(
     X_test, y_test = X_y_test.select(X_cols), X_y_test.select(y_cols)
 
     return X_train, X_test, y_train, y_test
+
+
+def walk_forward_configs(X, freq: Optional[str] = None, min_windows: int = 10, fraction: float = 0.5):
+    time_col = X.columns[1]
+    min_ts = X.get_column(time_col).min()
+    max_ts = X.get_column(time_col).max()
+    if freq is None:
+        n_timestamps = len(pl.arange(min_ts, max_ts, step=1, eager=True))
+    else:
+        n_timestamps = len(pl.date_range(min_ts, max_ts, interval=freq, eager=True))
+
+    start = int(n_timestamps * fraction)
+    full_length = n_timestamps - start
+    n_windows = min_windows + (full_length % min_windows)
+    step = int(full_length // n_windows)
+    logging.info("💡 Expanding window (start=%s, step=%s, T=%s, n_windows=%s)", start, step, n_timestamps, n_windows)
+    return start, step
 
 
 @pytest.fixture(params=[3, 6, 10], ids=lambda x: f"users:{x}")
@@ -169,17 +184,18 @@ def behacom_dataset(request):
             ])
             # Session
             .with_columns(date=pl.col("timestamp").dt.strftime("%Y%m%d").cast(pl.Categorical).cast(pl.Int32))
-            .with_columns(session_id=pl.struct([label_col, "date"]).hash())
-            .with_columns(session_id=pl.col("session_id").cast(pl.Utf8).cast(pl.Categorical).cast(pl.Int32))
+            .with_columns(session_id=pl.struct([label_col, "date"]).hash().cast(pl.Utf8).cast(pl.Categorical).cast(pl.Int32))
             .select([entity_col, period_col, pl.all().exclude([entity_col, period_col])])
             # Defensive sort
             .sort([entity_col, time_col])
             .set_sorted([entity_col, time_col])
             .select([
                 entity_col,
-                pl.col(time_col).dt.strftime("%Y%m%dT%H").cast(pl.Categorical).cast(pl.Int32),
+                time_col,
                 pl.all().exclude([entity_col, time_col])
             ])
+            # Fill nulls and nans
+            .fill_null(strategy="mean")
             .collect(streaming=True)
         )
         X_train, X_test, y_train, y_test = split_autocorrelated_data(data, label_cols=[label_col])
@@ -187,8 +203,10 @@ def behacom_dataset(request):
         cached_dataset = encode_dataset(X_train, X_test, y_train, y_test)
         request.config.cache.set("dataset/behacom", cached_dataset)
 
+    start, step = walk_forward_configs(X_train, freq="1h")
     preview_dataset("behacom", X_train, X_test, y_train, y_test)
-    return X_train, X_test, y_train, y_test
+
+    return X_train, X_test, y_train, y_test, start, step
 
 
 @pytest.fixture(params=[0.2, 0.4, 0.8, 1.0], ids=lambda x: f"fraction:{x}")
@@ -244,6 +262,9 @@ def elearn_dataset(request):
             .set_sorted([entity_col, time_col])
             # Join with multioutput labels
             .join(labels.lazy(), how="left", on="session_id")
+            # Fill nulls and nans
+            .fill_null(0)
+            .fill_nan(0)
             .collect(streaming=True)
         )
         X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=labels.columns[1:])
@@ -251,8 +272,10 @@ def elearn_dataset(request):
         cached_dataset = encode_dataset(X_train, X_test, y_train, y_test)
         request.config.cache.set("dataset/elearn", cached_dataset)
 
+    start, step = walk_forward_configs(X_train)
     preview_dataset("elearn", X_train, X_test, y_train, y_test)
-    return X_train, X_test, y_train, y_test
+
+    return X_train, X_test, y_train, y_test, start, step
 
 
 def _fit_predict_score(
@@ -260,19 +283,14 @@ def _fit_predict_score(
     X_test: pl.DataFrame,
     y_train: pl.DataFrame,
     y_test: pl.DataFrame,
+    start: int,
+    step: int
 ) -> pl.DataFrame:
 
     # Set expanding window configs
     entity_col, time_col = y_test.columns[:2]
-    start = int(y_test.get_column(time_col).max() * 0.5)
-    min_ts = X_train.get_column(time_col).min()
-    max_ts = X_train.get_column(time_col).max()
-
-    logging.info("💡 Starting expanding window at step: %s", start)
-    logging.info("💡 Train data timestamp min-max: [%s, %s]", min_ts, max_ts)
-
     # Fit
-    model = Hindsight(start=start, step=14, random_state=42)
+    model = Hindsight(start=start, step=step, random_state=42)
     model.fit(X=X_train, y=y_train)
 
     # Predict-score
@@ -289,20 +307,24 @@ def _fit_predict_score(
 
 
 def test_hindsight_on_behacom(behacom_dataset):
-    X_train, X_test, y_train, y_test = behacom_dataset
-    y_pred, full_scores, session_scores, period_scores = _fit_predict_score(
-        X_train=X_train,
-        X_test=X_test,
-        y_train=y_train,
-        y_test=y_test
-    )
-
-
-def test_hindsight_on_elearn(elearn_dataset):
-    X_train, X_test, y_train, y_test = elearn_dataset
+    X_train, X_test, y_train, y_test, start, step = behacom_dataset
     y_pred, full_scores, session_scores, period_scores = _fit_predict_score(
         X_train=X_train,
         X_test=X_test,
         y_train=y_train,
         y_test=y_test,
+        start=start,
+        step=step
+    )
+
+
+def test_hindsight_on_elearn(elearn_dataset):
+    X_train, X_test, y_train, y_test, start, step = elearn_dataset
+    y_pred, full_scores, session_scores, period_scores = _fit_predict_score(
+        X_train=X_train,
+        X_test=X_test,
+        y_train=y_train,
+        y_test=y_test,
+        start=start,
+        step=step
     )
