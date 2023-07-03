@@ -97,8 +97,6 @@ def resample(freq: str, agg_method: str, impute_method: Union[str, int, float]):
             # Must defensive sort columns otherwise time_col and target_col
             # positions are incorrectly swapped in lazy
             .select([entity_col, time_col, target_col])
-            # Reindex full (entity, time) index
-            .pipe(reindex_panel(freq=freq, sort=True))
             # Impute gaps after reindex
             .pipe(impute(impute_method))
             # Defensive fill null with 0 for impute method `ffill`
