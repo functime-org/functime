@@ -1,19 +1,23 @@
-import math
 import polars as pl
+import polars.selectors as ps
 import pytest
 import logging
 import cloudpickle
+import random
 
 from base64 import b64encode, b64decode
 from collections import defaultdict
-from functime.cross_validation import train_test_split
-from functime.preprocessing import time_to_arange
+from typing import List, Tuple, Optional
 from functime_backend.classification import Hindsight
 
 from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,
 )
+
+
+TEST_FRACTION = 0.10
+TEST_HORIZON = 3
 
 
 def preview_dataset(
@@ -54,16 +58,76 @@ def decode_dataset(dataset):
     return X_train, X_test, y_train, y_test
 
 
-# NOTE: We set scope to function to lower memory usage
-@pytest.fixture(scope="function")
+def split_iid_data(
+    data: pl.DataFrame,
+    label_cols: List[str],
+    test_size: float = TEST_FRACTION,
+    seed: int = 42
+) -> Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame, pl.DataFrame]:
+
+    # Sample session ids
+    session_col = data.columns[0]
+    time_col = data.columns[1]
+    test_session_ids = data.get_column(session_col).unique().sample(fraction=test_size, seed=seed)
+
+    # Train test split
+    data = data.lazy()
+    X_y_train, X_y_test = pl.collect_all([
+        data.filter(~pl.col(session_col).is_in(test_session_ids)),
+        data.filter(pl.col(session_col).is_in(test_session_ids))
+    ], streaming=True)
+
+    # Split into X, y
+    X_cols = [session_col, time_col, pl.all().exclude([session_col, time_col, *label_cols])]
+    y_cols = [session_col, time_col, pl.col(label_cols)]
+
+    # Splits
+    X_train, y_train = X_y_train.select(X_cols), X_y_train.select(y_cols)
+    X_test, y_test = X_y_test.select(X_cols), X_y_test.select(y_cols)
+
+    return X_train, X_test, y_train, y_test
+
+
+def split_autocorrelated_data(
+    data: pl.DataFrame,
+    label_cols: List[str],
+    test_size: int = TEST_HORIZON,
+) -> Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame, pl.DataFrame]:
+
+    # Sample session ids
+    session_col = data.columns[0]
+    time_col = data.columns[1]
+    # Assumes autocorrelation from past to future sessions
+    data = data.lazy()
+    train_idx = data.groupby(session_col).agg(pl.col(time_col).slice(-test_size)).explode(time_col)
+    print(train_idx.collect())
+    print(data.collect())
+    X_y_train = train_idx.join(data, how="left", on=[session_col, time_col])
+    X_y_test = data.join(X_y_train.select([session_col, time_col]), how="anti", on=[session_col, time_col])
+    X_y_train, X_y_test = pl.collect_all([X_y_train, X_y_test], streaming=True)
+
+    # Split into X, y
+    X_cols = [session_col, time_col, pl.all().exclude([session_col, time_col, *label_cols])]
+    y_cols = [session_col, time_col, pl.col(label_cols)]
+
+    # Splits
+    X_train, y_train = X_y_train.select(X_cols), X_y_train.select(y_cols)
+    X_test, y_test = X_y_test.select(X_cols), X_y_test.select(y_cols)
+
+    return X_train, X_test, y_train, y_test
+
+
+@pytest.fixture(params=[3, 6, 10], ids=lambda x: f"users:{x}")
 def behacom_dataset(request):
     """Hourly user laptop behavior dataset.
 
-    Train-test split by `session` (`user`, `date-hour`).
-    Classify each test session into one of the users (multiclass problem).
+    Train-test split by `session_id` (`user`, `date-hour`).
+    Multi-class classification (softmax). Classify each test session into one of the 11 users.
 
     11 users, ~12,000 dimensions (e.g. RAM usage, CPU usage, mouse location),
     ~5000 timestamps. Relevant to IoT and productivity.
+
+    We take samples of top 3, 6, 9 users by days observed.
 
     Note: we drop user 2 as they only have 1 day observed.
     """
@@ -72,17 +136,26 @@ def behacom_dataset(request):
     time_col = "timestamp"
     period_col = "date"
     label_col = "user"
-    fh = 3  # predict the next 3 day windows
+    n_users = request.param
 
     dataset = request.config.cache.get("dataset/behacom", None)
     if dataset is not None:
         logging.info("🗂️ Loading %r dataset from cache", "behacom")
         X_train, X_test, y_train, y_test = decode_dataset(dataset)
         logging.info("✅ %r dataset loaded", "behacom")
-    else:    
+    else:
+        top_k_users = (
+            pl.scan_parquet("data/behacom.parquet")
+            .select(["user", "timestamp"])
+            .groupby("user")
+            .agg((pl.col("timestamp").max() - pl.col("timestamp").min()).dt.days().alias("days"))
+            .top_k(k=n_users, by="days")
+            .collect(streaming=True)
+        )
+        logging.info("🎲 Selected users:\n%s", top_k_users)
         data = (
             pl.scan_parquet("data/behacom.parquet")
-            .filter(pl.col("user") != 2)
+            .filter(pl.col("user").is_in(top_k_users.get_column("user")))
             .groupby_dynamic("timestamp", every="1h", by="user")
             .agg([
                 pl.col("current_app"),
@@ -109,44 +182,32 @@ def behacom_dataset(request):
             ])
             .collect(streaming=True)
         )
-
-        data.write_parquet(".data/behacom.parquet")
-
-        # Train test split
-        X_y_train, X_y_test = data.pipe(train_test_split(test_size=fh, eager=True))
-        X_cols = [entity_col, time_col, pl.all().exclude([entity_col, time_col, label_col])]
-        y_cols = [entity_col, time_col, pl.col(label_col)]
-        X_train, y_train = X_y_train.select(X_cols), X_y_train.select(y_cols)
-        X_test, y_test = X_y_test.select(X_cols), X_y_test.select(y_cols)
-
+        X_train, X_test, y_train, y_test = split_autocorrelated_data(data, label_cols=[label_col])
         # Cache dataset
         cached_dataset = encode_dataset(X_train, X_test, y_train, y_test)
         request.config.cache.set("dataset/behacom", cached_dataset)
 
     preview_dataset("behacom", X_train, X_test, y_train, y_test)
+    return X_train, X_test, y_train, y_test
 
-    return X_train, X_test, y_train, y_test, period_col
 
-
-@pytest.fixture(scope="function")
+@pytest.fixture(params=[0.2, 0.4, 0.8, 1.0], ids=lambda x: f"fraction:{x}")
 def elearn_dataset(request):
     """Massive e-learning exam score prediction from Kaggle.
 
-    Train-test-split by `session_id`. Predict questions win / loss (softmax).
+    Multi-output classification problem. Predict 18 questions win / loss across sessions.
+    Dataset contains 23,562 sessions intotal.
+
+    We take a random sample of 0.2, 0.4, 0.8, and 1.0 sessions.
 
     Relevant to education, IoT, and online machine learning.
     Link: https://www.kaggle.com/competitions/predict-student-performance-from-game-play/data
     """
     # Game Walkthrough:
     # https://www.kaggle.com/competitions/predict-student-performance-from-game-play/discussion/384796
-    question_to_group = {
-        **{i+1: "0-4" for i in range(3)},
-        **{i+1: "5-12" for i in range(3, 13)},
-        **{i+1: "13-22" for i in range(13, 18)},
-    }
     entity_col = "session_id"
     time_col = "index"
-    keys = ["session_id", "level_group"]
+    sample_fraction = request.param
 
     dataset = request.config.cache.get("dataset/elearn", None)
     if dataset is not None:
@@ -154,68 +215,55 @@ def elearn_dataset(request):
         X_train, X_test, y_train, y_test = decode_dataset(dataset)
         logging.info("✅ %r dataset loaded", "elearn")
     else:
+        # Pivot from long to wide format (for multioutput classification)
         labels = (
-            pl.scan_parquet("data/elearn_labels.parquet")
-            .with_columns(level_group=pl.col("question_id").map_dict(question_to_group).cast(pl.Categorical).cast(pl.Int8))
-            # Presort to speed up join
-            .sort(keys)
-            .set_sorted(keys)
+            pl.read_parquet("data/elearn_labels.parquet")
+            .pivot(index="session_id", columns="question_id", values="correct")
+            .select(["session_id", pl.all().exclude("session_id").prefix("question_")])
         )
+        sampled_session_ids = labels.get_column("session_id").sample(fraction=sample_fraction)
+        logging.info("🎲 Selected %s / %s sessions (%.2f)", len(sampled_session_ids), len(labels), sample_fraction)
         data = (
-            pl.scan_parquet("data/elearn.parquet")
-            # Must ordinal encode string columns
-            .with_columns(pl.col(pl.Utf8).cast(pl.Categorical).cast(pl.Int32))
+            pl.read_parquet("data/elearn.parquet")
+            # Sample session IDs
+            .filter(pl.col(entity_col).is_in(sampled_session_ids))
+            # Drop columns if all null
+            .pipe(lambda df: df.select([s for s in df if s.null_count() < s.len()]))
+            .lazy()
+            # Ordinal encode string columns
+            .with_columns(
+                (~ps.numeric())
+                .cast(pl.Categorical)
+                .cast(pl.Int32)
+                .add(1)
+                .fill_null(0)
+            )
             .select(pl.all().shrink_dtype())
             # Presort to speed up join
-            .sort(keys)
-            .set_sorted(keys)
-            # NOTE: Must lazy join otherwise memory blows up
-            .join(labels, on=["session_id", "level_group"], how="left")
-            # Reorder index
-            .select([entity_col, time_col, pl.all().exclude([entity_col, time_col])])
-            # NOTE: We must coerce `index` into range: we assume users answer questions in order
-            .pipe(time_to_arange(keep_col=False))
-            # Sort
             .sort([entity_col, time_col])
             .set_sorted([entity_col, time_col])
+            # Join with multioutput labels
+            .join(labels.lazy(), how="left", on="session_id")
             .collect(streaming=True)
         )
-
-        # Subsample entities and first 6 questions
-        n = 4
-        data = data.pipe(lambda df: df.filter(pl.col("session_id").is_in(df.get_column("session_id").sample(n))))
-        data = data.pipe(lambda df: df.filter(pl.col("question_id") <= 12))
-
-        # 10% test size
-        test_size = 0.10
-        n_test_samples = int(math.ceil(data.select(pl.col("session_id").n_unique()).item() * test_size))
-        test_session_ids = data.get_column("session_id").sample(n_test_samples)
-
-        entity_col = "session_id"
-        time_col = "index"
-        label_col = "correct"
-
-        # Train test split
-        X_y_train = data.filter(~pl.col("session_id").is_in(test_session_ids))
-        X_y_test = data.filter(pl.col("session_id").is_in(test_session_ids))
-        X_cols = [entity_col, time_col, pl.all().exclude([entity_col, time_col, label_col])]
-        y_cols = [entity_col, time_col, pl.col(label_col)]
-        X_train, y_train = X_y_train.select(X_cols), X_y_train.select(y_cols)
-        X_test, y_test = X_y_test.select(X_cols), X_y_test.select(y_cols)
-
-        preview_dataset("elearn", X_train, X_test, y_train, y_test)
-
+        X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=labels.columns[1:])
         # Cache dataset
         cached_dataset = encode_dataset(X_train, X_test, y_train, y_test)
         request.config.cache.set("dataset/elearn", cached_dataset)
 
-    return X_train, X_test, y_train, y_test, time_col
+    preview_dataset("elearn", X_train, X_test, y_train, y_test)
+    return X_train, X_test, y_train, y_test
 
 
-def _fit_predict(X_train: pl.DataFrame, X_test: pl.DataFrame, y_train: pl.DataFrame, y_test: pl.DataFrame) -> pl.DataFrame:
+def _fit_predict_score(
+    X_train: pl.DataFrame,
+    X_test: pl.DataFrame,
+    y_train: pl.DataFrame,
+    y_test: pl.DataFrame,
+) -> pl.DataFrame:
 
     # Set expanding window configs
-    time_col = y_test.columns[1]
+    entity_col, time_col = y_test.columns[:2]
     start = int(y_test.get_column(time_col).max() * 0.5)
     min_ts = X_train.get_column(time_col).min()
     max_ts = X_train.get_column(time_col).max()
@@ -224,82 +272,37 @@ def _fit_predict(X_train: pl.DataFrame, X_test: pl.DataFrame, y_train: pl.DataFr
     logging.info("💡 Train data timestamp min-max: [%s, %s]", min_ts, max_ts)
 
     # Fit
-    logging.info("🚀 Training Hindsight...")
-    model = Hindsight(start=start, step=1, random_state=42)
+    model = Hindsight(start=start, step=14, random_state=42)
     model.fit(X=X_train, y=y_train)
-    logging.info("✅ Model training complete")
 
-    # Predict
-    logging.info("🔮 Running predict...")
-    labels = model.predict(X=X_test)
-    y_pred = y_test.select(y_test.columns[:2]).with_columns(pl.Series(name="label", values=labels))
-    logging.info("✅ Prediction complete")
+    # Predict-score
+    logging.info("💯 Scoring Hindsight...")
+    metrics = [accuracy_score, balanced_accuracy_score]
+    # NOTE: Setting keep_true=True caches y_pred in model
+    full_scores, y_pred = model.score(X=X_test, y=y_test, keep_pred=True, metrics=metrics)
+    session_scores = model.score(X=X_test, y=y_test, by=entity_col, metrics=metrics)
+    period_scores = model.score(X=X_test, y=y_test, by=[entity_col, time_col], metrics=metrics)
+
     logging.info("📹 Predicted labels preview:\n%s", y_pred)
 
-    return y_pred
-
-
-def _score(y_test: pl.DataFrame, y_pred: pl.DataFrame, period_col: str):
-
-    entity_col, time_col = y_test.columns[:2]
-    y_test = y_test.rename({y_test.columns[-1]: "true"})
-    metrics = {
-        "accuracy": accuracy_score,
-        "balanced_accuracy": balanced_accuracy_score,
-    }
-    results = defaultdict(dict)
-    logging.info("💯 Scoring Hindsight...")
-    for metric_name, metric in metrics.items():
-        scores = metric(
-            y_true=y_test.get_column("true").to_numpy(),
-            y_pred=y_pred.get_column("label").to_numpy()
-        )
-        logging.info(scores)
-        results[metric_name]["full"] = scores
-    
-    # Score by entity
-    for metric_name, metric in metrics.items():
-        y_pred_true = y_pred.join(y_test, on=[entity_col, time_col], how="left")
-        scores = (
-            y_pred_true
-            .groupby(entity_col, maintain_order=True)
-            .agg(pl.apply(exprs=["true", "label"], function=lambda args: metric(args[0], args[1])))
-        )
-        logging.info(scores)
-        results[metric_name]["entity"] = scores
-
-    # Score by period
-    for metric_name, metric in metrics.items():
-        y_pred_true = y_pred.join(y_test, on=[entity_col, time_col], how="left")
-        scores = (
-            y_pred_true
-            .groupby(period_col, maintain_order=True)
-            .agg(pl.apply(exprs=["true", "label"], function=lambda args: metric(args[0], args[1])))
-        )
-        logging.info(scores)
-        results[metric_name]["time"] = scores
-    logging.info("✅ Scoring complete")
-
-    return results
+    return y_pred, full_scores, session_scores, period_scores
 
 
 def test_hindsight_on_behacom(behacom_dataset):
-    X_train, X_test, y_train, y_test, period_col = behacom_dataset
-    y_pred = _fit_predict(
+    X_train, X_test, y_train, y_test = behacom_dataset
+    y_pred, full_scores, session_scores, period_scores = _fit_predict_score(
         X_train=X_train,
         X_test=X_test,
         y_train=y_train,
         y_test=y_test
     )
-    results = _score(y_test=y_test, y_pred=y_pred, period_col=period_col)
 
 
 def test_hindsight_on_elearn(elearn_dataset):
-    X_train, X_test, y_train, y_test, period_col = elearn_dataset
-    y_pred = _fit_predict(
+    X_train, X_test, y_train, y_test = elearn_dataset
+    y_pred, full_scores, session_scores, period_scores = _fit_predict_score(
         X_train=X_train,
         X_test=X_test,
         y_train=y_train,
-        y_test=y_test
+        y_test=y_test,
     )
-    results = _score(y_test=y_test, y_pred=y_pred, period_col=period_col)
