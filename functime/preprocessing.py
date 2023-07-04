@@ -4,6 +4,7 @@ import polars as pl
 from scipy.stats import boxcox_normmax
 from typing_extensions import Literal
 
+from itertools import product
 from functime.base import transformer
 from functime.base.model import ModelState
 from functime.offsets import _strip_freq_alias
@@ -17,6 +18,20 @@ PL_INT_COLS = pl.col(PL_INT_DTYPES)
 
 def PL_NUMERIC_COLS(*exclude):
     return pl.col(PL_NUMERIC_DTYPES).exclude(exclude)
+
+
+def reindex(X: pl.DataFrame) -> pl.DataFrame:
+    entity_col, time_col = X.columns[:2]
+    dtypes = X.dtypes[:2]
+    entities = sorted(set(X.get_column(entity_col)))
+    timestamps = sorted(set(X.get_column(time_col)))
+    X = (
+        pl.DataFrame(
+            product(entities, timestamps),
+            schema={entity_col: dtypes[0], time_col: dtypes[1]}
+        ).join(X, how="left", on=[entity_col, time_col])
+    )
+    return X
 
 
 @transformer
