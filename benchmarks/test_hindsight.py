@@ -33,10 +33,10 @@ def preview_dataset(
     logging.info("🔍 y_test mem: %s", f'{y_test.estimated_size("mb"):,.4f} mb')
     logging.info("🔍 X_test mem: %s", f'{X_test.estimated_size("mb"):,.4f} mb')
     # Preview dataset
-    logging.info("🔍 X_train preview:\n%s", X_train)
-    logging.info("🔍 y_train preview:\n%s", y_train)
-    logging.info("🔍 X_test preview:\n%s", X_test)
-    logging.info("🔍 y_test preview:\n%s", y_test)
+    logging.debug("🔍 X_train preview:\n%s", X_train)
+    logging.debug("🔍 y_train preview:\n%s", y_train)
+    logging.debug("🔍 X_test preview:\n%s", X_test)
+    logging.debug("🔍 y_test preview:\n%s", y_test)
 
 
 def encode_dataset(X_train, X_test, y_train, y_test):
@@ -115,15 +115,11 @@ def split_autocorrelated_data(
     return X_train, X_test, y_train, y_test
 
 
-def walk_forward_configs(X: pl.DataFrame, freq: Optional[str] = None, min_windows: int = 10, fraction: float = 0.5):
+def walk_forward_configs(X: pl.DataFrame, min_windows: int = 10, fraction: float = 0.5):
     time_col = X.columns[1]
     min_ts = X.get_column(time_col).min()
     max_ts = X.get_column(time_col).max()
-    if freq is None:
-        n_timestamps = len(pl.arange(min_ts, max_ts, step=1, eager=True))
-    else:
-        n_timestamps = len(pl.date_range(min_ts, max_ts, interval=freq, eager=True))
-
+    n_timestamps = len(pl.arange(min_ts, max_ts, step=1, eager=True))
     start = int(n_timestamps * fraction)
     full_length = n_timestamps - start
     n_windows = min_windows + (full_length % min_windows)
@@ -152,7 +148,6 @@ def behacom_dataset(request):
     time_col = "timestamp"
     label_col = "user"
     n_users = request.param
-    freq = None
 
     dataset = request.config.cache.get("dataset/behacom", None)
     if dataset is not None:
@@ -208,7 +203,7 @@ def behacom_dataset(request):
     start, step = walk_forward_configs(X_train)
     preview_dataset("behacom", X_train, X_test, y_train, y_test)
 
-    return X_train, X_test, y_train, y_test, start, step, freq
+    return X_train, X_test, y_train, y_test, start, step
 
 
 @pytest.fixture(params=[0.2, 0.4, 0.8, 1.0], ids=lambda x: f"fraction:{x}")
@@ -228,7 +223,6 @@ def elearn_dataset(request):
     entity_col = "session_id"
     time_col = "index"
     sample_fraction = request.param
-    freq = None
 
     dataset = request.config.cache.get("dataset/elearn", None)
     if dataset is not None:
@@ -258,6 +252,11 @@ def elearn_dataset(request):
             .set_sorted([entity_col, time_col])
             # Join with multioutput labels
             .join(labels.lazy(), how="left", on="session_id")
+            # Forward fill observations
+            .fill_null(strategy="forward")
+            # BUG: We groupby max to remove duplciated observations
+            .groupby([entity_col, time_col])
+            .agg(pl.all().max())
             .collect(streaming=True)
         )
         X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=labels.columns[1:])
@@ -268,7 +267,7 @@ def elearn_dataset(request):
     start, step = walk_forward_configs(X_train)
     preview_dataset("elearn", X_train, X_test, y_train, y_test)
 
-    return X_train, X_test, y_train, y_test, start, step, freq
+    return X_train, X_test, y_train, y_test, start, step
 
 
 def _fit_predict_score(
@@ -278,13 +277,12 @@ def _fit_predict_score(
     y_test: pl.DataFrame,
     start: int,
     step: int,
-    freq: Union[str, None]
 ) -> pl.DataFrame:
 
     # Set expanding window configs
     entity_col, time_col = y_test.columns[:2]
     # Fit
-    model = Hindsight(freq=freq, start=start, step=step, random_state=42)
+    model = Hindsight(start=start, step=step, random_state=42)
     model.fit(X=X_train, y=y_train)
 
     # Predict-score
@@ -301,7 +299,7 @@ def _fit_predict_score(
 
 
 def test_hindsight_on_behacom(behacom_dataset):
-    X_train, X_test, y_train, y_test, start, step, freq = behacom_dataset
+    X_train, X_test, y_train, y_test, start, step = behacom_dataset
     y_pred, full_scores, session_scores, period_scores = _fit_predict_score(
         X_train=X_train,
         X_test=X_test,
@@ -309,12 +307,11 @@ def test_hindsight_on_behacom(behacom_dataset):
         y_test=y_test,
         start=start,
         step=step,
-        freq=freq
     )
 
 
 def test_hindsight_on_elearn(elearn_dataset):
-    X_train, X_test, y_train, y_test, start, step, freq = elearn_dataset
+    X_train, X_test, y_train, y_test, start, step = elearn_dataset
     y_pred, full_scores, session_scores, period_scores = _fit_predict_score(
         X_train=X_train,
         X_test=X_test,
@@ -322,5 +319,4 @@ def test_hindsight_on_elearn(elearn_dataset):
         y_test=y_test,
         start=start,
         step=step,
-        freq=freq
     )
