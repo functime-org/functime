@@ -5,8 +5,9 @@ import logging
 import cloudpickle
 
 from base64 import b64encode, b64decode
-from typing import List, Tuple, Optional, Union
+from typing import List, Tuple
 from functime_backend.classification import Hindsight
+from functime.cross_validation import train_test_split
 
 from sklearn.metrics import (
     accuracy_score,
@@ -37,6 +38,11 @@ def preview_dataset(
     logging.debug("🔍 y_train preview:\n%s", y_train)
     logging.debug("🔍 X_test preview:\n%s", X_test)
     logging.debug("🔍 y_test preview:\n%s", y_test)
+    # Description
+    logging.debug("🔍 X_train info:\n%s", X_train.describe())
+    logging.debug("🔍 y_train info:\n%s", y_train.describe())
+    logging.debug("🔍 X_test info:\n%s", X_test.describe())
+    logging.debug("🔍 y_test info:\n%s", y_test.describe())
 
 
 def encode_dataset(X_train, X_test, y_train, y_test):
@@ -64,21 +70,21 @@ def split_iid_data(
 ) -> Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame, pl.DataFrame]:
 
     # Sample session ids
-    session_col = data.columns[0]
+    entity_col = data.columns[0]
     time_col = data.columns[1]
-    test_session_ids = data.get_column(session_col).unique().sample(fraction=test_size, seed=seed)
+    test_session_ids = data.get_column(entity_col).unique().sample(fraction=test_size, seed=seed)
 
     # Train test split
     data = data.lazy()
     # Cannot combine 'streaming' with 'common_subplan_elimination'. CSE will be turned off.
     X_y_train, X_y_test = pl.collect_all([
-        data.filter(~pl.col(session_col).is_in(test_session_ids)),
-        data.filter(pl.col(session_col).is_in(test_session_ids))
+        data.filter(~pl.col(entity_col).is_in(test_session_ids)),
+        data.filter(pl.col(entity_col).is_in(test_session_ids))
     ])
 
     # Split into X, y
-    X_cols = [session_col, time_col, pl.all().exclude([session_col, time_col, *label_cols])]
-    y_cols = [session_col, time_col, pl.col(label_cols)]
+    X_cols = [entity_col, time_col, pl.all().exclude([entity_col, time_col, *label_cols])]
+    y_cols = [entity_col, time_col, pl.col(label_cols)]
 
     # Splits
     X_train, y_train = X_y_train.select(X_cols), X_y_train.select(y_cols)
@@ -94,23 +100,17 @@ def split_autocorrelated_data(
 ) -> Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame, pl.DataFrame]:
 
     # Sample session ids
-    session_col = data.columns[0]
+    entity_col = data.columns[0]
     time_col = data.columns[1]
-    # Assumes autocorrelation from past to future sessions
-    data = data.lazy()
-    train_idx = data.groupby(session_col).agg(pl.col(time_col).slice(0, pl.col(time_col).len()-test_size)).explode(time_col)
-    X_y_train = train_idx.join(data, how="left", on=[session_col, time_col]).drop_nulls().unique([session_col, time_col])
-    X_y_test = data.join(X_y_train.select([session_col, time_col]), how="anti", on=[session_col, time_col])
-    # Cannot combine 'streaming' with 'common_subplan_elimination'. CSE will be turned off.
-    X_y_train, X_y_test = pl.collect_all([X_y_train, X_y_test])
-
     # Split into X, y
-    X_cols = [session_col, time_col, pl.all().exclude([session_col, time_col, *label_cols])]
-    y_cols = [session_col, time_col, pl.col(label_cols)]
-
+    X_cols = [entity_col, time_col, pl.all().exclude([entity_col, time_col, *label_cols])]
+    y_cols = [entity_col, time_col, pl.col(label_cols)]
     # Splits
-    X_train, y_train = X_y_train.select(X_cols), X_y_train.select(y_cols)
-    X_test, y_test = X_y_test.select(X_cols), X_y_test.select(y_cols)
+    X_train, X_test = data.select(X_cols).pipe(train_test_split(test_size=test_size, eager=True))
+    y_train, y_test = data.select(y_cols).pipe(train_test_split(test_size=test_size, eager=True))
+    # Defensive drop nulls
+    X_train = X_train.drop_nulls().unique([entity_col, time_col])
+    y_train = y_train.drop_nulls().unique([entity_col, time_col])
 
     return X_train, X_test, y_train, y_test
 
