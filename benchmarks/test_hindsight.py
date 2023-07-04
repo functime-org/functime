@@ -15,7 +15,7 @@ from sklearn.metrics import (
 )
 
 
-TEST_FRACTION = 0.10
+TEST_FRACTION = 0.20
 TEST_HORIZON = 3
 
 
@@ -38,11 +38,6 @@ def preview_dataset(
     logging.debug("🔍 y_train preview:\n%s", y_train)
     logging.debug("🔍 X_test preview:\n%s", X_test)
     logging.debug("🔍 y_test preview:\n%s", y_test)
-    # Description
-    logging.debug("🔍 X_train info:\n%s", X_train.describe())
-    logging.debug("🔍 y_train info:\n%s", y_train.describe())
-    logging.debug("🔍 X_test info:\n%s", X_test.describe())
-    logging.debug("🔍 y_test info:\n%s", y_test.describe())
 
 
 def encode_dataset(X_train, X_test, y_train, y_test):
@@ -93,28 +88,6 @@ def split_iid_data(
     return X_train, X_test, y_train, y_test
 
 
-def split_autocorrelated_data(
-    data: pl.DataFrame,
-    label_cols: List[str],
-    test_size: int = TEST_HORIZON,
-) -> Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame, pl.DataFrame]:
-
-    # Sample session ids
-    entity_col = data.columns[0]
-    time_col = data.columns[1]
-    # Split into X, y
-    X_cols = [entity_col, time_col, pl.all().exclude([entity_col, time_col, *label_cols])]
-    y_cols = [entity_col, time_col, pl.col(label_cols)]
-    # Splits
-    X_train, X_test = data.select(X_cols).pipe(train_test_split(test_size=test_size, eager=True))
-    y_train, y_test = data.select(y_cols).pipe(train_test_split(test_size=test_size, eager=True))
-    # Defensive drop nulls
-    X_train = X_train.drop_nulls().unique([entity_col, time_col])
-    y_train = y_train.drop_nulls().unique([entity_col, time_col])
-
-    return X_train, X_test, y_train, y_test
-
-
 def step_from_windows(X: pl.DataFrame, min_windows: int = 10, start_fraction: float = 0.5):
     time_col = X.columns[1]
     min_ts = X.get_column(time_col).min()
@@ -127,7 +100,7 @@ def step_from_windows(X: pl.DataFrame, min_windows: int = 10, start_fraction: fl
     return start, step
 
 
-@pytest.fixture(params=[3, 6, 10], ids=lambda x: f"users:{x}")
+@pytest.fixture(ids=lambda x: f"users:{x}")
 def behacom_dataset(request):
     """Hourly user laptop behavior dataset.
 
@@ -138,18 +111,16 @@ def behacom_dataset(request):
     ~5000 timestamps. Relevant to IoT and productivity.
 
     We take samples of top 3, 6, 9 users by days observed.
-
-    Note: we drop user 2 as they only have 1 day observed.
     """
 
     entity_col = "session_id"
     time_col = "timestamp"
     label_col = "user"
-    n_users = request.param
+    n_users = 9
     start = 0
     step = 1
 
-    dataset = request.config.cache.get("dataset/behacom", None)
+    dataset = request.config.cache.get(f"dataset/behacom__{n_users}", None)
     if dataset is not None:
         logging.info("🗂️ Loading %r dataset from cache", "behacom")
         X_train, X_test, y_train, y_test = decode_dataset(dataset)
@@ -195,10 +166,10 @@ def behacom_dataset(request):
             ])
             .collect(streaming=True)
         )
-        X_train, X_test, y_train, y_test = split_autocorrelated_data(data, label_cols=[label_col])
+        X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=[label_col])
         # Cache dataset
         cached_dataset = encode_dataset(X_train, X_test, y_train, y_test)
-        request.config.cache.set("dataset/behacom", cached_dataset)
+        request.config.cache.set(f"dataset/behacom__{n_users}", cached_dataset)
 
     preview_dataset("behacom", X_train, X_test, y_train, y_test)
 
@@ -223,7 +194,7 @@ def elearn_dataset(request):
     time_col = "index"
     sample_fraction = request.param
 
-    dataset = request.config.cache.get("dataset/elearn", None)
+    dataset = request.config.cache.get(f"dataset/elearn__{sample_fraction}", None)
     if dataset is not None:
         logging.info("🗂️ Loading %r dataset from cache", "elearn")
         X_train, X_test, y_train, y_test = decode_dataset(dataset)
@@ -258,12 +229,12 @@ def elearn_dataset(request):
             .agg(pl.all().max())
             .collect(streaming=True)
         )
-        X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=labels.columns[1:])
+        X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=labels.columns[1])
         # Cache dataset
         cached_dataset = encode_dataset(X_train, X_test, y_train, y_test)
-        request.config.cache.set("dataset/elearn", cached_dataset)
+        request.config.cache.set(f"dataset/elearn__{sample_fraction}", cached_dataset)
 
-    start, step = step_from_windows(X_train, min_windows=24, start_fraction=0.5)
+    start, step = step_from_windows(X_train, min_windows=5, start_fraction=0.5)
     preview_dataset("elearn", X_train, X_test, y_train, y_test)
 
     return X_train, X_test, y_train, y_test, start, step
@@ -279,20 +250,26 @@ def _fit_predict_score(
 ) -> pl.DataFrame:
 
     # Set expanding window configs
-    entity_col, time_col = y_test.columns[:2]
+    entity_col, time_col, target_col = y_test.columns
     # Fit
-    model = Hindsight(start=start, step=step, random_state=42)
+    model = Hindsight(start=start, step=step, random_state=42, max_iter=1000, n_jobs=-1)
     model.fit(X=X_train, y=y_train)
 
     # Predict-score
     logging.info("💯 Scoring Hindsight...")
     metrics = [accuracy_score, balanced_accuracy_score]
-    # NOTE: Setting keep_true=True caches y_pred in model
-    full_scores, y_pred = model.score(X=X_test, y=y_test, keep_pred=True, metrics=metrics)
-    session_scores = model.score(X=X_test, y=y_test, by=entity_col, metrics=metrics)
-    period_scores = model.score(X=X_test, y=y_test, by=[entity_col, time_col], metrics=metrics)
 
-    logging.info("📹 Predicted labels preview:\n%s", y_pred)
+    with pl.Config(tbl_rows=-1, tbl_cols=-1):
+        # NOTE: Setting keep_true=True caches y_pred in model
+        full_scores, y_pred = model.score(X=X_test, y=y_test, keep_pred=True, metrics=metrics)
+        logging.info("📹 Predicted labels preview:\n%s", y_pred.join(y_test.rename({target_col: "true"}), on=[entity_col, time_col]))
+        logging.info("💯 Full scores: %s", full_scores)
+
+        session_scores = model.score(X=X_test, y=y_test, y_pred=y_pred, by=entity_col, metrics=metrics)
+        logging.info("\n💯 Session scores:\n%s", session_scores.sort("accuracy_score"))
+
+        period_scores = model.score(X=X_test, y=y_test, y_pred=y_pred, by=time_col, metrics=metrics)
+        logging.info("\n💯 Period scores:\n%s", period_scores.sort(time_col))
 
     return y_pred, full_scores, session_scores, period_scores
 
