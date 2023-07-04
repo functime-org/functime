@@ -98,8 +98,8 @@ def split_autocorrelated_data(
     time_col = data.columns[1]
     # Assumes autocorrelation from past to future sessions
     data = data.lazy()
-    train_idx = data.groupby(session_col).agg(pl.col(time_col).slice(-test_size)).explode(time_col)
-    X_y_train = train_idx.join(data, how="left", on=[session_col, time_col])
+    train_idx = data.groupby(session_col).agg(pl.col(time_col).slice(0, pl.col(time_col).len()-test_size)).explode(time_col)
+    X_y_train = train_idx.join(data, how="left", on=[session_col, time_col]).drop_nulls().unique([session_col, time_col])
     X_y_test = data.join(X_y_train.select([session_col, time_col]), how="anti", on=[session_col, time_col])
     # Cannot combine 'streaming' with 'common_subplan_elimination'. CSE will be turned off.
     X_y_train, X_y_test = pl.collect_all([X_y_train, X_y_test])
@@ -115,17 +115,15 @@ def split_autocorrelated_data(
     return X_train, X_test, y_train, y_test
 
 
-def walk_forward_configs(X: pl.DataFrame, min_windows: int = 10, fraction: float = 0.5):
+def step_from_windows(X: pl.DataFrame, min_windows: int = 10, start_fraction: float = 0.5):
     time_col = X.columns[1]
     min_ts = X.get_column(time_col).min()
     max_ts = X.get_column(time_col).max()
     n_timestamps = len(pl.arange(min_ts, max_ts, step=1, eager=True))
-    start = int(n_timestamps * fraction)
+    start = int(n_timestamps * start_fraction)
     full_length = n_timestamps - start
     n_windows = min_windows + (full_length % min_windows)
     step = int(full_length // n_windows)
-    logging.info("💡 Timestamps domain [%s, %s]", min_ts, max_ts)
-    logging.info("💡 Expanding window (start=%s, step=%s, T=%s, n_windows=%s)", start, step, n_timestamps, n_windows)
     return start, step
 
 
@@ -148,6 +146,8 @@ def behacom_dataset(request):
     time_col = "timestamp"
     label_col = "user"
     n_users = request.param
+    start = 0
+    step = 1
 
     dataset = request.config.cache.get("dataset/behacom", None)
     if dataset is not None:
@@ -163,7 +163,7 @@ def behacom_dataset(request):
             .top_k(k=n_users, by="days")
             .collect(streaming=True)
         )
-        logging.info("🎲 Selected users:\n%s", top_k_users)
+        logging.info("🎲 Selected users: %s", top_k_users.to_dicts())
         data = (
             pl.scan_parquet("data/behacom.parquet")
             .filter(pl.col("user").is_in(top_k_users.get_column("user")))
@@ -181,7 +181,7 @@ def behacom_dataset(request):
             # Create session id
             .with_columns(date=pl.col("timestamp").dt.strftime("%Y%m%d").cast(pl.Categorical).cast(pl.Int32))
             .with_columns(
-                session_id=pl.struct([label_col, "date"]).hash(),
+                session_id=pl.struct([label_col, "date"]).hash().cast(pl.Utf8).cast(pl.Categorical).to_physical(),
                 # Convert timestamp into hours
                 timestamp=pl.col("timestamp").dt.hour()
             )
@@ -191,7 +191,7 @@ def behacom_dataset(request):
             .select([
                 entity_col,
                 time_col,
-                pl.all().exclude([entity_col, time_col])
+                ps.numeric().exclude([entity_col, time_col])
             ])
             .collect(streaming=True)
         )
@@ -200,7 +200,6 @@ def behacom_dataset(request):
         cached_dataset = encode_dataset(X_train, X_test, y_train, y_test)
         request.config.cache.set("dataset/behacom", cached_dataset)
 
-    start, step = walk_forward_configs(X_train)
     preview_dataset("behacom", X_train, X_test, y_train, y_test)
 
     return X_train, X_test, y_train, y_test, start, step
@@ -264,7 +263,7 @@ def elearn_dataset(request):
         cached_dataset = encode_dataset(X_train, X_test, y_train, y_test)
         request.config.cache.set("dataset/elearn", cached_dataset)
 
-    start, step = walk_forward_configs(X_train)
+    start, step = step_from_windows(X_train, min_windows=24, start_fraction=0.5)
     preview_dataset("elearn", X_train, X_test, y_train, y_test)
 
     return X_train, X_test, y_train, y_test, start, step
