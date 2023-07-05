@@ -2,9 +2,9 @@ import polars as pl
 import polars.selectors as ps
 import pytest
 import logging
+import os
 import numpy as np
 
-from aeon.datasets import load_basic_motions
 from typing import List, Tuple
 from functime.preprocessing import reindex
 from functime_backend.classification import HindsightClassifier
@@ -15,7 +15,10 @@ from sklearn.metrics import (
 )
 
 
+# Test split size
 TEST_FRACTION = 0.20
+# Path to store temporal embedding chunks
+STORAGE_PATH = os.environ.get("EMBEDDINGS_STORAGE_PATH", ".data/embs")
 
 
 def preview_dataset(
@@ -87,23 +90,28 @@ def behacom_dataset():
     Relevant to IoT and productivity.
     """
     label_col = "current_app_average_cpu"
-    data = (
-        pl.scan_parquet("data/behacom.parquet")
-        .filter(~pl.col("user").is_in([2, 5]))
-        .groupby_dynamic("timestamp", every="1h", by="user")
-        .agg(ps.numeric().fill_null(0).max())  # Get maximum usage during that hour
-        # Drop cpu columns other than label to prevent data leakage
-        .select(~ps.contains(["system_cpu", "current_app_std"]))
-        .lazy()
-        # Create sessions
-        .with_columns(year_week=pl.col("timestamp").dt.strftime("%Y%w").cast(pl.Categorical).to_physical().cast(pl.Int32))
-        .with_columns(session_id=pl.col("year_week") - pl.col("year_week").min())
-        .drop("year_week")
-        .select(["user", "session_id", ps.numeric().exclude(["user", "session_id"])])
-        .collect(streaming=True)
-        .pipe(reindex)
-        .fill_null(0)
-    )
+    cache_path = ".data/behacom.arrow"
+    if os.path.exists(cache_path):
+        data = pl.read_ipc(cache_path)
+    else:
+        data = (
+            pl.scan_parquet("data/behacom.parquet")
+            .filter(~pl.col("user").is_in([2, 5]))
+            .groupby_dynamic("timestamp", every="1h", by="user")
+            .agg(ps.numeric().fill_null(0).max())  # Get maximum usage during that hour
+            # Drop cpu columns other than label to prevent data leakage
+            .select(~ps.contains(["system_cpu", "current_app_std"]))
+            .lazy()
+            # Create sessions
+            .with_columns(year_week=pl.col("timestamp").dt.strftime("%Y%w").cast(pl.Categorical).to_physical().cast(pl.Int32))
+            .with_columns(session_id=pl.col("year_week") - pl.col("year_week").min())
+            .drop("year_week")
+            .select(["user", "session_id", ps.numeric().exclude(["user", "session_id"])])
+            .collect(streaming=True)
+            .pipe(reindex)
+            .fill_null(0)
+        )
+        data.write_ipc(cache_path)
     X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=[label_col])
     preview_dataset("behacom", X_train, X_test, y_train, y_test)
     return X_train, X_test, y_train, y_test
@@ -127,48 +135,49 @@ def elearn_dataset(request):
     # https://www.kaggle.com/competitions/predict-student-performance-from-game-play/discussion/384796
     entity_col = "session_id"
     time_col = "index"
+    label_cols = [f"q{i+1}" for i in range(18)]
     sample_fraction = request.param
+    cache_path = ".data/elearn.arrow"
 
-    # Pivot from long to wide format (for multioutput classification)
-    labels = (
-        pl.read_parquet("data/elearn_labels.parquet")
-        .pivot(index="session_id", columns="question_id", values="correct")
-        .select(["session_id", pl.all().exclude("session_id").prefix("question_")])
-    )
-    sampled_session_ids = labels.get_column("session_id").unique().sample(fraction=sample_fraction)
-    logging.info("🎲 Selected %s / %s sessions (%.2f)", len(sampled_session_ids), len(labels), sample_fraction)
-    data = (
-        pl.scan_parquet("data/elearn.parquet")
-        # Sample session IDs
-        .filter(pl.col(entity_col).is_in(sampled_session_ids))
-        # NOTE: We groupby max numeric columns to remove duplicates
-        .groupby([entity_col, time_col])
-        .agg(ps.numeric().max())
-        # Join with multioutput labels
-        .join(labels.lazy(), how="left", on="session_id")
-        # Forward fill
-        .select([
-            pl.col(entity_col),
-            pl.col(time_col),
-            pl.all().exclude([entity_col, time_col]).forward_fill().fill_null(0)
-        ])
-        .collect(streaming=True)
-        .pipe(reindex)
-        .fill_null(0)
-    )
+    if os.path.exists(cache_path):
+        data = pl.read_ipc(cache_path)
+    else:
+        labels = (
+            pl.read_parquet("data/elearn_labels.parquet")
+            .pivot(index="session_id", columns="question_id", values="correct")
+            .select(["session_id", pl.all().exclude("session_id").prefix("q")])
+        )
+        sampled_session_ids = labels.get_column("session_id").unique().sample(fraction=sample_fraction)
+        logging.info("🎲 Selected %s / %s sessions (%.2f)", len(sampled_session_ids), len(labels), sample_fraction)
+        data = (
+            pl.scan_parquet("data/elearn.parquet")
+            # Sample session IDs
+            .filter(pl.col(entity_col).is_in(sampled_session_ids))
+            # NOTE: We groupby max numeric columns to remove duplicates
+            .groupby([entity_col, time_col])
+            .agg(ps.numeric().max())
+            # Join with multioutput labels
+            .join(labels.lazy(), how="left", on="session_id")
+            # Forward fill
+            .select([
+                pl.col(entity_col),
+                pl.col(time_col),
+                pl.all().exclude([entity_col, time_col]).forward_fill().fill_null(0)
+            ])
+            .collect(streaming=True)
+            .pipe(reindex)
+            .fill_null(0)
+        )
+        data.write_ipc(cache_path)
 
     # Check uniqueness
     if data.n_unique([entity_col, time_col]) < data.height:
         raise ValueError("data contains duplicate (entity, time) rows")
 
-    X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=labels.columns[1:])
+    X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=label_cols)
     preview_dataset("elearn", X_train, X_test, y_train, y_test)
 
     return X_train, X_test, y_train, y_test
-
-
-def test_baseline():
-    pass
 
 
 def test_regression(behacom_dataset):
@@ -182,7 +191,11 @@ def test_binary_classification(parkinsons_dataset):
 def test_multioutput_classification(elearn_dataset):
 
     X_train, X_test, y_train, y_test = elearn_dataset
-    model = HindsightClassifier(random_state=42, max_iter=1000, n_jobs=-1)
+    model = HindsightClassifier(
+        storage_path=STORAGE_PATH,
+        random_state=42,
+        max_iter=1000,
+    )
     model.fit(X=X_train, y=y_train)
 
     metrics = [accuracy_score, balanced_accuracy_score]
