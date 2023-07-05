@@ -13,12 +13,22 @@ from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,
 )
+from sklearn.linear_model import LogisticRegression
+from sklearnex import patch_sklearn
 
+patch_sklearn()
 
 # Test split size
 TEST_FRACTION = 0.20
+
 # Path to store temporal embedding chunks
 STORAGE_PATH = os.environ.get("EMBEDDINGS_STORAGE_PATH", ".data/embs")
+
+# Classification metrics
+CLASSIFICATION_METRICS = [
+    accuracy_score,
+    balanced_accuracy_score
+]
 
 
 def preview_dataset(
@@ -77,7 +87,12 @@ def split_iid_data(
     return X_train, X_test, y_train, y_test
 
 
-@pytest.fixture(params=[125, 250, 500, 1000])
+@pytest.fixture
+def classifier():
+    return LogisticRegression(max_iter=200)
+
+
+@pytest.fixture(params=[64, 256, 512])
 def parkinsons_dataset(request):
     """Parkinson's EEG brain scans.
 
@@ -91,7 +106,7 @@ def parkinsons_dataset(request):
     data = (
         pl.scan_parquet("data/parkinsons_eeg.parquet")
         # Ignore collinear features
-        .select(pl.all().exclude("disease_duration"))
+        .select(pl.all().exclude(["disease_duration", "MMSE", "NAART"]))
         .filter(pl.col("timestamp") < max_timestamp)
         .select(["subject", "timestamp", ps.numeric().exclude("timestamp"), (pl.col("session") == "off").alias("is_control").cast(pl.Int8)])
         .collect(streaming=True)
@@ -99,6 +114,25 @@ def parkinsons_dataset(request):
     X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=[label_col])
     preview_dataset("behacom", X_train, X_test, y_train, y_test)
     return X_train, X_test, y_train, y_test
+
+
+@pytest.fixture
+def parkinsons_baseline(parkinsons_dataset, classifier):
+    X_train, X_test, y_train, y_test = parkinsons_dataset
+    idx_cols = X_train.columns[:2]
+    model = classifier
+    model.fit(
+        X=X_train.select(pl.all().exclude(idx_cols)).to_numpy(),
+        y=y_train.select(pl.all().exclude(idx_cols)).to_numpy(),
+    )
+    y_pred = model.predict(X=X_test.select(pl.all().exclude(idx_cols)).to_numpy())
+    y_test = y_test.select(pl.all().exclude(idx_cols)).to_numpy()
+    scores = {}
+    for metric in CLASSIFICATION_METRICS:
+        metric_name = metric.__name__
+        score = metric(y_true=y_test, y_pred=y_pred)
+        scores[metric_name] = score
+    return scores
 
 
 @pytest.fixture
@@ -208,30 +242,35 @@ def test_regression(behacom_dataset):
     X_train, X_test, y_train, y_test = behacom_dataset
 
 
-def test_binary_classification(parkinsons_dataset):
+def test_binary_classification(parkinsons_dataset, parkinsons_baseline, classifier):
     X_train, X_test, y_train, y_test = parkinsons_dataset
+    baseline = parkinsons_baseline
+    logging.info("💯 Baseline Score: %s", baseline)
     model = HindsightClassifier(
+        estimator=classifier,
         storage_path=STORAGE_PATH,
         random_state=42,
-        max_iter=3,
+        max_iter=200,
     )
     model.fit(X=X_train, y=y_train)
-    metrics = [accuracy_score, balanced_accuracy_score]
-    score = model.score(X=X_test, y=y_test, keep_pred=True, metrics=metrics)
-    logging.info(score)
+    scores = model.score(X=X_test, y=y_test, metrics=CLASSIFICATION_METRICS)["label"]
+    logging.info("💯 Hindsight Score: %s", scores)
+    for metric_name in scores.keys():
+        assert scores[metric_name] > parkinsons_baseline[metric_name]
 
 
-def test_multioutput_classification(elearn_dataset):
+def test_multioutput_classification(elearn_dataset, classifier):
     X_train, X_test, y_train, y_test = elearn_dataset
     model = HindsightClassifier(
+        estimator=classifier,
         storage_path=STORAGE_PATH,
         random_state=42,
-        max_iter=1000,
+        max_iter=200,
     )
     model.fit(X=X_train, y=y_train)
-    metrics = [accuracy_score, balanced_accuracy_score]
-    score = model.score(X=X_test, y=y_test, keep_pred=True, metrics=metrics)
-    logging.info(score)
+    score = model.score(X=X_test, y=y_test, keep_pred=True, metrics=CLASSIFICATION_METRICS)
+    assert score > 0.9
+
 
 def test_video_classification():
     pass
