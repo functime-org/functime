@@ -45,6 +45,9 @@ functime = "functime.__main__:main"
 Homepage = "https://github.com/descendant-ai/functime"
 
 [project.optional-dependencies]
+performance = [
+    "scikit-learn-intelex"
+]
 test = [
     "coverage[toml]",
     "pytest-benchmark",
