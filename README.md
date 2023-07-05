@@ -91,7 +91,7 @@ X_y_test = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/d
 X_train, y_train = X_y_train.select(pl.all().exclude("label")), X_y_train.select("label")
 X_test, y_test = X_y_test.select(pl.all().exclude("label")), X_y_test.select("label")
 
-X_train_embs = functime.embeddings.embed(X_train, model="minirocket")
+X_train_embs = functime.embeddings.embed(X_train)
 
 # Fit classifier on the embeddings
 classifier = make_pipeline(
@@ -101,7 +101,7 @@ classifier = make_pipeline(
 classifier.fit(X_train_embs, y_train)
 
 # Predict and
-X_test_embs = embed(X_test, model="minirocket")
+X_test_embs = embed(X_test)
 labels = classifier.predict(X_test_embs)
 accuracy = accuracy_score(predictions, y_test)
 ```
@@ -120,7 +120,7 @@ from functime.preprocessing import roll
 y = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/sp500.parquet")
 
 # Create embeddings
-embeddings = functime.embeddings.embed(y_ma_60, model="minirocket")
+embeddings = functime.embeddings.embed(y_ma_60)
 
 # Reduce dimensionality with UMAP
 reducer = UMAP(n_components=500, n_neighbors=10, metric="manhattan")
