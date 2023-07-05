@@ -77,6 +77,30 @@ def split_iid_data(
     return X_train, X_test, y_train, y_test
 
 
+@pytest.fixture(params=[125, 250, 500, 1000])
+def parkinsons_dataset(request):
+    """Parkinson's EEG brain scans.
+
+    31 subjects (15 in control, 16 in test), 18535 timestamps.
+    Predict { "off", "hc" } status in the "session" column, where "off" is the control group.
+
+    Relevant to healthcare and disease detection.
+    """
+    label_col = "is_control"
+    max_timestamp = request.param
+    data = (
+        pl.scan_parquet("data/parkinsons_eeg.parquet")
+        # Ignore collinear features
+        .select(pl.all().exclude("disease_duration"))
+        .filter(pl.col("timestamp") < max_timestamp)
+        .select(["subject", "timestamp", ps.numeric().exclude("timestamp"), (pl.col("session") == "off").alias("is_control").cast(pl.Int8)])
+        .collect(streaming=True)
+    )
+    X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=[label_col])
+    preview_dataset("behacom", X_train, X_test, y_train, y_test)
+    return X_train, X_test, y_train, y_test
+
+
 @pytest.fixture
 def behacom_dataset():
     """Hourly user laptop behavior every week.
@@ -87,7 +111,7 @@ def behacom_dataset():
     11 users, ~12,000 dimensions (e.g. RAM usage, CPU usage, mouse location), ~5000 timestamps.
     Drop users with less than one week of observations: i.e. users [2, 5].
 
-    Relevant to IoT and productivity.
+    Relevant to IoT, productivity, and infosec.
     """
     label_col = "current_app_average_cpu"
     cache_path = ".data/behacom.arrow"
@@ -117,7 +141,7 @@ def behacom_dataset():
     return X_train, X_test, y_train, y_test
 
 
-@pytest.fixture(params=[0.2, 0.4, 0.8, 1.0], ids=lambda x: f"fraction:{x}")
+@pytest.fixture(params=[0.05], ids=lambda x: f"fraction:{x}")
 def elearn_dataset(request):
     """Massive e-learning exam score prediction from Kaggle.
 
@@ -185,11 +209,19 @@ def test_regression(behacom_dataset):
 
 
 def test_binary_classification(parkinsons_dataset):
-    pass
+    X_train, X_test, y_train, y_test = parkinsons_dataset
+    model = HindsightClassifier(
+        storage_path=STORAGE_PATH,
+        random_state=42,
+        max_iter=3,
+    )
+    model.fit(X=X_train, y=y_train)
+    metrics = [accuracy_score, balanced_accuracy_score]
+    score = model.score(X=X_test, y=y_test, keep_pred=True, metrics=metrics)
+    logging.info(score)
 
 
 def test_multioutput_classification(elearn_dataset):
-
     X_train, X_test, y_train, y_test = elearn_dataset
     model = HindsightClassifier(
         storage_path=STORAGE_PATH,
@@ -197,10 +229,9 @@ def test_multioutput_classification(elearn_dataset):
         max_iter=1000,
     )
     model.fit(X=X_train, y=y_train)
-
     metrics = [accuracy_score, balanced_accuracy_score]
-    with pl.Config(tbl_rows=-1, tbl_cols=-1):
-        results = model.score(X=X_test, y=y_test, keep_pred=True, metrics=metrics)
+    score = model.score(X=X_test, y=y_test, keep_pred=True, metrics=metrics)
+    logging.info(score)
 
 def test_video_classification():
     pass
