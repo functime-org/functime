@@ -63,7 +63,7 @@ The embeddings can be reduced into 2D / 3D and visualized with a scatter plot.
 
 ## How are embeddings computed?
 
-`functime` offers a next-generation convolutional embedding model built upon the MINIROCKET[^1] paper. Our model transforms time-series of any length, dimension (AKA multivariate time-series), and frequency into a 10,000 dimensional vector.
+`functime` offers a next-generation convolutional embedding model inspired by research from time-series classification[^1]. Our model transforms time-series of any length, dimension (AKA multivariate time-series), and frequency into a 10,000 dimensional vector.
 
 [^1]: Dempster, A., Schmidt, D. F., & Webb, G. I. (2021, August). Minirocket: A very fast (almost) deterministic transform for time series classification. In Proceedings of the 27th ACM SIGKDD conference on knowledge discovery & data mining (pp. 248-257).
 
