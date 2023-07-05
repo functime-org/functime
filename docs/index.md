@@ -147,7 +147,7 @@ X_test, y_test = (
     X_y_test.select("label")
 )
 
-X_train_embs = functime.embeddings.embed(X_train, model="minirocket")
+X_train_embs = functime.embeddings.embed(X_train)
 
 # Fit classifier on the embeddings
 classifier = make_pipeline(
@@ -157,7 +157,7 @@ classifier = make_pipeline(
 classifier.fit(X_train_embs, y_train)
 
 # Predict and
-X_test_embs = embed(X_test, model="minirocket")
+X_test_embs = embed(X_test)
 labels = classifier.predict(X_test_embs)
 accuracy = accuracy_score(predictions, y_test)
 ```
@@ -193,7 +193,7 @@ y_ma_60 = (
 )
 
 # Create embeddings
-embeddings = functime.embeddings.embed(y_ma_60, model="minirocket")
+embeddings = functime.embeddings.embed(y_ma_60)
 
 # Reduce dimensionality with UMAP
 reducer = UMAP(n_components=500, n_neighbors=10, metric="manhattan")

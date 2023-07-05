@@ -27,7 +27,7 @@ def embed(
         series. There must not be any missing values or NaNs in the array.
 
     model : str
-        The embedding model to use. Currently only supports "minirocket".
+        The embedding model to use.
 
     """
     endpoint = "/embed"
