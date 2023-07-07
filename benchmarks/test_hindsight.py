@@ -14,9 +14,12 @@ from sklearn.metrics import (
     balanced_accuracy_score,
 )
 from sklearn.linear_model import LogisticRegression
-from sklearnex import patch_sklearn
 
-patch_sklearn()
+try:
+    from sklearnex import patch_sklearn
+    patch_sklearn()
+except ImportError:
+    pass
 
 # Test split size
 TEST_FRACTION = 0.20
