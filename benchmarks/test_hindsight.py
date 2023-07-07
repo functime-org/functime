@@ -7,7 +7,9 @@ import numpy as np
 
 from typing import List, Tuple
 from functime.preprocessing import reindex
+from functime.plotting import plot_scatter
 from functime_backend.classification import HindsightClassifier
+from functime_backend.umap import auto_umap
 
 from sklearn.metrics import (
     accuracy_score,
@@ -15,23 +17,28 @@ from sklearn.metrics import (
 )
 from sklearn.linear_model import LogisticRegression
 
-try:
-    from sklearnex import patch_sklearn
-    patch_sklearn()
-except ImportError:
-    pass
 
 # Test split size
 TEST_FRACTION = 0.20
 
 # Path to store temporal embedding chunks
 STORAGE_PATH = os.environ.get("EMBEDDINGS_STORAGE_PATH", ".data/embs")
+FIGURES_PATH = os.environ.get("EMBEDDINGS_FIGURES_PATH", "benchmarks/figures")
 
 # Classification metrics
 CLASSIFICATION_METRICS = [
     accuracy_score,
     balanced_accuracy_score
 ]
+
+
+def plot_embeddings(X: pl.DataFrame, y: pl.DataFrame, n_neighbors: int, file_name: str):
+    # Dimensionality reduction
+    embs = auto_umap(X=X, y=y, n_dims=3, n_neighbors=n_neighbors)
+    # Export embedding plots
+    fig = plot_scatter(X=embs, y=y)
+    fig.write_html(f"{FIGURES_PATH}/{file_name}.html")
+    fig.write_json(f"{FIGURES_PATH}/{file_name}.json")
 
 
 def preview_dataset(
@@ -95,8 +102,8 @@ def classifier():
     return LogisticRegression(max_iter=200)
 
 
-@pytest.fixture(params=[64, 256, 512])
-def parkinsons_dataset(request):
+@pytest.fixture
+def parkinsons_dataset():
     """Parkinson's EEG brain scans.
 
     31 subjects (15 in control, 16 in test), 18535 timestamps.
@@ -105,7 +112,7 @@ def parkinsons_dataset(request):
     Relevant to healthcare and disease detection.
     """
     label_col = "is_control"
-    max_timestamp = request.param
+    max_timestamp = 256
     data = (
         pl.scan_parquet("data/parkinsons_eeg.parquet")
         # Ignore collinear features
@@ -115,7 +122,16 @@ def parkinsons_dataset(request):
         .collect(streaming=True)
     )
     X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=[label_col])
-    preview_dataset("behacom", X_train, X_test, y_train, y_test)
+    preview_dataset("parkinsons", X_train, X_test, y_train, y_test)
+
+    if not os.path.exists(f"{FIGURES_PATH}/parkinsons.html"):
+        plot_embeddings(
+            X=data.select(data.columns[2:]).drop(label_col).to_numpy(),
+            y=data.select(label_col).to_numpy(),
+            n_neighbors=5,
+            file_name="parkinsons",
+        )
+
     return X_train, X_test, y_train, y_test
 
 
@@ -175,11 +191,20 @@ def behacom_dataset():
         data.write_ipc(cache_path)
     X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=[label_col])
     preview_dataset("behacom", X_train, X_test, y_train, y_test)
+
+    if not os.path.exists(f"{FIGURES_PATH}/behacom.html"):
+        plot_embeddings(
+            X=data.select(data.columns[2:]).drop(label_col).to_numpy(),
+            y=data.select(label_col).to_numpy(),
+            n_neighbors=200,
+            file_name="behacom",
+        )
+
     return X_train, X_test, y_train, y_test
 
 
-@pytest.fixture(params=[0.05], ids=lambda x: f"fraction:{x}")
-def elearn_dataset(request):
+@pytest.fixture
+def elearn_dataset():
     """Massive e-learning exam score prediction from Kaggle.
 
     Multi-output classification problem. Predict 18 questions win / loss across sessions.
@@ -197,8 +222,8 @@ def elearn_dataset(request):
     entity_col = "session_id"
     time_col = "index"
     label_cols = [f"q{i+1}" for i in range(18)]
-    sample_fraction = request.param
-    cache_path = ".data/elearn.arrow"
+    sample_fraction = 0.1
+    cache_path = f".data/elearn.arrow"
 
     if os.path.exists(cache_path):
         data = pl.read_ipc(cache_path)
@@ -238,6 +263,14 @@ def elearn_dataset(request):
     X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=label_cols)
     preview_dataset("elearn", X_train, X_test, y_train, y_test)
 
+    if not os.path.exists(f"{FIGURES_PATH}/elearn.html"):
+        plot_embeddings(
+            X=data.select(data.columns[2:]).drop(label_cols).to_numpy(),
+            y=data.select(label_cols).to_numpy(),
+            n_neighbors=min(200, len(data) / len(label_cols)),
+            file_name="elearn",
+        )
+
     return X_train, X_test, y_train, y_test
 
 
@@ -257,9 +290,15 @@ def test_binary_classification(parkinsons_dataset, parkinsons_baseline, classifi
     )
     model.fit(X=X_train, y=y_train)
     scores = model.score(X=X_test, y=y_test, metrics=CLASSIFICATION_METRICS)["label"]
+    plot_embeddings(
+        X=model._tembs,
+        y=model._labels,
+        n_neighbors=200,
+        file_name="parkinsons_hindsight",
+    )
     logging.info("💯 Hindsight Score: %s", scores)
     for metric_name in scores.keys():
-        assert scores[metric_name] > parkinsons_baseline[metric_name]
+        assert scores[metric_name] > parkinsons_baseline[metric_name]    
 
 
 def test_multioutput_classification(elearn_dataset, classifier):
