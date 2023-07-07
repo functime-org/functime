@@ -10,8 +10,8 @@ readme = "README.md"
 requires-python = ">=3.8"
 authors = [
     { name = "functime Team", email = "team@functime.ai" },
-    { name = "Chris Lo", email = "chris@functime.ai"},
-    { name = "Daryl Lim", email = "daryl@functime.ai"},
+    { name = "Chris Lo", email = "chris@functime.ai" },
+    { name = "Daryl Lim", email = "daryl@functime.ai" },
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -30,10 +30,13 @@ dependencies = [
     "httpx[http2]",
     "numpy",
     "pandas",
+    "kaleido",
     "polars",
+    "plotly",
     "pyarrow",
     "rich>=12.0.0",
     "scipy",
+    "scikit-learn",
     "toml",
     "typer>=0.6.1",
 ]
@@ -45,9 +48,7 @@ functime = "functime.__main__:main"
 Homepage = "https://github.com/descendant-ai/functime"
 
 [project.optional-dependencies]
-performance = [
-    "scikit-learn-intelex"
-]
+performance = ["scikit-learn-intelex"]
 test = [
     "coverage[toml]",
     "pytest-benchmark",
@@ -55,13 +56,9 @@ test = [
     "pytest-timeout",
     "pytest",
     "scikit-learn",
-    "fastapi"
+    "fastapi",
 ]
-doc = [
-    "mkdocs",
-    "mkdocs-material",
-    "mkdocstrings-python",
-]
+doc = ["mkdocs", "mkdocs-material", "mkdocstrings-python"]
 
 [tool.setuptools.packages.find]
 include = ["functime", "functime.*"]
@@ -71,10 +68,7 @@ profile = "black"
 multi_line_output = 3
 
 [tool.pytest.ini_options]
-addopts = [
-  "--strict-config",
-  "--strict-markers",
-]
+addopts = ["--strict-config", "--strict-markers"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "benchmark: marks tests as part of benchmarking",
@@ -83,22 +77,19 @@ xfail_strict = true
 
 [tool.coverage.run]
 parallel = true
-source = [
-    "tests",
-    "functime"
-]
+source = ["tests", "functime"]
 context = '${CONTEXT}'
 
 [tool.ruff]
 select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # pyflakes
+    "I", # isort
+    "B", # flake8-bugbear
 ]
 ignore = [
-    "E501",  # line too long, handled by black
-    "B008",  # do not perform function calls in argument defaults
-    "B905",  # `zip()` without an explicit `strict=` parameter
+    "E501", # line too long, handled by black
+    "B008", # do not perform function calls in argument defaults
+    "B905", # `zip()` without an explicit `strict=` parameter
 ]
