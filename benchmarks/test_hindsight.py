@@ -312,7 +312,3 @@ def test_multioutput_classification(elearn_dataset, classifier):
     model.fit(X=X_train, y=y_train)
     score = model.score(X=X_test, y=y_test, keep_pred=True, metrics=CLASSIFICATION_METRICS)
     assert score > 0.9
-
-
-def test_video_classification():
-    pass
