@@ -9,6 +9,7 @@ from typing import List, Tuple
 from functime.preprocessing import reindex
 from functime.plotting import plot_scatter
 from functime_backend.classification import HindsightClassifier
+from functime_backend.regression import HindsightRegressor
 from functime_backend.umap import auto_umap
 
 from sklearn.metrics import (
@@ -112,7 +113,7 @@ def parkinsons_dataset():
     Relevant to healthcare and disease detection.
     """
     label_col = "is_control"
-    max_timestamp = 256
+    max_timestamp = 128
     data = (
         pl.scan_parquet("data/parkinsons_eeg.parquet")
         # Ignore collinear features
@@ -278,15 +279,16 @@ def test_regression(behacom_dataset):
     X_train, X_test, y_train, y_test = behacom_dataset
 
 
-def test_binary_classification(parkinsons_dataset, parkinsons_baseline, classifier):
+@pytest.mark.parametrize("embedder", ["many", "multi"])
+def test_binary_classification(embedder, parkinsons_dataset, parkinsons_baseline, classifier):
     X_train, X_test, y_train, y_test = parkinsons_dataset
     baseline = parkinsons_baseline
     logging.info("💯 Baseline Score: %s", baseline)
     model = HindsightClassifier(
         estimator=classifier,
+        embedder=embedder,
         storage_path=STORAGE_PATH,
         random_state=42,
-        max_iter=200,
     )
     model.fit(X=X_train, y=y_train)
     scores = model.score(X=X_test, y=y_test, metrics=CLASSIFICATION_METRICS)["label"]
@@ -294,7 +296,7 @@ def test_binary_classification(parkinsons_dataset, parkinsons_baseline, classifi
         X=model._tembs,
         y=model._labels,
         n_neighbors=200,
-        file_name="parkinsons_hindsight",
+        file_name=f"parkinsons_hindsight_{embedder}",
     )
     logging.info("💯 Hindsight Score: %s", scores)
     for metric_name in scores.keys():
@@ -307,7 +309,6 @@ def test_multioutput_classification(elearn_dataset, classifier):
         estimator=classifier,
         storage_path=STORAGE_PATH,
         random_state=42,
-        max_iter=200,
     )
     model.fit(X=X_train, y=y_train)
     score = model.score(X=X_test, y=y_test, keep_pred=True, metrics=CLASSIFICATION_METRICS)
