@@ -6,7 +6,7 @@ import os
 import numpy as np
 
 from typing import List, Tuple
-from functime.preprocessing import reindex
+from functime.preprocessing import reindex, time_to_arange
 from functime.plotting import plot_scatter
 from functime_backend.classification import HindsightClassifier
 from functime_backend.regression import HindsightRegressor
@@ -15,8 +15,10 @@ from functime_backend.umap import auto_umap
 from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,
+    mean_absolute_error,
+    mean_squared_error
 )
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, Ridge
 
 
 # Test split size
@@ -31,13 +33,17 @@ CLASSIFICATION_METRICS = [
     accuracy_score,
     balanced_accuracy_score
 ]
+REGRESSION_METRICS = [
+    mean_absolute_error,
+    mean_squared_error
+]
 
 
-def plot_embeddings(X: pl.DataFrame, y: pl.DataFrame, n_neighbors: int, file_name: str):
+def plot_embeddings(X: pl.DataFrame, y: pl.DataFrame, n_neighbors: int, file_name: str, dtype=None):
     # Dimensionality reduction
     embs = auto_umap(X=X, y=y, n_dims=3, n_neighbors=n_neighbors)
     # Export embedding plots
-    fig = plot_scatter(X=embs, y=y)
+    fig = plot_scatter(X=embs, y=y, dtype=dtype)
     fig.write_html(f"{FIGURES_PATH}/{file_name}.html")
     fig.write_json(f"{FIGURES_PATH}/{file_name}.json")
 
@@ -101,6 +107,11 @@ def split_iid_data(
 @pytest.fixture
 def classifier():
     return LogisticRegression(max_iter=200)
+
+
+@pytest.fixture
+def regressor():
+    return Ridge()
 
 
 @pytest.fixture
@@ -181,13 +192,11 @@ def behacom_dataset():
             .select(~ps.contains(["system_cpu", "current_app_std"]))
             .lazy()
             # Create sessions
-            .with_columns(year_week=pl.col("timestamp").dt.strftime("%Y%w").cast(pl.Categorical).to_physical().cast(pl.Int32))
-            .with_columns(session_id=pl.col("year_week") - pl.col("year_week").min())
-            .drop("year_week")
-            .select(["user", "session_id", ps.numeric().exclude(["user", "session_id"])])
+            .select(["user", "timestamp", ps.numeric().exclude(["user", "session_id"])])
+            .pipe(time_to_arange())
             .collect(streaming=True)
             .pipe(reindex)
-            .fill_null(0)
+            .with_columns(ps.numeric().exclude(["user", "session_id"]).forward_fill())
         )
         data.write_ipc(cache_path)
     X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=[label_col])
@@ -199,9 +208,29 @@ def behacom_dataset():
             y=data.select(label_col).to_numpy(),
             n_neighbors=200,
             file_name="behacom",
+            dtype=np.float32
         )
 
     return X_train, X_test, y_train, y_test
+
+
+@pytest.fixture
+def behacom_baseline(behacom_dataset, regressor):
+    X_train, X_test, y_train, y_test = behacom_dataset
+    idx_cols = X_train.columns[:2]
+    model = regressor
+    model.fit(
+        X=X_train.select(pl.all().exclude(idx_cols)).to_numpy(),
+        y=y_train.select(pl.all().exclude(idx_cols)).to_numpy(),
+    )
+    y_pred = model.predict(X=X_test.select(pl.all().exclude(idx_cols)).to_numpy())
+    y_test = y_test.select(pl.all().exclude(idx_cols)).to_numpy()
+    scores = {}
+    for metric in REGRESSION_METRICS:
+        metric_name = metric.__name__
+        score = metric(y_true=y_test, y_pred=y_pred)
+        scores[metric_name] = score
+    return scores
 
 
 @pytest.fixture
@@ -253,6 +282,7 @@ def elearn_dataset():
             ])
             .collect(streaming=True)
             .pipe(reindex)
+            .unique(["user", "session_id"])
             .fill_null(0)
         )
         data.write_ipc(cache_path)
@@ -275,8 +305,28 @@ def elearn_dataset():
     return X_train, X_test, y_train, y_test
 
 
-def test_regression(behacom_dataset):
+@pytest.mark.parametrize("embedder", ["many"])
+def test_regression(embedder, behacom_dataset, behacom_baseline, regressor):
     X_train, X_test, y_train, y_test = behacom_dataset
+    baseline = behacom_baseline
+    logging.info("💯 Baseline Score: %s", baseline)
+    model = HindsightRegressor(
+        estimator=regressor,
+        embedder=embedder,
+        storage_path=STORAGE_PATH,
+        random_state=42,
+    )
+    model.fit(X=X_train, y=y_train)
+    scores = model.score(X=X_test, y=y_test, metrics=REGRESSION_METRICS)["label"]
+    plot_embeddings(
+        X=model._tembs,
+        y=model._labels,
+        n_neighbors=200,
+        file_name=f"behacom_hindsight_{embedder}",
+    )
+    logging.info("💯 Hindsight Score: %s", scores)
+    for metric_name in scores.keys():
+        assert scores[metric_name] > parkinsons_baseline[metric_name]    
 
 
 @pytest.mark.parametrize("embedder", ["many", "multi"])
