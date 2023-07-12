@@ -67,7 +67,7 @@ def time_to_arange(eager: bool = False):
             X.groupby(entity_col)
             .agg([range_expr, other_cols])
             .explode(pl.all().exclude(entity_col))
-            .select([entity_col, time_col, pl.all().exclude([entity_col, time_col])])
+            .select([entity_col, pl.col(time_col).cast(pl.Int32), pl.all().exclude([entity_col, time_col])])
         )
         if eager:
             X_new = X_new.collect(streaming=True)
