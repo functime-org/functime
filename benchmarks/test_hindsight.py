@@ -23,6 +23,7 @@ from sklearn.linear_model import LogisticRegression, Ridge
 
 # Test split size
 TEST_FRACTION = 0.20
+N_NEIGHBORS = 200
 
 # Path to store temporal embedding chunks
 STORAGE_PATH = os.environ.get("EMBEDDINGS_STORAGE_PATH", ".data/embs")
@@ -39,13 +40,20 @@ REGRESSION_METRICS = [
 ]
 
 
-def plot_embeddings(X: pl.DataFrame, y: pl.DataFrame, n_neighbors: int, file_name: str, dtype=None):
+def plot_embeddings(X: pl.DataFrame, y: pl.DataFrame, n_neighbors: int, file_name: str, min_dist: float = 0.1, dtype=None):
+    logging.info("🎨 Running UMAP...")
     # Dimensionality reduction
-    embs = auto_umap(X=X, y=y, n_dims=3, n_neighbors=n_neighbors)
+    embs = auto_umap(X=X, y=y, n_dims=3, n_neighbors=n_neighbors, min_dist=min_dist)
     # Export embedding plots
+    logging.info("🎨 Plotting embeddings...")
     fig = plot_scatter(X=embs, y=y, dtype=dtype)
     fig.write_html(f"{FIGURES_PATH}/{file_name}.html")
     fig.write_json(f"{FIGURES_PATH}/{file_name}.json")
+
+
+def _check_timestamps(df):
+    entity_col, time_col = df.columns[:2]
+    return df.groupby(entity_col).agg([pl.col(time_col).min().alias("min"), pl.col(time_col).max().alias("max")]).sort("max")
 
 
 def preview_dataset(
@@ -63,10 +71,15 @@ def preview_dataset(
     logging.info("🔍 y_test mem: %s", f'{y_test.estimated_size("mb"):,.4f} mb')
     logging.info("🔍 X_test mem: %s", f'{X_test.estimated_size("mb"):,.4f} mb')
     # Preview dataset
-    logging.debug("🔍 X_train preview:\n%s", X_train)
-    logging.debug("🔍 y_train preview:\n%s", y_train)
-    logging.debug("🔍 X_test preview:\n%s", X_test)
-    logging.debug("🔍 y_test preview:\n%s", y_test)
+    logging.info("🔍 X_train preview:\n%s", X_train)
+    logging.info("🔍 y_train preview:\n%s", y_train)
+    logging.info("🔍 X_test preview:\n%s", X_test)
+    logging.info("🔍 y_test preview:\n%s", y_test)
+    # Preview entity timestamps info
+    logging.info("🔍 X_train min-max timestamps:\n%s", _check_timestamps(X_train))
+    logging.info("🔍 y_train min-max timestamps:\n%s", _check_timestamps(y_train))
+    logging.info("🔍 X_test min-max timestamps:\n%s", _check_timestamps(X_test))
+    logging.info("🔍 y_test min-max timestamps:\n%s", _check_timestamps(y_test))
 
 
 def split_iid_data(
@@ -150,6 +163,90 @@ def parkinsons_dataset():
 @pytest.fixture
 def parkinsons_baseline(parkinsons_dataset, classifier):
     X_train, X_test, y_train, y_test = parkinsons_dataset
+    idx_cols = X_train.columns[:2]
+    model = classifier
+    model.fit(
+        X=X_train.select(pl.all().exclude(idx_cols)).to_numpy(),
+        y=y_train.select(pl.all().exclude(idx_cols)).to_numpy(),
+    )
+    y_pred = model.predict(X=X_test.select(pl.all().exclude(idx_cols)).to_numpy())
+    y_test = y_test.select(pl.all().exclude(idx_cols)).to_numpy()
+    scores = {}
+    for metric in CLASSIFICATION_METRICS:
+        metric_name = metric.__name__
+        score = metric(y_true=y_test, y_pred=y_pred)
+        scores[metric_name] = score
+    return scores
+
+
+@pytest.fixture
+def drone_dataset():
+    entity_col = "track_id"
+    label_col = "vehicle_behavior_type"
+    sensors = [
+        "x",
+        "y",
+        "vx",
+        "vy",
+        "yaw_rad",
+        "heading_rad",
+        "length",
+        "width",
+        "ax",
+        "ay",
+        "v_lon",
+        "v_lat",
+        "a_lon",
+        "a_lat"
+    ]
+    behavior_to_label = {
+        "no_violation": 0,
+        "outside_crossing": 1,
+        "yellow_light": 2,
+        "red_light": 3
+    }
+    n_tracks = 450
+
+    # Select top 400 tracked vehicles by shortest length of time on screen
+    selected_tracks = (
+        pl.scan_parquet("data/drone_traffic.parquet").groupby("track_id")
+        .agg(pl.arange(0, pl.col("frame_id").len()).count().alias("count"))
+        .sort("count")
+        .head(n_tracks)
+        .collect(streaming=True)
+        .get_column("track_id")
+        .to_list()
+    )
+    data = (
+        pl.scan_parquet("data/drone_traffic.parquet")
+        .filter(pl.col("track_id").is_in(selected_tracks))
+        .select(["track_id", "frame_id", *sensors, pl.col("signal_violation_behavior").alias(label_col)])
+        .with_columns(pl.col(label_col).map_dict(behavior_to_label).cast(pl.Int16))
+        .pipe(time_to_arange())
+        .unique(["track_id", "frame_id"])
+        .collect(streaming=True)
+        .pipe(reindex)
+        .with_columns([pl.col(sensors).fill_null(0.0), pl.col(label_col).fill_null(pl.col(label_col).max().over(entity_col))])
+    )
+    logging.warning(data.describe())
+    X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=[label_col])
+    preview_dataset("drone", X_train, X_test, y_train, y_test)
+
+    if not os.path.exists(f"{FIGURES_PATH}/drone.html"):
+        plot_embeddings(
+            X=data.select(data.columns[2:]).drop(label_col).to_numpy(),
+            y=data.select(label_col).to_numpy(),
+            n_neighbors=5,
+            file_name="drone",
+            dtype=str
+        )
+
+    return X_train, X_test, y_train, y_test
+
+
+@pytest.fixture
+def drone_baseline(drone_dataset, classifier):
+    X_train, X_test, y_train, y_test = drone_dataset
     idx_cols = X_train.columns[:2]
     model = classifier
     model.fit(
@@ -278,16 +375,14 @@ def elearn_dataset():
             .agg(ps.numeric().max())
             # Join with multioutput labels
             .join(labels.lazy(), how="left", on="session_id")
-            # Forward fill
+            .unique(["user", "session_id"])
+            .collect(streaming=True)
+            .pipe(reindex)
             .select([
                 pl.col(entity_col),
                 pl.col(time_col),
-                pl.all().exclude([entity_col, time_col]).forward_fill().fill_null(0)
+                pl.all().exclude([entity_col, time_col]).forward_fill().fill_null(0).over(entity_col)
             ])
-            .collect(streaming=True)
-            .pipe(reindex)
-            .unique(["user", "session_id"])
-            .fill_null(0)
         )
         data.write_ipc(cache_path)
 
@@ -302,7 +397,7 @@ def elearn_dataset():
         plot_embeddings(
             X=data.select(data.columns[2:]).drop(label_cols).to_numpy(),
             y=data.select(label_cols).to_numpy(),
-            n_neighbors=min(200, len(data) / len(label_cols)),
+            n_neighbors=15,
             file_name="elearn",
         )
 
@@ -325,7 +420,7 @@ def test_regression(embedder, behacom_dataset, behacom_baseline, regressor):
     plot_embeddings(
         X=model._tembs,
         y=model._labels,
-        n_neighbors=200,
+        n_neighbors=N_NEIGHBORS,
         file_name=f"behacom_hindsight_{embedder}",
     )
     logging.info("💯 Hindsight Score: %s", scores)
@@ -345,13 +440,37 @@ def test_binary_classification(embedder, parkinsons_dataset, parkinsons_baseline
         random_state=42,
     )
     model.fit(X=X_train, y=y_train)
-    scores = model.score(X=X_test, y=y_test, metrics=CLASSIFICATION_METRICS)["label"]
     plot_embeddings(
         X=model._tembs,
         y=model._labels,
-        n_neighbors=200,
+        n_neighbors=N_NEIGHBORS,
         file_name=f"parkinsons_hindsight_{embedder}",
     )
+    scores = model.score(X=X_test, y=y_test, metrics=CLASSIFICATION_METRICS)["label"]
+    logging.info("💯 Hindsight Score: %s", scores)
+    for metric_name in scores.keys():
+        assert scores[metric_name] > parkinsons_baseline[metric_name]
+
+
+@pytest.mark.parametrize("embedder", ["many", "multi"])
+def test_multiclass_classification(embedder, drone_dataset, drone_baseline, classifier):
+    X_train, X_test, y_train, y_test = drone_dataset
+    baseline = drone_baseline
+    logging.info("💯 Baseline Score: %s", baseline)
+    model = HindsightClassifier(
+        estimator=classifier,
+        embedder=embedder,
+        storage_path=STORAGE_PATH,
+        random_state=42,
+    )
+    model.fit(X=X_train, y=y_train)
+    plot_embeddings(
+        X=model._tembs,
+        y=model._labels,
+        n_neighbors=N_NEIGHBORS,
+        file_name=f"drone_hindsight_{embedder}",
+    )
+    scores = model.score(X=X_test, y=y_test, metrics=CLASSIFICATION_METRICS)["label"]
     logging.info("💯 Hindsight Score: %s", scores)
     for metric_name in scores.keys():
         assert scores[metric_name] > parkinsons_baseline[metric_name]    
