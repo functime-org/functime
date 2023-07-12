@@ -8,9 +8,9 @@ import numpy as np
 from typing import List, Tuple
 from functime.preprocessing import reindex, time_to_arange
 from functime.plotting import plot_scatter
+from functime.umap import auto_umap
 from functime_backend.classification import HindsightClassifier
 from functime_backend.regression import HindsightRegressor
-from functime_backend.umap import auto_umap
 
 from sklearn.metrics import (
     accuracy_score,
@@ -180,6 +180,7 @@ def behacom_dataset():
     """
     label_col = "current_app_average_cpu"
     cache_path = ".data/behacom.arrow"
+    n_obs = 100
     if os.path.exists(cache_path):
         data = pl.read_ipc(cache_path)
     else:
@@ -197,6 +198,9 @@ def behacom_dataset():
             .collect(streaming=True)
             .pipe(reindex)
             .with_columns(ps.numeric().exclude(["user", "session_id"]).forward_fill())
+            .groupby("user")
+            .agg(pl.all().head(n_obs))
+            .explode(pl.all().exclude("user"))
         )
         data.write_ipc(cache_path)
     X_train, X_test, y_train, y_test = split_iid_data(data, label_cols=[label_col])
