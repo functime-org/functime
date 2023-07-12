@@ -40,7 +40,7 @@ REGRESSION_METRICS = [
 ]
 
 
-def plot_embeddings(X: pl.DataFrame, y: pl.DataFrame, n_neighbors: int, file_name: str, min_dist: float = 0.1, dtype=None):
+def plot_embeddings(X: np.ndarray, y: np.ndarray, n_neighbors: int, file_name: str, min_dist: float = 0.1, dtype=None):
     logging.info("🎨 Running UMAP...")
     # Dimensionality reduction
     embs = auto_umap(X=X, y=y, n_dims=3, n_neighbors=n_neighbors, min_dist=min_dist)
