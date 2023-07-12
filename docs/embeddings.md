@@ -3,7 +3,7 @@
 ## What are embeddings?
 
 Temporal embeddings measure the relatedness of time-series.
-Embeddings are **orders of magnitude** more accurate and efficient compared to statistical methods (e.g. Catch22) for characterizing time-series.[^1]
+Embeddings are **orders of magnitude** more accurate and efficient compared to statistical methods (e.g. Catch22) for characterizing time-series.
 Embeddings have applications across many domains from finance to IoT monitoring.
 They can be used to solve the following predictive tasks:
 
@@ -63,9 +63,7 @@ The embeddings can be reduced into 2D / 3D and visualized with a scatter plot.
 
 ## How are embeddings computed?
 
-`functime` offers a next-generation convolutional embedding model inspired by research from time-series classification[^1]. Our model transforms time-series of any length, dimension (AKA multivariate time-series), and frequency into a 10,000 dimensional vector.
-
-[^1]: Dempster, A., Schmidt, D. F., & Webb, G. I. (2021, August). Minirocket: A very fast (almost) deterministic transform for time series classification. In Proceedings of the 27th ACM SIGKDD conference on knowledge discovery & data mining (pp. 248-257).
+`functime` offers a next-generation convolutional embedding model inspired by research from time-series classification. Our model transforms time-series of any length, dimension (AKA multivariate time-series), and frequency into a 10,000 dimensional vector.
 
 ## What are the use-cases?
 
