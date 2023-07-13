@@ -6,7 +6,6 @@ from typing import Optional
 
 def auto_umap(
     X: np.ndarray,
-    y: Optional[np.ndarray] = None,
     n_neighbors: int = 3,
     min_dist: float = 0.1,
     n_dims: int = 3,
@@ -17,5 +16,5 @@ def auto_umap(
         min_dist=min_dist,
         metric="manhattan",
     )
-    embs = model.fit_transform(X=X, y=y)
+    embs = model.fit_transform(X=X)
     return embs
