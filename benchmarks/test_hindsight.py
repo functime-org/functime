@@ -23,7 +23,6 @@ from sklearn.linear_model import LogisticRegression, Ridge
 
 # Test split size
 TEST_FRACTION = 0.20
-N_NEIGHBORS = 200
 
 # Path to store temporal embedding chunks
 STORAGE_PATH = os.environ.get("EMBEDDINGS_STORAGE_PATH", ".data/embs")
@@ -40,10 +39,10 @@ REGRESSION_METRICS = [
 ]
 
 
-def plot_embeddings(X: np.ndarray, y: np.ndarray, n_neighbors: int, file_name: str, min_dist: float = 0.1, dtype=None):
+def plot_embeddings(X: np.ndarray, y: np.ndarray, file_name: str, n_neighbors: int = 200, min_dist: float = 0.1, dtype=None):
     logging.info("🎨 Running UMAP...")
     # Dimensionality reduction
-    embs = auto_umap(X=X, n_dims=3, n_neighbors=n_neighbors, min_dist=min_dist)
+    embs = auto_umap(X=X, y=y, n_dims=3, n_neighbors=n_neighbors, min_dist=min_dist)
     # Export embedding plots
     logging.info("🎨 Plotting embeddings...")
     fig = plot_scatter(X=embs, y=y, dtype=dtype)
@@ -153,7 +152,6 @@ def parkinsons_dataset():
         plot_embeddings(
             X=data.select(data.columns[2:]).drop(label_col).to_numpy(),
             y=data.select(label_col).to_numpy(),
-            n_neighbors=5,
             file_name="parkinsons",
         )
 
@@ -236,7 +234,6 @@ def drone_dataset():
         plot_embeddings(
             X=data.select(data.columns[2:]).drop(label_col).to_numpy(),
             y=data.select(label_col).to_numpy(),
-            n_neighbors=5,
             file_name="drone",
             dtype=str
         )
@@ -307,7 +304,6 @@ def behacom_dataset():
         plot_embeddings(
             X=data.select(data.columns[2:]).drop(label_col).to_numpy(),
             y=data.select(label_col).to_numpy(),
-            n_neighbors=200,
             file_name="behacom",
             dtype=np.float32
         )
@@ -397,7 +393,6 @@ def elearn_dataset():
         plot_embeddings(
             X=data.select(data.columns[2:]).drop(label_cols).to_numpy(),
             y=data.select(label_cols).to_numpy(),
-            n_neighbors=15,
             file_name="elearn",
         )
 
@@ -420,7 +415,6 @@ def test_regression(embedder, behacom_dataset, behacom_baseline, regressor):
     plot_embeddings(
         X=model._tembs,
         y=model._labels,
-        n_neighbors=N_NEIGHBORS,
         file_name=f"behacom_hindsight_{embedder}",
     )
     logging.info("💯 Hindsight Score: %s", scores)
@@ -443,7 +437,6 @@ def test_binary_classification(embedder, parkinsons_dataset, parkinsons_baseline
     plot_embeddings(
         X=model._tembs,
         y=model._labels,
-        n_neighbors=N_NEIGHBORS,
         file_name=f"parkinsons_hindsight_{embedder}",
     )
     scores = model.score(X=X_test, y=y_test, metrics=CLASSIFICATION_METRICS)["label"]
@@ -467,7 +460,6 @@ def test_multiclass_classification(embedder, drone_dataset, drone_baseline, clas
     plot_embeddings(
         X=model._tembs,
         y=model._labels,
-        n_neighbors=N_NEIGHBORS,
         file_name=f"drone_hindsight_{embedder}",
     )
     scores = model.score(X=X_test, y=y_test, metrics=CLASSIFICATION_METRICS)["label"]
