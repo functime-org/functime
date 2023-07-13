@@ -1,10 +1,12 @@
 import numpy as np
 import umap
 
+from typing import Optional
+
 
 def auto_umap(
     X: np.ndarray,
-    y: np.ndarray,
+    y: Optional[np.ndarray] = None,
     n_neighbors: int = 3,
     min_dist: float = 0.1,
     n_dims: int = 3,
