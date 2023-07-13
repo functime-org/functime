@@ -42,7 +42,7 @@ REGRESSION_METRICS = [
 def plot_embeddings(X: np.ndarray, y: np.ndarray, file_name: str, n_neighbors: int = 200, min_dist: float = 0.1, dtype=None):
     logging.info("🎨 Running UMAP...")
     # Dimensionality reduction
-    embs = auto_umap(X=X, y=y, n_dims=3, n_neighbors=n_neighbors, min_dist=min_dist)
+    embs = auto_umap(X=X, n_dims=3, n_neighbors=n_neighbors, min_dist=min_dist)
     # Export embedding plots
     logging.info("🎨 Plotting embeddings...")
     fig = plot_scatter(X=embs, y=y, dtype=dtype)
@@ -430,6 +430,7 @@ def test_binary_classification(embedder, parkinsons_dataset, parkinsons_baseline
     model = HindsightClassifier(
         estimator=classifier,
         embedder=embedder,
+        zero_pad=True,
         storage_path=STORAGE_PATH,
         random_state=42,
     )
