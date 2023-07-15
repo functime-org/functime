@@ -1,6 +1,7 @@
 from typing import Optional
 
 import polars as pl
+
 from functime.preprocessing import lag
 
 

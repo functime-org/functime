@@ -5,10 +5,10 @@ from typing import Any, Callable, List, Mapping, Optional, Type, Union
 import modal
 import numpy as np
 import polars as pl
-from functime.cross_validation import expanding_window_split
 
 from functime.base import Forecaster
 from functime.base.forecaster import FORECAST_STRATEGIES, ForecastState
+from functime.cross_validation import expanding_window_split
 from functime.forecasting._reduction import (
     make_direct_reduction,
     make_reduction,

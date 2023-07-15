@@ -4,7 +4,9 @@ import numpy as np
 import polars as pl
 
 
-def train_test_split(test_size: int, eager: bool = False) -> Tuple[pl.LazyFrame, pl.LazyFrame]:
+def train_test_split(
+    test_size: int, eager: bool = False
+) -> Tuple[pl.LazyFrame, pl.LazyFrame]:
     """Return a time-ordered train set and test set given `test_size`.
 
     Parameters
