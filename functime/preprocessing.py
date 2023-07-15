@@ -1,10 +1,10 @@
+from itertools import product
 from typing import List, Mapping, Union
 
 import polars as pl
 from scipy.stats import boxcox_normmax
 from typing_extensions import Literal
 
-from itertools import product
 from functime.base import transformer
 from functime.base.model import ModelState
 from functime.offsets import _strip_freq_alias
@@ -25,12 +25,10 @@ def reindex(X: pl.DataFrame) -> pl.DataFrame:
     dtypes = X.dtypes[:2]
     entities = sorted(set(X.get_column(entity_col)))
     timestamps = sorted(set(X.get_column(time_col)))
-    X = (
-        pl.DataFrame(
-            product(entities, timestamps),
-            schema={entity_col: dtypes[0], time_col: dtypes[1]}
-        ).join(X, how="left", on=[entity_col, time_col])
-    )
+    X = pl.DataFrame(
+        product(entities, timestamps),
+        schema={entity_col: dtypes[0], time_col: dtypes[1]},
+    ).join(X, how="left", on=[entity_col, time_col])
     return X
 
 
@@ -67,7 +65,13 @@ def time_to_arange(eager: bool = False):
             X.groupby(entity_col)
             .agg([range_expr, other_cols])
             .explode(pl.all().exclude(entity_col))
-            .select([entity_col, pl.col(time_col).cast(pl.Int32), pl.all().exclude([entity_col, time_col])])
+            .select(
+                [
+                    entity_col,
+                    pl.col(time_col).cast(pl.Int32),
+                    pl.all().exclude([entity_col, time_col]),
+                ]
+            )
         )
         if eager:
             X_new = X_new.collect(streaming=True)
@@ -517,16 +521,23 @@ def boxcox(method: str = "mle"):
 
 @transformer
 def trim(direction: Literal["both", "left", "right"] = "both"):
-    
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
-        maxmin = X.groupby(entity_col).agg(pl.col(time_col).min()).select(pl.col(time_col).max())
-        minmax = X.groupby(entity_col).agg(pl.col(time_col).max()).select(pl.col(time_col).min())
+        maxmin = (
+            X.groupby(entity_col)
+            .agg(pl.col(time_col).min())
+            .select(pl.col(time_col).max())
+        )
+        minmax = (
+            X.groupby(entity_col)
+            .agg(pl.col(time_col).max())
+            .select(pl.col(time_col).min())
+        )
         start, end = pl.collect_all([minmax, maxmin])
         start, end = start.item(), end.item()
         if direction == "both":
             expr = (pl.col(time_col) >= start) & (pl.col(time_col) <= end)
-        elif direction  == "left":
+        elif direction == "left":
             expr = pl.col(time_col) >= start
         else:
             expr = pl.col(time_col) <= start

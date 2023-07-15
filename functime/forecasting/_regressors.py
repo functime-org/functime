@@ -6,8 +6,9 @@ from typing import Callable, Optional, Union
 
 import numpy as np
 import polars as pl
-from functime.preprocessing import PL_NUMERIC_COLS
 from typing_extensions import Literal
+
+from functime.preprocessing import PL_NUMERIC_COLS
 
 
 def _X_to_numpy(X: pl.DataFrame) -> np.ndarray:

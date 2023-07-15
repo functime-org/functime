@@ -4,9 +4,9 @@ from typing import Any, Callable, List, Mapping, Optional, Tuple, Union
 
 import modal
 import polars as pl
-from functime.metrics import mae
 
 from functime.functions_stub import stub
+from functime.metrics import mae
 
 try:
     from flaml import CFO, tune
