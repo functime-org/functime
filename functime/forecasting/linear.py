@@ -1,10 +1,9 @@
-from typing import Optional, Union
+from typing import Optional
 
 import polars as pl
 
-from functime.base import forecaster
-from functime.base.forecaster import FORECAST_STRATEGIES
-from functime.forecasting._ar import fit_autoreg, predict_autoreg
+from functime.base import Forecaster
+from functime.forecasting._ar import fit_autoreg
 from functime.forecasting._regressors import StandardizedSklearnRegressor
 
 
@@ -56,18 +55,9 @@ def _elastic_net(**kwargs):
     return regress
 
 
-@forecaster
-def linear_model(
-    freq: Union[str, None],
-    lags: int,
-    max_horizons: Optional[int] = None,
-    strategy: FORECAST_STRATEGIES = None,
-    **kwargs
-):
-    """Linear autoregressive model."""
-
-    def fit(y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
-
+class linear_model(Forecaster):
+    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+        kwargs = self.kwargs
         # Check dummy variable trap
         if (
             X is not None
@@ -81,83 +71,48 @@ def linear_model(
         regress = _linear_model(**kwargs)
         return fit_autoreg(
             regress=regress,
-            lags=lags,
             y=y,
             X=X,
-            max_horizons=max_horizons,
-            strategy=strategy,
+            lags=self.lags,
+            max_horizons=self.max_horizons,
+            strategy=self.strategy,
         )
 
-    return fit, predict_autoreg
 
-
-@forecaster
-def lasso(
-    freq: Union[str, None],
-    lags: int,
-    max_horizons: Optional[int] = None,
-    strategy: FORECAST_STRATEGIES = None,
-    **kwargs
-):
-    """Lasso autoregressive model."""
-
-    def fit(y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
-        regress = _lasso(**kwargs)
+class lasso(Forecaster):
+    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+        regress = _lasso(**self.kwargs)
         return fit_autoreg(
             regress=regress,
-            lags=lags,
             y=y,
             X=X,
-            max_horizons=max_horizons,
-            strategy=strategy,
+            lags=self.lags,
+            max_horizons=self.max_horizons,
+            strategy=self.strategy,
         )
 
-    return fit, predict_autoreg
 
-
-@forecaster
-def ridge(
-    freq: Union[str, None],
-    lags: int,
-    max_horizons: Optional[int] = None,
-    strategy: FORECAST_STRATEGIES = None,
-    **kwargs
-):
-    """Ridge autoregressive model."""
-
-    def fit(y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
-        regress = _ridge(**kwargs)
+class ridge(Forecaster):
+    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+        regress = _ridge(**self.kwargs)
         return fit_autoreg(
             regress=regress,
-            lags=lags,
             y=y,
             X=X,
-            max_horizons=max_horizons,
-            strategy=strategy,
+            lags=self.lags,
+            max_horizons=self.max_horizons,
+            strategy=self.strategy,
         )
 
-    return fit, predict_autoreg
 
-
-@forecaster
-def elastic_net(
-    freq: Union[str, None],
-    lags: int,
-    max_horizons: Optional[int] = None,
-    strategy: FORECAST_STRATEGIES = None,
-    **kwargs
-):
-    """Elastic net autoregressive model."""
-
-    def fit(y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
-        regress = _elastic_net(**kwargs)
+class elastic_net(Forecaster):
+    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+        regress = _elastic_net(**self.kwargs)
         return fit_autoreg(
             regress=regress,
-            lags=lags,
             y=y,
             X=X,
-            max_horizons=max_horizons,
-            strategy=strategy,
+            lags=self.lags,
+            max_horizons=self.max_horizons,
+            strategy=self.strategy,
         )
-
-    return fit, predict_autoreg
