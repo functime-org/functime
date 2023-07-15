@@ -2,9 +2,6 @@ import cloudpickle
 import numpy as np
 import polars as pl
 import pytest
-from functime.metrics import rmsse, smape
-from sklearnex import patch_sklearn
-
 from functime_backend.forecasting import (
     auto_elastic_net,
     auto_lightgbm,
@@ -16,6 +13,9 @@ from functime_backend.forecasting import (
     linear_model,
     xgboost,
 )
+from sklearnex import patch_sklearn
+
+from functime.metrics import rmsse, smape
 
 patch_sklearn()
 

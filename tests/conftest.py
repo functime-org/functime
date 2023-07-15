@@ -1,11 +1,9 @@
-import numpy as np
-import pandas as pd
-import polars as pl
-import pytest
 import logging
 from functools import partial
 from typing import List
 
+import numpy as np
+import pandas as pd
 import polars as pl
 import pytest
 
@@ -193,10 +191,10 @@ def m5_dataset():
     freq = "1d"
 
     # Load data
-    y_train = pl.read_parquet(f"data/m5_y_train.parquet")
-    X_train = pl.read_parquet(f"data/m5_X_train.parquet")
-    y_test = pl.read_parquet(f"data/m5_y_test.parquet")
-    X_test = pl.read_parquet(f"data/m5_X_test.parquet")
+    y_train = pl.read_parquet("data/m5_y_train.parquet")
+    X_train = pl.read_parquet("data/m5_X_train.parquet")
+    y_test = pl.read_parquet("data/m5_y_test.parquet")
+    X_test = pl.read_parquet("data/m5_X_test.parquet")
     # Check m5 dataset RAM usage
     logging.info("y_train mem: %s", f'{y_train.estimated_size("mb"):.4f} mb')
     logging.info("X_train mem: %s", f'{X_train.estimated_size("mb"):.4f} mb')
