@@ -53,9 +53,9 @@ def _catboost(weight_transform: Optional[Callable] = None, **kwargs):
 class catboost(Forecaster):
     """Autoregressive Catboost forecaster."""
 
-    def fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         y_new = y.pipe(
-            _enforce_label_constraint, objective=self.kwargs.get("objective")
+            _enforce_label_constraint, loss_function=self.kwargs.get("loss_function")
         )
         regress = _catboost(**self.kwargs)
         return fit_autoreg(

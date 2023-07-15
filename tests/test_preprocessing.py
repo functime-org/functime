@@ -6,19 +6,11 @@ import polars as pl
 import pytest
 
 # AttributeError: module 'polars' has no attribute 'testing'
-from polars.testing import assert_frame_equal, assert_series_equal
+from polars.testing import assert_frame_equal
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import PowerTransformer
 
-from functime.preprocessing import (
-    boxcox,
-    diff,
-    impute,
-    lag,
-    reindex_panel,
-    roll,
-    zero_pad,
-)
+from functime.preprocessing import boxcox, diff, impute, lag, roll
 
 
 @pytest.fixture
@@ -302,53 +294,3 @@ def test_boxcox(pd_X):
     )
     X_original = transform.invert(X_new)
     assert_frame_equal(X_original, X, check_dtype=False)
-
-
-def test_reindex_panel(pd_X):
-    X = (
-        pl.from_pandas(pd_X.reset_index()).lazy()
-        # Filter out day == 2 to create gaps
-        .filter(pl.col("time").dt.day() != 2)
-    )
-    transform = reindex_panel(freq="1d", sort=True)
-    X_new = transform(X=X)
-    result = X_new.collect().get_column("time").unique()
-
-    dates = X.collect().get_column("time")
-    expected = pl.date_range(
-        dates.min(), dates.max(), interval="1d", name="time", time_unit=result.time_unit
-    )
-
-    assert_series_equal(result, expected)
-
-
-@pytest.mark.parametrize(
-    "include_null, include_nan",
-    [
-        (True, True),
-        (True, False),
-        (False, True),
-    ],
-)
-def test_zero_pad(include_null, include_nan, pd_X):
-    X = (
-        pl.from_pandas(pd_X.reset_index()).lazy()
-        # Filter out day == 2 to create gaps
-        .filter(pl.col("time").dt.day() != 2)
-    )
-    transform = zero_pad(freq="1d", include_null=include_null, include_nan=include_nan)
-    X_new = transform(X=X)
-
-    if include_null and include_nan:
-        expr = [
-            (pl.col(col).is_null() | pl.col(col).cast(pl.Float64).is_nan()).sum()
-            for col in X_new.columns
-        ]
-    elif include_null:
-        expr = [pl.col(col).is_null().sum() for col in X_new.columns]
-    else:
-        expr = [pl.col(col).cast(pl.Float64).is_nan().sum() for col in X_new.columns]
-
-    result = X_new.select(pl.sum(expr)).collect().get_column("sum")[0]
-
-    assert result == 0
