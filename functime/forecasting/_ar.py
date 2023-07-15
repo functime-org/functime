@@ -1,14 +1,12 @@
 import logging
-import os
-from typing import Any, Callable, List, Mapping, Optional, Type, Union
+from typing import Any, Callable, List, Mapping, Optional, Union
 
-import modal
 import numpy as np
 import polars as pl
+from typing_extensions import Literal
 
-from functime.base import Forecaster
-from functime.base.forecaster import FORECAST_STRATEGIES, ForecastState
 from functime.cross_validation import expanding_window_split
+from functime.forecasting._evaluate import evaluate
 from functime.forecasting._reduction import (
     make_direct_reduction,
     make_reduction,
@@ -60,7 +58,6 @@ def fit_direct(
     # 1. Impose AR structure
     X_y_final = make_direct_reduction(lags=lags, max_horizons=max_horizons, y=y, X=X)
     # 2. Fit
-    # TODO: Modalize
     fitted_models = []
     for i in range(1, max_horizons + 1):
         selected_lags = range(i, lags + i)
@@ -84,7 +81,7 @@ def fit_autoreg(
     y: Union[pl.DataFrame, pl.LazyFrame],
     X: Optional[Union[pl.DataFrame, pl.LazyFrame]] = None,
     max_horizons: Optional[int] = None,
-    strategy: FORECAST_STRATEGIES = None,
+    strategy: Optional[Literal["direct", "recursive", "naive"]] = None,
 ) -> Mapping[str, Any]:
     y = y.lazy()
     X = X.lazy() if X is not None else X
@@ -114,12 +111,12 @@ def fit_autoreg(
 
 def fit_cv(  # noqa: Ruff too complex
     y: pl.LazyFrame,
-    forecaster_cls: Type[Forecaster],
+    forecaster_cls,
     freq: Union[str, None],
     min_lags: int = 3,
     max_lags: int = 12,
     max_horizons: Optional[int] = None,
-    strategy: FORECAST_STRATEGIES = None,
+    strategy: Optional[Literal["direct", "recursive", "naive"]] = None,
     test_size: int = 1,
     step_size: int = 1,
     n_splits: int = 5,
@@ -148,13 +145,11 @@ def fit_cv(  # noqa: Ruff too complex
     best_params = None
     scores_path = []
     lags_path = list(range(min_lags, max_lags + 1))
-    env_prefix = os.environ.get("FUNCTIME__ENV_NAME", "dev")
-    evaluate = modal.Function.lookup(f"{env_prefix}-functime-functions", "evaluate")
-    scores_path = [
-        score
-        for score in evaluate.map(
-            lags_path,
-            kwargs={
+    scores_path = []
+    for lags in lags_path:
+        score = evaluate(
+            **{
+                "lags": lags,
                 "n_splits": n_splits,
                 "time_budget": time_budget,
                 "points_to_evaluate": points_to_evaluate,
@@ -169,9 +164,8 @@ def fit_cv(  # noqa: Ruff too complex
                 "y_splits": y_splits,
                 "X_splits": X_splits,
             },
-            order_outputs=True,
         )
-    ]
+        scores_path.append(score)
     best_idx = np.argmin(scores_path)
     best_score = scores_path[best_idx]
     best_lags = lags_path[best_idx]
@@ -208,7 +202,7 @@ def fit_cv(  # noqa: Ruff too complex
 
 
 def predict_recursive(
-    state: ForecastState,
+    state,
     fh: int,
     X: Optional[pl.DataFrame] = None,
 ) -> pl.DataFrame:
@@ -268,9 +262,7 @@ def predict_recursive(
 # (values are aggregated into list before being passed into predict)
 
 
-def predict_direct(
-    state: ForecastState, fh: int, X: Optional[pl.DataFrame] = None
-) -> pl.DataFrame:
+def predict_direct(state, fh: int, X: Optional[pl.DataFrame] = None) -> pl.DataFrame:
     entity_col = state.entity
     time_col = state.time
     target_col = state.target
@@ -333,7 +325,7 @@ def predict_direct(
 
 
 def predict_autoreg(
-    state: ForecastState,
+    state,
     fh: int,
     X: Optional[Union[pl.DataFrame, pl.LazyFrame]] = None,
 ) -> pl.DataFrame:

@@ -1,13 +1,10 @@
-from abc import abstractmethod
 from dataclasses import dataclass
-from functools import partial
-from typing import Any, Callable, List, Mapping, Optional, Tuple, TypeVar, Union
+from typing import Callable, List, Optional, Tuple, TypeVar, Union
 
 import polars as pl
 from typing_extensions import Literal, ParamSpec
 
 from functime.base.model import Model, ModelState
-from functime.forecasting._ar import fit_cv, predict_autoreg
 from functime.ranges import make_future_ranges
 
 # The parameters of the Model
@@ -58,6 +55,7 @@ class Forecaster(Model):
         self.max_horizons = max_horizons
         self.strategy = strategy
         self.kwargs = kwargs
+        super().__init__()
 
     def __call__(
         self,
@@ -71,7 +69,7 @@ class Forecaster(Model):
 
     @property
     def name(self):
-        return f"{self.model.__name__}(strategy={self.strategy})"
+        return f"{self.__class__.__name__}(strategy={self.strategy})"
 
     def fit(self, y: DF_TYPE, X: Optional[DF_TYPE] = None):
         y: pl.LazyFrame = self._set_string_cache(y.lazy().collect()).lazy()
@@ -93,10 +91,10 @@ class Forecaster(Model):
         self.state = state
         return self
 
-    def _predict(self, fh: int, X: Optional[pl.LazyFrame] = None):
-        return predict_autoreg(self.state, fh=fh, X=X)
-
     def predict(self, fh: int, X: Optional[DF_TYPE] = None) -> pl.DataFrame:
+
+        from functime.forecasting._ar import predict_autoreg
+
         state = self.state
         entity = state.entity
         time = state.time
@@ -130,7 +128,7 @@ class Forecaster(Model):
             # Raises: ComputeError: cannot construct Categorical
             # from these categories, at least on of them is out of bounds
             X = X.select(pl.all().exclude(time)).lazy()
-        y_pred_vals = self._predict(state, fh=fh, X=X)
+        y_pred_vals = predict_autoreg(self.state, fh=fh, X=X)
         y_pred_vals = y_pred_vals.rename(
             {x: y for x, y in zip(y_pred_vals.columns, [entity, target])}
         )
@@ -138,10 +136,10 @@ class Forecaster(Model):
             future_ranges.lazy()
             .join(y_pred_vals.lazy(), on=entity)
             # Explode from wide arrs to long form
-            # NOTE: Cannot use streaming here...
-            # Causes change error "cannot append series, data types don't match
             .explode(pl.all().exclude(entity))
             .pipe(self._reset_string_cache)
+            # NOTE: Cannot use streaming here...
+            # Causes change error "cannot append series, data types don't match
             .collect()
         )
         return y_pred
@@ -224,147 +222,3 @@ class Forecaster(Model):
         if return_results:
             return y_pred, y_pred_qnts, y_preds, y_resids
         return y_pred_qnts
-
-
-class AutoForecaster(Forecaster):
-    """AutoML forecaster with automated hyperparameter tuning and lags selection.
-
-    Parameters
-    ----------
-    freq : str
-        Offset alias as dictated.
-    min_lags : int
-        Minimum number of lagged target values.
-    max_lags : int
-        Maximum number of lagged target values.
-    max_horizons: Optional[int]
-        Maximum number of horizons to predict directly.
-        Only applied if `strategy` equals "direct" or "ensemble".
-    strategy : Optional[str]
-        Forecasting strategy. Currently supports "recursive", "direct",
-        and "ensemble" of both recursive and direct strategies.
-    test_size : int
-        Number of lags.
-    step_size : int
-        Step size between backtest windows.
-    n_splits : int
-        Number of backtest splits.
-    time_budget : int
-        Maximum time budgeted to train each forecaster per window and set of hyperparameters.
-    search_space : Optional[dict]
-        Equivalent to `config` in [FLAML](https://microsoft.github.io/FLAML/docs/Use-Cases/Tune-User-Defined-Function#search-space)
-    points_to_evaluate : Optional[dict]
-        Equivalent to `points_to_evaluate` in [FLAML](https://microsoft.github.io/FLAML/docs/Use-Cases/Tune-User-Defined-Function#warm-start)
-    num_samples : int
-        Number of hyper-parameter sets to test. -1 means unlimited (until `time_budget` is exhausted.)
-    **kwargs : Mapping[str, Any]
-        Additional keyword arguments passed into underlying sklearn-compatible estimator.
-    """
-
-    def __init__(
-        self,
-        # NOTE: MUST EXPLICITLY SPECIFIC FREQ IN ORDER FOR
-        # CROSS-VALIDATION y_pred and y_test time index to match up
-        freq: Union[str, None],
-        min_lags: int = 3,
-        max_lags: int = 12,
-        max_horizons: Optional[int] = None,
-        strategy: FORECAST_STRATEGIES = None,
-        test_size: int = 1,
-        step_size: int = 1,
-        n_splits: int = 5,
-        time_budget: int = 5,
-        search_space: Optional[Mapping[str, Any]] = None,
-        points_to_evaluate: Optional[Mapping[str, Any]] = None,
-        num_samples: int = -1,
-        **kwargs,
-    ):
-        self.freq = freq
-        self.min_lags = min_lags
-        self.max_lags = max_lags
-        self.max_horizons = max_horizons
-        self.strategy = strategy
-        self.test_size = test_size
-        self.step_size = step_size
-        self.n_splits = n_splits
-        self.time_budget = time_budget
-        self.search_space = search_space
-        self.points_to_evaluate = points_to_evaluate
-        self.num_samples = num_samples
-        self.kwargs = kwargs
-
-    @property
-    @abstractmethod
-    def forecaster(self):
-        pass
-
-    @property
-    def name(self):
-        return f"auto_{self.model.__name__}"
-
-    @property
-    def best_params(self):
-        return self.state.artifacts["best_params"]
-
-    @property
-    def default_search_space(self):
-        return None
-
-    @property
-    def default_points_to_evaluate(self):
-        return None
-
-    @property
-    def low_cost_partial_config(self):
-        return None
-
-    def fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame]):
-        return fit_cv(
-            y=y,
-            X=X,
-            forecaster_cls=partial(self.model, **self.kwargs),
-            freq=self.freq,
-            min_lags=self.min_lags,
-            max_lags=self.max_lags,
-            max_horizons=self.max_horizons,
-            strategy=self.strategy,
-            test_size=self.test_size,
-            step_size=self.step_size,
-            n_splits=self.n_splits,
-            time_budget=self.time_budget,
-            search_space=self.search_space or self.default_search_space,
-            points_to_evaluate=self.points_to_evaluate
-            or self.default_points_to_evaluate,
-            num_samples=self.num_samples,
-            low_cost_partial_config=self.low_cost_partial_config,
-        )
-
-    def predict(self, fh: int, X: Optional[pl.LazyFrame]):
-        return predict_autoreg(state=self.state, fh=fh, X=X)
-
-    def backtest(
-        self,
-        y: DF_TYPE,
-        X: Optional[pl.DataFrame],
-        test_size: int = 1,
-        step_size: int = 1,
-        n_splits: int = 5,
-        window_size: int = 10,
-        strategy: Literal["expanding", "sliding"] = "expanding",
-    ):
-        # Get base forecaster with fixed best params
-        forecaster_cls = self.model
-        if self.state is None:
-            raise ValueError("Must `.fit` AutoForecaster before `.backtest`")
-        best_params = self.state.artifacts["best_params"]
-        forecaster = forecaster_cls(**best_params)
-        y_preds, y_resids = forecaster.backtest(
-            y=y,
-            X=X,
-            test_size=test_size,
-            step_size=step_size,
-            n_splits=n_splits,
-            window_size=window_size,
-            strategy=strategy,
-        )
-        return y_preds, y_resids

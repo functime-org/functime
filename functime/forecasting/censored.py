@@ -6,35 +6,14 @@ from functime.base import Forecaster
 from functime.base.forecaster import FORECAST_STRATEGIES
 from functime.forecasting._ar import fit_autoreg
 from functime.forecasting._reduction import make_reduction
-from functime.forecasting._regressors import CensoredRegressor
-
-
-def auto_classify(X: pl.DataFrame, y: pl.DataFrame):
-    from flaml import AutoML
-
-    tuner = AutoML(
-        estimator_list=["lgbm", "lrl1"],
-        time_budget=30,
-        metric="f1",
-        task="classification",
-    )
-
-    tuner.fit(
-        X_train=X.select(X.columns[2:]).to_pandas(),
-        y_train=y.get_column(y.columns[-1]).to_pandas(),
-    )
-    estimator = tuner.model.estimator
-    return estimator
+from functime.forecasting._regressors import CensoredRegressor, _X_to_numpy, _y_to_numpy
 
 
 def default_classify(X: pl.DataFrame, y: pl.DataFrame):
     from sklearn.ensemble import RandomForestClassifier
 
     estimator = RandomForestClassifier()
-    estimator.fit(
-        X=X.select(X.columns[2:]).to_numpy(),
-        y=y.get_column(y.columns[-1]).to_numpy(),
-    )
+    estimator.fit(X=_X_to_numpy(X), y=_y_to_numpy(y))
     return estimator
 
 

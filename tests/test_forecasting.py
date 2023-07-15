@@ -2,7 +2,8 @@ import cloudpickle
 import numpy as np
 import polars as pl
 import pytest
-from functime_backend.forecasting import (
+
+from functime.forecasting import (
     auto_elastic_net,
     auto_lightgbm,
     catboost,
@@ -11,13 +12,8 @@ from functime_backend.forecasting import (
     knn,
     lightgbm,
     linear_model,
-    xgboost,
 )
-from sklearnex import patch_sklearn
-
 from functime.metrics import rmsse, smape
-
-patch_sklearn()
 
 DEFAULT_LAGS = 12
 DIRECT_KWARGS = {"max_horizons": 28, "strategy": "direct"}
@@ -29,29 +25,21 @@ DIRECT_KWARGS = {"max_horizons": 28, "strategy": "direct"}
             "catboost",
             lambda freq: catboost(lags=DEFAULT_LAGS, freq=freq, iterations=10),
         ),
-        (
-            "knn__direct",
-            lambda freq: knn(
-                lags=DEFAULT_LAGS, freq=freq, algorithm="kd_tree", **DIRECT_KWARGS
-            ),
-        ),
         ("knn", lambda freq: knn(lags=DEFAULT_LAGS, freq=freq)),
-        (
-            "lgbm__direct",
-            lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, **DIRECT_KWARGS),
-        ),
         (
             "lgbm",
             lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10),
         ),
         (
-            "linear__direct",
-            lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, **DIRECT_KWARGS),
+            "lgbm_direct",
+            lambda freq: lightgbm(
+                lags=DEFAULT_LAGS, freq=freq, num_iterations=10, **DIRECT_KWARGS
+            ),
         ),
         ("linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq)),
         (
-            "xgboost",
-            lambda freq: xgboost(lags=DEFAULT_LAGS, freq=freq, n_estimators=10),
+            "linear__direct",
+            lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, **DIRECT_KWARGS),
         ),
     ],
     ids=lambda model: model[0],

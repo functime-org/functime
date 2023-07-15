@@ -8,16 +8,17 @@ import numpy as np
 import polars as pl
 from typing_extensions import Literal
 
+from functime.conversion import df_to_ndarray
 from functime.preprocessing import PL_NUMERIC_COLS
 
 
 def _X_to_numpy(X: pl.DataFrame) -> np.ndarray:
-    X_arr = X.select(pl.col(X.columns[2:])).to_numpy().astype(np.float32)
+    X_arr = df_to_ndarray(X.select(pl.col(X.columns[2:]).cast(pl.Float32)))
     return X_arr
 
 
 def _y_to_numpy(y: pl.DataFrame) -> np.ndarray:
-    return y.get_column(y.columns[-1]).to_numpy().astype(np.float32)
+    return y.get_column(y.columns[-1]).cast(pl.Float32).to_numpy(zero_copy_only=True)
 
 
 class GradientBoostedTreeRegressor:
@@ -129,7 +130,7 @@ class StandardizedSklearnRegressor:
         if len(boolean_cols) > 1:
             transformers += [("boolean", "passthrough", boolean_idx)]
 
-        transformer = ColumnTransformer(transformers=transformers)
+        transformer = ColumnTransformer(transformers=transformers, n_jobs=-1)
         steps = [("transformer", transformer), ("regressor", self.estimator)]
 
         # Fit pipeline

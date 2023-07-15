@@ -20,14 +20,15 @@ def metric(score: Callable):
         **kwargs,
     ) -> pl.DataFrame:
 
-        entity_col_dtype = y_true.schema[y_true.columns[0]]
         if isinstance(y_true, pl.LazyFrame):
-            y_true = y_true.collect()
+            y_true = y_true.collect(streaming=True)
 
         if isinstance(y_pred, pl.LazyFrame):
-            y_pred = y_pred.collect()
+            y_pred = y_pred.collect(streaming=True)
 
-        y_true, string_cache, inv_string_cache = y_true.pipe(_set_string_cache)
+        y_true, entity_col_dtype, string_cache, inv_string_cache = y_true.pipe(
+            _set_string_cache
+        )
         y_pred = y_pred.pipe(_enforce_string_cache, string_cache=string_cache)
         # Coerce columnn names and dtypes
         cols = y_true.columns
@@ -39,7 +40,7 @@ def metric(score: Callable):
             y_train = (
                 kwargs["y_train"]
                 .lazy()
-                .collect()
+                .collect(streaming=True)
                 .pipe(_enforce_string_cache, string_cache=string_cache)
             )
             kwargs["y_train"] = y_train
