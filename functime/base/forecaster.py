@@ -1,13 +1,14 @@
-import inspect
 from abc import abstractmethod
 from dataclasses import dataclass
-from functools import partial, wraps
+from functools import partial
 from typing import Any, Callable, List, Mapping, Optional, Tuple, TypeVar, Union
 
 import polars as pl
-from functime.base.model import Model, ModelState
-from functime.ranges import make_future_ranges
 from typing_extensions import Literal, ParamSpec
+
+from functime.base.model import Model, ModelState
+from functime.forecasting._ar import fit_cv, predict_autoreg
+from functime.ranges import make_future_ranges
 
 # The parameters of the Model
 P = ParamSpec("P")
@@ -44,6 +45,20 @@ class Forecaster(Model):
         Additional keyword arguments passed into underlying sklearn-compatible estimator.
     """
 
+    def __init__(
+        self,
+        freq: Union[str, None],
+        lags: int,
+        max_horizons: Optional[int] = None,
+        strategy: FORECAST_STRATEGIES = None,
+        **kwargs,
+    ):
+        self.freq = freq
+        self.lags = lags
+        self.max_horizons = max_horizons
+        self.strategy = strategy
+        self.kwargs = kwargs
+
     def __call__(
         self,
         y: DF_TYPE,
@@ -56,16 +71,15 @@ class Forecaster(Model):
 
     @property
     def name(self):
-        return f"{self.model.__name__}(strategy={self.params['strategy']})"
+        return f"{self.model.__name__}(strategy={self.strategy})"
 
     def fit(self, y: DF_TYPE, X: Optional[DF_TYPE] = None):
-        __fit, _ = self.func
         y: pl.LazyFrame = self._set_string_cache(y.lazy().collect()).lazy()
         if X is not None:
             if X.columns[0] == y.columns[0]:
                 X = self._enforce_string_cache(X.lazy().collect())
             X = X.lazy()
-        artifacts = __fit(y=y, X=X)
+        artifacts = self._fit(y=y, X=X)
         cutoffs = y.groupby(y.columns[0]).agg(pl.col(y.columns[1]).max().alias("low"))
         artifacts["__cutoffs"] = cutoffs.collect(streaming=True)
         state = ForecastState(
@@ -73,14 +87,16 @@ class Forecaster(Model):
             time=y.columns[1],
             artifacts=artifacts,
             target=y.columns[-1],
-            strategy=self.params["strategy"] or "recursive",
+            strategy=self.strategy or "recursive",
             features=X.columns[2:] if X is not None else None,
         )
         self.state = state
         return self
 
+    def _predict(self, fh: int, X: Optional[pl.LazyFrame] = None):
+        return predict_autoreg(self.state, fh=fh, X=X)
+
     def predict(self, fh: int, X: Optional[DF_TYPE] = None) -> pl.DataFrame:
-        _, __predict = self.func
         state = self.state
         entity = state.entity
         time = state.time
@@ -91,7 +107,7 @@ class Forecaster(Model):
             time_col=state.time,
             cutoffs=cutoffs,
             fh=fh,
-            freq=self.params["freq"],
+            freq=self.freq,
         )
         if X is not None:
             X = X.lazy()
@@ -114,7 +130,7 @@ class Forecaster(Model):
             # Raises: ComputeError: cannot construct Categorical
             # from these categories, at least on of them is out of bounds
             X = X.select(pl.all().exclude(time)).lazy()
-        y_pred_vals = __predict(state, fh=fh, X=X)
+        y_pred_vals = self._predict(state, fh=fh, X=X)
         y_pred_vals = y_pred_vals.rename(
             {x: y for x, y in zip(y_pred_vals.columns, [entity, target])}
         )
@@ -140,12 +156,11 @@ class Forecaster(Model):
         window_size: int = 10,
         strategy: Literal["expanding", "sliding"] = "expanding",
     ):
+        from functime.backtesting import backtest
         from functime.cross_validation import (
             expanding_window_split,
             sliding_window_split,
         )
-
-        from functime.backtesting import backtest
 
         if strategy == "expanding":
             cv = expanding_window_split(
@@ -279,46 +294,17 @@ class AutoForecaster(Forecaster):
         self.kwargs = kwargs
 
     @property
-    def args(self):
-        return (
-            self.freq,
-            self.min_lags,
-            self.max_lags,
-            self.max_horizons,
-            self.strategy,
-            self.test_size,
-            self.step_size,
-            self.n_splits,
-            self.time_budget,
-            self.search_space,
-            self.points_to_evaluate,
-            self.num_samples,
-        )
-
-    @property
-    def params(self):
-        kwargs = self.kwargs
-        sig = inspect.signature(self.__init__)
-        model_params = sig.parameters
-        model_args = list(model_params.keys())
-        params = {
-            **{
-                k: kwargs.get(k, v.default)
-                for k, v in model_params.items()
-                if k != "kwargs"
-            },
-            **{model_args[i]: p for i, p in enumerate(self.args)},
-        }
-        return params
-
-    @property
     @abstractmethod
-    def model(self):
+    def forecaster(self):
         pass
 
     @property
     def name(self):
         return f"auto_{self.model.__name__}"
+
+    @property
+    def best_params(self):
+        return self.state.artifacts["best_params"]
 
     @property
     def default_search_space(self):
@@ -332,36 +318,29 @@ class AutoForecaster(Forecaster):
     def low_cost_partial_config(self):
         return None
 
-    @property
-    def func(self):
-        from functime.forecasting._ar import fit_cv, predict_autoreg
+    def fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame]):
+        return fit_cv(
+            y=y,
+            X=X,
+            forecaster_cls=partial(self.model, **self.kwargs),
+            freq=self.freq,
+            min_lags=self.min_lags,
+            max_lags=self.max_lags,
+            max_horizons=self.max_horizons,
+            strategy=self.strategy,
+            test_size=self.test_size,
+            step_size=self.step_size,
+            n_splits=self.n_splits,
+            time_budget=self.time_budget,
+            search_space=self.search_space or self.default_search_space,
+            points_to_evaluate=self.points_to_evaluate
+            or self.default_points_to_evaluate,
+            num_samples=self.num_samples,
+            low_cost_partial_config=self.low_cost_partial_config,
+        )
 
-        def fit(y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
-            return fit_cv(
-                y=y,
-                X=X,
-                forecaster_cls=partial(self.model, **self.kwargs),
-                freq=self.freq,
-                min_lags=self.min_lags,
-                max_lags=self.max_lags,
-                max_horizons=self.max_horizons,
-                strategy=self.strategy,
-                test_size=self.test_size,
-                step_size=self.step_size,
-                n_splits=self.n_splits,
-                time_budget=self.time_budget,
-                search_space=self.search_space or self.default_search_space,
-                points_to_evaluate=self.points_to_evaluate
-                or self.default_points_to_evaluate,
-                num_samples=self.num_samples,
-                low_cost_partial_config=self.low_cost_partial_config,
-            )
-
-        return fit, predict_autoreg
-    
-    @property
-    def best_params(self):
-        return self.state.artifacts["best_params"]
+    def predict(self, fh: int, X: Optional[pl.LazyFrame]):
+        return predict_autoreg(state=self.state, fh=fh, X=X)
 
     def backtest(
         self,
@@ -389,11 +368,3 @@ class AutoForecaster(Forecaster):
             strategy=strategy,
         )
         return y_preds, y_resids
-
-
-def forecaster(model: Callable[P, R]):
-    @wraps(model)
-    def _forecaster(*args: P.args, **kwargs: P.kwargs) -> Forecaster:
-        return Forecaster(model, *args, **kwargs)
-
-    return _forecaster

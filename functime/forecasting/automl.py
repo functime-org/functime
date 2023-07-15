@@ -10,7 +10,7 @@ class auto_lightgbm(AutoForecaster):
     DEFAULT_TREE_DEPTH = 8
 
     @property
-    def model(self):
+    def forecaster(self):
         return lightgbm
 
     @property
@@ -61,13 +61,13 @@ class auto_knn(AutoForecaster):
 
 class auto_linear_model(AutoForecaster):
     @property
-    def model(self):
+    def forecaster(self):
         return linear_model
 
 
 class auto_lasso(AutoForecaster):
     @property
-    def model(self):
+    def forecaster(self):
         return lasso
 
     @property
@@ -84,7 +84,7 @@ class auto_lasso(AutoForecaster):
 
 class auto_ridge(AutoForecaster):
     @property
-    def model(self):
+    def forecaster(self):
         return ridge
 
     @property
@@ -101,7 +101,7 @@ class auto_ridge(AutoForecaster):
 
 class auto_elastic_net(AutoForecaster):
     @property
-    def model(self):
+    def forecaster(self):
         return elastic_net
 
     @property

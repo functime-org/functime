@@ -6,9 +6,8 @@ import pyarrow as pa
 from xgboost import DMatrix
 from xgboost import train as xgb_train
 
-from functime.base import forecaster
-from functime.base.forecaster import FORECAST_STRATEGIES
-from functime.forecasting._ar import fit_autoreg, predict_autoreg
+from functime.base import Forecaster
+from functime.forecasting._ar import fit_autoreg
 from functime.forecasting._regressors import GradientBoostedTreeRegressor
 
 
@@ -59,27 +58,17 @@ def _xgboost(weight_transform: Optional[Callable] = None, **kwargs):
     return regress
 
 
-@forecaster
-def xgboost(
-    freq: Union[str, None],
-    lags: int,
-    max_horizons: Optional[int] = None,
-    strategy: FORECAST_STRATEGIES = None,
-    weight_transform: Optional[Callable] = None,
-    **kwargs
-):
-    """Autoregressive XGBoost forecaster."""
-
-    def fit(y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
-        y_new = y.pipe(_enforce_label_constraint, objective=kwargs.get("objective"))
-        regress = _xgboost(weight_transform=weight_transform, **kwargs)
+class xgboost(Forecaster):
+    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+        y_new = y.pipe(
+            _enforce_label_constraint, objective=self.kwargs.get("objective")
+        )
+        regress = _xgboost(**self.kwargs)
         return fit_autoreg(
             regress=regress,
-            lags=lags,
             y=y_new,
             X=X,
-            max_horizons=max_horizons,
-            strategy=strategy,
+            lags=self.lags,
+            max_horizons=self.max_horizons,
+            strategy=self.strategy,
         )
-
-    return fit, predict_autoreg
