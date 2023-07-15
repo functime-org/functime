@@ -4,10 +4,7 @@ import numpy as np
 import polars as pl
 
 from functime.base import Forecaster
-from functime.forecasting._reduction import (
-    make_direct_reduction,
-    make_reduction,
-)
+from functime.forecasting._reduction import make_direct_reduction, make_reduction
 
 
 def _residualize_autoreg(
@@ -142,8 +139,8 @@ def backtest(
                 y_train=y_train,
                 X_train=X_train,
                 strategy=model.state.strategy,
-                lags=forecaster.params["lags"],
-                max_horizons=forecaster.params["max_horizons"],
+                lags=forecaster.lags,
+                max_horizons=forecaster.max_horizons,
                 artifacts=model.state.artifacts,
             )
             y_resid = y_resid.with_columns(pl.lit(i).alias("split"))
@@ -157,8 +154,8 @@ def backtest(
             X=X,
             y_resids=pl.concat(y_resids),
             strategy=full_model.state.strategy,
-            lags=forecaster.params["lags"],
-            max_horizons=forecaster.params["max_horizons"],
+            lags=forecaster.lags,
+            max_horizons=forecaster.max_horizons,
             artifacts=full_model.state.artifacts,
         )
         pl.enable_string_cache(False)

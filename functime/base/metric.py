@@ -1,42 +1,13 @@
 from functools import wraps
-from typing import Callable, Mapping, Union
+from typing import Callable, Union
 
 import polars as pl
 
-
-def _set_string_cache(df: pl.DataFrame) -> pl.DataFrame:
-    entity_col = df.columns[0]
-    entities = df.get_column(entity_col).unique()
-    string_cache = {entity: i for i, entity in enumerate(entities)}
-    entity_col_dtype = df.schema[entity_col]
-    if entity_col_dtype == pl.Categorical:
-        # Reset categorical to string type
-        df = df.with_columns(pl.col(entity_col).cast(pl.Utf8))
-    df_new = df.with_columns(
-        pl.col(entity_col).map_dict(string_cache, return_dtype=pl.Int32)
-    )
-    inv_string_cache = {i: entity for entity, i in string_cache.items()}
-    return df_new, string_cache, inv_string_cache
-
-
-def _enforce_string_cache(
-    df: pl.DataFrame, string_cache: Mapping[Union[int, str], int]
-) -> pl.DataFrame:
-    entity_col = df.columns[0]
-    if df.schema[entity_col] == pl.Categorical:
-        # Reset categorical to string type
-        df = df.with_columns(pl.col(entity_col).cast(pl.Utf8))
-    return df.with_columns(
-        pl.col(entity_col).map_dict(string_cache, return_dtype=pl.Int32)
-    )
-
-
-def _reset_string_cache(
-    df: pl.DataFrame, inv_string_cache: Mapping[int, Union[int, str]], return_dtype
-) -> pl.DataFrame:
-    return df.with_columns(
-        pl.col(df.columns[0]).map_dict(inv_string_cache, return_dtype=return_dtype)
-    )
+from functime.base.model import (
+    _enforce_string_cache,
+    _reset_string_cache,
+    _set_string_cache,
+)
 
 
 # Simple wrapper to collect y_true, y_pred if lazy
