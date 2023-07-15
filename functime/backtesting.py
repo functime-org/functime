@@ -15,7 +15,7 @@ def _residualize_autoreg(
     artifacts: Mapping[str, Any],
     X_train: Optional[pl.DataFrame] = None,
 ) -> pl.DataFrame:
-    y_train = y_train.lazy().collect()
+    y_train = y_train.lazy().collect(streaming=True)
     idx_cols = y_train.columns[:2]
 
     def _score_recursive(regressor):
@@ -120,12 +120,12 @@ def backtest(
         fh = int(
             y_test.lazy()
             .select(pl.count() / pl.col(entity_col).n_unique())
-            .collect()
+            .collect(streaming=True)
             .item()
         )
         X_train, X_test = X_splits[i] if X is not None else None, None
         # Forecast
-        model = forecaster.fit(y=y_train, X=X_train)
+        forecaster = forecaster.fit(y=y_train, X=X_train)
         y_pred = forecaster.predict(fh=fh, X=X_test)
         # Coerce split column names back into original names
         y_pred = y_pred.select(y_pred.columns[:3]).with_columns(
@@ -138,10 +138,10 @@ def backtest(
             y_resid = _residualize_autoreg(
                 y_train=y_train,
                 X_train=X_train,
-                strategy=model.state.strategy,
+                strategy=forecaster.state["strategy"],
                 lags=forecaster.lags,
                 max_horizons=forecaster.max_horizons,
-                artifacts=model.state.artifacts,
+                artifacts=forecaster.state["artifacts"],
             )
             y_resid = y_resid.with_columns(pl.lit(i).alias("split"))
             y_resids.append(y_resid)

@@ -1,7 +1,6 @@
 from typing import Optional
 
 import numpy as np
-import umap
 
 
 def auto_umap(
@@ -12,6 +11,8 @@ def auto_umap(
     min_dist: float = 0.1,
     random_state: Optional[int] = None,
 ) -> np.ndarray:
+    import umap
+
     model = umap.UMAP(
         n_components=n_dims,
         n_neighbors=n_neighbors,

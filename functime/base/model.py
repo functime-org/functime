@@ -1,10 +1,10 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Mapping, Protocol, Union
+from typing import Any, Mapping, Protocol, Union
 
 import polars as pl
 
 
-def _set_string_cache(df: pl.DataFrame) -> pl.DataFrame:
+def _set_string_cache(df: pl.DataFrame):
     entity_col = df.columns[0]
     entities = df.get_column(entity_col).unique()
     string_cache = {entity: i for i, entity in enumerate(entities)}
@@ -70,8 +70,7 @@ class ModelState:
 class Model:
     """A functime Model definition."""
 
-    def __init__(self, funcs: Mapping[str, Callable]):
-        self.funcs = funcs
+    def __init__(self):
         self.state = None
         self.entity_col_dtype = None
         self.string_cache = {}

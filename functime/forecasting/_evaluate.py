@@ -2,20 +2,18 @@ import logging
 from functools import partial
 from typing import Any, Callable, List, Mapping, Optional, Tuple, Union
 
-import modal
 import polars as pl
 
-from functime.functions_stub import stub
 from functime.metrics import mae
 
 try:
-    from flaml import CFO, tune
+    import flaml
+    from flaml import CFO
     from flaml.tune.sample import Domain
 except ImportError:
     pass
 
 
-@stub.function(cpu=2.0, memory=10240, timeout=3600)
 def evaluate_window(
     config: Mapping[str, Any],
     lags: int,
@@ -62,10 +60,9 @@ def evaluate_window(
     return res
 
 
-@stub.function(memory=10240)
 def evaluate_windows(
     config,
-    lags: List[int],
+    lags: int,
     n_splits: int,
     test_size: int,
     max_horizons: int,
@@ -76,11 +73,11 @@ def evaluate_windows(
     X_splits: Optional[Mapping[int, Tuple[pl.DataFrame, pl.DataFrame]]],
 ):
     # Get average mae across splits
-    futures = []
+    results = []
     for i in range(n_splits):
         y_train, y_test = y_splits[i]
         X_train, X_test = X_splits[i] if X_splits is not None else None, None
-        future = evaluate_window.spawn(
+        result = evaluate_window(
             y_train=y_train,
             y_test=y_test,
             X_train=X_train,
@@ -93,8 +90,7 @@ def evaluate_windows(
             freq=freq,
             forecaster_cls=forecaster_cls,
         )
-        futures.append(future)
-    results = [res for res in modal.functions.gather(*futures) if res is not None]
+        results.append(result)
     scores = [res["score"] for res in results]
     score = None
     if len(scores) > 0:
@@ -105,9 +101,8 @@ def evaluate_windows(
     return res
 
 
-@stub.function(memory=10240)
 def evaluate(
-    lags: List[int],
+    lags: int,
     n_splits: int,
     time_budget: int,
     points_to_evaluate: List[Mapping[str, Any]],
@@ -138,7 +133,7 @@ def evaluate(
         )
         score = result["mae"]
     else:
-        tuner = tune.run(
+        tuner = flaml.tune.run(
             partial(
                 evaluate_windows,
                 lags=lags,
