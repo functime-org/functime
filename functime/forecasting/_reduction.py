@@ -31,7 +31,9 @@ def make_reduction(
     # Exogenous features
     if X is not None:
         X_y = _join_X_y(X_y, X)
-    X_y_final = X_y.collect(streaming=True)
+    # NOTE: Cannot use streaming...
+    # Raises error: pyo3_runtime.PanicException: internal error: entered unreachable code
+    X_y_final = X_y.collect()
     return X_y_final
 
 
@@ -50,7 +52,9 @@ def make_direct_reduction(
     # Drop nulls in lagged columns
     if X is not None:
         X_y = _join_X_y(X_y, X)
-    X_y_final = X_y.collect(streaming=True)
+    # NOTE: Cannot use streaming...
+    # Raises error: pyo3_runtime.PanicException: internal error: entered unreachable code
+    X_y_final = X_y.collect()
     return X_y_final
 
 
