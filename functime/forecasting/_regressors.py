@@ -6,6 +6,7 @@ from typing import Callable, Optional, Union
 
 import numpy as np
 import polars as pl
+import sklearn
 from typing_extensions import Literal
 
 from functime.conversion import df_to_ndarray
@@ -144,13 +145,15 @@ class StandardizedSklearnRegressor:
 
         # Fit pipeline
         pipeline = Pipeline(steps=steps)
-        self.pipeline = pipeline.fit(X=_X_to_numpy(X), y=_y_to_numpy(y))
+        with sklearn.config_context(assume_finite=True, skip_parameter_validation=True):
+            self.pipeline = pipeline.fit(X=_X_to_numpy(X), y=_y_to_numpy(y))
         return self
 
     def predict(self, X: pl.DataFrame) -> np.ndarray:
         # Defensive reordering X and cast boolean to 0, 1
         X = self._preproc_X(X)
-        y_pred = self.pipeline.predict(_X_to_numpy(X))
+        with sklearn.config_context(assume_finite=True, skip_parameter_validation=True):
+            y_pred = self.pipeline.predict(_X_to_numpy(X))
         return y_pred
 
 
