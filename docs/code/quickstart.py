@@ -4,7 +4,7 @@ from timeit import default_timer
 import polars as pl
 
 from functime.cross_validation import train_test_split
-from functime.feature_extraction import add_calendar_effects, add_holiday_effects
+from functime.feature_extraction import add_calendar_effects
 from functime.forecasting import auto_lightgbm, lightgbm
 from functime.metrics import mase
 
@@ -15,12 +15,7 @@ y = pl.read_parquet(
     "https://github.com/descendant-ai/functime/raw/main/data/commodities.parquet"
 )
 entity_col, time_col = y.columns[:2]
-X = (
-    y.select([entity_col, time_col])
-    .pipe(add_calendar_effects(["month"]))
-    .pipe(add_holiday_effects(country_codes=["US"], freq="1mo"))
-    .collect()
-)
+X = y.select([entity_col, time_col]).pipe(add_calendar_effects(["month"])).collect()
 
 print("🎯 Target variable (y):\n", y)
 print("📉 Exogenous variables (X):\n", X)
