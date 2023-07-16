@@ -218,22 +218,25 @@ def m5_dataset():
 
 @pytest.fixture
 def pd_m4_dataset(m4_dataset):
-    y_train, y_test, fh = m4_dataset
+    y_train, y_test, fh, _ = m4_dataset
+    entity_col, time_col = y_train.columns[:2]
     pd_y_train = y_train.collect().to_pandas()
     pd_y_test = y_test.collect().to_pandas()
-    return pd_y_train, pd_y_test, fh
+    logging.info(pd_y_train)
+    logging.info(pd_y_test)
+    return pd_y_train, pd_y_test, fh, entity_col, time_col
 
 
 @pytest.fixture
 def pd_m5_dataset(m5_dataset):
     y_train, X_train, y_test, X_test, fh, freq = m5_dataset
     entity_col, time_col = y_train.columns[:2]
-    pd_y_train = y_train.collect().to_pandas().set_index([entity_col, time_col])
-    pd_y_test = y_test.collect().to_pandas().set_index([entity_col, time_col])
-    pd_X_train = X_train.collect().to_pandas().set_index([entity_col, time_col])
-    pd_X_test = X_test.collect().to_pandas().set_index([entity_col, time_col])
-    pd_X_y = pd_y_train.join(pd_X_train, how="left")
-    return pd_X_y, pd_y_test, pd_X_test, fh, freq
+    pd_y_train = y_train.collect().to_pandas()
+    pd_y_test = y_test.collect().to_pandas()
+    pd_X_train = X_train.collect().to_pandas()
+    pd_X_test = X_test.collect().to_pandas()
+    pd_X_y = pd_y_train.join(pd_X_train, how="left", on=[entity_col, time_col])
+    return pd_X_y, pd_y_test, pd_X_test, fh, entity_col, time_col
 
 
 # if __name__ == "__main__":
