@@ -3,6 +3,7 @@ from typing import Any, Callable, List, Mapping, Optional, Union
 
 import numpy as np
 import polars as pl
+from tqdm import trange
 from typing_extensions import Literal
 
 from functime.cross_validation import expanding_window_split
@@ -59,7 +60,7 @@ def fit_direct(
     X_y_final = make_direct_reduction(lags=lags, max_horizons=max_horizons, y=y, X=X)
     # 2. Fit
     fitted_models = []
-    for i in range(1, max_horizons + 1):
+    for i in trange(1, max_horizons + 1, desc="Fitting direct forecasters:"):
         selected_lags = range(i, lags + i)
         lag_cols = [f"{target_col}__lag_{j}" for j in selected_lags]
         X_final = X_y_final.select([*idx_cols, *lag_cols, *feature_cols])
