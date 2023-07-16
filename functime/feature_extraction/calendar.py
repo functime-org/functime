@@ -1,4 +1,3 @@
-from functools import reduce
 from typing import List, Optional
 
 import polars as pl
@@ -62,40 +61,43 @@ def add_holiday_effects(country_codes: List[str], freq: str):
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+
+        # Get min and max timestamps
         time_col = X.columns[1]
-        dt_min_max = X.select(
-            [pl.col(time_col).min().alias("min"), pl.col(time_col).max().alias("max")]
-        ).collect(streaming=True)
-        dt_min, dt_max = dt_min_max[0, "min"], dt_min_max[0, "max"]
-        years = range(dt_min.year, dt_max.year + 1)
+        timestamps = (
+            X.select(time_col)
+            .collect(streaming=True)
+            .get_column(time_col)
+            .unique()
+            .to_list()
+        )
+        min_ts, max_ts = min(timestamps), max(timestamps)
         # Instantiate countries mapping
+        years = range(min_ts.year, max_ts.year + 1)
         countries = [country_holidays(code, years=years) for code in country_codes]
         # Add holiday effects and cast as categorical
-        dt_range = (
-            pl.date_range(dt_min, dt_max, interval="1d", eager=True)
-            .alias(time_col)
-            .to_frame()
-            .lazy()
-        )
-        holidays = [
-            dt_range.with_columns(
-                pl.col(time_col)
-                .apply(country.get)
-                .cast(pl.Utf8)
+        holidays = []
+        for i, country in enumerate(countries):
+            labels = pl.Series(
+                values=[country.get(t) for t in timestamps],
+                name=f"holiday__{country_codes[i]}",
+            ).to_frame()
+            holidays.append(labels)
+        # Concat
+        holidays = (
+            pl.concat(holidays, how="horizontal")
+            .select(
+                pl.all()
                 .str.to_lowercase()
                 .str.replace_all("'", "")
                 .str.replace_all("-", "")
                 .str.replace_all(" ", "_")
                 .cast(pl.Categorical)
-                .alias(f"holiday__{country_codes[i]}")
             )
-            for i, country in enumerate(countries)
-        ]
-        holidays = (
-            reduce(lambda df1, df2: (df1.join(df2, how="inner", on=time_col)), holidays)
-            .groupby_dynamic(time_col, every=freq)
-            .agg(pl.all().exclude(time_col).drop_nulls().first())
-            .with_columns(pl.col(time_col).cast(X.schema[time_col]))
+            .with_columns(
+                pl.Series(values=timestamps, name=time_col).cast(X.schema[time_col])
+            )
+            .lazy()
         )
         X_new = X.join(holidays, how="left", on=time_col)
         artifacts = {"X_new": X_new}
