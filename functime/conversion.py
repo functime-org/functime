@@ -13,9 +13,9 @@ def df_to_ndarray(df: pl.DataFrame, n_groups: Optional[int] = None) -> np.ndarra
     columns = df.columns
     df = df.select(pl.all().cast(pl.Float32))  # Defensive type cast
 
-    chunks = None
+    chunks = (df.shape[0], 1)  # Chunk columnar
     if n_groups:
-        chunks = (n_groups, len(columns))
+        chunks = (n_groups, df.shape[1])  # Chunk by group
 
     with tempfile.TemporaryDirectory() as tempdir:
         timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
@@ -33,5 +33,14 @@ def df_to_ndarray(df: pl.DataFrame, n_groups: Optional[int] = None) -> np.ndarra
             x = series.to_numpy(zero_copy_only=True)
             X[:, i] = x
         X = da.from_zarr(X).compute()
-
     return X
+
+
+if __name__ == "__main__":
+
+    from timeit import default_timer
+
+    df = pl.DataFrame({f"x{i}": pl.arange(0, 1_000_000, eager=True) for i in range(48)})
+    start = default_timer()
+    X = df_to_ndarray(df)
+    print(default_timer() - start)  # 1 second
