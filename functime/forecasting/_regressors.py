@@ -138,7 +138,7 @@ class StandardizedSklearnRegressor:
         self.pipeline = pipeline.fit(X=_X_to_numpy(X), y=_y_to_numpy(y))
         return self
 
-    def predict(self, X: pl.DataFrame):
+    def predict(self, X: pl.DataFrame) -> np.ndarray:
         # Defensive reordering X and cast boolean to 0, 1
         X = self._preproc_X(X)
         y_pred = self.pipeline.predict(_X_to_numpy(X))
@@ -186,3 +186,51 @@ class CensoredRegressor:
         if abs(self.threshold) > 0:
             y_pred += weights[:, 0] * regress_below.predict(X)
         return y_pred, weights[:, 1]
+
+
+class FLAMLRegressor:
+    """FLAML AutoML regressor.
+
+    API reference: https://microsoft.github.io/FLAML/docs/reference/automl/automl/#automl-objects
+    """
+
+    def __init__(
+        self,
+        time_budget: Optional[int] = None,
+        max_iter: Optional[int] = None,
+        metric: Optional[str] = None,
+        **kwargs,
+    ):
+        self.time_budget = time_budget or 30
+        self.max_iter = max_iter or 30
+        self.metric = metric or "rmse"
+        self.kwargs = kwargs
+        self.tuner = None
+
+    def fit(self, X: pl.DataFrame, y: pl.DataFrame):
+        from flaml import AutoML
+
+        feat_cols = X.columns[2:]
+        target_col = y.columns[-1]
+        tuner_kwargs = {
+            # Fixed settings
+            "task": "regression",
+            "split_type": "time",
+            # Explicit settings
+            "time_budget": self.time_budget,
+            "max_iter": self.max_iter,
+            "metric": self.metric,
+            # Additional kwargs
+            **self.kwargs,
+        }
+
+        tuner = AutoML(**tuner_kwargs)
+        tuner.fit(
+            X_train=X.select(feat_cols).to_pandas(),
+            y_train=y.get_column(target_col).to_pandas(),
+        )
+        self.tuner = tuner
+        return self
+
+    def predict(self, X: pl.DataFrame) -> np.ndarray:
+        return self.tuner.predict(X=X.to_pandas())
