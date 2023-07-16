@@ -9,11 +9,13 @@ from .automl import (
 from .catboost import catboost
 from .censored import censored_model, zero_inflated_model
 from .knn import knn
+from .lance import ann
 from .lightgbm import flaml_lightgbm, lightgbm
 from .linear import elastic_net, lasso, linear_model, ridge
 from .xgboost import xgboost
 
 __all__ = [
+    "ann",
     "auto_elastic_net",
     "auto_knn",
     "auto_lasso",

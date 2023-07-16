@@ -37,6 +37,7 @@ dependencies = [
     "plotly",
     "polars",
     "pyarrow",
+    "pylance",
     "pynndescent==0.5.8",
     "rich>=12.0.0",
     "scikit-learn",

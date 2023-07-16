@@ -4,46 +4,44 @@ import polars as pl
 import pytest
 
 from functime.forecasting import (
+    ann,
     auto_elastic_net,
     auto_lightgbm,
     catboost,
     censored_model,
     elastic_net,
-    knn,
+    flaml_lightgbm,
     lightgbm,
     linear_model,
+    xgboost,
+    zero_inflated_model,
 )
 from functime.metrics import rmsse, smape
 
 DEFAULT_LAGS = 12
 DIRECT_KWARGS = {"max_horizons": 28, "strategy": "direct"}
+ENSEMBLE_KWARGS = {"max_horizons": 28, "strategy": "ensemble"}
 
 
-@pytest.fixture(
-    params=[
-        (
-            "catboost",
-            lambda freq: catboost(lags=DEFAULT_LAGS, freq=freq, iterations=10),
-        ),
-        ("knn", lambda freq: knn(lags=DEFAULT_LAGS, freq=freq)),
-        (
-            "lgbm",
-            lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10),
-        ),
-        (
-            "lgbm_direct",
-            lambda freq: lightgbm(
-                lags=DEFAULT_LAGS, freq=freq, num_iterations=10, **DIRECT_KWARGS
-            ),
-        ),
-        ("linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq)),
-        (
-            "linear__direct",
-            lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, **DIRECT_KWARGS),
-        ),
-    ],
-    ids=lambda model: model[0],
-)
+# fmt: off
+FORECASTERS_TO_TEST = [
+    ("ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
+    ("catboost", lambda freq: catboost(lags=DEFAULT_LAGS, freq=freq, iterations=10)),
+    ("lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10)),
+    ("flaml_lgbm", lambda freq: flaml_lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10)),
+    ("linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq)),
+    ("xgboost", lambda freq: xgboost(lags=DEFAULT_LAGS, freq=freq, n_estimators=10)),
+    ("direct__ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
+    ("direct__lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10, **DIRECT_KWARGS)),
+    ("direct__linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, **DIRECT_KWARGS)),
+    ("ensemble__ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
+    ("ensemble__lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10, **DIRECT_KWARGS)),
+    ("ensemble__linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, **DIRECT_KWARGS)),
+]
+# fmt: on
+
+
+@pytest.fixture(params=FORECASTERS_TO_TEST, ids=lambda model: model[0])
 def forecaster(request):
     return request.param[1]
 
@@ -143,10 +141,28 @@ def test_auto_on_m5(auto_forecaster, m5_dataset, benchmark):
     assert score < 2
 
 
-@pytest.mark.parametrize("threshold", [5, 0])
+@pytest.mark.parametrize("threshold", [5, 10])
 def test_censored_model_on_m5(threshold, m5_dataset):
     y_train, X_train, y_test, X_test, fh, freq = m5_dataset
     y_pred = censored_model(lags=3, threshold=threshold, freq=freq)(
+        y=y_train, X=X_train, fh=fh, X_future=X_test
+    )
+    # Check column names
+    assert y_pred.columns == [*y_train.columns[:3], "threshold_proba"]
+    # Check dtypes
+    assert y_pred.dtypes == [pl.Categorical, pl.Date, pl.Float64, pl.Float64]
+    # Check score
+    score = (
+        rmsse(y_test, y_pred.select(y_train.columns[:3]), y_train=y_train)
+        .get_column("rmsse")
+        .mean()
+    )
+    assert score < 2
+
+
+def test_zero_inflated_model_on_m5(m5_dataset):
+    y_train, X_train, y_test, X_test, fh, freq = m5_dataset
+    y_pred = zero_inflated_model(lags=3, freq=freq)(
         y=y_train, X=X_train, fh=fh, X_future=X_test
     )
     # Check column names
