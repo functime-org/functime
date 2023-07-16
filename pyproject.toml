@@ -58,11 +58,14 @@ Homepage = "https://github.com/descendant-ai/functime"
 performance = ["scikit-learn-intelex"]
 test = [
     "coverage[toml]",
+    "fastapi",
+    "mlforecast",
     "pytest-benchmark",
     "pytest-memray",
     "pytest-timeout",
     "pytest",
-    "fastapi",
+    "skforecast",
+    "u8darts==0.24.0",
 ]
 doc = ["mkdocs", "mkdocs-material", "mkdocstrings-python"]
 

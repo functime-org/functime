@@ -51,6 +51,12 @@ def test_darts_m4(pd_m4_dataset, benchmark):
     benchmark(fit_predict)
 
 
+@pytest.mark.timeout(360)
+@pytest.mark.benchmark
+def test_skforecast_on_m4(pd_m4_dataset, benchmark):
+    pass
+
+
 @pytest.mark.benchmark
 def test_mlforecast_m5(pd_m5_dataset, benchmark):
     from joblib import cpu_count
