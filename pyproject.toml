@@ -46,6 +46,7 @@ dependencies = [
     "typing-extensions",
     "umap-learn",
     "xgboost",
+    "zarr"
 ]
 
 [project.scripts]
