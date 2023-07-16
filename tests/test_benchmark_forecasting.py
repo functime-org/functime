@@ -2,20 +2,35 @@ import logging
 from timeit import default_timer
 
 import pytest
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import MaxAbsScaler
+from sklearnex import patch_sklearn
+
+patch_sklearn()
+
+
+@pytest.fixture
+def regressor():
+    pipeline = Pipeline(
+        steps=[
+            ("scale", MaxAbsScaler()),
+            ("regress", LinearRegression(fit_intercept=True)),
+        ]
+    )
+    return pipeline
 
 
 # 6 mins timeout
 @pytest.mark.benchmark
-def test_mlforecast_m4(pd_m4_dataset, benchmark):
+def test_mlforecast_m4(pd_m4_dataset, benchmark, regressor):
     from joblib import cpu_count
     from mlforecast import MLForecast
-    from sklearn.linear_model import LinearRegression
 
     def fit_predict():
-        y_train, _, fh = pd_m4_dataset
-        entity_col, time_col = y_train.index.names
+        y_train, _, fh, entity_col, time_col = pd_m4_dataset
         model = MLForecast(
-            models=[LinearRegression(fit_intercept=True)],
+            models=[regressor],
             lags=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
             num_threads=cpu_count(),
         )
@@ -38,7 +53,7 @@ def test_darts_m4(pd_m4_dataset, benchmark):
     from darts.models import LinearRegressionModel
 
     def fit_predict():
-        y_train, _, fh = pd_m4_dataset
+        y_train, _, fh, _, entity_col, time_col = pd_m4_dataset
         entity_col, time_col = y_train.index.names
         darts_y_train = TimeSeries.from_group_dataframe(
             y_train, group_cols=entity_col, time_col=time_col
@@ -64,13 +79,12 @@ def test_mlforecast_m5(pd_m5_dataset, benchmark):
     from sklearn.linear_model import LinearRegression
 
     def fit_predict():
-        X_y_train, _, X_test, fh, freq = pd_m5_dataset
+        X_y_train, _, X_test, fh, entity_col, time_col = pd_m5_dataset
         entity_col, time_col = X_y_train.index.names
         model = MLForecast(
             models=[LinearRegression(fit_intercept=True)],
-            lags=[1, 2, 3],
+            lags=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
             num_threads=cpu_count(),
-            freq=freq,
         )
         start = default_timer()
         model.fit(
