@@ -25,6 +25,6 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install ".[test]"
+          python3 -m pip install ".[test,performance]"
       - name: Test local functions
         run: pytest tests --benchmark-disable
