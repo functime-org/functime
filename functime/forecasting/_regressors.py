@@ -13,12 +13,21 @@ from functime.preprocessing import PL_NUMERIC_COLS
 
 
 def _X_to_numpy(X: pl.DataFrame) -> np.ndarray:
-    X_arr = df_to_ndarray(X.select(pl.col(X.columns[2:]).cast(pl.Float32)))
+    X_arr = (
+        X.select(pl.col(X.columns[2:]).cast(pl.Float32))
+        .fill_null(strategy="mean")
+        .pipe(df_to_ndarray)
+    )
     return X_arr
 
 
 def _y_to_numpy(y: pl.DataFrame) -> np.ndarray:
-    return y.get_column(y.columns[-1]).cast(pl.Float32).to_numpy(zero_copy_only=True)
+    return (
+        y.get_column(y.columns[-1])
+        .cast(pl.Float32)
+        .fill_null(strategy="mean")
+        .to_numpy(zero_copy_only=True)
+    )
 
 
 class GradientBoostedTreeRegressor:
