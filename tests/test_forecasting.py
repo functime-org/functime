@@ -2,6 +2,7 @@ import cloudpickle
 import numpy as np
 import polars as pl
 import pytest
+from sklearnex import patch_sklearn
 
 from functime.forecasting import (  # ann,
     auto_elastic_net,
@@ -16,6 +17,9 @@ from functime.forecasting import (  # ann,
     zero_inflated_model,
 )
 from functime.metrics import rmsse, smape
+
+patch_sklearn()
+
 
 DEFAULT_LAGS = 12
 DIRECT_KWARGS = {"max_horizons": 28, "strategy": "direct"}
