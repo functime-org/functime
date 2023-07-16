@@ -7,7 +7,10 @@ from lightgbm import train as lgb_train
 
 from functime.base import Forecaster
 from functime.forecasting._ar import fit_autoreg
-from functime.forecasting._regressors import GradientBoostedTreeRegressor
+from functime.forecasting._regressors import (
+    FLAMLRegressor,
+    GradientBoostedTreeRegressor,
+)
 
 
 def _prepare_kwargs(kwargs):
@@ -70,40 +73,26 @@ def _lightgbm(weight_transform: Optional[Callable] = None, **kwargs):
     return regress
 
 
-def _flaml_lightgbm(
-    time_budget: Optional[int] = None,
-    max_iter: Optional[int] = None,
-    weight_transform: Optional[Callable] = None,
-    **kwargs
-):
+def _flaml_lightgbm(**kwargs):
     def regress(X: pl.DataFrame, y: pl.DataFrame):
-        from flaml import AutoML
-
-        tuner_kwargs = {
-            "time_budget": time_budget or 30,
-            "max_iter": max_iter or 30,
-            "metric": "rmse",
-            "estimator_list": ["lgbm"],
-            "task": "regression",
-            "split_type": "time",
+        # Fix estimator list to just lightgbm
+        custom_hp = kwargs.pop("custom_hp", {})
+        custom_lgbm_kwargs = (
+            {
+                param: value["domain"]
+                for param, value in custom_hp.get("lgbm", {}).items()
+            }
+            if "lgbm" in custom_hp
+            else {}
+        )
+        lgbm_kwargs = {
+            param: {"domain": value}
+            for param, value in _prepare_kwargs(custom_lgbm_kwargs).items()
         }
-        regressor_kwargs = _prepare_kwargs(kwargs)
-        tuner = AutoML(
-            **tuner_kwargs,
-            custom_hp={
-                "lgbm": {
-                    param: {"domain": value}
-                    for param, value in regressor_kwargs.items()
-                }
-            },
+        regressor = FLAMLRegressor(
+            **kwargs, estimator_list=["lgbm"], custom_hp={"lgbm": lgbm_kwargs}
         )
-        sample_weights = None
-        if weight_transform is not None:
-            sample_weights = y.pipe(weight_transform)
-        tuner.fit(
-            X_train=X.to_pandas(), y_train=y.to_pandas(), sample_weight=sample_weights
-        )
-        return tuner
+        return regressor.fit(X=X, y=y)
 
     return regress
 
