@@ -28,7 +28,7 @@ classifiers = [
 dependencies = [
     "catboost",
     "dask",
-    "flaml==1.2.4",
+    "flaml[automl]==1.2.4",
     "holidays",
     "joblib",
     "kaleido",
