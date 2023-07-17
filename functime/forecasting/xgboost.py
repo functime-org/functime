@@ -59,6 +59,12 @@ def _xgboost(weight_transform: Optional[Callable] = None, **kwargs):
 
 
 class xgboost(Forecaster):
+    """Autoregressive XGBoost forecaster.
+
+    Reference:
+    https://xgboost.readthedocs.io/en/stable/python/python_api.html#module-xgboost.training
+    """
+
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         y_new = y.pipe(
             _enforce_label_constraint, objective=self.kwargs.get("objective")
