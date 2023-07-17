@@ -10,6 +10,7 @@ theme:
   features:
     - content.code.copy
     - content.tabs.link
+    - navigation.expand
 
 plugins:
   - mkdocstrings:
