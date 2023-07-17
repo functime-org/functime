@@ -1,5 +1,6 @@
 from typing import Callable, Optional, Union
 
+import numpy as np
 import polars as pl
 
 from functime.base import Forecaster
@@ -9,16 +10,28 @@ from functime.forecasting._reduction import make_reduction
 from functime.forecasting._regressors import CensoredRegressor, _X_to_numpy, _y_to_numpy
 
 
-def default_classify(X: pl.DataFrame, y: pl.DataFrame):
-    from sklearn.ensemble import RandomForestClassifier
+def default_regress(X: np.ndarray, y: np.ndarray):
+    from sklearn.ensemble import HistGradientBoostingRegressor
 
-    estimator = RandomForestClassifier()
-    estimator.fit(X=_X_to_numpy(X), y=_y_to_numpy(y))
+    estimator = HistGradientBoostingRegressor()
+    estimator.fit(X=X, y=y)
+    return estimator
+
+
+def default_classify(X: np.ndarray, y: np.ndarray):
+    from sklearn.ensemble import HistGradientBoostingClassifier
+
+    estimator = HistGradientBoostingClassifier()
+    estimator.fit(X=X, y=y)
     return estimator
 
 
 class censored_model(Forecaster):
-    """Censored forecaster in which the target variable is censored above or below a certain threshold."""
+    """Censored forecaster given `threshold` parameter (defaults to 0.0).
+
+    Two separate forecasters are fit above and below a certain threshold.
+    The forecasts are then combined using a binary classifier where: {0: "below_threshold", 1: "above_threshold"}.
+    """
 
     def __init__(
         self,
@@ -32,13 +45,14 @@ class censored_model(Forecaster):
         **kwargs
     ):
         self.threshold = threshold
-        self.regress = regress
-        self.classify = classify
+        self.regress = regress or default_regress
+        self.classify = classify or default_classify
         return super().__init__(
             freq=freq, lags=lags, max_horizons=max_horizons, strategy=strategy, **kwargs
         )
 
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+
         # 1. Fit classifier
         target_col = y.columns[-1]
         X_y_final = (
@@ -57,7 +71,9 @@ class censored_model(Forecaster):
                 X_y_final.select([*X_y_final.columns[:2], target_col]),
             ]
         )
-        fitted_classifier = self.classify(X=X_final, y=y_final)
+        fitted_classifier = self.classify(
+            X=_X_to_numpy(X_final), y=_y_to_numpy(y_final)
+        )
         # 2. Fit forecast model on non-zeros
         censored_regressor = CensoredRegressor(
             threshold=self.threshold,
