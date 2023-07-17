@@ -5,9 +5,7 @@ hide:
 
 `functime` supports both individual forecasters and AutoML forecasters.
 AutoML forecasters uses `FLAML` to optimize both hyperparameters and number of lagged dependent variables.
-`FLAML` is a [SOTA library](https://github.com/microsoft/FLAML) for AutoML and hyperparameter tuning using the CFO (Frugal Optimization for Cost-related Hyperparamters[^1]) algorithm.
-
-All individual forecasters (e.g. `lasso` / `xgboost`) and AutoML forecasters (e.g. `auto_lasso` and `auto_xgboost`) implement the following API.
+`FLAML` is a [SOTA library](https://github.com/microsoft/FLAML) for AutoML and hyperparameter tuning using the CFO (Frugal Optimization for Cost-related Hyperparamters[^1]) algorithm. All individual forecasters (e.g. `lasso` / `xgboost`) and AutoML forecasters (e.g. `auto_lasso` and `auto_xgboost`) implement the following API.
 
 ## `forecaster`
 
