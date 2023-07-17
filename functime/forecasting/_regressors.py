@@ -145,14 +145,14 @@ class StandardizedSklearnRegressor:
 
         # Fit pipeline
         pipeline = Pipeline(steps=steps)
-        with sklearn.config_context(assume_finite=True, skip_parameter_validation=True):
+        with sklearn.config_context(assume_finite=True):
             self.pipeline = pipeline.fit(X=_X_to_numpy(X), y=_y_to_numpy(y))
         return self
 
     def predict(self, X: pl.DataFrame) -> np.ndarray:
         # Defensive reordering X and cast boolean to 0, 1
         X = self._preproc_X(X)
-        with sklearn.config_context(assume_finite=True, skip_parameter_validation=True):
+        with sklearn.config_context(assume_finite=True):
             y_pred = self.pipeline.predict(_X_to_numpy(X))
         return y_pred
 
