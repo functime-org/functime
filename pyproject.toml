@@ -41,7 +41,7 @@ dependencies = [
     "pylance",
     "pynndescent==0.5.8",
     "rich>=12.0.0",
-    "scikit-learn",
+    "scikit-learn==1.2.2",
     "scipy",
     "typing-extensions",
     "umap-learn",
