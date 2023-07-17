@@ -19,7 +19,7 @@
 
 Want to use **functime** for seamless time-series predictive analytics across your data team?
 Looking for production-grade time-series AutoML in a [serverless](#serverless-deployment) Cloud deployment?
-Book a [15 minute discovery call](https://calendly.com/functime-indexhub) to learn more about `functime` Enterprise.
+Shoot Chris a message on [LinkedIn](https://www.linkedin.com/in/chrislohy/) to learn more about `functime` Enterprise.
 
 ## Highlights
 - **Fast:** Forecast 100,000 time series in seconds *on your laptop*
