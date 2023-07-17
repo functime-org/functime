@@ -193,7 +193,7 @@ outliers = (
 
 Temporal embeddings are a disruptive new technique for data mining with extremely large numbers of time-series.
 If you have an interesting use-case, we would love to hear from you!
-Let's chat over a [15 minute call](https://calendly.com/functime-indexhub).
+Let's chat over a [15 minute call](https://calendly.com/functime).
 
 ## How can I retrieve K-nearest embeddings quickly?
 
