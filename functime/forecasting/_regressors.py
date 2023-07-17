@@ -181,22 +181,29 @@ class CensoredRegressor:
         y_above = X_y_above.select([*idx_cols, target_col])
         X_above = X_y_above.select(pl.all().exclude(target_col))
         if threshold == 0:
-            self.regressors = self.regress(X_above, y_above), None
+            self.regressors = (
+                self.regress(_X_to_numpy(X_above), _y_to_numpy(y_above)),
+                None,
+            )
         else:
             X_y_below = X.join(y, on=idx_cols).filter(pl.col(target_col) <= threshold)
             y_below = X_y_below.select([*idx_cols, target_col])
             X_below = X_y_below.select(pl.all().exclude(target_col))
-            fitted_model_above = self.regress(X_above, y_above)
-            fitted_model_below = self.regress(X_below, y_below)
+            fitted_model_above = self.regress(
+                _X_to_numpy(X_above), _y_to_numpy(y_above)
+            )
+            fitted_model_below = self.regress(
+                _X_to_numpy(X_below), _y_to_numpy(y_below)
+            )
             self.regressors = fitted_model_above, fitted_model_below
         return self
 
     def predict(self, X: pl.DataFrame) -> np.ndarray:
         weights = self.predict_proba(_X_to_numpy(X))
         regress_above, regress_below = self.regressors
-        y_pred = weights[:, 1] * regress_above.predict(X)
+        y_pred = weights[:, 1] * regress_above.predict(_X_to_numpy(X))
         if abs(self.threshold) > 0:
-            y_pred += weights[:, 0] * regress_below.predict(X)
+            y_pred += weights[:, 0] * regress_below.predict(_X_to_numpy(X))
         return y_pred, weights[:, 1]
 
 

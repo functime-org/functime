@@ -251,7 +251,7 @@ def predict_recursive(
     y_pred = y_lag.select(pred_cols)
 
     if is_censored:
-        weights = pl.DataFrame(np.stack(weights, axis=1)).select(
+        weights = pl.DataFrame(np.stack(weights, axis=1).astype(np.float32)).select(
             pl.concat_list(pl.all()).alias("threshold_proba")
         )
         y_pred = pl.concat([y_pred, weights], how="horizontal")
@@ -313,7 +313,7 @@ def predict_direct(state, fh: int, X: Optional[pl.DataFrame] = None) -> pl.DataF
         .select([entity_col, target_col])
     )
     if is_censored:
-        weights = pl.DataFrame(np.stack(weights, axis=1)).select(
+        weights = pl.DataFrame(np.stack(weights, axis=1).astype()).select(
             pl.concat_list(pl.all()).alias("threshold_proba")
         )
         y_pred = pl.concat([y_pred, weights], how="horizontal")
