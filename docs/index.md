@@ -262,4 +262,4 @@ Our GitHub repo contains a growing number of time-series data stored as `parquet
 
 ## Contact Us
 
-Book a quick 15 minute discovery call on [Calendly](https://calendly.com/functime-indexhub).
+Book a quick 15 minute discovery call on [Calendly](https://calendly.com/functime).
