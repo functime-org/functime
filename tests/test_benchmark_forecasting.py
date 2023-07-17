@@ -116,3 +116,34 @@ def test_mlforecast_m5(pd_m5_dataset, benchmark, regressor):
         return y_pred
 
     benchmark(fit_predict)
+
+
+@pytest.mark.benchmark
+def test_darts_m5(pd_m5_dataset, benchmark):
+    from darts import TimeSeries
+    from darts.models import LinearRegressionModel
+
+    def fit_predict():
+        X_y_train, _, X_test, fh, entity_col, time_col = pd_m5_dataset
+        feature_cols = [col for col in X_y_train.columns if col != "quantity_sold"]
+        darts_y_train = TimeSeries.from_group_dataframe(
+            X_y_train.loc[:, [entity_col, time_col, "quantity_sold"]],
+            group_cols=entity_col,
+            time_col=time_col,
+            freq="1d",
+        )
+        darts_X_train = TimeSeries.from_group_dataframe(
+            X_y_train.loc[:, feature_cols],
+            group_cols=entity_col,
+            time_col=time_col,
+            freq="1d",
+        )
+        darts_X_test = TimeSeries.from_group_dataframe(
+            X_test, group_cols=entity_col, time_col=time_col, freq="1d"
+        )
+        model = LinearRegressionModel(lags=12, use_static_covariates=False)
+        model.fit(series=darts_y_train, past_covariates=darts_X_train)
+        y_pred = model.predict(fh, series=darts_y_train, past_covariates=darts_X_test)
+        return y_pred
+
+    benchmark(fit_predict)
