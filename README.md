@@ -28,7 +28,7 @@ Shoot Chris a message on [LinkedIn](https://www.linkedin.com/in/chrislohy/) to l
 - **Exogenous features:** supported by every forecaster
 - **Backtesting** with expanding window and sliding window splitters
 - **AutoML**: Automated lags and hyperparameter tuning using [`FLAML`](https://github.com/microsoft/FLAML)
-- **Censored model** for zero-inflated forecasts
+- **Censored model:** for zero-inflated and thresholding forecasts
 
 ## Getting Started
 Install `functime` via the [pip](https://pypi.org/project/functime) package manager.
