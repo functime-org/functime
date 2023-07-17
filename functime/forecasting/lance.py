@@ -51,8 +51,7 @@ class ANNRegressor:
             )  # Defensive
             .select(
                 pl.col(y.columns[-1]).alias("label"),
-                pl.col(feat_cols[0])
-                .list.concat(feat_cols[1:])
+                pl.concat_list(feat_cols)
                 .alias("emb")
                 .cast(pl.Array(width=n_dims, inner=pl.Float32)),
             )
@@ -76,9 +75,7 @@ class ANNRegressor:
         dataset = self._dataset
         feat_cols = X.columns[2:]
         embs = (
-            X.select(pl.col(feat_cols[0]).list.concat(feat_cols[1:]).alias("emb"))
-            .get_column("emb")
-            .to_list()
+            X.select(pl.concat_list(feat_cols).alias("emb")).get_column("emb").to_list()
         )
         labels = np.zeros(shape=X.shape[0], dtype=np.float32)
         # TODO: Parallelize
