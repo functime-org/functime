@@ -15,6 +15,6 @@ All individual forecasters (e.g. `lasso` / `xgboost`) and AutoML forecasters (e.
 
 ## `auto_forecaster`
 
-::: functime.base.forecaster.AutoForecaster
+::: functime.forecasting.automl.AutoForecaster
 
 [^1]: https://arxiv.org/abs/2005.01571
