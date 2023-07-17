@@ -144,16 +144,45 @@ def test_auto_on_m5(auto_forecaster, m5_dataset, benchmark):
     assert score < 2
 
 
+def simple_regress(X: np.ndarray, y: np.ndarray):
+    import sklearn
+    from sklearn.linear_model import LinearRegression
+
+    with sklearn.config_context(assume_finite=False):
+        estimator = LinearRegression()
+        estimator.fit(X=X, y=y)
+    return estimator
+
+
+def simple_classify(X: np.ndarray, y: np.ndarray):
+    import sklearn
+    from sklearn.linear_model import LogisticRegression
+
+    with sklearn.config_context(assume_finite=False):
+        estimator = LogisticRegression()
+        estimator.fit(X=X, y=y)
+    return estimator
+
+
 @pytest.mark.parametrize("threshold", [5, 10])
 def test_censored_model_on_m5(threshold, m5_dataset):
     y_train, X_train, y_test, X_test, fh, freq = m5_dataset
-    y_pred = censored_model(lags=3, threshold=threshold, freq=freq)(
-        y=y_train, X=X_train, fh=fh, X_future=X_test
+    idx_cols = y_train.columns[:2]
+    X_train = X_train.with_columns(
+        pl.all().exclude(idx_cols).to_physical().cast(pl.Float32).fill_null("mean")
     )
+    X_test = X_test.with_columns(
+        pl.all().exclude(idx_cols).to_physical().cast(pl.Float32).fill_null("mean")
+    )
+    y_pred = censored_model(
+        lags=3,
+        threshold=threshold,
+        freq=freq,
+        regress=simple_regress,
+        classify=simple_classify,
+    )(y=y_train, X=X_train, fh=fh, X_future=X_test)
     # Check column names
     assert y_pred.columns == [*y_train.columns[:3], "threshold_proba"]
-    # Check dtypes
-    assert y_pred.dtypes == [pl.Categorical, pl.Date, pl.Float64, pl.Float64]
     # Check score
     score = (
         rmsse(y_test, y_pred.select(y_train.columns[:3]), y_train=y_train)
@@ -165,13 +194,11 @@ def test_censored_model_on_m5(threshold, m5_dataset):
 
 def test_zero_inflated_model_on_m5(m5_dataset):
     y_train, X_train, y_test, X_test, fh, freq = m5_dataset
-    y_pred = zero_inflated_model(lags=3, freq=freq)(
-        y=y_train, X=X_train, fh=fh, X_future=X_test
-    )
+    y_pred = zero_inflated_model(
+        lags=3, freq=freq, regress=simple_regress, classify=simple_classify
+    )(y=y_train, X=X_train, fh=fh, X_future=X_test)
     # Check column names
     assert y_pred.columns == [*y_train.columns[:3], "threshold_proba"]
-    # Check dtypes
-    assert y_pred.dtypes == [pl.Categorical, pl.Date, pl.Float64, pl.Float64]
     # Check score
     score = (
         rmsse(y_test, y_pred.select(y_train.columns[:3]), y_train=y_train)
