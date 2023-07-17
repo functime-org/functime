@@ -46,19 +46,17 @@ def test_mlforecast_m4(pd_m4_dataset, benchmark, regressor):
     benchmark(fit_predict)
 
 
-@pytest.mark.timeout(360)
 @pytest.mark.benchmark
 def test_darts_m4(pd_m4_dataset, benchmark):
     from darts import TimeSeries
     from darts.models import LinearRegressionModel
 
     def fit_predict():
-        y_train, _, fh, _, entity_col, time_col = pd_m4_dataset
-        entity_col, time_col = y_train.index.names
+        y_train, _, fh, entity_col, time_col = pd_m4_dataset
         darts_y_train = TimeSeries.from_group_dataframe(
             y_train, group_cols=entity_col, time_col=time_col
         )
-        model = LinearRegressionModel(lags=12)
+        model = LinearRegressionModel(lags=12, use_static_covariates=False)
         model.fit(darts_y_train)
         y_pred = model.predict(fh, series=darts_y_train)
         return y_pred
@@ -68,8 +66,24 @@ def test_darts_m4(pd_m4_dataset, benchmark):
 
 @pytest.mark.timeout(360)
 @pytest.mark.benchmark
-def test_skforecast_on_m4(pd_m4_dataset, benchmark):
-    pass
+def test_skforecast_m4(pd_m4_dataset, benchmark, regressor):
+    from skforecast.ForecasterAutoregMultiSeries import ForecasterAutoregMultiSeries
+
+    y_train, _, fh, entity_col, time_col = pd_m4_dataset
+    y_train = (
+        y_train.set_index([entity_col, time_col])
+        .unstack(level=entity_col)
+        .fillna(method="ffill")
+        .fillna(method="bfill")
+    )
+
+    def fit_predict():
+        model = ForecasterAutoregMultiSeries(regressor=regressor, lags=12)
+        model.fit(series=y_train)
+        y_pred = model.predict(steps=fh)
+        return y_pred
+
+    benchmark(fit_predict)
 
 
 @pytest.mark.benchmark
