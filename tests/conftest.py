@@ -172,7 +172,8 @@ def m4_dataset(request):
                 )
             )
             .with_columns(pl.col("series").str.replace(" ", ""))
-            .sort(by="series")
+            .sort(["series", "time"])
+            .set_sorted(["series", "time"])
         )
 
     dataset_id, fh = request.param
@@ -229,13 +230,13 @@ def pd_m4_dataset(m4_dataset):
 
 @pytest.fixture
 def pd_m5_dataset(m5_dataset):
-    y_train, X_train, y_test, X_test, fh, freq = m5_dataset
+    y_train, X_train, y_test, X_test, fh, _ = m5_dataset
     entity_col, time_col = y_train.columns[:2]
     pd_y_train = y_train.collect().to_pandas()
     pd_y_test = y_test.collect().to_pandas()
     pd_X_train = X_train.collect().to_pandas()
     pd_X_test = X_test.collect().to_pandas()
-    pd_X_y = pd_y_train.join(pd_X_train, how="left", on=[entity_col, time_col])
+    pd_X_y = pd_y_train.merge(pd_X_train, how="left", on=[entity_col, time_col])
     return pd_X_y, pd_y_test, pd_X_test, fh, entity_col, time_col
 
 

@@ -87,25 +87,24 @@ def test_skforecast_m4(pd_m4_dataset, benchmark, regressor):
 
 
 @pytest.mark.benchmark
-def test_mlforecast_m5(pd_m5_dataset, benchmark):
+def test_mlforecast_m5(pd_m5_dataset, benchmark, regressor):
     from joblib import cpu_count
     from mlforecast import MLForecast
-    from sklearn.linear_model import LinearRegression
 
     def fit_predict():
         X_y_train, _, X_test, fh, entity_col, time_col = pd_m5_dataset
-        entity_col, time_col = X_y_train.index.names
         model = MLForecast(
-            models=[LinearRegression(fit_intercept=True)],
-            lags=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            models=[regressor],
+            lags=[1, 2, 3],
             num_threads=cpu_count(),
+            freq="1d",
         )
         start = default_timer()
         model.fit(
             X_y_train.reset_index(),
             id_col=entity_col,
             time_col=time_col,
-            target_col=X_y_train.columns[0],
+            target_col="quantity_sold",
             keep_last_n=24,
         )
         train_time = default_timer() - start
