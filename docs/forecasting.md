@@ -1,9 +1,8 @@
-# Forecasting Walkthrough
+# Global Forecasting Walkthrough
 
-??? tip "Show me the code: `quickstart.py`"
+Want to go straight into code? Run through every forecasting example with the following script:
 
-    Want to go straight into code?
-    Run through every example in "Quick Start" with the following script:
+??? tip "`quickstart.py`"
 
     ```python
     --8<-- "docs/code/quickstart.py"
@@ -38,7 +37,7 @@ X_train, X_test = train_test_split(test_size)(X)
     The second column must represent the `time` dimension as an integer, `pl.Date`, or `pl.Datetime` series.
     Remaining columns are considered as features.
 
-## Fit-Predict-Score
+## Fit / Predict / Score
 
 `functime` forecasters expose sklearn-compatible `.fit` and `.predict` methods.
 `functime.metrics` contains a comprehensive range of scoring functions for both point and probablistic forecasts.
@@ -189,11 +188,43 @@ forecaster.fit(y=y_train, X=X_train)
 y_pred = forecaster.predict(fh=3, X=X_test)
 ```
 
-### Seasonality
+## Seasonality
+
+### Indicators
+
+To model seasonality effects in global forecasting, we recommend using one-hot encoded features of datetime and calendar effects:
+
+  - minute: 1, 2, ..., 60 (in a day)
+  - hour: 1, 2, ..., 24 (in a day)
+  - day: 1, 2, ..., 31 (in a month)
+  - weekday: 1, 2, ..., 7 (in a week)
+  - week: 1, 2,..., 52 (in a year)
+  - quarter: 1, 2, ..., 4 (in a year)
+  - year: 1999, 2000, ..., 2023 (any year)
+
+```python
+from functime.feature_extraction import add_calendar_effects
+
+X_new = X.pipe(add_calendar_effects(["month"])).collect()
+```
 
 ### Holidays / Special Events
 
-###
+`functime` has a wrapper function around the [`holidays`](https://pypi.org/project/holidays/) Python package to generate dummy variables for special events.
+
+```python
+from functime.feature_extraction import add_holiday_effects
+
+north_america_holidays = add_holiday_effects(
+    country_codes=["US", "CA"],
+    freq="1mo"
+)
+X_new = X.pipe(north_america_holidays).collect()
+```
+
+### Fourier
+
+Coming soon.
 
 ## Forecast Strategies
 
@@ -217,6 +248,55 @@ y_pred_ens = ensemble_model(y=y_train, fh=3)
 ```
 where `max_horizons` is the number of models specific to each forecast horizon.
 For example, if `max_horizons = 12`, then twelve forecasters are fitted in total: the 1-step ahead forecast, the 2-steps ahead forecast, the 3-steps ahead forecast, ..., and the final 12-steps ahead forecast.
+
+## Censored Forecasts
+
+Most real-world datasets in e-commerce and logistics contain zeros in the target variable: e.g. periods with no sales. To address this problem, `functime` implements the `censored_model` forecaster, which trains a binary classifier and two forecasters. The binary classifier predicts the probability that a forecast falls above or below a certain threshold (e.g. zero). The final forecast is a weighted average of the above and below threshold forecasters.
+
+```python
+from functime.forecasting import censored_model
+
+# Load the M5 competition Walmart dataset
+y_train = pl.read_parquet("data/m5_y_train.parquet")
+X_train = pl.read_parquet("data/m5_X_train.parquet")
+
+# Fit-predict given threshold = 0.0
+y_pred = censored_model(lags=3, threshold=0.0, freq="1d")(
+    y=y_train, X=X_train, fh=fh, X_future=X_test
+)
+```
+
+!!! tip "Custom Classfier and Regressors"
+
+    By default, `censored_model` uses sklearn's `HistGradientBoostingClassifier` and `HistGradientBoostingRegressor`.
+    To use your own classifier and regressor, implement a function that takes `X` and `y` numpy arrays and returns a fitted sklearn-compatible classifier and regressor.
+
+    ```python
+    from sklearn.neural_network import MLPRegressor
+    from sklearn.ensemble import RandomForestClassifier
+
+    def regress(X: np.ndarray, y: np.ndarray):
+        estimator = MLPRegressor()
+        estimator.fit(X=_X_to_numpy(X), y=_y_to_numpy(y))
+        return estimator
+
+
+    def classify(X: np.ndarray, y: np.ndarray):
+        estimator = RandomForestClassifier()
+        estimator.fit(X=_X_to_numpy(X), y=_y_to_numpy(y))
+        return estimator
+
+
+    # Censored model with custom classifier and regressor
+    forecaster = censored_model(
+        lags=3,
+        threshold=0.0,
+        freq="1d",
+        classify=classify,
+        regress=regress
+    )
+    y_pred = forecaster(y=y_train, X=X_train, fh=fh, X_future=X_test)
+    ```
 
 ## AutoML
 
@@ -246,6 +326,7 @@ y_pred = auto_linear_model(min_lags=20, max_lags=24, freq="1mo")(
 ```
 
 ### Hyperparameter Tuning
+
 `auto_{model}` forecasters automatically select the optimal number of lags via cross-validation.
 These forecasters conduct a search over possible models within `min_lags` and `max_lags`.
 The best model is the model with the lowest average RMSE (root mean squared error) across splits.

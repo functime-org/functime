@@ -28,6 +28,7 @@ preprocessing, feature extraction, time-series cross-validation / splitters, bac
 - **Probablistic forecasts** via quantile regression and conformal prediction
 - **Forecast metrics** (e.g. MASE, SMAPE, CRPS) for scoring in parallel
 - Supports **recursive and direct** forecast strategies
+- **Censored model** for zero-inflated forecasts
 
 View the [full walkthrough](forecasting.md) on forecasting with `functime`.
 
