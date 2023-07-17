@@ -56,6 +56,12 @@ def _elastic_net(**kwargs):
 
 
 class linear_model(Forecaster):
+    """Autoregressive linear forecaster.
+
+    Reference:
+    https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html
+    """
+
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         kwargs = self.kwargs
         # Check dummy variable trap
@@ -80,6 +86,12 @@ class linear_model(Forecaster):
 
 
 class lasso(Forecaster):
+    """Autoregressive LASSO forecaster.
+
+    Reference:
+    https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html#sklearn.linear_model.Lasso
+    """
+
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         regress = _lasso(**self.kwargs)
         return fit_autoreg(
@@ -93,6 +105,12 @@ class lasso(Forecaster):
 
 
 class ridge(Forecaster):
+    """Autoregressive Ridge forecaster.
+
+    Reference:
+    https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html#sklearn.linear_model.Ridge
+    """
+
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         regress = _ridge(**self.kwargs)
         return fit_autoreg(
@@ -106,6 +124,12 @@ class ridge(Forecaster):
 
 
 class elastic_net(Forecaster):
+    """Autoregressive ElasticNet forecaster.
+
+    Reference:
+    https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ElasticNet.html#sklearn.linear_model.ElasticNet
+    """
+
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         regress = _elastic_net(**self.kwargs)
         return fit_autoreg(
