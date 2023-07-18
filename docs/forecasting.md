@@ -409,7 +409,7 @@ forecaster = auto_lightgbm(
 forecaster.fit(y=y_train)
 
 # Get best lags and model hyperparameters
-best_params = forecast.best_params
+best_params = forecaster.best_params
 ```
 
 ## Backtesting
