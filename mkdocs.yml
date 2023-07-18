@@ -39,6 +39,7 @@ nav:
   - Installation: installation.md
   - Forecasting: forecasting.md
   - Embeddings: embeddings.md
+  - Cloud: cloud.md
   - API Reference:
     - forecasting: ref/forecasting.md
     - preprocessing: ref/preprocessing.md
