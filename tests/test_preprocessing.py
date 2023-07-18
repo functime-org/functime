@@ -161,11 +161,12 @@ def test_pd_roll(pd_X, stats, window_sizes, benchmark):
 
 
 def test_lag(pd_X, lagged_pd_dataframe, benchmark):
-    X = pl.from_pandas(pd_X.reset_index()).lazy()
+    X = pl.from_pandas(pd_X.reset_index())
     lags, df = lagged_pd_dataframe
-    result = benchmark(lambda: lag(lags=lags)(X=X).collect())
-    expected = df.reset_index().loc[:, result.columns]
-    pd.testing.assert_frame_equal(result.to_pandas(), expected)
+    entity_col = X.columns[0]
+    result = benchmark(lambda: lag(lags=lags)(X=X.lazy()).collect()).sort(entity_col)
+    expected = df.dropna().reset_index().loc[:, result.columns]
+    pl.testing.assert_frame_equal(result, pl.DataFrame(expected))
 
 
 def test_roll(pd_X, rolling_pd_dataframe, benchmark):
@@ -175,8 +176,8 @@ def test_roll(pd_X, rolling_pd_dataframe, benchmark):
         lambda: roll(window_sizes=window_sizes, stats=stats, freq="1d")(X=X).collect()
     )
     expected = df.reset_index().loc[:, result.columns]
-    pd.testing.assert_frame_equal(
-        result.to_pandas(), expected, check_exact=False, rtol=0.01
+    pl.testing.assert_frame_equal(
+        result, pl.DataFrame(expected), check_exact=False, rtol=0.01
     )
 
 
