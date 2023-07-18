@@ -479,16 +479,17 @@ def boxcox(method: str = "mle"):
             PL_NUMERIC_COLS(entity_col, time_col)
             .apply(lambda x: boxcox_normmax(x, method=method))
             .cast(pl.Float64())
+            .suffix("__lmbd")
         )
         # Step 2. Transform
         cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).columns
-        X_new = X.join(lmbds, on=entity_col, how="left", suffix="_lmbd").select(
+        X_new = X.join(lmbds, on=entity_col, how="left").select(
             idx_cols
             + [
-                pl.when(pl.col(f"{col}_lmbd") == 0)
+                pl.when(pl.col(f"{col}__lmbd") == 0)
                 .then(pl.col(col).log())
                 .otherwise(
-                    (pl.col(col) ** pl.col(f"{col}_lmbd") - 1) / pl.col(f"{col}_lmbd")
+                    (pl.col(col) ** pl.col(f"{col}__lmbd") - 1) / pl.col(f"{col}__lmbd")
                 )
                 for col in cols
             ]
@@ -500,14 +501,14 @@ def boxcox(method: str = "mle"):
         idx_cols = X.columns[:2]
         lmbds = state.artifacts["lmbds"]
         cols = X.select(PL_NUMERIC_COLS(state.time)).columns
-        X_new = X.join(lmbds, on=X.columns[0], how="left", suffix="_lmbd").select(
+        X_new = X.join(lmbds, on=X.columns[0], how="left", suffix="__lmbd").select(
             idx_cols
             + [
-                pl.when(pl.col(f"{col}_lmbd") == 0)
+                pl.when(pl.col(f"{col}__lmbd") == 0)
                 .then(pl.col(col).exp())
                 .otherwise(
-                    (pl.col(f"{col}_lmbd") * pl.col(col) + 1)
-                    ** (1 / pl.col(f"{col}_lmbd"))
+                    (pl.col(f"{col}__lmbd") * pl.col(col) + 1)
+                    ** (1 / pl.col(f"{col}__lmbd"))
                 )
                 for col in cols
             ]
