@@ -166,7 +166,7 @@ def test_lag(pd_X, lagged_pd_dataframe, benchmark):
     entity_col = X.columns[0]
     result = benchmark(lambda: lag(lags=lags)(X=X.lazy()).collect()).sort(entity_col)
     expected = df.dropna().reset_index().loc[:, result.columns]
-    pl.testing.assert_frame_equal(result, pl.DataFrame(expected))
+    assert_frame_equal(result, pl.DataFrame(expected))
 
 
 def test_roll(pd_X, rolling_pd_dataframe, benchmark):
@@ -176,9 +176,7 @@ def test_roll(pd_X, rolling_pd_dataframe, benchmark):
         lambda: roll(window_sizes=window_sizes, stats=stats, freq="1d")(X=X).collect()
     )
     expected = df.reset_index().loc[:, result.columns]
-    pl.testing.assert_frame_equal(
-        result, pl.DataFrame(expected), check_exact=False, rtol=0.01
-    )
+    assert_frame_equal(result, pl.DataFrame(expected), check_exact=False, rtol=0.01)
 
 
 @pytest.mark.parametrize(
@@ -278,13 +276,8 @@ def test_boxcox(pd_X):
         lambda x: np.concatenate(model.fit_transform(x.values.reshape(-1, 1)))
     )
     X = pl.from_pandas(pd_X.reset_index()).lazy()
-    transform = boxcox()
-    X_new = transform(X=X)
-    pd.testing.assert_frame_equal(
-        X_new.collect().to_pandas(),
-        expected.reset_index(),
-        check_dtype=False,
-        check_categorical=False,
-    )
-    X_original = transform.invert(X_new)
+    transformer = boxcox()
+    X_new = X.pipe(transformer).collect()
+    assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()))
+    X_original = X_new.pipe(transformer.invert)
     assert_frame_equal(X_original, X, check_dtype=False)
