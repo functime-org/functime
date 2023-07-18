@@ -23,7 +23,7 @@ def regressor():
 
 # 6 mins timeout
 @pytest.mark.benchmark
-def test_mlforecast_m4(pd_m4_dataset, benchmark, regressor):
+def test_mlforecast_on_m4(pd_m4_dataset, benchmark, regressor):
     from joblib import cpu_count
     from mlforecast import MLForecast
 
@@ -47,7 +47,7 @@ def test_mlforecast_m4(pd_m4_dataset, benchmark, regressor):
 
 
 @pytest.mark.benchmark
-def test_darts_m4(pd_m4_dataset, benchmark):
+def test_darts_on_m4(pd_m4_dataset, benchmark):
     from darts import TimeSeries
     from darts.models import LinearRegressionModel
 
@@ -66,7 +66,7 @@ def test_darts_m4(pd_m4_dataset, benchmark):
 
 @pytest.mark.timeout(360)
 @pytest.mark.benchmark
-def test_skforecast_m4(pd_m4_dataset, benchmark, regressor):
+def test_skforecast_on_m4(pd_m4_dataset, benchmark, regressor):
     from skforecast.ForecasterAutoregMultiSeries import ForecasterAutoregMultiSeries
 
     y_train, _, fh, entity_col, time_col = pd_m4_dataset
@@ -87,7 +87,7 @@ def test_skforecast_m4(pd_m4_dataset, benchmark, regressor):
 
 
 @pytest.mark.benchmark
-def test_mlforecast_m5(pd_m5_dataset, benchmark, regressor):
+def test_mlforecast_on_m5(pd_m5_dataset, benchmark, regressor):
     from joblib import cpu_count
     from mlforecast import MLForecast
 
@@ -119,7 +119,7 @@ def test_mlforecast_m5(pd_m5_dataset, benchmark, regressor):
 
 
 @pytest.mark.benchmark
-def test_darts_m5(pd_m5_dataset, benchmark):
+def test_darts_on_m5(pd_m5_dataset, benchmark):
     from darts import TimeSeries
     from darts.models import LinearRegressionModel
 
