@@ -11,14 +11,16 @@ def auto_umap(
     min_dist: float = 0.1,
     random_state: Optional[int] = None,
 ) -> np.ndarray:
+    import sklearn
     import umap
 
-    model = umap.UMAP(
-        n_components=n_dims,
-        n_neighbors=n_neighbors,
-        min_dist=min_dist,
-        metric="manhattan",
-        random_state=random_state,
-    )
-    embs = model.fit_transform(X=X, y=y)
+    with sklearn.config_context(assume_finite=True):
+        model = umap.UMAP(
+            n_components=n_dims,
+            n_neighbors=n_neighbors,
+            min_dist=min_dist,
+            metric="manhattan",
+            random_state=random_state,
+        )
+        embs = model.fit_transform(X=X, y=y)
     return embs
