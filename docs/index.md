@@ -34,7 +34,8 @@ View the [full walkthrough](forecasting.md) on forecasting with `functime`.
 
 ## Embeddings
 
-Only available on `functime` Enterprise
+Currently in closed-beta for `functime` Cloud.
+Have an interesting use-case? Contact us at [Calendly](https://calendly.com/functime).
 
 Temporal embeddings measure the relatedness of time-series.
 Embeddings are more accurate and efficient compared to statistical methods (e.g. Catch22) for characteristing time-series.[^1]
@@ -122,96 +123,6 @@ y_pred = lightgbm(freq="1mo", lags=24)(y=y_train, fh=3)
 
 # Score forecasts in parallel
 scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
-```
-### Classification
-
-Only available on `functime` Enterprise.
-
-The following dataset represents velocity measurements from two gunslingers (label 1 and label 2) over 150 time periods (columns t0, t1, ..., t149) over 75 trials (rows).
-In this example, we assign each sequence of measurement to one of the two gunsligners.
-
-```python
-import polars as pl
-import functime
-from sklearn.linear_model import RidgeClassifierCV
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score
-from sklearn.pipeline import make_pipeline
-
-# Load GunPoint dataset (150 observations, 150 timestamps)
-X_y_train = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/gunpoint_train.parquet")
-X_y_test = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/gunpoint_test.parquet")
-
-# Train-test split
-X_train, y_train = (
-    X_y_train.select(pl.all().exclude("label")),
-    X_y_train.select("label")
-)
-X_test, y_test = (
-    X_y_test.select(pl.all().exclude("label")),
-    X_y_test.select("label")
-)
-
-X_train_embs = functime.embeddings.embed(X_train)
-
-# Fit classifier on the embeddings
-classifier = make_pipeline(
-    StandardScaler(with_mean=False),
-    RidgeClassifierCV(alphas=np.logspace(-3, 3, 10)),
-)
-classifier.fit(X_train_embs, y_train)
-
-# Predict and
-X_test_embs = embed(X_test)
-labels = classifier.predict(X_test_embs)
-accuracy = accuracy_score(predictions, y_test)
-```
-
-### Clustering
-
-Only available on `functime` Enterprise.
-
-In this example, we cluster S&P 500 companies into groups with similar price patterns.
-
-```python
-import functime
-import polars as pl
-from hdbscan import HDBSCAN
-from umap import UMAP
-from functime.preprocessing import roll
-
-# Load S&P500 panel data from 2022-06-01 to 2023-06-01
-# Columns: ticker, time, price
-y = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/sp500.parquet")
-
-# Reduce noise by smoothing the time series using
-# functime's `roll` function: 60-days moving average
-y_ma_60 = (
-    y.pipe(roll(window_sizes=[60], stats=["mean"], freq="1d"))
-    .drop_nulls()
-    # Pivot from panel to wide format
-    .pivot(
-        values="price__rolling_mean_60",
-        columns="time",
-        index="ticker"
-    )
-    # Remember all functime transforms are lazy!
-    .collect()
-)
-
-# Create embeddings
-embeddings = functime.embeddings.embed(y_ma_60)
-
-# Reduce dimensionality with UMAP
-reducer = UMAP(n_components=500, n_neighbors=10, metric="manhattan")
-umap_embeddings = reducer.fit_transform(embeddings)
-
-# Cluster with HDBSCAN
-clusterer = HDBSCAN(metric="minkowski", p=1)
-estimator.fit(X)
-
-# Get predicted cluster labels
-labels = estimator.predict(X)
 ```
 
 ### Splitters

@@ -19,7 +19,7 @@
 
 Want to use **functime** for seamless time-series predictive analytics across your data team?
 Looking for production-grade time-series AutoML in a [serverless](#serverless-deployment) Cloud deployment?
-Shoot Chris a message on [LinkedIn](https://www.linkedin.com/in/chrislohy/) to learn more about `functime` Enterprise.
+Shoot Chris a message on [LinkedIn](https://www.linkedin.com/in/chrislohy/) to learn more about `functime` Cloud.
 
 ## Highlights
 - **Fast:** Forecast 100,000 time series in seconds *on your laptop*
@@ -62,71 +62,6 @@ y_pred = lightgbm(freq="1mo", lags=24)(y=y_train, fh=3)
 
 # Score forecasts in parallel
 scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
-```
-
-### Classification
-
-Only available on `functime` Enterprise.
-
-```python
-import polars as pl
-import functime
-from sklearn.linear_model import RidgeClassifierCV
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score
-from sklearn.pipeline import make_pipeline
-
-# Load GunPoint dataset (150 observations, 150 timestamps)
-X_y_train = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/gunpoint_train.parquet")
-X_y_test = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/gunpoint_test.parquet")
-
-# Train-test split
-X_train, y_train = X_y_train.select(pl.all().exclude("label")), X_y_train.select("label")
-X_test, y_test = X_y_test.select(pl.all().exclude("label")), X_y_test.select("label")
-
-X_train_embs = functime.embeddings.embed(X_train)
-
-# Fit classifier on the embeddings
-classifier = make_pipeline(
-    StandardScaler(with_mean=False),
-    RidgeClassifierCV(alphas=np.logspace(-3, 3, 10)),
-)
-classifier.fit(X_train_embs, y_train)
-
-# Predict and
-X_test_embs = embed(X_test)
-labels = classifier.predict(X_test_embs)
-accuracy = accuracy_score(predictions, y_test)
-```
-
-### Clustering
-
-Only available on `functime` Enterprise.
-
-```python
-import functime
-import polars as pl
-from hdbscan import HDBSCAN
-from umap import UMAP
-from functime.preprocessing import roll
-
-# Load S&P500 panel data from 2022-06-01 to 2023-06-01
-# Columns: ticker, time, price
-y = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/sp500.parquet")
-
-# Create embeddings
-embeddings = functime.embeddings.embed(y_ma_60)
-
-# Reduce dimensionality with UMAP
-reducer = UMAP(n_components=500, n_neighbors=10, metric="manhattan")
-umap_embeddings = reducer.fit_transform(embeddings)
-
-# Cluster with HDBSCAN
-clusterer = HDBSCAN(metric="minkowski", p=1)
-estimator.fit(X)
-
-# Get predicted cluster labels
-labels = estimator.predict(X)
 ```
 
 ## Serverless Deployment
