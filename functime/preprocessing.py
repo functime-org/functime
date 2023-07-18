@@ -352,9 +352,7 @@ def impute(
     def method_to_expr(entity_col, time_col):
         """Fill-in methods."""
         return {
-            "mean": PL_NUMERIC_COLS(entity_col, time_col).fill_null(
-                PL_NUMERIC_COLS(entity_col, time_col).mean().over(entity_col)
-            ),
+            "mean": PL_NUMERIC_COLS(entity_col, time_col).fill_null(strategy="mean"),
             "median": PL_NUMERIC_COLS(entity_col, time_col).fill_null(
                 PL_NUMERIC_COLS(entity_col, time_col).median().over(entity_col)
             ),
