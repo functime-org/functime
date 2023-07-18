@@ -196,11 +196,10 @@ def test_impute(sklearn_method, functime_method, fill_value, pd_X):
     numeric_cols = pd_X.select_dtypes(include=["float"]).columns
     model = SimpleImputer(strategy=sklearn_method, fill_value=fill_value)
     expected = model.fit_transform(pd_X[numeric_cols])
-
     X = pl.from_pandas(pd_X.reset_index()).lazy()
-    transform = impute(method=functime_method)
-    result = transform(X=X).collect().to_numpy()
-
+    result = (
+        X.pipe(impute(method=functime_method)).drop(X.columns[:2]).collect().to_numpy()
+    )
     np.testing.assert_array_equal(result, expected)
 
 
@@ -216,33 +215,27 @@ def test_impute_fill(dtype, sklearn_method, pd_X):
     pd_X = pd_X.astype({col: dtype for col in numeric_cols}, errors="ignore")
     model = SimpleImputer(strategy=sklearn_method)
     expected = model.fit_transform(pd_X[numeric_cols])
-
     X = pl.from_pandas(pd_X.reset_index()).lazy()
     transform = impute(method="fill")
-    result = transform(X=X).collect().to_numpy()
-
+    result = X.pipe(transform).drop(X.columns[:2]).collect().to_numpy()
     np.testing.assert_array_equal(result, expected)
 
 
 def test_impute_ffill(pd_X):
     entity_col = pd_X.index.names[0]
     expected = pd_X.groupby(entity_col).ffill()
-
     X = pl.from_pandas(pd_X.reset_index()).lazy()
     transform = impute(method="ffill")
-    result = transform(X=X).collect().to_numpy()
-
+    result = X.pipe(transform).drop(X.columns[:2]).collect().to_numpy()
     np.testing.assert_array_equal(result, expected)
 
 
 def test_impute_bfill(pd_X):
     entity_col = pd_X.index.names[0]
     expected = pd_X.groupby(entity_col).bfill()
-
     X = pl.from_pandas(pd_X.reset_index()).lazy()
     transform = impute(method="bfill")
-    result = transform(X=X).collect().to_numpy()
-
+    result = X.pipe(transform).drop(X.columns[:2]).collect().to_numpy()
     np.testing.assert_array_equal(result, expected)
 
 
