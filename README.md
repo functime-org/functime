@@ -66,7 +66,8 @@ scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 
 ## Serverless Deployment
 
-Only available on `functime` Enterprise.
+Currently in closed-beta for `functime` Teams.
+Contact us for a demo via [Calendly](https://calendly.com/functime).
 
 Deploy and train forecasters the moment you call any `.fit` method.
 Run the `functime list` CLI command to list all deployed models.
