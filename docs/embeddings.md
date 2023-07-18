@@ -1,8 +1,7 @@
 # Temporal Embeddings
 
-Only available on `functime` enterprise.
-Have a use-case in mind? Book a 15 minute discovery call on [Calendly](https://calendly.com/functime).
-
+Currently in closed-beta for `functime` Cloud.
+Have an interesting use-case? Let's chat over a call on [Calendly](https://calendly.com/functime).
 ## What are embeddings?
 
 Temporal embeddings measure the relatedness of time-series.
