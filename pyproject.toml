@@ -44,7 +44,6 @@ dependencies = [
     "scikit-learn==1.2.2",
     "scipy",
     "typing-extensions",
-    "umap-learn",
     "xgboost",
     "zarr"
 ]
