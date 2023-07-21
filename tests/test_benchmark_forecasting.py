@@ -95,7 +95,7 @@ def test_mlforecast_on_m5(pd_m5_dataset, benchmark, regressor):
         X_y_train, _, X_test, fh, entity_col, time_col = pd_m5_dataset
         model = MLForecast(
             models=[regressor],
-            lags=[1, 2, 3],
+            lags=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
             num_threads=cpu_count(),
             freq="1d",
         )
@@ -113,37 +113,6 @@ def test_mlforecast_on_m5(pd_m5_dataset, benchmark, regressor):
         y_pred = model.predict(fh, dynamic_dfs=[X_test])
         forecast_time = default_timer() - start
         logging.info("🛎️ mlforecast inference time: %s", forecast_time)
-        return y_pred
-
-    benchmark(fit_predict)
-
-
-@pytest.mark.benchmark
-def test_darts_on_m5(pd_m5_dataset, benchmark):
-    from darts import TimeSeries
-    from darts.models import LinearRegressionModel
-
-    def fit_predict():
-        X_y_train, _, X_test, fh, entity_col, time_col = pd_m5_dataset
-        feature_cols = [col for col in X_y_train.columns if col != "quantity_sold"]
-        darts_y_train = TimeSeries.from_group_dataframe(
-            X_y_train.loc[:, [entity_col, time_col, "quantity_sold"]],
-            group_cols=entity_col,
-            time_col=time_col,
-            freq="1d",
-        )
-        darts_X_train = TimeSeries.from_group_dataframe(
-            X_y_train.loc[:, feature_cols],
-            group_cols=entity_col,
-            time_col=time_col,
-            freq="1d",
-        )
-        darts_X_test = TimeSeries.from_group_dataframe(
-            X_test, group_cols=entity_col, time_col=time_col, freq="1d"
-        )
-        model = LinearRegressionModel(lags=12, use_static_covariates=False)
-        model.fit(series=darts_y_train, past_covariates=darts_X_train)
-        y_pred = model.predict(fh, series=darts_y_train, past_covariates=darts_X_test)
         return y_pred
 
     benchmark(fit_predict)
