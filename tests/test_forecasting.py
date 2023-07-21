@@ -126,7 +126,6 @@ def test_forecaster_on_m5(forecaster, m5_dataset, benchmark):
     overall RMSSE (i.e. averaged across all time-series) is less than 2.
     """
     y_train, X_train, y_test, X_test, fh, freq = m5_dataset
-    forecaster.lags = 3
     y_pred = benchmark(
         lambda: forecaster(freq)(y=y_train, X=X_train, fh=fh, X_future=X_test)
     )
