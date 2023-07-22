@@ -108,7 +108,7 @@ def resample(freq: str, agg_method: str, impute_method: Union[str, int, float]):
             # positions are incorrectly swapped in lazy
             .select([entity_col, time_col, target_col])
             # Impute gaps after reindex
-            .pipe(impute(impute_method))
+            .pipe(experimental_impute(impute_method))
             # Defensive fill null with 0 for impute method `ffill`
             .fill_null(0)
         )
@@ -232,7 +232,7 @@ def roll(
 
 
 @transformer
-def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = True):
+def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = False):
     """
     Performs scaling and rescaling operations on the numeric columns of a DataFrame.
 
@@ -243,7 +243,7 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = True
     use_std : bool
         Whether to divide the numeric columns by the standard deviation. Defaults to True.
     rescale_bool : bool
-        Whether to rescale boolean columns to the range [-1, 1]. Defaults to True.
+        Whether to rescale boolean columns to the range [-1, 1]. Defaults to False.
     """
 
     if not (use_mean or use_std):
@@ -252,7 +252,7 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = True
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         idx_cols = X.columns[:2]
         entity_col, time_col = idx_cols
-        cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).columns
+        numeric_cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).columns
         boolean_cols = None
         _mean = None
         _std = None
@@ -266,7 +266,7 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = True
             mean_cols = [col for col in X.columns if col.endswith("_mean")]
             _mean = X.select([*idx_cols, *mean_cols])
             X = X.select(
-                idx_cols + [pl.col(col) - pl.col(f"{col}_mean") for col in cols]
+                idx_cols + [pl.col(col) - pl.col(f"{col}_mean") for col in numeric_cols]
             )
         if use_std:
             X = X.with_columns(
@@ -278,17 +278,14 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = True
             std_cols = [col for col in X.columns if col.endswith("_std")]
             _std = X.select([*idx_cols, *std_cols])
             X = X.select(
-                idx_cols + [pl.col(col) / pl.col(f"{col}_std") for col in cols]
+                idx_cols + [pl.col(col) / pl.col(f"{col}_std") for col in numeric_cols]
             )
-        expr = pl.all()
         if rescale_bool:
-            # Original boolean column names
             boolean_cols = X.select(pl.col(pl.Boolean)).columns
-            # Minmax rescale boolean cols [-1, 1]
-            expr = [expr, pl.col(pl.Boolean).cast(pl.Int8) * 2 - 1]
-        X_new = X.select(expr)
+            X = X.with_columns(pl.col(pl.Boolean).cast(pl.Int8) * 2 - 1)
         artifacts = {
-            "X_new": X_new,
+            "X_new": X,
+            "numeric_cols": numeric_cols,
             "boolean_cols": boolean_cols,
             "_mean": _mean,
             "_std": _std,
@@ -297,37 +294,52 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = True
 
     def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
         idx_cols = X.columns[:2]
-        cols = X.select(PL_NUMERIC_COLS(state.time)).columns
+        artifacts = state.artifacts
+        numeric_cols = artifacts["numeric_cols"]
         if use_std:
-            _std = state.artifacts["_std"]
+            _std = artifacts["_std"]
             X = X.join(_std, on=idx_cols, how="left").select(
-                idx_cols + [pl.col(col) * pl.col(f"{col}_std") for col in cols]
+                idx_cols + [pl.col(col) * pl.col(f"{col}_std") for col in numeric_cols]
             )
         if use_mean:
-            _mean = state.artifacts["_mean"]
+            _mean = artifacts["_mean"]
             X = X.join(_mean, on=idx_cols, how="left").select(
-                idx_cols + [pl.col(col) + pl.col(f"{col}_mean") for col in cols]
+                idx_cols + [pl.col(col) + pl.col(f"{col}_mean") for col in numeric_cols]
             )
-        expr = pl.all()
         if rescale_bool:
-            # Minmax rescale boolean cols [-1, 1]
-            boolean_cols = pl.col(state.artifacts["boolean_cols"])
-            expr = [expr, (boolean_cols + 1).cast(pl.Int8)]
-        X_new = X.select(expr)
-        return X_new
+            X = X.with_columns(pl.col(artifacts["boolean_cols"]).cast(pl.Int8))
+        return X
 
-    return transform, invert
+    def transform_new(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
+        artifacts = state.artifacts
+        idx_cols = X.columns[:2]
+        numeric_cols = state.artifacts["numeric_cols"]
+        _mean = artifacts["_mean"]
+        _std = artifacts["_std"]
+        if use_mean:
+            X = X.join(_mean, on=idx_cols, how="left").select(
+                idx_cols + [pl.col(col) - pl.col(f"{col}_mean") for col in numeric_cols]
+            )
+        if use_std:
+            X = X.join(_std, on=idx_cols, how="left").select(
+                idx_cols + [pl.col(col) / pl.col(f"{col}_std") for col in numeric_cols]
+            )
+        if rescale_bool:
+            X = X.with_columns(pl.col(pl.Boolean).cast(pl.Int8) * 2 - 1)
+        return X
+
+    return transform, invert, transform_new
 
 
 @transformer
-def impute(
+def experimental_impute(
     method: Union[
         Literal["mean", "median", "fill", "ffill", "bfill", "interpolate"],
         Union[int, float],
     ]
 ):
     """
-    Performs missing value imputation on numeric columns of a DataFrame.
+    [EXPERIMENTAL] Performs missing value imputation on numeric columns of a DataFrame grouped by entity.
 
     Parameters
     ----------
@@ -347,7 +359,9 @@ def impute(
     def method_to_expr(entity_col, time_col):
         """Fill-in methods."""
         return {
-            "mean": PL_NUMERIC_COLS(entity_col, time_col).fill_null(strategy="mean"),
+            "mean": PL_NUMERIC_COLS(entity_col, time_col).fill_null(
+                PL_NUMERIC_COLS(entity_col, time_col).mean().over(entity_col)
+            ),
             "median": PL_NUMERIC_COLS(entity_col, time_col).fill_null(
                 PL_NUMERIC_COLS(entity_col, time_col).median().over(entity_col)
             ),
