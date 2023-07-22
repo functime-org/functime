@@ -53,9 +53,9 @@ View the [full walkthrough](embeddings.md) on temporal embeddings with `functime
 
 ## Quick Examples
 
-??? info "Input Data Schemas"
+!!! info "Input Data Schemas"
 
-    Forecasters, preprocessors, and splitters take a **panel dataset** where the first two columns represent entity (e.g. commodty name) and time (e.g. date). Subsequent columns represent observed values (e.g. price).
+    Forecasters, preprocessors, and splitters take a **panel dataset** where the first two columns represent entity (e.g. commodty name) and time (e.g. date). Subsequent columns represent observed values (e.g. price). The panel DataFrame **must be sorted by entity, time.**
 
     ```
     >>> y_panel
