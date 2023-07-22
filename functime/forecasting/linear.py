@@ -4,14 +4,14 @@ import polars as pl
 
 from functime.base import Forecaster
 from functime.forecasting._ar import fit_autoreg
-from functime.forecasting._regressors import StandardizedSklearnRegressor
+from functime.forecasting._regressors import SklearnRegressor
 
 
 def _linear_model(**kwargs):
     def regress(X: pl.DataFrame, y: pl.DataFrame):
         from sklearn.linear_model import LinearRegression
 
-        regressor = StandardizedSklearnRegressor(
+        regressor = SklearnRegressor(
             estimator=LinearRegression(**kwargs, copy_X=False),
         )
         return regressor.fit(X=X, y=y)
@@ -23,7 +23,7 @@ def _lasso(**kwargs):
     def regress(X: pl.DataFrame, y: pl.DataFrame):
         from sklearn.linear_model import Lasso
 
-        regressor = StandardizedSklearnRegressor(
+        regressor = SklearnRegressor(
             estimator=Lasso(**kwargs, tol=0.001, copy_X=False, max_iter=10000),
         )
         return regressor.fit(X=X, y=y)
@@ -35,7 +35,7 @@ def _ridge(**kwargs):
     def regress(X: pl.DataFrame, y: pl.DataFrame):
         from sklearn.linear_model import Ridge
 
-        regressor = StandardizedSklearnRegressor(
+        regressor = SklearnRegressor(
             estimator=Ridge(**kwargs, tol=0.001, copy_X=False, max_iter=10000)
         )
         return regressor.fit(X=X, y=y)
@@ -47,7 +47,7 @@ def _elastic_net(**kwargs):
     def regress(X: pl.DataFrame, y: pl.DataFrame):
         from sklearn.linear_model import ElasticNet
 
-        regressor = StandardizedSklearnRegressor(
+        regressor = SklearnRegressor(
             estimator=ElasticNet(**kwargs, tol=0.001, copy_X=False, max_iter=10000)
         )
         return regressor.fit(X=X, y=y)

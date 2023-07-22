@@ -4,14 +4,14 @@ import polars as pl
 
 from functime.base import Forecaster
 from functime.forecasting._ar import fit_autoreg
-from functime.forecasting._regressors import StandardizedSklearnRegressor
+from functime.forecasting._regressors import SklearnRegressor
 
 
 def _knn(**kwargs):
     def regress(X: pl.DataFrame, y: pl.DataFrame):
         from sklearn.neighbors import KNeighborsRegressor
 
-        regressor = StandardizedSklearnRegressor(
+        regressor = SklearnRegressor(
             estimator=KNeighborsRegressor(**kwargs, n_jobs=-1),
         )
         return regressor.fit(X=X, y=y)
