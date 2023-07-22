@@ -7,6 +7,7 @@ from flaml import tune
 from typing_extensions import Literal
 
 from functime.base.forecaster import FORECAST_STRATEGIES, Forecaster
+from functime.base.transformer import Transformer
 from functime.forecasting.knn import knn
 from functime.forecasting.lightgbm import lightgbm
 from functime.forecasting.linear import elastic_net, lasso, linear_model, ridge
@@ -43,6 +44,8 @@ class AutoForecaster(Forecaster):
         Equivalent to `points_to_evaluate` in [FLAML](https://microsoft.github.io/FLAML/docs/Use-Cases/Tune-User-Defined-Function#warm-start)
     num_samples : int
         Number of hyper-parameter sets to test. -1 means unlimited (until `time_budget` is exhausted.)
+    target_transform : Optional[Transformer]
+        functime transformer to apply to `y` before fit. The transform is inverted at predict time.
     **kwargs : Mapping[str, Any]
         Additional keyword arguments passed into underlying sklearn-compatible estimator.
     """
@@ -63,6 +66,7 @@ class AutoForecaster(Forecaster):
         search_space: Optional[Mapping[str, Any]] = None,
         points_to_evaluate: Optional[Mapping[str, Any]] = None,
         num_samples: int = -1,
+        target_transform: Optional[Transformer] = None,
         **kwargs,
     ):
         self.freq = freq
@@ -77,6 +81,7 @@ class AutoForecaster(Forecaster):
         self.search_space = search_space
         self.points_to_evaluate = points_to_evaluate
         self.num_samples = num_samples
+        self.target_transform = target_transform
         self.kwargs = kwargs
 
     @property
