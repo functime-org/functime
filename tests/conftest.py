@@ -148,14 +148,14 @@ def prepare_m5_dataset(m5_train: pl.LazyFrame, m5_test: pl.LazyFrame):
 
 @pytest.fixture(
     params=[
-        # ("m4_1h", 48),
-        ("m4_1d", 14),
-        ("m4_1w", 13),
-        ("m4_1mo", 18),
-        ("m4_3mo", 8),
-        ("m4_1y", 6),
+        # ("1h", 48),
+        ("1d", 14),
+        ("1w", 13),
+        ("1mo", 18),
+        ("3mo", 8),
+        ("1y", 6),
     ],
-    ids=lambda x: "_".join(map(str, x)),
+    ids=lambda x: f"freq_{x[0]}-fh_{x[1]}",
     scope="module",
 )
 def m4_dataset(request):
@@ -179,14 +179,15 @@ def m4_dataset(request):
     dataset_id, fh = request.param
     freq = None  # I.e. test set starts at 1,2,3...,fh
 
-    y_train = load_panel_data(f"data/{dataset_id}_train.parquet")
-    y_test = load_panel_data(f"data/{dataset_id}_test.parquet")
+    y_train = load_panel_data(f"data/m4_{dataset_id}_train.parquet")
+    y_test = load_panel_data(f"data/m4_{dataset_id}_test.parquet")
 
     # Check m4 dataset RAM usage
     logging.info("y_train mem: %s", f'{y_train.estimated_size("mb"):.4f} mb')
     logging.info("y_test mem: %s", f'{y_test.estimated_size("mb"):.4f} mb')
     # Preview
     logging.info("y_train preview: %s", y_train)
+    logging.info("y_test preview: %s", y_test)
 
     return y_train.lazy(), y_test.lazy(), fh, freq
 
@@ -197,6 +198,7 @@ def m5_dataset():
 
     # Specification
     fh = 28
+    max_lags = 128
     freq = "1d"
 
     # Load data
@@ -204,6 +206,26 @@ def m5_dataset():
     X_train = pl.read_parquet("data/m5_X_train.parquet")
     y_test = pl.read_parquet("data/m5_y_test.parquet")
     X_test = pl.read_parquet("data/m5_X_test.parquet")
+
+    # Check series lengths
+    entity_col, time_col = y_train.columns[:2]
+    short_ts_counts = (
+        y_train.groupby(entity_col)
+        .agg(pl.col(time_col).count().alias("count"))
+        .filter(pl.col("count") <= max_lags)
+        .sort(by="count")
+    )
+
+    # Preview short series (not supported by lags >= 64) in M5 dataset
+    with pl.Config(tbl_rows=-1):
+        entity_col, time_col = y_train.columns[:2]
+        logging.info(
+            "%s short time-series (<= %s): %s",
+            len(short_ts_counts),
+            max_lags,
+            short_ts_counts,
+        )
+
     # Check m5 dataset RAM usage
     logging.info("y_train mem: %s", f'{y_train.estimated_size("mb"):.4f} mb')
     logging.info("X_train mem: %s", f'{X_train.estimated_size("mb"):.4f} mb')
@@ -213,31 +235,10 @@ def m5_dataset():
     # Preview
     logging.info("y_train preview: %s", y_train)
     logging.info("X_train preview: %s", X_train)
+    logging.info("y_test preview: %s", y_test)
+    logging.info("X_test preview: %s", X_test)
 
     return y_train.lazy(), X_train.lazy(), y_test.lazy(), X_test.lazy(), fh, freq
-
-
-@pytest.fixture
-def pd_m4_dataset(m4_dataset):
-    y_train, y_test, fh, freq = m4_dataset
-    entity_col, time_col = y_train.columns[:2]
-    pd_y_train = y_train.collect().to_pandas()
-    pd_y_test = y_test.collect().to_pandas()
-    logging.info(pd_y_train)
-    logging.info(pd_y_test)
-    return pd_y_train, pd_y_test, fh, freq, entity_col, time_col
-
-
-@pytest.fixture
-def pd_m5_dataset(m5_dataset):
-    y_train, X_train, y_test, X_test, fh, _ = m5_dataset
-    entity_col, time_col = y_train.columns[:2]
-    pd_y_train = y_train.collect().to_pandas()
-    pd_y_test = y_test.collect().to_pandas()
-    pd_X_train = X_train.collect().to_pandas()
-    pd_X_test = X_test.collect().to_pandas()
-    pd_X_y = pd_y_train.merge(pd_X_train, how="left", on=[entity_col, time_col])
-    return pd_X_y, pd_y_test, pd_X_test, fh, entity_col, time_col
 
 
 # if __name__ == "__main__":
