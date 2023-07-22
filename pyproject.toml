@@ -60,13 +60,13 @@ performance = ["scikit-learn-intelex"]
 test = [
     "coverage[toml]",
     "fastapi",
-    "mlforecast",
+    "mlforecast==0.8.1",
     "pytest-benchmark",
     "pytest-memray",
     "pytest-timeout",
     "pytest",
-    "skforecast",
-    "u8darts==0.24.0",
+    # "skforecast",
+    # "u8darts==0.24.0",
 ]
 doc = ["mkdocs", "mkdocs-material", "mkdocstrings-python"]
 

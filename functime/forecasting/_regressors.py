@@ -15,20 +15,39 @@ from functime.preprocessing import PL_NUMERIC_COLS
 
 def _X_to_numpy(X: pl.DataFrame) -> np.ndarray:
     X_arr = (
-        X.select(pl.col(X.columns[2:]).cast(pl.Float32))
-        .fill_null(strategy="mean")
+        X.lazy()
+        .select(pl.col(X.columns[2:]).cast(pl.Float32))
+        .select(
+            pl.when(pl.all().is_infinite() | pl.all().is_nan())
+            .then(None)
+            .otherwise(pl.all())
+            .keep_name()
+        )
+        # TODO: Support custom groupby imputation
+        .fill_null(strategy="mean")  # Do not fill backward (data leak)
+        .collect(streaming=True)
         .pipe(df_to_ndarray)
     )
     return X_arr
 
 
 def _y_to_numpy(y: pl.DataFrame) -> np.ndarray:
-    return (
-        y.get_column(y.columns[-1])
-        .cast(pl.Float32)
-        .fill_null(strategy="mean")
+    y_arr = (
+        y.lazy()
+        .select(pl.col(y.columns[-1]).cast(pl.Float32))
+        .select(
+            pl.when(pl.all().is_infinite() | pl.all().is_nan())
+            .then(None)
+            .otherwise(pl.all())
+            .keep_name()
+        )
+        # TODO: Support custom groupby imputation
+        .fill_null(strategy="mean")  # Do not fill backward (data leak)
+        .collect(streaming=True)
+        .get_column(y.columns[-1])
         .to_numpy(zero_copy_only=True)
     )
+    return y_arr
 
 
 class GradientBoostedTreeRegressor:
@@ -88,10 +107,9 @@ class GradientBoostedTreeRegressor:
         return y_pred
 
 
-class StandardizedSklearnRegressor:
+class SklearnRegressor:
     def __init__(self, estimator):
         self.estimator = estimator
-        self.pipeline = None
 
     def _preproc_X(self, X: pl.DataFrame):
         entity_col, time_col = X.columns[:2]
@@ -107,53 +125,18 @@ class StandardizedSklearnRegressor:
         return X_new
 
     def fit(self, X: pl.DataFrame, y: pl.DataFrame):
-        from sklearn.compose import ColumnTransformer
-        from sklearn.pipeline import Pipeline
-        from sklearn.preprocessing import MaxAbsScaler, OneHotEncoder
-
-        # Get column names
-        entity_col, time_col = X.columns[:2]
-        numeric_cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).columns
-        categorical_cols = X.select(pl.col(pl.Categorical).exclude(entity_col)).columns
-        boolean_cols = X.select(pl.col(pl.Boolean)).columns
-        # Feature sizes
-        n_numeric_cols = len(numeric_cols)
-        n_categorical_cols = len(categorical_cols)
-        n_boolean_cols = len(boolean_cols)
-        # Feature slices
-        numeric_idx = slice(0, n_numeric_cols)
-        categorical_idx = slice(n_numeric_cols, n_numeric_cols + n_categorical_cols)
-        boolean_idx = slice(
-            n_numeric_cols + n_categorical_cols,
-            n_numeric_cols + n_categorical_cols + n_boolean_cols,
-        )
-        # Defensive reordering X and cast boolean to 0, 1
-        X = self._preproc_X(X)
-        scaler = MaxAbsScaler()
-        ohe = OneHotEncoder(
-            drop=None, dtype=np.int8, sparse_output=False, handle_unknown="ignore"
-        )
-
-        transformers = [("numeric", scaler, numeric_idx)]
-        if len(categorical_cols) > 1:
-            transformers += [("categorical", ohe, categorical_idx)]
-        if len(boolean_cols) > 1:
-            transformers += [("boolean", "passthrough", boolean_idx)]
-
-        transformer = ColumnTransformer(transformers=transformers, n_jobs=-1)
-        steps = [("transformer", transformer), ("regressor", self.estimator)]
-
-        # Fit pipeline
-        pipeline = Pipeline(steps=steps)
+        X_new = self._preproc_X(X).lazy()
+        # Regress
         with sklearn.config_context(assume_finite=True):
-            self.pipeline = pipeline.fit(X=_X_to_numpy(X), y=_y_to_numpy(y))
+            # NOTE: We can assume finite due to preproc
+            self.estimator = self.estimator.fit(X=_X_to_numpy(X_new), y=_y_to_numpy(y))
         return self
 
     def predict(self, X: pl.DataFrame) -> np.ndarray:
-        # Defensive reordering X and cast boolean to 0, 1
-        X = self._preproc_X(X)
+        X_new = self._preproc_X(X).lazy()
         with sklearn.config_context(assume_finite=True):
-            y_pred = self.pipeline.predict(_X_to_numpy(X))
+            # NOTE: We can assume finite due to preproc
+            y_pred = self.estimator.predict(_X_to_numpy(X_new))
         return y_pred
 
 
