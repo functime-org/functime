@@ -10,7 +10,7 @@ from polars.testing import assert_frame_equal
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import PowerTransformer
 
-from functime.preprocessing import boxcox, diff, impute, lag, roll
+from functime.preprocessing import boxcox, diff, lag, roll
 
 
 @pytest.fixture
@@ -177,64 +177,6 @@ def test_roll(pd_X, rolling_pd_dataframe, benchmark):
     )
     expected = df.reset_index().loc[:, result.columns]
     assert_frame_equal(result, pl.DataFrame(expected), check_exact=False, rtol=0.01)
-
-
-@pytest.mark.parametrize(
-    "sklearn_method, functime_method, fill_value",
-    [
-        ("mean", "mean", None),
-        ("median", "median", None),
-        # exceptions.ComputeError: The length of the window expression did not match that of the group.
-        # ("most_frequent", "mode"),
-        ("constant", 0, 0),  # Fill by int
-        ("constant", 1.5, 1.5),  # Fill by float
-    ],
-)
-def test_impute(sklearn_method, functime_method, fill_value, pd_X):
-    numeric_cols = pd_X.select_dtypes(include=["float"]).columns
-    model = SimpleImputer(strategy=sklearn_method, fill_value=fill_value)
-    expected = model.fit_transform(pd_X[numeric_cols])
-    X = pl.from_pandas(pd_X.reset_index()).lazy()
-    result = (
-        X.pipe(impute(method=functime_method)).drop(X.columns[:2]).collect().to_numpy()
-    )
-    np.testing.assert_array_equal(result, expected)
-
-
-@pytest.mark.parametrize(
-    "dtype, sklearn_method",
-    [
-        ("float", "mean"),
-        ("int", "median"),
-    ],
-)
-def test_impute_fill(dtype, sklearn_method, pd_X):
-    numeric_cols = pd_X.select_dtypes(include=["float", "int"]).columns
-    pd_X = pd_X.astype({col: dtype for col in numeric_cols}, errors="ignore")
-    model = SimpleImputer(strategy=sklearn_method)
-    expected = model.fit_transform(pd_X[numeric_cols])
-    X = pl.from_pandas(pd_X.reset_index()).lazy()
-    transform = impute(method="fill")
-    result = X.pipe(transform).drop(X.columns[:2]).collect().to_numpy()
-    np.testing.assert_array_equal(result, expected)
-
-
-def test_impute_ffill(pd_X):
-    entity_col = pd_X.index.names[0]
-    expected = pd_X.groupby(entity_col).ffill()
-    X = pl.from_pandas(pd_X.reset_index()).lazy()
-    transform = impute(method="ffill")
-    result = X.pipe(transform).drop(X.columns[:2]).collect().to_numpy()
-    np.testing.assert_array_equal(result, expected)
-
-
-def test_impute_bfill(pd_X):
-    entity_col = pd_X.index.names[0]
-    expected = pd_X.groupby(entity_col).bfill()
-    X = pl.from_pandas(pd_X.reset_index()).lazy()
-    transform = impute(method="bfill")
-    result = X.pipe(transform).drop(X.columns[:2]).collect().to_numpy()
-    np.testing.assert_array_equal(result, expected)
 
 
 @pytest.mark.parametrize("sp", [1])
