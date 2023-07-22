@@ -161,6 +161,50 @@ def lag(lags: List[int]):
 
 
 @transformer
+def one_hot_encode(drop_first: bool = False):
+    """Encode categorical features as a one-hot numeric array.
+
+    Parameters
+    ----------
+    drop_first : bool
+        Drop the first one hot feature.
+
+    Raises
+    ------
+    ValueError
+        if X passed into `transform_new` contains unknown categories.
+    """
+
+    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+        # NOTE: You can't do lazy one hot encoding because
+        # polars needs to know the unique values in the selected columns
+        cat_cols = X.select(pl.col(pl.Categorical)).columns
+        X_new = X.collect().to_dummies(
+            columns=cat_cols, drop_first=drop_first, separator="__"
+        )
+        artifacts = {
+            "X_new": X_new,
+            "dummy_cols": X_new.columns,
+        }
+        return artifacts
+
+    def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
+        return NotImplemented
+
+    def transform_new(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
+        cat_cols = X.select(pl.col(pl.Categorical)).columns
+        dummy_cols = state.artifacts["dummy_cols"]
+        X_new = X.collect().to_dummies(columns=cat_cols, separator="__")
+        if len(set(dummy_cols) & set(X_new.columns)) < len(dummy_cols):
+            raise ValueError(
+                f"Missing categories: {set(dummy_cols) & set(X_new.columns)}"
+            )
+        return X_new
+
+    return transform, invert, transform_new
+
+
+@transformer
 def roll(
     window_sizes: List[int],
     stats: List[Literal["mean", "min", "max", "mlm", "sum", "std", "cv"]],
