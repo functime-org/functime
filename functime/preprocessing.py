@@ -2,6 +2,7 @@ from itertools import product
 from typing import List, Mapping, Union
 
 import polars as pl
+import polars.selectors as cs
 from scipy.stats import boxcox_normmax
 from typing_extensions import Literal
 
@@ -9,15 +10,9 @@ from functime.base import transformer
 from functime.base.model import ModelState
 from functime.offsets import _strip_freq_alias
 
-PL_FLOAT_DTYPES = [pl.Float32, pl.Float64]
-PL_INT_DTYPES = [pl.Int8, pl.Int16, pl.Int32, pl.Int64]
-PL_NUMERIC_DTYPES = [*PL_INT_DTYPES, *PL_FLOAT_DTYPES]
-PL_FLOAT_COLS = pl.col(PL_FLOAT_DTYPES)
-PL_INT_COLS = pl.col(PL_INT_DTYPES)
-
 
 def PL_NUMERIC_COLS(*exclude):
-    return pl.col(PL_NUMERIC_DTYPES).exclude(exclude)
+    return cs.numeric() - cs.by_name(exclude)
 
 
 def reindex(X: pl.DataFrame) -> pl.DataFrame:
@@ -356,13 +351,9 @@ def impute(
             "median": PL_NUMERIC_COLS(entity_col, time_col).fill_null(
                 PL_NUMERIC_COLS(entity_col, time_col).median().over(entity_col)
             ),
-            # "mode": PL_NUMERIC_COLS(entity_col, time_col).fill_null(PL_NUMERIC_COLS(entity_col, time_col).mode().over(entity_col)),
             "fill": [
-                PL_FLOAT_COLS.fill_null(PL_FLOAT_COLS.mean().over(entity_col)),
-                PL_INT_COLS.fill_null(PL_INT_COLS.median().over(entity_col)),
-                # pl.col([pl.Categorical, pl.Boolean]).fill_null(
-                #     PL_FLOAT_COLS.mode().over(entity_col)
-                # ),
+                cs.float().fill_null(cs.float().mean().over(entity_col)),
+                cs.integer().fill_null(cs.integer().median().over(entity_col)),
             ],
             "ffill": PL_NUMERIC_COLS(entity_col, time_col)
             .fill_null(strategy="forward")
@@ -403,7 +394,7 @@ def diff(order: int, sp: int = 1):
         def _diff(X):
             X_new = (
                 X.groupby(entity_col, maintain_order=True)
-                .agg([pl.col(time_col), PL_FLOAT_COLS - PL_FLOAT_COLS.shift(sp)])
+                .agg([pl.col(time_col), cs.float() - cs.float().shift(sp)])
                 .explode(pl.all().exclude(entity_col))
             )
             return X_new
@@ -436,7 +427,7 @@ def diff(order: int, sp: int = 1):
         def _inverse_diff(X: pl.LazyFrame):
             X_new = (
                 X.groupby(entity_col, maintain_order=True)
-                .agg([pl.col(time_col), PL_FLOAT_COLS.cumsum()])
+                .agg([pl.col(time_col), cs.float().cumsum()])
                 .explode(pl.all().exclude(entity_col))
             )
             return X_new
