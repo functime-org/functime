@@ -1,10 +1,11 @@
 from dataclasses import dataclass
-from typing import Callable, List, Optional, Tuple, TypeVar, Union
+from typing import Callable, List, Mapping, Optional, Tuple, TypeVar, Union
 
 import polars as pl
 from typing_extensions import Literal, ParamSpec
 
 from functime.base.model import Model, ModelState
+from functime.base.transformer import Transformer
 from functime.ranges import make_future_ranges
 
 # The parameters of the Model
@@ -19,6 +20,7 @@ DF_TYPE = Union[pl.LazyFrame, pl.DataFrame]
 @dataclass(frozen=True)
 class ForecastState(ModelState):
     target: str
+    target_schema: Mapping[str, pl.DataType]
     strategy: Optional[str] = "naive"
     features: Optional[List[str]] = None
 
@@ -38,6 +40,8 @@ class Forecaster(Model):
     strategy : Optional[str]
         Forecasting strategy. Currently supports "recursive", "direct",
         and "ensemble" of both recursive and direct strategies.
+    target_transform : Optional[Transformer]
+        functime transformer to apply to `y` before fit. The transform is inverted at predict time.
     **kwargs : Mapping[str, Any]
         Additional keyword arguments passed into underlying sklearn-compatible estimator.
     """
@@ -48,12 +52,15 @@ class Forecaster(Model):
         lags: int,
         max_horizons: Optional[int] = None,
         strategy: FORECAST_STRATEGIES = None,
+        target_transform: Optional[Transformer] = None,
         **kwargs,
     ):
         self.freq = freq
         self.lags = lags
         self.max_horizons = max_horizons
         self.strategy = strategy
+        self.target_transform = target_transform
+        self._time_col_dtype = None
         self.kwargs = kwargs
         super().__init__()
 
@@ -72,12 +79,19 @@ class Forecaster(Model):
         return f"{self.__class__.__name__}(strategy={self.strategy})"
 
     def fit(self, y: DF_TYPE, X: Optional[DF_TYPE] = None):
+        # Prepare y
+        target_transform = self.target_transform
         y: pl.LazyFrame = self._set_string_cache(y.lazy().collect()).lazy()
+        if target_transform is not None:
+            y = y.pipe(self.target_transform).collect(streaming=True).lazy()
+        # Prepare X
         if X is not None:
             if X.columns[0] == y.columns[0]:
                 X = self._enforce_string_cache(X.lazy().collect())
             X = X.lazy()
+        # Fit AR forecaster
         artifacts = self._fit(y=y, X=X)
+        # Prepare artifacts
         cutoffs = y.groupby(y.columns[0]).agg(pl.col(y.columns[1]).max().alias("low"))
         artifacts["__cutoffs"] = cutoffs.collect(streaming=True)
         state = ForecastState(
@@ -85,10 +99,12 @@ class Forecaster(Model):
             time=y.columns[1],
             artifacts=artifacts,
             target=y.columns[-1],
+            target_schema=y.schema,
             strategy=self.strategy or "recursive",
             features=X.columns[2:] if X is not None else None,
         )
         self.state = state
+        self.target_transform = target_transform
         return self
 
     def predict(self, fh: int, X: Optional[DF_TYPE] = None) -> pl.DataFrame:
@@ -135,13 +151,19 @@ class Forecaster(Model):
         y_pred = (
             future_ranges.lazy()
             .join(y_pred_vals.lazy(), on=entity)
-            # Explode from wide arrs to long form
             .explode(pl.all().exclude(entity))
-            .pipe(self._reset_string_cache)
-            # NOTE: Cannot use streaming here...
-            # Causes change error "cannot append series, data types don't match
-            .collect()
+            .collect(streaming=True)
         )
+
+        if self.target_transform is not None:
+            schema = self.state.target_schema
+            y_pred = (
+                y_pred.with_columns(pl.col(time).cast(schema[time]))
+                .pipe(self.target_transform.invert)
+                .collect(streaming=True)
+            )
+
+        y_pred = y_pred.pipe(self._reset_string_cache)
         return y_pred
 
     def backtest(
