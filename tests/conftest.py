@@ -219,13 +219,13 @@ def m5_dataset():
 
 @pytest.fixture
 def pd_m4_dataset(m4_dataset):
-    y_train, y_test, fh, _ = m4_dataset
+    y_train, y_test, fh, freq = m4_dataset
     entity_col, time_col = y_train.columns[:2]
     pd_y_train = y_train.collect().to_pandas()
     pd_y_test = y_test.collect().to_pandas()
     logging.info(pd_y_train)
     logging.info(pd_y_test)
-    return pd_y_train, pd_y_test, fh, entity_col, time_col
+    return pd_y_train, pd_y_test, fh, freq, entity_col, time_col
 
 
 @pytest.fixture
