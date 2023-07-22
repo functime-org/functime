@@ -29,15 +29,15 @@ ENSEMBLE_KWARGS = {"max_horizons": 28, "strategy": "ensemble"}
 # fmt: off
 FORECASTERS_TO_TEST = [
     # ("ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
+    # ("direct__ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
+    # ("ensemble__ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
     ("catboost", lambda freq: catboost(lags=DEFAULT_LAGS, freq=freq, iterations=10)),
     ("lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10)),
     ("flaml_lgbm", lambda freq: flaml_lightgbm(lags=DEFAULT_LAGS, freq=freq, custom_hp={"lgbm": {"num_iterations": {"domain": 10}}})),
     ("linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq)),
     ("xgboost", lambda freq: xgboost(lags=DEFAULT_LAGS, freq=freq, num_boost_round=10)),
-    # ("direct__ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
     ("direct__lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10, **DIRECT_KWARGS)),
     ("direct__linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, **DIRECT_KWARGS)),
-    # ("ensemble__ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
     ("ensemble__lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10, **DIRECT_KWARGS)),
     ("ensemble__linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, **DIRECT_KWARGS)),
 ]
@@ -104,43 +104,60 @@ def test_auto_cloudpickle():
     )
 
 
-def test_forecaster_on_m4(forecaster, m4_dataset, benchmark):
+def _check_missing_values(df_x: pl.LazyFrame, df_y: pl.LazyFrame, col: str):
+    pl.testing.assert_series_equal(
+        df_x.select(pl.col(col).unique()).collect().get_column(col).sort(),
+        df_y.select(pl.col(col).unique()).collect().get_column(col).sort(),
+    )
+
+
+def _check_m4_score(y_test, y_pred, threshold: float = 0.3):
+    score = smape(y_test, y_pred).get_column("smape").mean()
+    assert score < threshold
+
+
+def _check_m5_score(y_test, y_pred, y_train, threshold: float = 2.0):
+    score = rmsse(y_test, y_pred, y_train=y_train).get_column("rmsse").mean()
+    assert score < threshold
+
+
+def test_forecaster_on_m4(forecaster, m4_dataset):
     """Run global models against the M4 competition datasets and check overall RMSE
     (i.e. averaged across all time-series) is less than 2.
     """
     y_train, y_test, fh, freq = m4_dataset
-    y_pred = benchmark(lambda: forecaster(freq=freq)(y=y_train, fh=fh))
-    score = smape(y_test, y_pred).get_column("smape").mean()
-    assert score < 0.3
+    y_pred = forecaster(freq=freq)(y=y_train, fh=fh)
+    entity_col = y_pred.columns[0]
+    _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
+    _check_m4_score(y_test, y_pred)
 
 
-def test_auto_on_m4(auto_forecaster, m4_dataset, benchmark):
+def test_auto_on_m4(auto_forecaster, m4_dataset):
     y_train, y_test, fh, freq = m4_dataset
-    y_pred = benchmark(lambda: auto_forecaster(freq=freq)(y=y_train, fh=fh))
-    score = smape(y_test, y_pred).get_column("smape").mean()
-    assert score < 0.3
+    y_pred = auto_forecaster(freq=freq)(y=y_train, fh=fh)
+    entity_col = y_pred.columns[0]
+    _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
+    _check_m4_score(y_test, y_pred)
 
 
-def test_forecaster_on_m5(forecaster, m5_dataset, benchmark):
+def test_forecaster_on_m5(forecaster, m5_dataset):
     """Run global models against the M5 (Walmart) competition dataset and check
     overall RMSSE (i.e. averaged across all time-series) is less than 2.
     """
     y_train, X_train, y_test, X_test, fh, freq = m5_dataset
-    y_pred = benchmark(
-        lambda: forecaster(freq)(y=y_train, X=X_train, fh=fh, X_future=X_test)
-    )
-    score = rmsse(y_test, y_pred, y_train=y_train).get_column("rmsse").mean()
-    assert score < 2
+    y_pred = forecaster(freq)(y=y_train, X=X_train, fh=fh, X_future=X_test)
+    entity_col = y_pred.columns[0]
+    _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
+    _check_m5_score(y_test, y_pred, y_train)
 
 
 @pytest.mark.limit_memory("48GiB")
-def test_auto_on_m5(auto_forecaster, m5_dataset, benchmark):
+def test_auto_on_m5(auto_forecaster, m5_dataset):
     y_train, X_train, y_test, X_test, fh, freq = m5_dataset
-    y_pred = benchmark(
-        lambda: auto_forecaster(freq=freq)(y=y_train, X=X_train, fh=fh, X_future=X_test)
-    )
-    score = rmsse(y_test, y_pred, y_train=y_train).get_column("rmsse").mean()
-    assert score < 2
+    y_pred = auto_forecaster(freq=freq)(y=y_train, X=X_train, fh=fh, X_future=X_test)
+    entity_col = y_pred.columns[0]
+    _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
+    _check_m5_score(y_test, y_pred, y_train)
 
 
 def simple_regress(X: np.ndarray, y: np.ndarray):
@@ -182,6 +199,9 @@ def test_censored_model_on_m5(threshold, m5_dataset):
     )(y=y_train, X=X_train, fh=fh, X_future=X_test)
     # Check column names
     assert y_pred.columns == [*y_train.columns[:3], "threshold_proba"]
+    # Check no missing time-series
+    entity_col = y_pred.columns[0]
+    _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
     # Check score
     score = (
         rmsse(y_test, y_pred.select(y_train.columns[:3]), y_train=y_train)
@@ -198,6 +218,9 @@ def test_zero_inflated_model_on_m5(m5_dataset):
     )(y=y_train, X=X_train, fh=fh, X_future=X_test)
     # Check column names
     assert y_pred.columns == [*y_train.columns[:3], "threshold_proba"]
+    # Check no missing time-series
+    entity_col = y_pred.columns[0]
+    _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
     # Check score
     score = (
         rmsse(y_test, y_pred.select(y_train.columns[:3]), y_train=y_train)
