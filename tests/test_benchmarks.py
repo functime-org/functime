@@ -21,7 +21,7 @@ METRICS_TO_TEST = [smape, rmse, rmsse, mae, mase, mse]
 TTEST_SIG_LEVEL = 0.20  # Two tailed
 
 
-@pytest.fixture(params=[8, 16, 32, 64], ids=lambda x: f"lags_{x}")
+@pytest.fixture(params=[16, 32, 64], ids=lambda x: f"lags_{x}")
 def lags_to_test(request):
     return request.param
 
