@@ -157,7 +157,7 @@ def fit_cv(  # noqa: Ruff too complex
             lags_path, desc=f"🚀 Evaluating models with n={min(lags_path)} lags"
         )
     ):
-        score = evaluate(
+        score, params = evaluate(
             **{
                 "lags": lags,
                 "n_splits": n_splits,
@@ -173,14 +173,16 @@ def fit_cv(  # noqa: Ruff too complex
                 "forecaster_cls": forecaster_cls,
                 "y_splits": y_splits,
                 "X_splits": X_splits,
+                "include_best_params": True,
             },
         )
         scores_path.append(score)
         if score < best_score:
             best_score = score
             best_lags = lags
+            best_params = params
         pbar.set_description(
-            f"🚀 [Current best: lags={best_lags}, score={best_score:.2f}] Evaluating models with n={lags + 1} lags"
+            f"🚀 [Best round: lags={best_lags}, score={best_score:.2f}] Evaluating models with n={lags + 1} lags"
         )
 
     # Refit
