@@ -3,7 +3,7 @@ from typing import Any, Callable, List, Mapping, Optional, Union
 
 import numpy as np
 import polars as pl
-from tqdm import trange
+from tqdm import tqdm, trange
 from typing_extensions import Literal
 
 from functime.cross_validation import expanding_window_split
@@ -132,6 +132,10 @@ def fit_cv(  # noqa: Ruff too complex
     X: Optional[pl.LazyFrame] = None,
     **kwargs,
 ) -> Mapping[str, Any]:
+
+    # TODO: Consolidate logging
+    logging.basicConfig(level=logging.INFO)
+
     # Set defaults
     strategy = strategy or "recursive"
     # Prepare CV splits query plan i.e. LazyFrames
@@ -143,11 +147,16 @@ def fit_cv(  # noqa: Ruff too complex
 
     # Test each lag
     best_lags = None
+    best_score = np.inf
     best_params = None
     scores_path = []
     lags_path = list(range(min_lags, max_lags + 1))
     scores_path = []
-    for lags in lags_path:
+    for lags in (
+        pbar := tqdm(
+            lags_path, desc=f"🚀 Evaluating models with n={min(lags_path)} lags"
+        )
+    ):
         score = evaluate(
             **{
                 "lags": lags,
@@ -167,9 +176,12 @@ def fit_cv(  # noqa: Ruff too complex
             },
         )
         scores_path.append(score)
-    best_idx = np.argmin(scores_path)
-    best_score = scores_path[best_idx]
-    best_lags = lags_path[best_idx]
+        if score < best_score:
+            best_score = score
+            best_lags = lags
+        pbar.set_description(
+            f"🚀 [Current best: lags={best_lags}, score={best_score:.2f}] Evaluating models with n={lags + 1} lags"
+        )
 
     # Refit
     best_params = best_params or {}
