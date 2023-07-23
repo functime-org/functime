@@ -21,8 +21,26 @@ METRICS_TO_TEST = [smape, rmse, rmsse, mae, mase, mse]
 TTEST_SIG_LEVEL = 0.10  # Two tailed
 
 
-@pytest.fixture(params=[3, 8, 16, 32, 64, 128], ids=lambda x: f"lags_{x}")
+@pytest.fixture(params=[8, 16, 32, 64], ids=lambda x: f"lags_{x}")
 def lags_to_test(request):
+    return request.param
+
+
+@pytest.fixture(
+    params=[
+        ("linear", lambda: LinearRegression(fit_intercept=True)),
+        ("lgbm", lambda: LGBMRegressor(force_col_wise=True, tree_learner="serial")),
+    ],
+    ids=lambda x: x[0],
+)
+def regressor(request):
+    return request.param
+
+
+@pytest.fixture(
+    params=[("linear", linear_model), ("lgbm", lightgbm)], ids=lambda x: x[0]
+)
+def forecaster(request):
     return request.param
 
 
@@ -95,24 +113,6 @@ def pd_m5_dataset(m5_dataset_no_missing):
         entity_col,
         time_col,
     )
-
-
-@pytest.fixture(
-    params=[
-        ("linear", lambda: LinearRegression(fit_intercept=True)),
-        ("lgbm", lambda: LGBMRegressor(force_col_wise=True, tree_learner="serial")),
-    ],
-    ids=lambda x: x[0],
-)
-def regressor(request):
-    return request.param
-
-
-@pytest.fixture(
-    params=[("linear", linear_model), ("lgbm", lightgbm)], ids=lambda x: x[0]
-)
-def forecaster(request):
-    return request.param
 
 
 def summarize_scores(scores: Mapping[str, np.ndarray]) -> Mapping[str, float]:

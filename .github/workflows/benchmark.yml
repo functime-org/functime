@@ -7,17 +7,30 @@ jobs:
   test:
     strategy:
       matrix:
-        python-version: ["3.11"]
-    runs-on: ubuntu-latest
+        os:
+          - "ubuntu-latest-4-cores"
+          # - "ubuntu-latest-8-cores"
+          # - "ubuntu-latest-16-cores"
+          # - "ubuntu-latest-32-cores"
+          # - "ubuntu-latest-64-cores"
+        python-version: ["3.10"]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
+
+      - name: Pull datasets in LFS
+        run: |
+          git config lfs.fetchinclude "data/m4_*,data/m5_*"
+          git lfs pull
+
       - name: Set up Python 3
         uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install ".[test,performance]"
       - name: Benchmark
-        run: pytest -k "test_benchmark" -vv -o log_cli=True -o log_level=INFO
+        run: pytest -k "test_benchmark" -vv --benchmark-name=short --benchmark-group-by=param --benchmark-columns=min,max,mean,median,rounds,iterations
