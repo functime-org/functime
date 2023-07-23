@@ -116,6 +116,7 @@ def evaluate(
     y_splits: Mapping[int, Tuple[pl.DataFrame, pl.DataFrame]],
     X_splits: Optional[Mapping[int, Tuple[pl.DataFrame, pl.DataFrame]]],
     search_space: Optional[Mapping[str, Domain]] = None,
+    include_best_params: bool = False,
 ):
     params = None
     if search_space is None:
@@ -156,4 +157,8 @@ def evaluate(
         )
         score = tuner.best_result["mae"]
         params = tuner.best_config
-    return score
+
+    if include_best_params:
+        return score, params
+    else:
+        return score
