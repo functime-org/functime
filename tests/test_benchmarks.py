@@ -18,7 +18,7 @@ patch_sklearn()
 
 
 METRICS_TO_TEST = [smape, rmse, rmsse, mae, mase, mse]
-TTEST_SIG_LEVEL = 0.10  # Two tailed
+TTEST_SIG_LEVEL = 0.20  # Two tailed
 
 
 @pytest.fixture(params=[8, 16, 32, 64], ids=lambda x: f"lags_{x}")
