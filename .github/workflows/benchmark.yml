@@ -13,6 +13,8 @@ jobs:
           - "ubuntu-latest-64-cores"
         python-version: ["3.10"]
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v3
 
@@ -35,4 +37,9 @@ jobs:
           pytest -k "test_benchmark" -vv
             --benchmark-name=short
             --benchmark-group-by=param
-            --benchmark-columns=min,max,mean,median,rounds,iterations
+            --benchmark-columns=min,max,mean,median,stddev,rounds,iterations
+            --benchmark-json=docs/benchmarks/forecasting.json
+      - name: Commit results
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "docs: Update forecast benchmarks"
