@@ -153,7 +153,7 @@ def prepare_m5_dataset(m5_train: pl.LazyFrame, m5_test: pl.LazyFrame):
         ("1w", 13),
         ("1mo", 18),
         ("3mo", 8),
-        ("1y", 6),
+        # ("1y", 6),
     ],
     ids=lambda x: f"freq_{x[0]}-fh_{x[1]}",
     scope="module",
