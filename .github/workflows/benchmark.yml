@@ -8,11 +8,9 @@ jobs:
     strategy:
       matrix:
         os:
-          - "ubuntu-latest-4-cores"
-          # - "ubuntu-latest-8-cores"
-          # - "ubuntu-latest-16-cores"
-          # - "ubuntu-latest-32-cores"
-          # - "ubuntu-latest-64-cores"
+          - "ubuntu-latest-16-cores"
+          - "ubuntu-latest-32-cores"
+          - "ubuntu-latest-64-cores"
         python-version: ["3.10"]
     runs-on: ${{ matrix.os }}
     steps:
