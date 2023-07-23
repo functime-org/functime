@@ -33,4 +33,8 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install ".[test,performance]"
       - name: Benchmark
-        run: pytest -k "test_benchmark" -vv --benchmark-name=short --benchmark-group-by=param --benchmark-columns=min,max,mean,median,rounds,iterations
+        run: >
+          pytest -k "test_benchmark" -vv
+            --benchmark-name=short
+            --benchmark-group-by=param
+            --benchmark-columns=min,max,mean,median,rounds,iterations
