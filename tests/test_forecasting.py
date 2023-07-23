@@ -4,12 +4,17 @@ import polars as pl
 import pytest
 from sklearnex import patch_sklearn
 
-from functime.forecasting import (  # ann,
+from functime.forecasting import (
+    ann,
     auto_elastic_net,
     auto_lightgbm,
+    catboost,
     censored_model,
     elastic_net,
+    flaml_lightgbm,
+    lightgbm,
     linear_model,
+    xgboost,
     zero_inflated_model,
 )
 from functime.metrics import rmsse, smape
@@ -25,18 +30,18 @@ ENSEMBLE_KWARGS = {"max_horizons": 28, "strategy": "ensemble"}
 
 # fmt: off
 FORECASTERS_TO_TEST = [
-    # ("ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
-    # ("direct__ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
-    # ("ensemble__ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
+    ("ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
+    ("direct__ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
+    ("ensemble__ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
     ("linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=scale())),
-    # ("direct__linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=scale(), **DIRECT_KWARGS)),
-    # ("ensemble__linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=scale(), **DIRECT_KWARGS)),
-    # ("catboost", lambda freq: catboost(lags=DEFAULT_LAGS, freq=freq, iterations=10)),
-    # ("xgboost", lambda freq: xgboost(lags=DEFAULT_LAGS, freq=freq, num_boost_round=10)),
-    # ("lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10)),
-    # ("flaml_lgbm", lambda freq: flaml_lightgbm(lags=DEFAULT_LAGS, freq=freq, custom_hp={"lgbm": {"num_iterations": {"domain": 10}}})),
-    # ("direct__lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10, **DIRECT_KWARGS)),
-    # ("ensemble__lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10, **DIRECT_KWARGS)),
+    ("direct__linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=scale(), **DIRECT_KWARGS)),
+    ("ensemble__linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=scale(), **DIRECT_KWARGS)),
+    ("catboost", lambda freq: catboost(lags=DEFAULT_LAGS, freq=freq, iterations=10)),
+    ("xgboost", lambda freq: xgboost(lags=DEFAULT_LAGS, freq=freq, num_boost_round=10)),
+    ("lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10)),
+    ("flaml_lgbm", lambda freq: flaml_lightgbm(lags=DEFAULT_LAGS, freq=freq, custom_hp={"lgbm": {"num_iterations": {"domain": 10}}})),
+    ("direct__lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10, **DIRECT_KWARGS)),
+    ("ensemble__lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10, **DIRECT_KWARGS)),
 ]
 # fmt: on
 
