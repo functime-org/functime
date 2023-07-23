@@ -245,10 +245,10 @@ def test_functime_on_m4(forecaster, m4_dataset_no_missing, benchmark, request):
 
     for metric_name, baseline_scores in mlforecast_scores.items():
         functime_scores = scores[metric_name]
+        assert len(functime_scores) == len(baseline_scores)
         mean_functime_score = np.mean(functime_scores)
         mean_baseline_score = np.mean(baseline_scores)
         if mean_functime_score > mean_baseline_score:
-            assert len(functime_scores) == len(baseline_scores)
             res = ttest_ind(a=functime_scores, b=baseline_scores)
             assert res.pvalue > TTEST_SIG_LEVEL
 
@@ -272,9 +272,9 @@ def test_functime_on_m5(forecaster, m4_dataset_no_missing, benchmark, request):
     for metric_name, baseline_scores in mlforecast_scores.items():
         # Compare mean scores with t-test
         functime_scores = scores[metric_name]
+        assert len(functime_scores) == len(baseline_scores)
         mean_functime_score = np.mean(functime_scores)
         mean_baseline_score = np.mean(baseline_scores)
         if mean_functime_score > mean_baseline_score:
-            assert len(functime_scores) == len(baseline_scores)
             res = ttest_ind(a=functime_scores, b=baseline_scores)
             assert res.pvalue > TTEST_SIG_LEVEL
