@@ -7,6 +7,8 @@ import pandas as pd
 import polars as pl
 import pytest
 
+from functime.cross_validation import train_test_split
+
 
 @pytest.fixture(params=[250, 1000], ids=lambda x: f"n_periods({x})")
 def n_periods(request):
@@ -198,7 +200,7 @@ def m5_dataset():
 
     # Specification
     fh = 28
-    max_lags = 128
+    max_lags = 64
     freq = "1d"
 
     # Load data
@@ -237,6 +239,55 @@ def m5_dataset():
     logging.info("X_train preview: %s", X_train)
     logging.info("y_test preview: %s", y_test)
     logging.info("X_test preview: %s", X_test)
+
+    return y_train.lazy(), X_train.lazy(), y_test.lazy(), X_test.lazy(), fh, freq
+
+
+@pytest.fixture
+def dunnhumby_retail():
+    """Dunn Humby: The Complete Journey retail dataset.
+
+    https://www.kaggle.com/datasets/frtgnn/dunnhumby-the-complete-journey
+    """
+
+    entity_col = "household_key__PRODUCT_ID"
+    time_col = "DAY"
+    feature_cols = [
+        "UNIT_PRICE",
+        "STORE_ID",
+        "RETAIL_DISC",
+        "TRANS_TIME",
+        "WEEK_NO",
+        "COUPON_DISC",
+        "COUPON_MATCH_DISC",
+        # NOTE: Too many dummy variables problem in demand forecasting
+        # We can use prod2vec to cluster similar products
+        # We can also experiment using prod2vec to cluster households
+        # by the cluster of products they are most likely to purchase
+        # "household_key",
+        # "PRODUCT_ID",
+    ]
+    target_col = "QUANTITY"
+    fh = 12
+    freq = "1d"
+
+    data = pl.read_parquet("data/dunnhumby.parquet").with_columns(
+        # Create UNIT_PRICE column
+        (pl.col("SALES_VALUE") / pl.col("QUANTITY"))
+        .round(2)
+        .cast(pl.Int16)
+        .alias("UNIT_PRICE"),
+        # Concat entity keys to make entity col
+        pl.concat_str(
+            [pl.col("household_key"), pl.col("PRODUCT_ID")], separator="__"
+        ).alias(entity_col),
+    )
+    y = data.select([entity_col, time_col, target_col])
+    X = data.select([entity_col, time_col, *feature_cols])
+
+    # Train test split
+    y_train, y_test = y.pipe(train_test_split(test_size=fh))
+    X_train, X_test = X.pipe(train_test_split(test_size=fh))
 
     return y_train.lazy(), X_train.lazy(), y_test.lazy(), X_test.lazy(), fh, freq
 
