@@ -122,7 +122,7 @@ def _check_m5_score(y_test, y_pred, y_train, threshold: float = 2.0):
     assert score < threshold
 
 
-@pytest.mark.limit_memory("6GiB")
+@pytest.mark.limit_memory("6GB")
 def test_forecaster_on_m4(forecaster, m4_dataset):
     """Run global models against the M4 competition datasets and check overall RMSE
     (i.e. averaged across all time-series) is less than 2.
@@ -134,7 +134,7 @@ def test_forecaster_on_m4(forecaster, m4_dataset):
     _check_m4_score(y_test, y_pred)
 
 
-@pytest.mark.limit_memory("6GiB")
+@pytest.mark.limit_memory("6GB")
 def test_auto_on_m4(auto_forecaster, m4_dataset):
     y_train, y_test, fh, freq = m4_dataset
     y_pred = auto_forecaster(freq=freq)(y=y_train, fh=fh)
@@ -143,7 +143,7 @@ def test_auto_on_m4(auto_forecaster, m4_dataset):
     _check_m4_score(y_test, y_pred)
 
 
-@pytest.mark.limit_memory("6GiB")
+@pytest.mark.limit_memory("6GB")
 def test_forecaster_on_m5(forecaster, m5_dataset):
     """Run global models against the M5 (Walmart) competition dataset and check
     overall RMSSE (i.e. averaged across all time-series) is less than 2.
@@ -155,7 +155,7 @@ def test_forecaster_on_m5(forecaster, m5_dataset):
     _check_m5_score(y_test, y_pred, y_train)
 
 
-@pytest.mark.limit_memory("6GiB")
+@pytest.mark.limit_memory("6GB")
 def test_auto_on_m5(auto_forecaster, m5_dataset):
     y_train, X_train, y_test, X_test, fh, freq = m5_dataset
     y_pred = auto_forecaster(freq=freq)(y=y_train, X=X_train, fh=fh, X_future=X_test)
@@ -184,7 +184,7 @@ def simple_classify(X: np.ndarray, y: np.ndarray):
     return estimator
 
 
-@pytest.mark.limit_memory("6GiB")
+@pytest.mark.limit_memory("6GB")
 @pytest.mark.parametrize("threshold", [5, 10])
 def test_censored_model_on_m5(threshold, m5_dataset):
     y_train, X_train, y_test, X_test, fh, freq = m5_dataset
@@ -216,7 +216,7 @@ def test_censored_model_on_m5(threshold, m5_dataset):
     assert score < 2
 
 
-@pytest.mark.limit_memory("6GiB")
+@pytest.mark.limit_memory("6GB")
 def test_zero_inflated_model_on_m5(m5_dataset):
     y_train, X_train, y_test, X_test, fh, freq = m5_dataset
     y_pred = zero_inflated_model(
