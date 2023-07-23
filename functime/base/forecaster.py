@@ -145,21 +145,12 @@ class Forecaster(Model):
             # from these categories, at least on of them is out of bounds
             X = X.select(pl.all().exclude(time)).lazy()
         y_pred_vals = predict_autoreg(self.state, fh=fh, X=X)
-        y_pred_vals = (
-            # Coerce index names and dtypes
-            y_pred_vals.rename(
-                {x: y for x, y in zip(y_pred_vals.columns, [entity, target])}
-            ).with_columns(pl.col(entity).cast(future_ranges.schema[entity]))
+        y_pred_vals = y_pred_vals.sort(by=entity).select(
+            pl.col(y_pred_vals.columns[-1]).alias(target)
         )
-        y_pred = (
-            future_ranges.lazy()
-            .join(y_pred_vals.lazy(), on=entity)
-            .explode(pl.all().exclude(entity))
-            # NOTE: Cannot use streaming....
-            # cloudpickle test with i32 entity column and i64 time column
-            # fails with SchemaMismatch(ErrString("cannot append series, data types don't match"))
-            .collect()
-        )
+        y_pred = pl.concat(
+            [future_ranges.sort(by=entity), y_pred_vals], how="horizontal"
+        ).explode(pl.all().exclude(entity))
 
         if self.target_transform is not None:
             schema = self.state.target_schema
