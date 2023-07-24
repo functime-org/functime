@@ -16,30 +16,26 @@ DF_TYPE = Union[pl.LazyFrame, pl.DataFrame]
 class Transformer:
     """A transformer."""
 
-    def __init__(self, model: Callable, *args, **kwargs):
-        self.model = model
+    def __init__(self, transf: Callable, *args, **kwargs):
+        self.transf = transf
         self.args = args
         self.kwargs = kwargs
         self.state = None
 
     @property
     def func(self):
-        return self.model(*self.args, **self.kwargs)
+        return self.transf(*self.args, **self.kwargs)
 
     @property
     def params(self):
-        model = self.model
+        transf = self.transf
         kwargs = self.kwargs
-        sig = inspect.signature(model)
-        model_params = sig.parameters
-        model_args = list(model_params.keys())
+        sig = inspect.signature(transf)
+        params = sig.parameters
+        args = list(params.keys())
         params = {
-            **{
-                k: kwargs.get(k, v.default)
-                for k, v in model_params.items()
-                if k != "kwargs"
-            },
-            **{model_args[i]: p for i, p in enumerate(self.args)},
+            **{k: kwargs.get(k, v.default) for k, v in params.items() if k != "kwargs"},
+            **{args[i]: p for i, p in enumerate(self.args)},
         }
         return params
 
@@ -70,9 +66,9 @@ class Transformer:
         return X_new
 
 
-def transformer(model: Callable[P, R]):
-    @wraps(model)
+def transformer(transf: Callable[P, R]):
+    @wraps(transf)
     def _transformer(*args: P.args, **kwargs: P.kwargs) -> Transformer:
-        return Transformer(model, *args, **kwargs)
+        return Transformer(transf, *args, **kwargs)
 
     return _transformer
