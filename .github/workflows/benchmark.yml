@@ -39,8 +39,9 @@ jobs:
             --benchmark-group-by=param \
             --benchmark-min-rounds=3 \
             --benchmark-columns=min,max,mean,median,stddev,rounds,iterations \
-            --benchmark-json=docs/benchmarks/forecasting.json
+            --benchmark-json=docs/benchmarks/${{ matrix.os }}.json
+      - uses: actions/checkout@v3
       - name: Commit results
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: "docs: Update forecast benchmarks"
+          commit_message: "docs: Update ${{ matrix.os }} benchmark"
