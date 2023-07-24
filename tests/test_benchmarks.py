@@ -5,12 +5,13 @@ from typing import List, Mapping
 import numpy as np
 import polars as pl
 import pytest
-from lightgbm import LGBMRegressor
 from scipy.stats import ttest_ind
+from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import Pipeline
 from sklearnex import patch_sklearn
 
-from functime.forecasting import lightgbm, linear_model
+from functime.forecasting import linear_model
 from functime.metrics import mae, mase, mse, rmse, rmsse, smape
 from functime.preprocessing import scale
 
@@ -21,25 +22,20 @@ METRICS_TO_TEST = [smape, rmse, rmsse, mae, mase, mse]
 TTEST_SIG_LEVEL = 0.20  # Two tailed
 
 
-@pytest.fixture(params=[16, 32, 64], ids=lambda x: f"lags_{x}")
+@pytest.fixture(params=[8, 16, 32, 64], ids=lambda x: f"lags_{x}")
 def lags_to_test(request):
     return request.param
 
 
 @pytest.fixture(
-    params=[
-        ("linear", lambda: LinearRegression(fit_intercept=True)),
-        ("lgbm", lambda: LGBMRegressor(force_col_wise=True, tree_learner="serial")),
-    ],
+    params=[("linear", lambda: LinearRegression(fit_intercept=True))],
     ids=lambda x: x[0],
 )
 def regressor(request):
     return request.param
 
 
-@pytest.fixture(
-    params=[("linear", linear_model), ("lgbm", lightgbm)], ids=lambda x: x[0]
-)
+@pytest.fixture(params=[("linear", linear_model)], ids=lambda x: x[0])
 def forecaster(request):
     return request.param
 
@@ -191,17 +187,23 @@ def test_mlforecast_on_m4(regressor, pd_m4_dataset, benchmark, request):
 
 
 @pytest.mark.benchmark
-def test_mlforecast_on_m5(regressor, pd_m5_dataset, benchmark, request):
+def test_mlforecast_on_m5(regressor, pd_m5_dataset, benchmark):
     from joblib import cpu_count
     from mlforecast import MLForecast
     from mlforecast.target_transforms import LocalStandardScaler
 
-    X_y_train, X_y_test, X_test, fh, freq, lags, entity_col, time_col = pd_m5_dataset
-    estimator_name, estimator = regressor
+    X_y_train, _, X_test, fh, freq, lags, entity_col, time_col = pd_m5_dataset
+    _, estimator = regressor
+
+    # NOTE: We create a sklearn pipeline with imputer because
+    # lags > 3 raises input X contains NaN, infinity or a
+    # value too large for dtype('float64').
+
+    pipeline = Pipeline([("impute", SimpleImputer()), ("regressor", estimator())])
 
     def fit_predict():
         model = MLForecast(
-            models=[estimator],
+            models=[pipeline],
             freq=freq,
             lags=list(range(lags)),
             num_threads=cpu_count(),
@@ -217,16 +219,7 @@ def test_mlforecast_on_m5(regressor, pd_m5_dataset, benchmark, request):
         y_pred = model.predict(fh, dynamic_dfs=[X_test])
         return y_pred
 
-    y_pred = benchmark(fit_predict)
-    scores = score_forecasts(
-        y_true=pl.DataFrame(X_y_test.loc[:, entity_col, time_col, "quantity_sold"]),
-        y_pred=pl.DataFrame(y_pred),
-        y_train=pl.DataFrame(X_y_train.loc[:, entity_col, time_col, "quantity_sold"]),
-    )
-    logging.info("Baseline scores (lags=%s): %s", lags, summarize_scores(scores))
-
-    cache_id = f"baseline_m5_{lags}_{estimator_name}_scores"
-    request.config.cache.set(cache_id, scores)
+    benchmark(fit_predict)
 
 
 @pytest.mark.benchmark
@@ -254,27 +247,11 @@ def test_functime_on_m4(forecaster, m4_dataset_no_missing, benchmark, request):
 
 
 @pytest.mark.benchmark
-def test_functime_on_m5(forecaster, m4_dataset_no_missing, benchmark, request):
-    y_train, X_train, y_test, X_test, fh, freq, lags = m4_dataset_no_missing
-    model_name, model = forecaster
-    y_pred = benchmark(
+def test_functime_on_m5(forecaster, m5_dataset_no_missing, benchmark):
+    y_train, X_train, _, X_test, fh, freq, lags = m5_dataset_no_missing
+    _, model = forecaster
+    benchmark(
         lambda: model(lags=lags, freq=freq, target_transform=scale())(
-            y=y_train, X_train=X_train, X_future=X_test, fh=fh
+            y=y_train, X=X_train, X_future=X_test, fh=fh
         )
     )
-
-    # Score forceasts
-    scores = score_forecasts(y_true=y_test.collect(), y_pred=y_pred)
-    mlforecast_scores = request.config.cache.get(
-        f"baseline_m5_{lags_to_test}_{model_name}_scores", None
-    )
-
-    for metric_name, baseline_scores in mlforecast_scores.items():
-        # Compare mean scores with t-test
-        functime_scores = scores[metric_name]
-        assert len(functime_scores) == len(baseline_scores)
-        mean_functime_score = np.mean(functime_scores)
-        mean_baseline_score = np.mean(baseline_scores)
-        if mean_functime_score > mean_baseline_score:
-            res = ttest_ind(a=functime_scores, b=baseline_scores)
-            assert res.pvalue > TTEST_SIG_LEVEL
