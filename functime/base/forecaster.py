@@ -43,7 +43,7 @@ class Forecaster(Model):
     target_transform : Optional[Transformer]
         functime transformer to apply to `y` before fit. The transform is inverted at predict time.
     **kwargs : Mapping[str, Any]
-        Additional keyword arguments passed into underlying sklearn-compatible estimator.
+        Additional keyword arguments passed into underlying sklearn-compatible regressor.
     """
 
     def __init__(

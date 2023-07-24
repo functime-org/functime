@@ -154,22 +154,22 @@ def test_mlforecast_on_m4(regressor, pd_m4_dataset, benchmark, request):
     from mlforecast.target_transforms import LocalStandardScaler
 
     y_train, y_test, fh, freq, lags, entity_col, time_col = pd_m4_dataset
-    estimator_name, estimator = regressor
+    regressor_name, regressor_cls = regressor
 
     def fit_predict():
-        model = MLForecast(
-            models=[estimator()],
+        forecaster = MLForecast(
+            models=[regressor_cls()],
             lags=list(range(lags)),
             num_threads=cpu_count(),
             target_transforms=[LocalStandardScaler()],
         )
-        model.fit(
+        forecaster.fit(
             y_train,
             id_col=entity_col,
             time_col=time_col,
             target_col=y_train.columns[-1],
         )
-        y_pred = model.predict(fh)
+        y_pred = forecaster.predict(fh)
         return y_pred
 
     y_pred = benchmark(fit_predict)
@@ -182,7 +182,7 @@ def test_mlforecast_on_m4(regressor, pd_m4_dataset, benchmark, request):
         "Baseline scores (freq=%s, lags=%s): %s", freq, lags, summarize_scores(scores)
     )
 
-    cache_id = f"baseline_m4_{freq}_{lags}_{estimator_name}"
+    cache_id = f"baseline_m4_{freq}_{lags}_{regressor_name}"
     request.config.cache.set(cache_id, scores)
 
 
@@ -193,30 +193,30 @@ def test_mlforecast_on_m5(regressor, pd_m5_dataset, benchmark):
     from mlforecast.target_transforms import LocalStandardScaler
 
     X_y_train, _, X_test, fh, freq, lags, entity_col, time_col = pd_m5_dataset
-    _, estimator = regressor
+    _, regressor_cls = regressor
 
     # NOTE: We create a sklearn pipeline with imputer because
     # lags > 3 raises input X contains NaN, infinity or a
     # value too large for dtype('float64').
 
-    pipeline = Pipeline([("impute", SimpleImputer()), ("regressor", estimator())])
+    pipeline = Pipeline([("impute", SimpleImputer()), ("regressor", regressor_cls())])
 
     def fit_predict():
-        model = MLForecast(
+        forecaster = MLForecast(
             models=[pipeline],
             freq=freq,
             lags=list(range(lags)),
             num_threads=cpu_count(),
             target_transforms=[LocalStandardScaler()],
         )
-        model.fit(
+        forecaster.fit(
             X_y_train.reset_index(),
             id_col=entity_col,
             time_col=time_col,
             target_col="quantity_sold",
             keep_last_n=lags,
         )
-        y_pred = model.predict(fh, dynamic_dfs=[X_test])
+        y_pred = forecaster.predict(fh, dynamic_dfs=[X_test])
         return y_pred
 
     benchmark(fit_predict)
@@ -225,15 +225,17 @@ def test_mlforecast_on_m5(regressor, pd_m5_dataset, benchmark):
 @pytest.mark.benchmark
 def test_functime_on_m4(forecaster, m4_dataset_no_missing, benchmark, request):
     y_train, y_test, fh, freq, lags = m4_dataset_no_missing
-    model_name, model = forecaster
+    forecaster_name, forecaster_cls = forecaster
     y_pred = benchmark(
-        lambda: model(lags=lags, freq=freq, target_transform=scale())(y=y_train, fh=fh)
+        lambda: forecaster_cls(lags=lags, freq=freq, target_transform=scale())(
+            y=y_train, fh=fh
+        )
     )
 
     # Score forceasts
     scores = score_forecasts(y_true=y_test.collect(), y_pred=y_pred, y_train=y_train)
     mlforecast_scores = request.config.cache.get(
-        f"baseline_m4_{freq}_{lags}_{model_name}", None
+        f"baseline_m4_{freq}_{lags}_{forecaster_name}", None
     )
 
     for metric_name, baseline_scores in mlforecast_scores.items():
@@ -249,9 +251,9 @@ def test_functime_on_m4(forecaster, m4_dataset_no_missing, benchmark, request):
 @pytest.mark.benchmark
 def test_functime_on_m5(forecaster, m5_dataset_no_missing, benchmark):
     y_train, X_train, _, X_test, fh, freq, lags = m5_dataset_no_missing
-    _, model = forecaster
+    _, forecaster_cls = forecaster
     benchmark(
-        lambda: model(lags=lags, freq=freq, target_transform=scale())(
+        lambda: forecaster_cls(lags=lags, freq=freq, target_transform=scale())(
             y=y_train, X=X_train, X_future=X_test, fh=fh
         )
     )

@@ -12,7 +12,7 @@ def _linear_model(**kwargs):
         from sklearn.linear_model import LinearRegression
 
         regressor = SklearnRegressor(
-            estimator=LinearRegression(**kwargs, copy_X=False),
+            regressor=LinearRegression(**kwargs, copy_X=False),
         )
         return regressor.fit(X=X, y=y)
 
@@ -24,7 +24,7 @@ def _lasso(**kwargs):
         from sklearn.linear_model import Lasso
 
         regressor = SklearnRegressor(
-            estimator=Lasso(**kwargs, tol=0.001, copy_X=False, max_iter=10000),
+            regressor=Lasso(**kwargs, tol=0.001, copy_X=False, max_iter=10000),
         )
         return regressor.fit(X=X, y=y)
 
@@ -36,7 +36,7 @@ def _ridge(**kwargs):
         from sklearn.linear_model import Ridge
 
         regressor = SklearnRegressor(
-            estimator=Ridge(**kwargs, tol=0.001, copy_X=False, max_iter=10000)
+            regressor=Ridge(**kwargs, tol=0.001, copy_X=False, max_iter=10000)
         )
         return regressor.fit(X=X, y=y)
 
@@ -48,7 +48,7 @@ def _elastic_net(**kwargs):
         from sklearn.linear_model import ElasticNet
 
         regressor = SklearnRegressor(
-            estimator=ElasticNet(**kwargs, tol=0.001, copy_X=False, max_iter=10000)
+            regressor=ElasticNet(**kwargs, tol=0.001, copy_X=False, max_iter=10000)
         )
         return regressor.fit(X=X, y=y)
 

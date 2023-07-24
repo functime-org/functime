@@ -266,16 +266,16 @@ Coming soon.
 from functime.forecasting import linear_model
 
 # Recursive (Default)
-recursive_model = linear_model(strategy="recursive")
+recursive_forecaster = linear_model(strategy="recursive")
 y_pred_rec = recursive_model(y_train, fh)
 
 # Direct
 max_horizons = 12  # Number of direct models
-direct_model = = linear_model(strategy="direct",max_horizons=max_horizons, freq="1mo")
+direct_forecaster = = linear_model(strategy="direct",max_horizons=max_horizons, freq="1mo")
 y_pred_dir = recursive_model(y_train, fh)
 
 # Ensemble
-ensemble_model = linear_model(strategy="ensemble", max_horizons=max_horizons, freq="1mo")
+ensemble_forecaster = linear_model(strategy="ensemble", max_horizons=max_horizons, freq="1mo")
 y_pred_ens = ensemble_model(y=y_train, fh=3)
 ```
 where `max_horizons` is the number of models specific to each forecast horizon.
@@ -308,15 +308,15 @@ y_pred = censored_model(lags=3, threshold=0.0, freq="1d")(
     from sklearn.ensemble import RandomForestClassifier
 
     def regress(X: np.ndarray, y: np.ndarray):
-        estimator = MLPRegressor()
-        estimator.fit(X=_X_to_numpy(X), y=_y_to_numpy(y))
-        return estimator
+        regressor = MLPRegressor()
+        regressor.fit(X=_X_to_numpy(X), y=_y_to_numpy(y))
+        return regressor
 
 
     def classify(X: np.ndarray, y: np.ndarray):
-        estimator = RandomForestClassifier()
-        estimator.fit(X=_X_to_numpy(X), y=_y_to_numpy(y))
-        return estimator
+        classifier = RandomForestClassifier()
+        classifier.fit(X=_X_to_numpy(X), y=_y_to_numpy(y))
+        return classifier
 
 
     # Censored model with custom classifier and regressor
