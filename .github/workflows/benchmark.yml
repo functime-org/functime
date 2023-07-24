@@ -33,11 +33,12 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install ".[test,performance]"
       - name: Benchmark
-        run: >
-          pytest -k "test_benchmark" -vv
-            --benchmark-name=short
-            --benchmark-group-by=param
-            --benchmark-columns=min,max,mean,median,stddev,rounds,iterations
+        run: |
+          pytest -k "test_benchmark" -vv \
+            --benchmark-name=short \
+            --benchmark-group-by=param \
+            --benchmark-min-rounds=3 \
+            --benchmark-columns=min,max,mean,median,stddev,rounds,iterations \
             --benchmark-json=docs/benchmarks/forecasting.json
       - name: Commit results
         uses: stefanzweifel/git-auto-commit-action@v4
