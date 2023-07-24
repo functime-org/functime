@@ -108,8 +108,8 @@ class GradientBoostedTreeRegressor:
 
 
 class SklearnRegressor:
-    def __init__(self, estimator):
-        self.estimator = estimator
+    def __init__(self, regressor):
+        self.regressor = regressor
 
     def _preproc_X(self, X: pl.DataFrame):
         entity_col, time_col = X.columns[:2]
@@ -129,14 +129,14 @@ class SklearnRegressor:
         # Regress
         with sklearn.config_context(assume_finite=True):
             # NOTE: We can assume finite due to preproc
-            self.estimator = self.estimator.fit(X=_X_to_numpy(X_new), y=_y_to_numpy(y))
+            self.regressor = self.regressor.fit(X=_X_to_numpy(X_new), y=_y_to_numpy(y))
         return self
 
     def predict(self, X: pl.DataFrame) -> np.ndarray:
         X_new = self._preproc_X(X).lazy()
         with sklearn.config_context(assume_finite=True):
             # NOTE: We can assume finite due to preproc
-            y_pred = self.estimator.predict(_X_to_numpy(X_new))
+            y_pred = self.regressor.predict(_X_to_numpy(X_new))
         return y_pred
 
 

@@ -28,7 +28,7 @@ Shoot Chris a message on [LinkedIn](https://www.linkedin.com/in/chrislohy/) to l
 - **Exogenous features:** supported by every forecaster
 - **Backtesting** with expanding window and sliding window splitters
 - **AutoML**: Automated lags and hyperparameter tuning using [`FLAML`](https://github.com/microsoft/FLAML)
-- **Censored model:** for zero-inflated and thresholding forecasts
+- **Censored forecaster:** for zero-inflated and thresholding forecasts
 
 ## Getting Started
 Install `functime` via the [pip](https://pypi.org/project/functime) package manager.
@@ -52,9 +52,9 @@ entity_col, time_col = y.columns[:2]
 y_train, y_test = y.pipe(train_test_split(test_size=3))
 
 # Fit-predict
-model = lightgbm(freq="1mo", lags=24, max_horizons=3, strategy="ensemble")
-model.fit(y=y_train)
-y_pred = model.predict(fh=3)
+forecaster = lightgbm(freq="1mo", lags=24, max_horizons=3, strategy="ensemble")
+forecaster.fit(y=y_train)
+y_pred = forecaster.predict(fh=3)
 
 # functime ❤️ functional design
 # fit-predict in a single line

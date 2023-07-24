@@ -23,7 +23,7 @@ They can be used to solve the following predictive tasks:
 
     Other potential use-cases for temporal embeddings include:
     - Churn prevention by matching purchasing patterns of active users to past users that churned
-    - Classifying measurements over time from IoT / robotic sensors to different model types or environments
+    - Classifying measurements over time from IoT / robotic sensors to different environments
 
     [Browse use-cases](#what-are-the-use-cases){ .md-button .md-button--primary }
 
@@ -149,10 +149,10 @@ umap_embeddings = reducer.fit_transform(embeddings)
 
 # Cluster with HDBSCAN
 clusterer = HDBSCAN(metric="minkowski", p=1)
-estimator.fit(X)
+clusterer.fit(X)
 
 # Get predicted cluster labels
-labels = estimator.predict(X)
+labels = clusterer.predict(X)
 ```
 
 ### Anomaly Detection (User Behavior)

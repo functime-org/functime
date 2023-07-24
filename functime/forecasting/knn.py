@@ -12,7 +12,7 @@ def _knn(**kwargs):
         from sklearn.neighbors import KNeighborsRegressor
 
         regressor = SklearnRegressor(
-            estimator=KNeighborsRegressor(**kwargs, n_jobs=-1),
+            regressor=KNeighborsRegressor(**kwargs, n_jobs=-1),
         )
         return regressor.fit(X=X, y=y)
 

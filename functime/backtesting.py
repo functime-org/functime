@@ -147,16 +147,16 @@ def backtest(
             y_resids.append(y_resid)
 
     y_preds = pl.concat(y_preds)
-    full_model = forecaster.fit(y=y, X=X)
+    full_forecaster = forecaster.fit(y=y, X=X)
     if residualize:
         y_resids = _merge_autoreg_residuals(
             y=y,
             X=X,
             y_resids=pl.concat(y_resids),
-            strategy=full_model.state.strategy,
+            strategy=full_forecaster.state.strategy,
             lags=forecaster.lags,
             max_horizons=forecaster.max_horizons,
-            artifacts=full_model.state.artifacts,
+            artifacts=full_forecaster.state.artifacts,
         )
         pl.enable_string_cache(False)
         return y_preds, y_resids

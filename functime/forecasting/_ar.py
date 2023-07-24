@@ -36,11 +36,11 @@ def fit_recursive(
         ]
     )
     # 2. Fit
-    fitted_model = regress(X=X_final, y=y_final)
+    fitted_regressor = regress(X=X_final, y=y_final)
     # 3. Collect artifacts
     y_lag = make_y_lag(X_y_final, target_col=y.columns[-1], lags=lags)
     artifacts = {
-        "regressor": fitted_model,
+        "regressor": fitted_regressor,
         "y_lag": y_lag.collect(streaming=True),
     }
     return artifacts
@@ -59,18 +59,18 @@ def fit_direct(
     # 1. Impose AR structure
     X_y_final = make_direct_reduction(lags=lags, max_horizons=max_horizons, y=y, X=X)
     # 2. Fit
-    fitted_models = []
+    fitted_regressors = []
     for i in trange(1, max_horizons + 1, desc="Fitting direct forecasters:"):
         selected_lags = range(i, lags + i)
         lag_cols = [f"{target_col}__lag_{j}" for j in selected_lags]
         X_final = X_y_final.select([*idx_cols, *lag_cols, *feature_cols])
         y_final = X_y_final.select([*idx_cols, target_col])
-        fitted_model = regress(X=X_final, y=y_final)
-        fitted_models.append(fitted_model)
+        fitted_regressor = regress(X=X_final, y=y_final)
+        fitted_regressors.append(fitted_regressor)
     # 3. Collect artifacts
     y_lag = make_y_lag(X_y_final, target_col=y.columns[-1], lags=lags + max_horizons)
     artifacts = {
-        "regressors": fitted_models,
+        "regressors": fitted_regressors,
         "y_lag": y_lag.collect(streaming=True),
     }
     return artifacts
@@ -196,13 +196,13 @@ def fit_cv(  # noqa: Ruff too complex
     }
     best_params["lags"] = best_lags
     logging.info("✅ Found `best_params` %s", best_params)
-    best_model = forecaster_cls(**best_params)
-    best_model.fit(y=y, X=X)
+    best_forecaster = forecaster_cls(**best_params)
+    best_forecaster.fit(y=y, X=X)
     # Prepare artifacts
     # TODO: Investigate ensembling across hyperparameter sets
     # Ref: https://arxiv.org/abs/2006.13570
     artifacts = {
-        **best_model.state.artifacts,
+        **best_forecaster.state.artifacts,
         "best_score": best_score,
         "best_params": best_params,
         "lags_path": lags_path,

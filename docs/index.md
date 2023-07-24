@@ -113,9 +113,9 @@ entity_col, time_col = y.columns[:2]
 y_train, y_test = y.pipe(train_test_split(test_size=3))
 
 # Fit-predict
-model = lightgbm(freq="1mo", lags=24, max_horizons=3, strategy="ensemble")
-model.fit(y=y_train)
-y_pred = model.predict(fh=3)
+forecaster = lightgbm(freq="1mo", lags=24, max_horizons=3, strategy="ensemble")
+forecaster.fit(y=y_train)
+y_pred = forecaster.predict(fh=3)
 
 # functime ❤️ functional design
 # fit-predict in a single line

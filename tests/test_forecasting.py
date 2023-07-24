@@ -167,9 +167,9 @@ def simple_regress(X: np.ndarray, y: np.ndarray):
     from sklearn.linear_model import LinearRegression
 
     with sklearn.config_context(assume_finite=False):
-        estimator = LinearRegression()
-        estimator.fit(X=X, y=y)
-    return estimator
+        regressor = LinearRegression()
+        regressor.fit(X=X, y=y)
+    return regressor
 
 
 def simple_classify(X: np.ndarray, y: np.ndarray):
@@ -177,9 +177,9 @@ def simple_classify(X: np.ndarray, y: np.ndarray):
     from sklearn.linear_model import LogisticRegression
 
     with sklearn.config_context(assume_finite=False):
-        estimator = LogisticRegression()
-        estimator.fit(X=X, y=y)
-    return estimator
+        regressor = LogisticRegression()
+        regressor.fit(X=X, y=y)
+    return regressor
 
 
 @pytest.mark.multivariate
