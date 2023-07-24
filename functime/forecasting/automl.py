@@ -47,7 +47,7 @@ class AutoForecaster(Forecaster):
     target_transform : Optional[Transformer]
         functime transformer to apply to `y` before fit. The transform is inverted at predict time.
     **kwargs : Mapping[str, Any]
-        Additional keyword arguments passed into underlying sklearn-compatible estimator.
+        Additional keyword arguments passed into underlying sklearn-compatible regressor.
     """
 
     def __init__(
@@ -206,7 +206,7 @@ class auto_lightgbm(AutoForecaster):
 
 class auto_knn(AutoForecaster):
     @property
-    def model(self):
+    def forecaster(self):
         return knn
 
     @property

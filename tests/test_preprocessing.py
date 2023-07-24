@@ -50,16 +50,16 @@ def pd_gb_transform(df: pd.DataFrame, model):
 @pytest.mark.benchmark
 @pytest.mark.parametrize("strategy", ["mean", "median", "most_frequent"])
 def test_sklearn_impute(strategy, pd_X, benchmark):
-    model = SimpleImputer(strategy=strategy)
-    benchmark(pd_gb_transform, pd_X, model)
+    imputer = SimpleImputer(strategy=strategy)
+    benchmark(pd_gb_transform, pd_X, imputer)
 
 
 @pytest.mark.benchmark
 def test_sklearn_boxcox(pd_X, benchmark):
     # All values must be stricty positive
     X = pd_X.abs() + 0.001
-    model = PowerTransformer(method="box-cox", standardize=False)
-    benchmark(pd_gb_transform, X, model)
+    transformer = PowerTransformer(method="box-cox", standardize=False)
+    benchmark(pd_gb_transform, X, transformer)
 
 
 @pytest.fixture(
@@ -213,9 +213,9 @@ def test_boxcox(pd_X):
     # Must be > 0
     pd_X = pd_X.assign(**{col: pd_X[col].abs() for col in numeric_cols}).replace(0, 1)
 
-    model = PowerTransformer(method="box-cox", standardize=False)
+    transformer = PowerTransformer(method="box-cox", standardize=False)
     expected = pd_X.groupby(entity_col)[numeric_cols].transform(
-        lambda x: np.concatenate(model.fit_transform(x.values.reshape(-1, 1)))
+        lambda x: np.concatenate(transformer.fit_transform(x.values.reshape(-1, 1)))
     )
     X = pl.from_pandas(pd_X.reset_index()).lazy()
     transformer = boxcox()

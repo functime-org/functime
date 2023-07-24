@@ -13,17 +13,17 @@ from functime.forecasting._regressors import CensoredRegressor, _X_to_numpy, _y_
 def default_regress(X: np.ndarray, y: np.ndarray):
     from sklearn.ensemble import HistGradientBoostingRegressor
 
-    estimator = HistGradientBoostingRegressor()
-    estimator.fit(X=X, y=y)
-    return estimator
+    regressor = HistGradientBoostingRegressor()
+    regressor.fit(X=X, y=y)
+    return regressor
 
 
 def default_classify(X: np.ndarray, y: np.ndarray):
     from sklearn.ensemble import HistGradientBoostingClassifier
 
-    estimator = HistGradientBoostingClassifier()
-    estimator.fit(X=X, y=y)
-    return estimator
+    classifier = HistGradientBoostingClassifier()
+    classifier.fit(X=X, y=y)
+    return classifier
 
 
 class censored_model(Forecaster):

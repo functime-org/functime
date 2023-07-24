@@ -75,7 +75,6 @@ def _lightgbm(weight_transform: Optional[Callable] = None, **kwargs):
 
 def _flaml_lightgbm(**kwargs):
     def regress(X: pl.DataFrame, y: pl.DataFrame):
-        # Fix estimator list to just lightgbm
         custom_hp = kwargs.pop("custom_hp", {})
         custom_lgbm_kwargs = (
             {
