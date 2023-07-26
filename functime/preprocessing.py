@@ -301,28 +301,18 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
         _mean = None
         _std = None
         if use_mean:
-            X = X.with_columns(
-                PL_NUMERIC_COLS(entity_col, time_col)
-                .mean()
-                .over(entity_col)
-                .suffix("_mean")
+            _mean = X.groupby(entity_col).agg(
+                PL_NUMERIC_COLS(entity_col, time_col).mean().suffix("_mean")
             )
-            mean_cols = [col for col in X.columns if col.endswith("_mean")]
-            _mean = X.select([*idx_cols, *mean_cols])
-            X = X.select(
+            X = X.join(_mean, on=entity_col).select(
                 idx_cols + [pl.col(col) - pl.col(f"{col}_mean") for col in numeric_cols]
             )
         if use_std:
-            X = X.with_columns(
-                PL_NUMERIC_COLS(entity_col, time_col)
-                .std()
-                .over(entity_col)
-                .suffix("_std")
+            _std = X.groupby(entity_col).agg(
+                PL_NUMERIC_COLS(entity_col, time_col).mean().suffix("_std")
             )
-            std_cols = [col for col in X.columns if col.endswith("_std")]
-            _std = X.select([*idx_cols, *std_cols])
-            X = X.select(
-                idx_cols + [pl.col(col) / pl.col(f"{col}_std") for col in numeric_cols]
+            X = X.join(_std, on=entity_col).select(
+                idx_cols + [pl.col(col) - pl.col(f"{col}_std") for col in numeric_cols]
             )
         if rescale_bool:
             boolean_cols = X.select(pl.col(pl.Boolean)).columns
@@ -338,16 +328,17 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
 
     def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
         idx_cols = X.columns[:2]
+        entity_col = idx_cols[0]
         artifacts = state.artifacts
         numeric_cols = artifacts["numeric_cols"]
         if use_std:
             _std = artifacts["_std"]
-            X = X.join(_std, on=idx_cols, how="left").select(
+            X = X.join(_std, on=entity_col, how="left").select(
                 idx_cols + [pl.col(col) * pl.col(f"{col}_std") for col in numeric_cols]
             )
         if use_mean:
             _mean = artifacts["_mean"]
-            X = X.join(_mean, on=idx_cols, how="left").select(
+            X = X.join(_mean, on=entity_col, how="left").select(
                 idx_cols + [pl.col(col) + pl.col(f"{col}_mean") for col in numeric_cols]
             )
         if rescale_bool:
