@@ -13,12 +13,12 @@
 </div>
 
 ---
-**functime** is a powerful [Python library]((https://pypi.org/project/functime/)) for production-ready AutoML forecasting and temporal embeddings.
+**functime** is a powerful [Python library]((https://pypi.org/project/functime/)) for production-ready forecasting and temporal embeddings.
 
 **functime** also comes with time-series [preprocessing](https://docs.functime.ai/ref/preprocessing/) (box-cox, differencing etc), cross-validation [splitters](https://docs.functime.ai/ref/cross-validation/) (expanding and sliding window), and forecast [metrics](https://docs.functime.ai/ref/metrics/) (MASE, SMAPE etc). All optimized as [lazy Polars](https://pola-rs.github.io/polars-book/user-guide/lazy/using/) transforms.
 
 Want to use **functime** for seamless time-series predictive analytics across your data team?
-Looking for production-grade time-series AutoML in a [serverless](#serverless-deployment) Cloud deployment?
+Looking for production-grade time-series machine learning in a [serverless](#serverless-deployment) Cloud deployment?
 Shoot Chris a message on [LinkedIn](https://www.linkedin.com/in/chrislohy/) to learn more about `functime` Cloud.
 
 ## Highlights
@@ -27,7 +27,7 @@ Shoot Chris a message on [LinkedIn](https://www.linkedin.com/in/chrislohy/) to l
 - **Battle-tested:** Machine learning algorithms that deliver real business impact and win competitions
 - **Exogenous features:** supported by every forecaster
 - **Backtesting** with expanding window and sliding window splitters
-- **AutoML**: Automated lags and hyperparameter tuning using [`FLAML`](https://github.com/microsoft/FLAML)
+- **Automated lags and hyperparameter tuning** using [`FLAML`](https://github.com/microsoft/FLAML)
 - **Censored forecaster:** for zero-inflated and thresholding forecasts
 
 ## Getting Started

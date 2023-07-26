@@ -2,7 +2,7 @@
 
 ## API Usage
 
-All individual forecasters (e.g. `lasso` / `xgboost`) have the same API. Use `**kwargs` to pass custom hyperparameters into the underlying regressor (e.g. sklearn's `LinearRegression` regressor in functime's `linear_model` forecaster). AutoML forecasters (e.g. `auto_lasso` and `auto_xgboost`) follow a similar API design. View [API reference](/ref/forecasting/) for details.
+All individual forecasters (e.g. `lasso` / `xgboost`) have the same API. Use `**kwargs` to pass custom hyperparameters into the underlying regressor (e.g. sklearn's `LinearRegression` regressor in functime's `linear_model` forecaster). Forecasters with automated hyperparameter tuning (e.g. `auto_lasso` and `auto_xgboost`) follow a similar API design. View [API reference](/ref/forecasting/) for details.
 ## Supported Forecasters
 
 `functime` currently supports the following autoregressive global forecasters.
@@ -22,7 +22,7 @@ All individual forecasters (e.g. `lasso` / `xgboost`) have the same API. Use `**
     - `xgboost`
     - `zero_inflated_model`
 
-??? info "AutoML Forecasters"
+??? info "Automated Forecasters"
 
     - `auto_elastic_net`
     - `auto_knn`
@@ -330,7 +330,7 @@ y_pred = censored_model(lags=3, threshold=0.0, freq="1d")(
     y_pred = forecaster(y=y_train, X=X_train, fh=fh, X_future=X_test)
     ```
 
-## AutoML
+## Automated Parameter Tuning
 
 Forecasters in [auto_forecasting](http://localhost:8000/ref/auto-forecasting/) automatically tune the number of lagged regressors and the model's hyperparameters (e.g. `alpha` for `Lasso`). Cross-validation, lags tuning, and model parameters tuning are performed simultaneously for maximum efficiency.
 
@@ -438,7 +438,7 @@ y_preds, y_residuals forecaster.backtest(
 
 ### Quantile Regression
 
-Supported by `LightGBM`, `XGBoost`, and `Catboost` forecasters and their AutoML equivalents.
+Supported by `LightGBM`, `XGBoost`, and `Catboost` forecasters and their automated equivalents.
 
 ```python
 from functime.forecasting import auto_lightgbm
