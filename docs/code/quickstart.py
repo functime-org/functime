@@ -31,8 +31,7 @@ freq = "1mo"
 y_train, y_test = train_test_split(test_size)(y)
 X_train, X_test = train_test_split(test_size)(X)
 
-# Univariate AutoML time-series fit with automated lags
-# and hyperparameter tuning
+# Univariate time-series fit with automated lags and hyperparameter tuning
 auto_forecaster = auto_lightgbm(
     freq=freq,
     test_size=test_size,
@@ -49,11 +48,11 @@ scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 print("✅ Predictions (univariate):\n", y_pred.sort(entity_col))
 print("💯 Scores (univariate):\n", scores)
 
-# Retrieve AutoML "artifacts"
+# Retrieve best lags and hyperparameters
 best_params = auto_forecaster.best_params
 print(f"✨ Best parameters (y only):\n{json.dumps(best_params, indent=4)}")
 
-# Multivariate non-AutoML
+# Multivariate
 forecaster = lightgbm(**best_params)
 forecaster.fit(y=y_train)
 # Predict

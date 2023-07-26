@@ -6,7 +6,7 @@
 
 **functime** is a machine learning library for time-series predictions that [just works](https://www.functime.ai/).
 
-- **Fully-featured:** Powerful and easy-to-use API for [AutoML forecasting](#forecasting-highlights) and [temporal embeddings](#embeddings-highlights) (classification, anomaly detection, and clustering)
+- **Fully-featured:** Powerful and easy-to-use API for [forecasting](#forecasting-highlights) and [temporal embeddings](#embeddings-highlights) (classification, anomaly detection, and clustering)
 - **Fast:** Forecast and classify [100,000 time series](#global-forecasting) in seconds *on your laptop*
 - **Cloud-native:** Instantly run, deploy, and serve predictive time-series models
 - **Efficient:** Embarressingly parallel feature engineering using [Polars](https://www.pola.rs/) *
@@ -20,7 +20,7 @@ Check out this [guide](installation.md) to install functime. Requires Python 3.8
 
 Point and probablistic forecasts using machine learning.
 Includes utilities to support the full forecasting lifecycle:
-preprocessing, feature extraction, time-series cross-validation / splitters, backtesting, AutoML, hyperparameter tuning, and scoring.
+preprocessing, feature extraction, time-series cross-validation / splitters, backtesting, automated hyperparameter tuning, and scoring.
 
 - Every forecaster supports **exogenous features**
 - **Backtesting** with expanding window and sliding window splitters
