@@ -46,13 +46,18 @@ Want to go straight into code? Run through every forecasting example with the fo
 Load a collection of time series, also known as panel data, into a [`polars.LazyFrame`](https://pola-rs.github.io/polars/py-polars/html/reference/lazyframe/index.html) (recommended) or `polars.DataFrame` and split them into train/test subsets.
 
 ```python
+import polars as pl
+from functime.cross_validation import train_test_split
+from functime.metrics import mase
+from functime.feature_extraction import add_calendar_effects
+
+
 # Load data
-y = pl.read_parquet("c")
+y = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/commodities.parquet")
 entity_col, time_col = y.columns[:2]
 X = (
     y.select([entity_col, time_col])
     .pipe(add_calendar_effects(["month"]))
-    .pipe(add_holiday_effects(country_codes=["US"], freq="1mo"))
     .collect()
 )
 

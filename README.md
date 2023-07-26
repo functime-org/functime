@@ -64,7 +64,7 @@ y_pred = lightgbm(freq="1mo", lags=24)(y=y_train, fh=3)
 scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 ```
 
-View the [full walkthrough](forecasting.md) on forecasting with `functime`.
+View the [full walkthrough](https://docs.functime.ai/forecasting.md) on forecasting with `functime`.
 
 ## Embeddings
 
@@ -81,7 +81,7 @@ They are commonly used for the following tasks:
 - **Clustering:** Where time-series are assigned labels (e.g. normal vs irregular heart rate)
 - **Anomaly detection:** Where outliers with unexpected regime / trend changes are identified
 
-View the [full walkthrough](embeddings.md) on temporal embeddings with `functime`.
+View the [full walkthrough](https://docs.functime.ai/embeddings.md) on temporal embeddings with `functime`.
 
 ## Serverless Deployment
 
