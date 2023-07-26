@@ -123,8 +123,8 @@ def _check_m5_score(y_test, y_pred, y_train, threshold: float = 2.0):
 
 
 def test_forecaster_on_m4(forecaster, m4_dataset):
-    """Run global models against the M4 competition datasets and check overall RMSE
-    (i.e. averaged across all time-series) is less than 2.
+    """Run global models against the M4 competition datasets and check overall SMAPE
+    (i.e. averaged across all time-series) is less than 0.3
     """
     y_train, y_test, fh, freq = m4_dataset
     y_pred = forecaster(freq=freq)(y=y_train, fh=fh)
