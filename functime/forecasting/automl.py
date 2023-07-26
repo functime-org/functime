@@ -14,7 +14,7 @@ from functime.forecasting.linear import elastic_net, lasso, linear_model, ridge
 
 
 class AutoForecaster(Forecaster):
-    """AutoML forecaster with automated hyperparameter tuning and lags selection.
+    """Forecaster with automated hyperparameter tuning and lags selection.
 
     Parameters
     ----------

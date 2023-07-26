@@ -119,7 +119,7 @@ class lightgbm(Forecaster):
 
 
 class flaml_lightgbm(Forecaster):
-    """Autoregressive FLAML AutoML LightGBM forecaster.
+    """Autoregressive FLAML LightGBM forecaster with automated lags and hyperparameter tuning.
 
     Reference:
     https://microsoft.github.io/FLAML/docs/Examples/AutoML-for-LightGBM/
