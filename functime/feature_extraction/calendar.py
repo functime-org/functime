@@ -13,6 +13,7 @@ def add_calendar_effects(
     attrs: List[
         Literal["minute", "hour", "day", "weekday", "week", "month", "quarter", "year"]
     ],
+    as_dummies: bool = False,
 ):
     """Extract calendar effects from time column, returns calendar effects as categorical columns.
 
@@ -28,6 +29,8 @@ def add_calendar_effects(
         - "month"
         - "quarter"
         - "year"
+    as_dummies : bool
+        Returns calendar effects as columns of one-hot-encoded dummies.
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
@@ -41,6 +44,8 @@ def add_calendar_effects(
                 for attr in attrs
             ]
         )
+        if as_dummies:
+            X_new = X_new.collect(streaming=True).to_dummies(columns=attrs).lazy()
         artifacts = {"X_new": X_new}
         return artifacts
 
