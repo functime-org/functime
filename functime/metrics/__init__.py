@@ -1,4 +1,15 @@
-from .point import mae, mape, mase, mse, overforecast, rmse, rmsse, smape, underforecast
+from .point import (
+    mae,
+    mape,
+    mase,
+    mse,
+    overforecast,
+    rmse,
+    rmsse,
+    smape,
+    smape_original,
+    underforecast,
+)
 
 __all__ = [
     "mae",
@@ -8,6 +19,7 @@ __all__ = [
     "rmse",
     "rmsse",
     "smape",
+    "smape_original",
     "overforecast",
     "underforecast",
 ]

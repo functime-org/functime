@@ -141,6 +141,28 @@ def smape(y_true: pl.DataFrame, y_pred: pl.DataFrame):
 
 
 @metric
+def smape_original(y_true: pl.DataFrame, y_pred: pl.DataFrame):
+    """Return symmetric mean absolute percentage error (sMAPE).
+
+    Parameters
+    ----------
+    y_true : pl.DataFrame
+        Ground truth (correct) target values.
+    y_pred : pl.DataFrame
+        Predicted values.
+
+    Returns
+    -------
+    scores : pl.DataFrame
+        Score per series.
+    """
+    num = 2 * (pl.col("pred") - pl.col("actual")).abs()
+    denom = 0.0001 + pl.col("actual").abs() + pl.col("pred").abs()
+    pct_error = (100 / pl.col("pred").len()) * (num / denom).sum()
+    return _score(y_true, y_pred, pct_error, "smape")
+
+
+@metric
 def mase(
     y_true: pl.DataFrame, y_pred: pl.DataFrame, y_train: pl.DataFrame, sp: int = 1
 ):
