@@ -487,7 +487,19 @@ def diff(order: int, sp: int = 1):
         idx_cols = entity_col, time_col
 
         X_cutoff = artifacts["X_last"] if from_last else artifacts["X_first"]
-        X_new = pl.concat([X, X_cutoff], how="diagonal").drop_nulls().sort(idx_cols)
+        X_new = (
+            pl.concat(
+                [
+                    X,
+                    X_cutoff.select(
+                        pl.col(col).cast(dtype) for col, dtype in X.schema.items()
+                    ),
+                ],
+                how="diagonal",
+            )
+            .drop_nulls()
+            .sort(idx_cols)
+        )
         for _ in range(order):
             X_new = _inverse_diff(X_new)  # noqa: F821
 
