@@ -49,9 +49,6 @@ dependencies = [
     "zarr"
 ]
 
-[project.scripts]
-functime = "functime.__main__:main"
-
 [project.urls]
 Homepage = "https://github.com/descendant-ai/functime"
 
@@ -82,7 +79,7 @@ addopts = ["--strict-config", "--strict-markers"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "benchmark: marks tests as part of benchmarking",
-    "multivariate: marks multivariate forecast test"
+    "multivariate: marks multivariate forecast test",
 ]
 xfail_strict = true
 
