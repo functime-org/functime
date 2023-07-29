@@ -54,20 +54,14 @@ def time_to_arange(eager: bool = False):
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
-        range_expr = pl.arange(0, pl.col(time_col).count()).alias(time_col)
-        other_cols = pl.all().exclude(time_col)
-        X_new = (
-            X.groupby(entity_col)
-            .agg([range_expr, other_cols])
-            .explode(pl.all().exclude(entity_col))
-            .select(
-                [
-                    entity_col,
-                    pl.col(time_col).cast(pl.Int32),
-                    pl.all().exclude([entity_col, time_col]),
-                ]
-            )
+        time_range_expr = (
+            pl.arange(0, pl.col(time_col).count())
+            .over(entity_col)
+            .alias(time_col)
+            .cast(pl.Int32)
         )
+        other_cols = pl.all().exclude([entity_col, time_col])
+        X_new = X.select([entity_col, time_range_expr, other_cols])
         if eager:
             X_new = X_new.collect(streaming=True)
         artifacts = {"X_new": X_new}
