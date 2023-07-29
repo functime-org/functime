@@ -355,22 +355,12 @@ def predict_autoreg(
     elif strategy == "direct":
         y_pred = predict_direct(**predict_kwargs)
     elif strategy == "ensemble":
-        target_col = state.target
-        y_pred_rec = predict_recursive(**predict_kwargs).rename(
-            {target_col: "recursive"}
-        )
-        y_pred_dir = predict_direct(**predict_kwargs).rename({target_col: "direct"})
+        y_pred_rec = predict_recursive(**predict_kwargs)
+        y_pred_dir = predict_direct(**predict_kwargs)
         y_pred = (
-            y_pred_rec.join(y_pred_dir, on=state.entity)
-            .explode(["recursive", "direct"])
-            .select(
-                [
-                    state.entity,
-                    ((pl.col("recursive") + pl.col("direct")) / 2).alias(target_col),
-                ]
-            )
-            .groupby(state.entity)
-            .agg(target_col)
+            pl.concat([y_pred_rec, y_pred_dir])
+            .groupby([state.entity, state.time])
+            .mean()
         )
     else:
         raise ValueError(f"Cannot recognize `strategy` '{strategy}'")
