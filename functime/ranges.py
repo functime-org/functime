@@ -13,7 +13,8 @@ def make_future_ranges(
     time_unit: Optional[str] = None,
 ) -> pl.DataFrame:
     """Return pl.DataFrame with columns entity_col, time_col.
-    DataFrame has shape (n_entities, 2) and dtypes (str, list[date]) or (str, list[datetime]).
+
+    DataFrame has shape (n_entities, 2) and dtypes (str, list[date]), (str, list[datetime]), or (str, list[int]).
     """
     entity_col = cutoffs.columns[0]
     if isinstance(freq, str):
