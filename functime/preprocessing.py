@@ -440,18 +440,10 @@ def diff(order: int, sp: int = 1):
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        def _diff(X):
-            X_new = (
-                X.groupby(entity_col, maintain_order=True)
-                .agg([pl.col(time_col), cs.float() - cs.float().shift(sp)])
-                .explode(pl.all().exclude(entity_col))
-            )
-            return X_new
 
         idx_cols = X.columns[:2]
         entity_col = idx_cols[0]
         time_col = idx_cols[1]
-        X = X.with_columns(pl.col(pl.Categorical).cast(pl.Utf8))
 
         X_first, X_last = pl.collect_all(
             [
@@ -460,7 +452,7 @@ def diff(order: int, sp: int = 1):
             ]
         )
         for _ in range(order):
-            X = _diff(X)
+            X = X.select([entity_col, time_col, cs.float().diff(n=sp).over(entity_col)])
 
         # Drop null
         artifacts = {
@@ -473,14 +465,6 @@ def diff(order: int, sp: int = 1):
     def invert(
         state: ModelState, X: pl.LazyFrame, from_last: bool = False
     ) -> pl.LazyFrame:
-        def _inverse_diff(X: pl.LazyFrame):
-            X_new = (
-                X.groupby(entity_col, maintain_order=True)
-                .agg([pl.col(time_col), cs.float().cumsum()])
-                .explode(pl.all().exclude(entity_col))
-            )
-            return X_new
-
         artifacts = state.artifacts
         entity_col = X.columns[0]
         time_col = X.columns[1]
@@ -501,7 +485,9 @@ def diff(order: int, sp: int = 1):
             .sort(idx_cols)
         )
         for _ in range(order):
-            X_new = _inverse_diff(X_new)  # noqa: F821
+            X_new = X_new.select(
+                [entity_col, time_col, cs.float().cumsum().over(entity_col)]
+            )
 
         return X.select(idx_cols).join(X_new, on=idx_cols, how="left")
 
