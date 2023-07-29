@@ -1,6 +1,7 @@
 from itertools import product
 from typing import List, Mapping, Union
 
+import numpy as np
 import polars as pl
 import polars.selectors as cs
 from scipy.stats import boxcox_normmax
@@ -597,3 +598,269 @@ def trim(direction: Literal["both", "left", "right"] = "both"):
         return artifacts
 
     return transform
+
+
+@transformer
+def add_fourier_coefs(period:Union[float, int], no_terms:int, cos_terms:int = None, sin_terms:int = None):
+    """Applies lag transformation to a LazyFrame.
+
+    Parameters
+    ----------
+    period: int
+        the assumed period for seasonality
+    no_terms : int
+        the number of fourier terms to include
+    cos_terms : int
+        the number of fourier cosine terms to include
+    sin_terms : int
+        the number of fourier cosine terms to include
+    """
+    if no_terms > (period - 1):
+        raise Warning("The number of Fourier coefficients must be less than period")
+    if (sin_terms is not None and cos_terms is not None):
+        if sin_terms + cos_terms != no_terms:
+            raise Warning("The number of Fourier sine coefficients and cosine coefficients must sum to no_terms")
+        
+    if cos_terms is None and sin_terms is None:
+        cos_terms = no_terms  // 2 + no_terms % 2
+        sin_terms = no_terms // 2
+    elif cos_terms is None and sin_terms is not None:
+        cos_terms = no_terms - sin_terms
+    elif cos_terms is not None and sin_terms is None:
+        sin_terms = no_terms - cos_terms
+
+    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+        nonlocal cos_terms, sin_terms
+
+        entity_col = X.columns[0]
+        time_col = X.columns[1]
+
+        new_col_names = ([f'fourier_coef_cos_period_{period}_k_{k}' for k in range(1, cos_terms + 1)] 
+                        + [f'fourier_coef_sin_period_{period}_k_{k}' for k in range(1, sin_terms + 1)]
+        )
+
+        X_new = X.with_columns(
+            pl.col(time_col)
+            .arg_sort()
+            .over(entity_col)
+            .alias('fourier_coef')
+            ).with_columns(
+                [
+                    np.cos(2 * np.pi * k * pl.col('fourier_coef') / period)
+                    .cast(pl.Float32)
+                    .alias(f'fourier_coef_cos_period_{period}_k_{k}')
+                    for k in range(1, cos_terms + 1)
+                ]
+                + [
+                    np.sin(2 * np.pi * k * pl.col('fourier_coef') / period)
+                    .cast(pl.Float32)
+                    .alias(f'fourier_coef_sin_period_{period}_k_{k}')
+                    for k in range(1, sin_terms + 1)
+                ]
+            )
+        X_new = X_new.with_columns(
+            [pl.when(pl.col(col).abs() < 1e-8)
+            .then(pl.lit(0).alias(col))
+            .otherwise(pl.col(col))
+            for col in new_col_names]
+        )
+
+        artifacts = {"X_new": X_new, 'fourier_cols': new_col_names}
+        return artifacts
+
+    return transform
+
+
+@transformer
+def add_changes(lags:List[int],
+                stats:List[Literal['diff', 'pct_change', 'log_change', 'log1_change']],
+                cols:List[str] = None):
+    """Applies differencing transformation to a LazyFrame.
+
+    Parameters
+    ----------
+    lags: List[int]
+        A list of lags denoting the differences to compute
+    stats: List[Literal]
+        List of differencing functions to create features for.
+    cols: List[str]
+        List of columns to compute differences for. By default, all columns are included
+    """
+
+
+    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+        nonlocal cols
+        entity_col = X.columns[0]
+        time_col = X.columns[1]
+
+        if cols is None:
+            values = pl.all().exclude([entity_col, time_col])
+        else:
+            values = pl.col(cols)
+
+        stat_exprs = {
+            "diff": lambda lag: values.diff(lag),
+            "pct_change": lambda lag: values.pct_change(lag),
+            "log_change": lambda lag: pl.log(values).diff(lag),
+            "log1_change": lambda lag: pl.log(1 + values).diff(lag),
+        }
+
+        X_new = X.sort(by=[entity_col, time_col]).with_columns(
+            [stat_exprs[stat](lag).over(entity_col).suffix(f"__{stat}_{lag}") for lag in lags for stat in stats]
+            )
+        
+        artifacts = {"X_new": X_new}
+        return artifacts
+
+    return transform
+
+
+@transformer
+def add_fractional_differences(orders:List[int], windows: int, cols:List[str] = None):
+    """Applies fractional differencing transformation to a LazyFrame.
+
+    Parameters
+    ----------
+    orders: List[int]
+        A list of differencing orders to compute
+    windows: List[int]
+        Maximum cutoff window to compute fractional difference
+    cols: List[str]
+        List of columns to compute differences for. By default, all columns are included
+    """
+
+    def _fdiff(order ,window):
+        def fdiff(x):
+            coefs = order + np.array([1 - order] +  list(range(0, -window + 1, -1)))
+            coefs *= ((-1) **   np.arange(window))
+            coefs = np.cumprod(coefs / np.array([1] + list(range(1, window))))
+            return (x * coefs[::-1]).sum()
+        return fdiff
+    
+    
+
+    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+        nonlocal cols
+        entity_col = X.columns[0]
+        time_col = X.columns[1]
+
+        if cols is None:
+            values = pl.all().exclude([entity_col, time_col])
+        else:
+            values = pl.col(cols)
+
+
+        X_new = X.sort(by=[entity_col, time_col]).with_columns(
+            [values.rolling_apply(_fdiff(order ,window), window).suffix(f'__fdiff_d{order}_{window}') for order in orders for window in windows]
+        )
+        artifacts = {"X_new": X_new}
+        return artifacts
+
+    return transform
+
+
+
+@transformer
+def detrend_ols(group_col:Union[List[str], str] = None, with_intercept:bool = False, cols:List[str]=None):
+    """Encode categorical features as a one-hot numeric array.
+
+    Parameters
+    ----------
+    group_col: Union[List[str], str]
+        Column to compute
+    with_intercept: bool
+        linearly detrend assuming with intercept
+    cols : List[str]
+        Which columns to detrend
+
+    Raises
+    ------
+    ValueError
+        if X passed into `transform_new` contains unknown categories.
+    """
+
+    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+        nonlocal group_col, cols
+
+        entity_col = X.columns[0]
+        time_col = X.columns[1]
+
+        if cols is None:
+            cols = list(X.columns[2:])
+
+        if group_col is None:
+            group_col = entity_col
+        
+
+        X_new = X.sort(by=[entity_col, time_col])
+        unique = X.groupby(group_col, maintain_order=True).agg(pl.col(time_col).unique()).explode(time_col)
+        unique = unique.with_columns((pl.col(time_col).rank().over(group_col) - 1).cast(pl.Float32).alias('index'))
+        X_new = X.join(unique, on = [group_col, time_col], how = 'left')
+    
+
+
+        if with_intercept:
+            means = X_new.groupby(group_col).agg(pl.col(['index'] + cols)).mean()
+            X_new = X_new.with_columns(
+                [pl.col(col).apply(lambda x: x - x.mean()).over(group_col) for col in ['index'] + cols]
+                )
+        else:
+            means = X_new.select(pl.col(group_col)).unique().with_columns([pl.lit(0.0).alias(col) for col in ['index'] + cols])
+
+        betas = X_new.groupby(group_col).agg([(pl.cov(pl.col(col), pl.col('index')) / pl.col('index').var()).cast(pl.Float32) for col in cols])   
+        X_new = X_new.with_columns(
+            [pl.col(col) - (pl.cov(pl.col(col), pl.col('index')) / pl.col('index').var()).over(group_col)  * pl.col('index')  for  col in cols]
+            )
+            
+        # keep tarck
+        artifacts = {
+            "X_new": X_new,
+            "means": means,
+            "betas": betas,
+            'group_col': group_col,
+            'cols': cols,
+            'time_mapping':unique
+        }
+        return artifacts
+
+    def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
+        means = state.artifacts["means"]
+        betas = state.artifacts["betas"] # (y - ybar) - Beta(x - xbar) 
+        cols = X.select(PL_NUMERIC_COLS(state.time)).columns
+        X_new = (X.join(means, on=state.artifacts['group_col'], how="left", suffix="__mean")
+                .join(betas, on=state.artifacts['group_col'], how="left", suffix="__beta")
+                .with_columns(
+            [pl.col(col) + pl.col(col + "__mean") + pl.col(col + "__beta") * (pl.col('index') - pl.col('index__mean')) for col in state.artifacts['cols']]
+        )
+        )
+        return X_new
+
+    def transform_new(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
+        means = state.artifacts["means"].with_columns(pl.col(pl.Float32).cast(pl.Float64))
+        betas = state.artifacts["betas"].with_columns(pl.col(pl.Float32).cast(pl.Float64)) # (y - ybar) - Beta(x - xbar) 
+        
+        date_mapping = state.artifacts['time_mapping']
+        entity_col = X.columns[0]
+        time_col = X.columns[1]
+
+        X_new = X.join(date_mapping, on = [state.artifacts['group_col'], time_col], how = 'outer')
+        X_new = X_new.sort(by=[entity_col, time_col])
+
+        ### TODO: by default, resets unmapped dates to 1 + the latest time index
+
+        unique_unmapped = X_new.filter(pl.col('index').is_null()).groupby(group_col, maintain_order=True).agg(pl.col(time_col).unique()).explode(time_col)
+        unique_unmapped = unique_unmapped.with_columns((pl.col(time_col).rank().over(group_col) - 1).cast(pl.Float32).alias('index'))
+        X_new = X_new.join(unique_unmapped, on = [group_col, time_col], how = 'left')
+        X_new = X_new.with_columns(pl.col('index').fill_null(pl.col('index_right')) + pl.col('index').max().over(group_col))
+        
+
+
+        X_new = (X_new.join(means, on=state.artifacts['group_col'], how="left", suffix="__mean")
+                .join(betas, on=state.artifacts['group_col'], how="left", suffix="__beta")
+                .with_columns(
+            [pl.col(col) - pl.col(col + "__mean") - pl.col(col + "__beta") * (pl.col('index') - pl.col('index__mean')) for col in state.artifacts['cols']]
+        )
+        )
+        return X_new
+
+    return transform, invert, transform_new
