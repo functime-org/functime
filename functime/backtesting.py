@@ -110,7 +110,7 @@ def backtest(
     residualize: bool = True,
 ) -> Tuple[pl.DataFrame, pl.DataFrame]:
     pl.enable_string_cache(True)
-    entity_col = y.columns[0]
+    entity_col, time_col = y.columns[:2]
     y_splits = cv(y)
     X_splits = X if X is None else cv(X)
     y_preds = []
@@ -130,6 +130,11 @@ def backtest(
         # Coerce split column names back into original names
         y_pred = y_pred.select(y_pred.columns[:3]).with_columns(
             pl.lit(i).alias("split")
+        )
+        # Coerce time column to y_test timestamps
+        y_test = y_test.sort([entity_col, time_col]).collect()
+        y_pred = y_pred.sort([entity_col, time_col]).with_columns(
+            y_test.get_column(time_col)
         )
         # Append results
         y_preds.append(y_pred)
