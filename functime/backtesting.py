@@ -143,10 +143,10 @@ def backtest(
             y_resid = _residualize_autoreg(
                 y_train=y_train,
                 X_train=X_train,
-                strategy=forecaster.state["strategy"],
+                strategy=forecaster.state.strategy,
                 lags=forecaster.lags,
                 max_horizons=forecaster.max_horizons,
-                artifacts=forecaster.state["artifacts"],
+                artifacts=forecaster.state.artifacts,
             )
             y_resid = y_resid.with_columns(pl.lit(i).alias("split"))
             y_resids.append(y_resid)
