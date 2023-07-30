@@ -42,8 +42,9 @@ def evaluate_window(
         # test set starts from 1,2,3,...,fh
         # Assumes y_test and y_pred align up
         y_test = y_test.sort([entity_col, time_col])
-        y_pred = y_pred.sort([entity_col, time_col])
-        y_test = y_test.with_columns(**{time_col: y_pred.get_column(time_col)})
+        y_pred = y_pred.sort([entity_col, time_col]).with_columns(
+            y_test.get_column(time_col)
+        )
         score = mae(y_true=y_test, y_pred=y_pred).get_column("mae").mean()
         res = {"score": score}
     except ValueError as exc:
