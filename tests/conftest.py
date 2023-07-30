@@ -8,6 +8,7 @@ import polars as pl
 import pytest
 
 from functime.cross_validation import train_test_split
+from functime.offsets import freq_to_sp
 
 
 @pytest.fixture(params=[250, 1000], ids=lambda x: f"n_periods({x})")
@@ -148,6 +149,28 @@ def prepare_m5_dataset(m5_train: pl.LazyFrame, m5_test: pl.LazyFrame):
     return y_train, X_train, y_test, X_test
 
 
+@pytest.fixture
+def m4_freq_to_sp():
+    return {
+        "1d": freq_to_sp("1d")[0],
+        "1w": freq_to_sp("1w")[0],
+        "1mo": freq_to_sp("1mo")[0],
+        "3mo": freq_to_sp("3mo")[0],
+        "1y": freq_to_sp("1y")[0],
+    }
+
+
+@pytest.fixture
+def m4_freq_to_lags():
+    return {
+        "1d": 30,
+        "1w": 14,
+        "1mo": 12,
+        "3mo": 6,
+        "1y": 3,
+    }
+
+
 @pytest.fixture(
     params=[
         ("1d", 14),
@@ -177,11 +200,9 @@ def m4_dataset(request):
             .set_sorted(["series", "time"])
         )
 
-    dataset_id, fh = request.param
-    freq = None  # I.e. test set starts at 1,2,3...,fh
-
-    y_train = load_panel_data(f"data/m4_{dataset_id}_train.parquet")
-    y_test = load_panel_data(f"data/m4_{dataset_id}_test.parquet")
+    freq, fh = request.param
+    y_train = load_panel_data(f"data/m4_{freq}_train.parquet")
+    y_test = load_panel_data(f"data/m4_{freq}_test.parquet")
 
     # Check m4 dataset RAM usage
     logging.info("y_train mem: %s", f'{y_train.estimated_size("mb"):.4f} mb')

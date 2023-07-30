@@ -10,6 +10,7 @@ from functime.forecasting import (  # ann,
     catboost,
     censored_model,
     elastic_net,
+    elite,
     flaml_lightgbm,
     lightgbm,
     linear_model,
@@ -126,7 +127,8 @@ def test_forecaster_on_m4(forecaster, m4_dataset):
     """Run global models against the M4 competition datasets and check overall SMAPE
     (i.e. averaged across all time-series) is less than 0.3
     """
-    y_train, y_test, fh, freq = m4_dataset
+    y_train, y_test, fh, _ = m4_dataset
+    freq = None  # I.e. test set starts at 1,2,3...,fh
     y_pred = forecaster(freq=freq)(y=y_train, fh=fh)
     entity_col = y_pred.columns[0]
     _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
@@ -134,7 +136,8 @@ def test_forecaster_on_m4(forecaster, m4_dataset):
 
 
 def test_auto_on_m4(auto_forecaster, m4_dataset):
-    y_train, y_test, fh, freq = m4_dataset
+    y_train, y_test, fh, _ = m4_dataset
+    freq = None  # I.e. test set starts at 1,2,3...,fh
     y_pred = auto_forecaster(freq=freq)(y=y_train, fh=fh)
     entity_col = y_pred.columns[0]
     _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
@@ -232,3 +235,11 @@ def test_zero_inflated_model_on_m5(m5_dataset):
         .mean()
     )
     assert score < 2
+
+
+def test_elite_on_m4(m4_dataset, m4_freq_to_sp, m4_freq_to_lags):
+    y_train, y_test, fh, freq = m4_dataset
+    y_pred = elite(freq=None, lags=m4_freq_to_lags[freq], sp=m4_freq_to_sp[freq])(
+        y=y_train, fh=fh
+    )
+    _check_m4_score(y_test, y_pred)
