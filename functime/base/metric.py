@@ -9,6 +9,10 @@ from functime.base.model import (
     _set_string_cache,
 )
 
+METRIC_TYPE = Callable[
+    [Union[pl.LazyFrame, pl.DataFrame], Union[pl.LazyFrame, pl.DataFrame]], pl.DataFrame
+]
+
 
 # Simple wrapper to collect y_true, y_pred if lazy
 def metric(score: Callable):
