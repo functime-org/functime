@@ -60,7 +60,6 @@ class Forecaster(Model):
         self.max_horizons = max_horizons
         self.strategy = strategy
         self.target_transform = target_transform
-        self._time_col_dtype = None
         self.kwargs = kwargs
         super().__init__()
 
