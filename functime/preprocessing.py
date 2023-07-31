@@ -1,4 +1,3 @@
-from itertools import product
 from typing import List, Mapping, Union
 
 import polars as pl
@@ -15,16 +14,30 @@ def PL_NUMERIC_COLS(*exclude):
     return cs.numeric() - cs.by_name(exclude)
 
 
-def reindex(X: pl.DataFrame) -> pl.DataFrame:
-    entity_col, time_col = X.columns[:2]
-    dtypes = X.dtypes[:2]
-    entities = sorted(set(X.get_column(entity_col)))
-    timestamps = sorted(set(X.get_column(time_col)))
-    X = pl.DataFrame(
-        product(entities, timestamps),
-        schema={entity_col: dtypes[0], time_col: dtypes[1]},
-    ).join(X, how="left", on=[entity_col, time_col])
-    return X
+@transformer
+def reindex(drop_duplicates: bool = False):
+    """Reindexes the entity and time columns to have every possible combination of (entity, time).
+
+    Parameters
+    ---------
+    drop_duplicates : bool
+        Defaults to False. If True, duplicates are dropped before reindexing.
+    """
+
+    def transform(X: pl.DataFrame) -> pl.DataFrame:
+        entity_col, time_col = X.columns[:2]
+        if drop_duplicates:
+            entities = X.get_column(entity_col).unique()
+            timestamps = X.get_column(time_col).unique()
+        else:
+            entities = X.get_column(entity_col)
+            timestamps = X.get_column(time_col)
+        idx = entities.join(timestamps, how="cross")
+        X_new = idx.join(X, how="left", on=[entity_col, time_col])
+        artifacts = {"X_new": X_new}
+        return artifacts
+
+    return transform
 
 
 @transformer
