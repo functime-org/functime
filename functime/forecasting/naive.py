@@ -7,12 +7,22 @@ from functime.ranges import make_future_ranges
 
 
 class naive(Forecaster):
-    def __init__(self, freq: str, fh: int):
-        self.fh = fh
+    """Naive forecaster.
+
+    Parameters
+    ----------
+    freq : str
+        Offset alias supported by Polars
+    max_fh : int
+        Max forecast horizon. `fh` in predict cannot exceed this value.
+    """
+
+    def __init__(self, freq: str, max_fh: int):
+        self.max_fh = max_fh
         super().__init__(freq=freq, lags=1)
 
     def _fit(self, y: pl.DataFrame, X: Optional[pl.DataFrame] = None):
-        fh = self.fh
+        max_fh = self.max_fh
         idx_cols = y.columns[:2]
         entity_col = idx_cols[0]
         target_col = y.columns[2]
@@ -24,7 +34,9 @@ class naive(Forecaster):
             .groupby(entity_col).tail(1)
         )
 
-        y_pred = pl.concat([y_past] * fh).groupby(entity_col).agg(pl.col(target_col))
+        y_pred = (
+            pl.concat([y_past] * max_fh).groupby(entity_col).agg(pl.col(target_col))
+        )
         artifacts = {"y_pred": y_pred}
         return artifacts
 
@@ -43,8 +55,8 @@ class naive(Forecaster):
         y_pred_vals = state.artifacts["y_pred"]
         y_pred_vals = (
             y_pred_vals.sort(by=entity)
-            .select(pl.col(y_pred_vals.columns[-1]).alias(target))
-            .collect()
+            .select(pl.col(y_pred_vals.columns[-1]).alias(target).list.head(fh))
+            .collect(streaming=True)
         )
         y_pred = pl.concat(
             [future_ranges.sort(by=entity), y_pred_vals], how="horizontal"
