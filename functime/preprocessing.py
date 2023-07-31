@@ -602,7 +602,7 @@ def trim(direction: Literal["both", "left", "right"] = "both"):
 
 @transformer
 def add_fourier_coefs(period:Union[float, int], no_terms:int, cos_terms:int = None, sin_terms:int = None):
-    """Applies lag transformation to a LazyFrame.
+    """Add Fourier terms to model seasonality.
 
     Parameters
     ----------
@@ -762,7 +762,7 @@ def add_fractional_differences(orders:List[int], windows: int, cols:List[str] = 
 
 @transformer
 def detrend_ols(group_col:Union[List[str], str] = None, with_intercept:bool = False, cols:List[str]=None):
-    """Encode categorical features as a one-hot numeric array.
+    """Subtract linear trend from time-series.
 
     Parameters
     ----------
