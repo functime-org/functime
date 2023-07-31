@@ -600,3 +600,76 @@ def boxcox(method: str = "mle"):
         return X_new
 
     return transform, invert
+
+
+@transformer
+def detrend(method: Literal["linear", "mean"] = "linear"):
+    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+        entity_col, time_col = X.columns[:2]
+        if method == "linear":
+            x = pl.col(time_col).to_physical()
+            betas = [
+                (pl.cov(col, x) / x.var()).over(entity_col).alias(f"{col}__beta")
+                for col in X.columns[2:]
+            ]
+            alphas = [
+                (
+                    pl.col(col).mean().over(entity_col)
+                    - pl.col(f"{col}__beta") * x.mean()
+                ).alias(f"{col}__alpha")
+                for col in X.columns[2:]
+            ]
+            residuals = [
+                pl.col(col) - pl.col(f"{col}__alpha") - pl.col(f"{col}__beta") * x
+                for col in X.columns[2:]
+            ]
+            X_new = X.with_columns(betas).with_columns(alphas).with_columns(residuals)
+            artifacts = {
+                "_beta": X_new.select([entity_col, cs.ends_with("__beta")])
+                .unique()
+                .collect(streaming=True),
+                "_alpha": X_new.select([entity_col, cs.ends_with("__alpha")])
+                .unique()
+                .collect(streaming=True),
+                "X_new": X_new.select(X.columns),
+            }
+        if method == "mean":
+            _mean = X.groupby(entity_col).agg(
+                pl.col(X.columns[2:]).mean().suffix("__mean")
+            )
+            X_new = X.with_columns(
+                pl.col(X.columns[2:]) - pl.col(X.columns[2:]).mean().over(entity_col)
+            )
+            _mean, X_new = pl.collect_all([_mean, X_new])
+            artifacts = {"_mean": _mean, "X_new": X_new.lazy()}
+        return artifacts
+
+    def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
+        entity_col, time_col = X.columns[:2]
+        if method == "linear":
+            _beta = state.artifacts["_beta"]
+            _alpha = state.artifacts["_alpha"]
+            X_new = (
+                X.join(_beta.lazy(), on=entity_col, how="left")
+                .join(_alpha.lazy(), on=entity_col, how="left")
+                .with_columns(
+                    [
+                        pl.col(col)
+                        + pl.col(f"{col}__alpha")
+                        + pl.col(f"{col}__beta") * pl.col(time_col).to_physical()
+                        for col in X.columns[2:]
+                    ]
+                )
+                .select(X.columns)
+            )
+        else:
+            X_new = (
+                X.join(state.artifacts["_mean"].lazy(), on=entity_col, how="left")
+                .with_columns(
+                    [pl.col(col) + pl.col(f"{col}__mean") for col in X.columns[2:]]
+                )
+                .select(X.columns)
+            )
+        return X_new
+
+    return transform, invert

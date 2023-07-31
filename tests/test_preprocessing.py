@@ -7,10 +7,11 @@ import pytest
 
 # AttributeError: module 'polars' has no attribute 'testing'
 from polars.testing import assert_frame_equal
+from scipy import signal
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import PowerTransformer
 
-from functime.preprocessing import boxcox, diff, lag, roll
+from functime.preprocessing import boxcox, detrend, diff, lag, roll
 
 
 @pytest.fixture
@@ -219,6 +220,20 @@ def test_boxcox(pd_X):
     )
     X = pl.from_pandas(pd_X.reset_index()).lazy()
     transformer = boxcox()
+    X_new = X.pipe(transformer).collect()
+    assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()))
+    X_original = X_new.pipe(transformer.invert)
+    assert_frame_equal(X_original, X, check_dtype=False)
+
+
+@pytest.mark.parametrize("method", ["linear", "mean"])
+def test_detrend(method, pd_X):
+    entity_col = pd_X.index.names[0]
+    expected = pd_X.groupby(entity_col).transform(
+        signal.detrend, type=method if method == "linear" else "constant"
+    )
+    X = pl.from_pandas(pd_X.reset_index()).lazy()
+    transformer = detrend(method=method)
     X_new = X.pipe(transformer).collect()
     assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()))
     X_original = X_new.pipe(transformer.invert)
