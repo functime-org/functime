@@ -314,13 +314,13 @@ y_pred = censored_model(lags=3, threshold=0.0, freq="1d")(
 
     def regress(X: np.ndarray, y: np.ndarray):
         regressor = MLPRegressor()
-        regressor.fit(X=_X_to_numpy(X), y=_y_to_numpy(y))
+        regressor.fit(X=X, y=y)
         return regressor
 
 
     def classify(X: np.ndarray, y: np.ndarray):
         classifier = RandomForestClassifier()
-        classifier.fit(X=_X_to_numpy(X), y=_y_to_numpy(y))
+        classifier.fit(X=X, y=y))
         return classifier
 
 

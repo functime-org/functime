@@ -36,6 +36,43 @@ def df_to_ndarray(df: pl.DataFrame, n_groups: Optional[int] = None) -> np.ndarra
     return X
 
 
+def X_to_numpy(X: pl.DataFrame) -> np.ndarray:
+    X_arr = (
+        X.lazy()
+        .select(pl.col(X.columns[2:]).cast(pl.Float32))
+        .select(
+            pl.when(pl.all().is_infinite() | pl.all().is_nan())
+            .then(None)
+            .otherwise(pl.all())
+            .keep_name()
+        )
+        # TODO: Support custom groupby imputation
+        .fill_null(strategy="mean")  # Do not fill backward (data leak)
+        .collect(streaming=True)
+        .pipe(df_to_ndarray)
+    )
+    return X_arr
+
+
+def y_to_numpy(y: pl.DataFrame) -> np.ndarray:
+    y_arr = (
+        y.lazy()
+        .select(pl.col(y.columns[-1]).cast(pl.Float32))
+        .select(
+            pl.when(pl.all().is_infinite() | pl.all().is_nan())
+            .then(None)
+            .otherwise(pl.all())
+            .keep_name()
+        )
+        # TODO: Support custom groupby imputation
+        .fill_null(strategy="mean")  # Do not fill backward (data leak)
+        .collect(streaming=True)
+        .get_column(y.columns[-1])
+        .to_numpy(zero_copy_only=True)
+    )
+    return y_arr
+
+
 if __name__ == "__main__":
 
     from timeit import default_timer
