@@ -152,11 +152,7 @@ def fit_cv(  # noqa: Ruff too complex
     scores_path = []
     lags_path = list(range(min_lags, max_lags + 1))
     scores_path = []
-    for lags in (
-        pbar := tqdm(
-            lags_path, desc=f"🚀 Evaluating models with n={min(lags_path)} lags"
-        )
-    ):
+    for lags in (pbar := tqdm(lags_path, desc=f"Evaluating n={min(lags_path)} lags")):
         score, params = evaluate(
             **{
                 "lags": lags,
