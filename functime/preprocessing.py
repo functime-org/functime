@@ -24,14 +24,14 @@ def reindex(drop_duplicates: bool = False):
         Defaults to False. If True, duplicates are dropped before reindexing.
     """
 
-    def transform(X: pl.DataFrame) -> pl.DataFrame:
+    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
         if drop_duplicates:
-            entities = X.get_column(entity_col).unique()
-            timestamps = X.get_column(time_col).unique()
+            entities = X.select(pl.col(entity_col).unique())
+            timestamps = X.select(pl.col(time_col).unique())
         else:
-            entities = X.get_column(entity_col)
-            timestamps = X.get_column(time_col)
+            entities = X.select(entity_col)
+            timestamps = X.select(time_col)
         idx = entities.join(timestamps, how="cross")
         X_new = idx.join(X, how="left", on=[entity_col, time_col])
         artifacts = {"X_new": X_new}
