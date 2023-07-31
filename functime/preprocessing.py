@@ -113,6 +113,45 @@ def resample(freq: str, agg_method: str, impute_method: Union[str, int, float]):
 
 
 @transformer
+def trim(direction: Literal["both", "left", "right"] = "both"):
+    """Trims time-series in panel to have the same start or end dates as the shortest time-series.
+
+    Parameters
+    ----------
+    direction : Literal["both", "left", "right"]
+        Defaults to "both". If "left" trims from start date of the shortest time series);
+        if "right" trims up to the end date of the shortest time-series; or otherwise
+        "both" trims between start and end dates of the shortest time-series
+    """
+
+    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+        entity_col, time_col = X.columns[:2]
+        maxmin = (
+            X.groupby(entity_col)
+            .agg(pl.col(time_col).min())
+            .select(pl.col(time_col).max())
+        )
+        minmax = (
+            X.groupby(entity_col)
+            .agg(pl.col(time_col).max())
+            .select(pl.col(time_col).min())
+        )
+        start, end = pl.collect_all([minmax, maxmin])
+        start, end = start.item(), end.item()
+        if direction == "both":
+            expr = (pl.col(time_col) >= start) & (pl.col(time_col) <= end)
+        elif direction == "left":
+            expr = pl.col(time_col) >= start
+        else:
+            expr = pl.col(time_col) <= start
+        X_new = X.filter(expr)
+        artifacts = {"X_new": X_new}
+        return artifacts
+
+    return transform
+
+
+@transformer
 def lag(lags: List[int]):
     """Applies lag transformation to a LazyFrame.
 
@@ -548,32 +587,3 @@ def boxcox(method: str = "mle"):
         return X_new
 
     return transform, invert
-
-
-@transformer
-def trim(direction: Literal["both", "left", "right"] = "both"):
-    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        entity_col, time_col = X.columns[:2]
-        maxmin = (
-            X.groupby(entity_col)
-            .agg(pl.col(time_col).min())
-            .select(pl.col(time_col).max())
-        )
-        minmax = (
-            X.groupby(entity_col)
-            .agg(pl.col(time_col).max())
-            .select(pl.col(time_col).min())
-        )
-        start, end = pl.collect_all([minmax, maxmin])
-        start, end = start.item(), end.item()
-        if direction == "both":
-            expr = (pl.col(time_col) >= start) & (pl.col(time_col) <= end)
-        elif direction == "left":
-            expr = pl.col(time_col) >= start
-        else:
-            expr = pl.col(time_col) <= start
-        X_new = X.filter(expr)
-        artifacts = {"X_new": X_new}
-        return artifacts
-
-    return transform
