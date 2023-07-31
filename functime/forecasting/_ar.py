@@ -182,7 +182,7 @@ def fit_cv(  # noqa: Ruff too complex
             best_lags = lags
             best_params = params
         pbar.set_description(
-            f"🚀 [Best round: lags={best_lags}, score={best_score:.2f}] Evaluating models with n={lags + 1} lags"
+            f"[Best round: lags={best_lags}, score={best_score:.2f}] Evaluating models with n={lags + 1} lags"
         )
 
     # Refit

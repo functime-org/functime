@@ -111,9 +111,9 @@ class Forecaster(Model):
         from functime.forecasting._ar import predict_autoreg
 
         state = self.state
-        entity = state.entity
-        time = state.time
-        target = state.target
+        entity_col = state.entity
+        time_col = state.time
+        target_col = state.target
         # Cutoffs cannot be lazy
         cutoffs: pl.DataFrame = state.artifacts["__cutoffs"]
         future_ranges = make_future_ranges(
@@ -133,28 +133,28 @@ class Forecaster(Model):
                 X = self._enforce_string_cache(X.lazy().collect()).lazy()
 
             if has_entity and not has_time:
-                X = future_ranges.lazy().join(X, on=entity, how="left")
+                X = future_ranges.lazy().join(X, on=entity_col, how="left")
             elif has_time and not has_entity:
-                X = future_ranges.lazy().join(X, on=time, how="left")
+                X = future_ranges.lazy().join(X, on=time_col, how="left")
 
             # NOTE: Unlike `y_lag` we DO NOT reshape exogenous features
             # into list columns. This is because .arr[i] with List[cat] does
             # not seem to support null values
             # Raises: ComputeError: cannot construct Categorical
             # from these categories, at least on of them is out of bounds
-            X = X.select(pl.all().exclude(time)).lazy()
+            X = X.select(pl.all().exclude(time_col)).lazy()
         y_pred_vals = predict_autoreg(self.state, fh=fh, X=X)
-        y_pred_vals = y_pred_vals.sort(by=entity).select(
-            pl.col(y_pred_vals.columns[-1]).alias(target)
+        y_pred_vals = y_pred_vals.sort(by=entity_col).select(
+            pl.col(y_pred_vals.columns[-1]).alias(target_col)
         )
         y_pred = pl.concat(
-            [future_ranges.sort(by=entity), y_pred_vals], how="horizontal"
-        ).explode(pl.all().exclude(entity))
+            [future_ranges.sort(by=entity_col), y_pred_vals], how="horizontal"
+        ).explode(pl.all().exclude(entity_col))
 
         if self.target_transform is not None:
             schema = self.state.target_schema
             y_pred = (
-                y_pred.with_columns(pl.col(time).cast(schema[time]))
+                y_pred.with_columns(pl.col(time_col).cast(schema[time_col]))
                 .pipe(self.target_transform.invert)
                 .collect(streaming=True)
             )

@@ -5,9 +5,10 @@ import polars as pl
 
 from functime.base import Forecaster
 from functime.base.forecaster import FORECAST_STRATEGIES
+from functime.conversion import X_to_numpy, y_to_numpy
 from functime.forecasting._ar import fit_autoreg
 from functime.forecasting._reduction import make_reduction
-from functime.forecasting._regressors import CensoredRegressor, _X_to_numpy, _y_to_numpy
+from functime.forecasting._regressors import CensoredRegressor
 
 
 def default_regress(X: np.ndarray, y: np.ndarray):
@@ -71,9 +72,7 @@ class censored_model(Forecaster):
                 X_y_final.select([*X_y_final.columns[:2], target_col]),
             ]
         )
-        fitted_classifier = self.classify(
-            X=_X_to_numpy(X_final), y=_y_to_numpy(y_final)
-        )
+        fitted_classifier = self.classify(X=X_to_numpy(X_final), y=y_to_numpy(y_final))
         # 2. Fit forecast model on non-zeros
         censored_regressor = CensoredRegressor(
             threshold=self.threshold,

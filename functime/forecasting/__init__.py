@@ -8,6 +8,7 @@ from .automl import (
 )
 from .catboost import catboost
 from .censored import censored_model, zero_inflated_model
+from .elite import elite
 from .knn import knn
 from .lance import ann
 from .lightgbm import flaml_lightgbm, lightgbm
@@ -25,6 +26,7 @@ __all__ = [
     "catboost",
     "censored_model",
     "elastic_net",
+    "elite",
     "flaml_lightgbm",
     "knn",
     "lasso",

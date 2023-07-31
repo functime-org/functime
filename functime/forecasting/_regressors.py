@@ -9,45 +9,8 @@ import polars as pl
 import sklearn
 from typing_extensions import Literal
 
-from functime.conversion import df_to_ndarray
+from functime.conversion import X_to_numpy, y_to_numpy
 from functime.preprocessing import PL_NUMERIC_COLS
-
-
-def _X_to_numpy(X: pl.DataFrame) -> np.ndarray:
-    X_arr = (
-        X.lazy()
-        .select(pl.col(X.columns[2:]).cast(pl.Float32))
-        .select(
-            pl.when(pl.all().is_infinite() | pl.all().is_nan())
-            .then(None)
-            .otherwise(pl.all())
-            .keep_name()
-        )
-        # TODO: Support custom groupby imputation
-        .fill_null(strategy="mean")  # Do not fill backward (data leak)
-        .collect(streaming=True)
-        .pipe(df_to_ndarray)
-    )
-    return X_arr
-
-
-def _y_to_numpy(y: pl.DataFrame) -> np.ndarray:
-    y_arr = (
-        y.lazy()
-        .select(pl.col(y.columns[-1]).cast(pl.Float32))
-        .select(
-            pl.when(pl.all().is_infinite() | pl.all().is_nan())
-            .then(None)
-            .otherwise(pl.all())
-            .keep_name()
-        )
-        # TODO: Support custom groupby imputation
-        .fill_null(strategy="mean")  # Do not fill backward (data leak)
-        .collect(streaming=True)
-        .get_column(y.columns[-1])
-        .to_numpy(zero_copy_only=True)
-    )
-    return y_arr
 
 
 class GradientBoostedTreeRegressor:
@@ -82,8 +45,8 @@ class GradientBoostedTreeRegressor:
         X = self._preproc_X(X)
 
         if self.fit_dtype == "numpy":
-            X_coerced = _X_to_numpy(X)
-            y_coerced = _y_to_numpy(X)
+            X_coerced = X_to_numpy(X)
+            y_coerced = y_to_numpy(X)
         elif self.fit_dtype == "arrow":
             X_coerced = X.to_arrow()
             y_coerced = y.to_arrow()
@@ -98,7 +61,7 @@ class GradientBoostedTreeRegressor:
     def predict(self, X: pl.DataFrame) -> np.ndarray:
         X = self._preproc_X(X)
         if self.predict_dtype == "numpy":
-            X_coerced = _X_to_numpy(X)
+            X_coerced = X_to_numpy(X)
         elif self.predict_dtype == "arrow":
             X_coerced = X.to_arrow
         elif isinstance(self.predict_dtype, Callable):
@@ -129,14 +92,14 @@ class SklearnRegressor:
         # Regress
         with sklearn.config_context(assume_finite=True):
             # NOTE: We can assume finite due to preproc
-            self.regressor = self.regressor.fit(X=_X_to_numpy(X_new), y=_y_to_numpy(y))
+            self.regressor = self.regressor.fit(X=X_to_numpy(X_new), y=y_to_numpy(y))
         return self
 
     def predict(self, X: pl.DataFrame) -> np.ndarray:
         X_new = self._preproc_X(X).lazy()
         with sklearn.config_context(assume_finite=True):
             # NOTE: We can assume finite due to preproc
-            y_pred = self.regressor.predict(_X_to_numpy(X_new))
+            y_pred = self.regressor.predict(X_to_numpy(X_new))
         return y_pred
 
 
@@ -165,28 +128,24 @@ class CensoredRegressor:
         X_above = X_y_above.select(pl.all().exclude(target_col))
         if threshold == 0:
             self.regressors = (
-                self.regress(_X_to_numpy(X_above), _y_to_numpy(y_above)),
+                self.regress(X_to_numpy(X_above), y_to_numpy(y_above)),
                 None,
             )
         else:
             X_y_below = X.join(y, on=idx_cols).filter(pl.col(target_col) <= threshold)
             y_below = X_y_below.select([*idx_cols, target_col])
             X_below = X_y_below.select(pl.all().exclude(target_col))
-            fitted_model_above = self.regress(
-                _X_to_numpy(X_above), _y_to_numpy(y_above)
-            )
-            fitted_model_below = self.regress(
-                _X_to_numpy(X_below), _y_to_numpy(y_below)
-            )
+            fitted_model_above = self.regress(X_to_numpy(X_above), y_to_numpy(y_above))
+            fitted_model_below = self.regress(X_to_numpy(X_below), y_to_numpy(y_below))
             self.regressors = fitted_model_above, fitted_model_below
         return self
 
     def predict(self, X: pl.DataFrame) -> np.ndarray:
-        weights = self.predict_proba(_X_to_numpy(X))
+        weights = self.predict_proba(X_to_numpy(X))
         regress_above, regress_below = self.regressors
-        y_pred = weights[:, 1] * regress_above.predict(_X_to_numpy(X))
+        y_pred = weights[:, 1] * regress_above.predict(X_to_numpy(X))
         if abs(self.threshold) > 0:
-            y_pred += weights[:, 0] * regress_below.predict(_X_to_numpy(X))
+            y_pred += weights[:, 0] * regress_below.predict(X_to_numpy(X))
         return y_pred, weights[:, 1]
 
 

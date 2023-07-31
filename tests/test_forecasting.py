@@ -239,7 +239,7 @@ def test_zero_inflated_model_on_m5(m5_dataset):
 
 def test_elite_on_m4(m4_dataset, m4_freq_to_sp, m4_freq_to_lags):
     y_train, y_test, fh, freq = m4_dataset
-    y_pred = elite(freq=None, lags=m4_freq_to_lags[freq], sp=m4_freq_to_sp[freq])(
-        y=y_train, fh=fh
-    )
+    y_pred = elite(
+        freq=None, lags=m4_freq_to_lags[freq], max_fh=fh, sp=m4_freq_to_sp[freq]
+    )(y=y_train, fh=fh)
     _check_m4_score(y_test, y_pred)
