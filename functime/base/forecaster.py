@@ -42,6 +42,8 @@ class Forecaster(Model):
         and "ensemble" of both recursive and direct strategies.
     target_transform : Optional[Transformer]
         functime transformer to apply to `y` before fit. The transform is inverted at predict time.
+    feature_transform : Optional[Transformer]
+        functime transformer to apply to `X` before fit and predict.
     **kwargs : Mapping[str, Any]
         Additional keyword arguments passed into underlying sklearn-compatible regressor.
     """
@@ -53,6 +55,7 @@ class Forecaster(Model):
         max_horizons: Optional[int] = None,
         strategy: FORECAST_STRATEGIES = None,
         target_transform: Optional[Transformer] = None,
+        feature_transform: Optional[Transformer] = None,
         **kwargs,
     ):
         self.freq = freq
@@ -60,6 +63,7 @@ class Forecaster(Model):
         self.max_horizons = max_horizons
         self.strategy = strategy
         self.target_transform = target_transform
+        self.feature_transform = feature_transform
         self.kwargs = kwargs
         super().__init__()
 
@@ -77,6 +81,19 @@ class Forecaster(Model):
     def name(self):
         return f"{self.__class__.__name__}(strategy={self.strategy})"
 
+    def _transform_X(self, y: DF_TYPE, X: Optional[DF_TYPE] = None):
+        # Feature transform
+        if X is None:
+            X_new = (
+                y.select(y.columns[:2])
+                .pipe(self.feature_transform)
+                .collect(streaming=True)
+                .lazy()
+            )
+        else:
+            X_new = X.pipe(self.feature_transform).collect(streaming=True).lazy()
+        return X_new
+
     def fit(self, y: DF_TYPE, X: Optional[DF_TYPE] = None):
         # Prepare y
         target_transform = self.target_transform
@@ -88,6 +105,9 @@ class Forecaster(Model):
             if X.columns[0] == y.columns[0]:
                 X = self._enforce_string_cache(X.lazy().collect())
             X = X.lazy()
+        # Feature transform
+        if self.feature_transform is not None:
+            X = self._transform_X(X=X, y=y)
         # Fit AR forecaster
         artifacts = self._fit(y=y, X=X)
         # Prepare artifacts
@@ -116,12 +136,14 @@ class Forecaster(Model):
         target_col = state.target
         # Cutoffs cannot be lazy
         cutoffs: pl.DataFrame = state.artifacts["__cutoffs"]
+        # Get entity, time "index" for forecast
         future_ranges = make_future_ranges(
             time_col=state.time,
             cutoffs=cutoffs,
             fh=fh,
             freq=self.freq,
         )
+        # Prepare X
         if X is not None:
             X = X.lazy()
             # Coerce X (can be panel / time series / cross sectional) into panel
@@ -137,12 +159,12 @@ class Forecaster(Model):
             elif has_time and not has_entity:
                 X = future_ranges.lazy().join(X, on=time_col, how="left")
 
-            # NOTE: Unlike `y_lag` we DO NOT reshape exogenous features
-            # into list columns. This is because .arr[i] with List[cat] does
-            # not seem to support null values
-            # Raises: ComputeError: cannot construct Categorical
-            # from these categories, at least on of them is out of bounds
-            X = X.select(pl.all().exclude(time_col)).lazy()
+        # Feature transform
+        if self.feature_transform is not None:
+            X = self._transform_X(
+                X=X, y=future_ranges.explode(pl.all().exclude(entity_col))
+            )
+
         y_pred_vals = predict_autoreg(self.state, fh=fh, X=X)
         y_pred_vals = y_pred_vals.sort(by=entity_col).select(
             pl.col(y_pred_vals.columns[-1]).alias(target_col)
