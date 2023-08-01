@@ -200,9 +200,22 @@ def m4_dataset(request):
             .set_sorted(["series", "time"])
         )
 
+    def update_test_time_ranges(y_train, y_test):
+        entity_col, time_col = y_train.columns[:2]
+        cutoffs = y_train.groupby(entity_col).agg(
+            pl.col(time_col).last().alias("cutoff")
+        )
+        y_test = (
+            y_test.join(cutoffs, on=entity_col, how="left")
+            .with_columns(pl.col(time_col) + pl.col("cutoff").alias(time_col))
+            .drop("cutoff")
+        )
+        return y_test
+
     freq, fh = request.param
     y_train = load_panel_data(f"data/m4_{freq}_train.parquet")
     y_test = load_panel_data(f"data/m4_{freq}_test.parquet")
+    y_test = update_test_time_ranges(y_train, y_test)
 
     # Check m4 dataset RAM usage
     logging.info("y_train mem: %s", f'{y_train.estimated_size("mb"):.4f} mb')

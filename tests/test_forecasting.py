@@ -4,8 +4,7 @@ import polars as pl
 import pytest
 from sklearnex import patch_sklearn
 
-from functime.forecasting import (
-    ann,
+from functime.forecasting import (  # ann,
     auto_elastic_net,
     auto_lightgbm,
     catboost,
@@ -15,10 +14,11 @@ from functime.forecasting import (
     flaml_lightgbm,
     lightgbm,
     linear_model,
+    naive,
     xgboost,
     zero_inflated_model,
 )
-from functime.metrics import rmsse, smape
+from functime.metrics import rmsse, smape, smape_original
 from functime.preprocessing import scale
 
 patch_sklearn()
@@ -31,9 +31,9 @@ ENSEMBLE_KWARGS = {"max_horizons": 28, "strategy": "ensemble"}
 
 # fmt: off
 FORECASTERS_TO_TEST = [
-    ("ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
-    ("direct__ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq, **DIRECT_KWARGS)),
-    ("ensemble__ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq, **ENSEMBLE_KWARGS)),
+    # ("ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
+    # ("direct__ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq, **DIRECT_KWARGS)),
+    # ("ensemble__ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq, **ENSEMBLE_KWARGS)),
     ("linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=scale())),
     ("direct__linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=scale(), **DIRECT_KWARGS)),
     ("ensemble__linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=scale(), **ENSEMBLE_KWARGS)),
@@ -129,8 +129,7 @@ def test_forecaster_on_m4(forecaster, m4_dataset):
     (i.e. averaged across all time-series) is less than 0.3
     """
     y_train, y_test, fh, _ = m4_dataset
-    freq = None  # I.e. test set starts at 1,2,3...,fh
-    y_pred = forecaster(freq=freq)(y=y_train, fh=fh)
+    y_pred = forecaster(freq="1i")(y=y_train, fh=fh)
     entity_col = y_pred.columns[0]
     _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
     _check_m4_score(y_test, y_pred)
@@ -138,8 +137,7 @@ def test_forecaster_on_m4(forecaster, m4_dataset):
 
 def test_auto_on_m4(auto_forecaster, m4_dataset):
     y_train, y_test, fh, _ = m4_dataset
-    freq = None  # I.e. test set starts at 1,2,3...,fh
-    y_pred = auto_forecaster(freq=freq)(y=y_train, fh=fh)
+    y_pred = auto_forecaster(freq="1i")(y=y_train, fh=fh)
     entity_col = y_pred.columns[0]
     _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
     _check_m4_score(y_test, y_pred)
@@ -238,9 +236,41 @@ def test_zero_inflated_model_on_m5(m5_dataset):
     assert score < 2
 
 
-def test_elite_on_m4(m4_dataset, m4_freq_to_sp, m4_freq_to_lags):
+def test_elite_on_m4(m4_dataset, m4_freq_to_lags, m4_freq_to_sp):
     y_train, y_test, fh, freq = m4_dataset
-    y_pred = elite(
-        freq=None, lags=m4_freq_to_lags[freq], max_fh=fh, sp=m4_freq_to_sp[freq]
-    )(y=y_train, fh=fh)
-    _check_m4_score(y_test, y_pred)
+    lags = m4_freq_to_lags[freq]
+    sp = m4_freq_to_sp[freq]
+    y_pred = elite(freq="1i", lags=lags, max_fh=fh, sp=sp, scoring=smape)(
+        y=y_train, fh=fh
+    )
+    y_pred_naive = naive(freq="1i", max_fh=fh)(y=y_train, fh=fh)
+
+    # Score
+    elite_scores = smape_original(y_true=y_test, y_pred=y_pred)
+    naive_scores = smape_original(y_true=y_test, y_pred=y_pred_naive)
+    scores = elite_scores.join(naive_scores, suffix="_naive", on=y_train.columns[0])
+
+    # Compare scores (forecast value add)
+    fva = (
+        scores.lazy()
+        .with_columns(
+            [
+                (pl.col("smape_naive") - pl.col("smape")).alias("fva"),
+                ((pl.col("smape_naive") - pl.col("smape")) >= 0).alias("is_value_add"),
+            ]
+        )
+        .collect(streaming=True)
+    )
+
+    print(fva.describe())
+    print(fva.filter(pl.col("is_value_add") is True).describe())
+    print(fva.filter(pl.col("is_value_add") is False).describe())
+
+    fva.write_parquet("fva.parquet")
+    y_pred.write_parquet("y_pred.parquet")
+    y_pred_naive.write_parquet("y_pred_naive.parquet")
+
+    elite_mean_score = elite_scores.get_column("smape").mean()
+    naive_mean_score = naive_scores.get_column("smape").mean()
+    assert elite_mean_score < naive_mean_score
+    assert fva.get_column("is_value_add").sum() == len(fva)

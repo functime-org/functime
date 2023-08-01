@@ -17,6 +17,22 @@ FORECAST_STRATEGIES = Optional[Literal["direct", "recursive", "naive"]]
 DF_TYPE = Union[pl.LazyFrame, pl.DataFrame]
 
 
+SUPPORTED_FREQ = [
+    "1i",
+    "1m",
+    "5m",
+    "10m",
+    "15m",
+    "30m",
+    "1h",
+    "1d",
+    "1w",
+    "1mo",
+    "3mo",
+    "1y",
+]
+
+
 @dataclass(frozen=True)
 class ForecastState(ModelState):
     target: str
@@ -58,6 +74,10 @@ class Forecaster(Model):
         feature_transform: Optional[Transformer] = None,
         **kwargs,
     ):
+
+        if freq not in SUPPORTED_FREQ:
+            raise ValueError(f"Offset {freq} not supported")
+
         self.freq = freq
         self.lags = lags
         self.max_horizons = max_horizons

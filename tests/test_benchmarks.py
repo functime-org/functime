@@ -227,7 +227,7 @@ def test_functime_on_m4(forecaster, m4_dataset_no_missing, benchmark, request):
     y_train, y_test, fh, freq, lags = m4_dataset_no_missing
     forecaster_name, forecaster_cls = forecaster
     y_pred = benchmark(
-        lambda: forecaster_cls(lags=lags, freq=None, target_transform=scale())(
+        lambda: forecaster_cls(lags=lags, freq="1i", target_transform=scale())(
             y=y_train, fh=fh
         )
     )

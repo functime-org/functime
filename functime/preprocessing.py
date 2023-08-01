@@ -536,8 +536,8 @@ def diff(order: int, sp: int = 1):
 
         X_new = (
             X.select(idx_cols)
-            # Must drop duplicates to deal with case where freq=None
-            # and X to be inverted starts with timestamp == cutoff
+            # Must drop duplicates to deal with case where
+            # X to be inverted starts with timestamp == cutoff
             .join(
                 X_new.unique(subset=[entity_col, time_col], keep="last"),
                 on=idx_cols,
