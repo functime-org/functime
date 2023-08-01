@@ -52,7 +52,9 @@ def coerce_dtypes(schema: Mapping[str, pl.DataType]):
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        X_new = X.cast({pl.col(col).cast(dtype) for col, dtype in schema.items()})
+        X_new = X.with_columns(
+            [pl.col(col).cast(dtype) for col, dtype in schema.items()]
+        )
         artifacts = {"X_new": X_new}
         return artifacts
 
