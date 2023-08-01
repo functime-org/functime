@@ -46,14 +46,14 @@ class AutoForecaster(Forecaster):
         Number of hyper-parameter sets to test. -1 means unlimited (until `time_budget` is exhausted.)
     target_transform : Optional[Transformer]
         functime transformer to apply to `y` before fit. The transform is inverted at predict time.
+    feature_transform : Optional[Transformer]
+        functime transformer to apply to `X` before fit and predict.
     **kwargs : Mapping[str, Any]
         Additional keyword arguments passed into underlying sklearn-compatible regressor.
     """
 
     def __init__(
         self,
-        # NOTE: MUST EXPLICITLY SPECIFIC FREQ IN ORDER FOR
-        # CROSS-VALIDATION y_pred and y_test time index to match up
         freq: Union[str, None],
         min_lags: int = 3,
         max_lags: int = 12,
@@ -67,6 +67,7 @@ class AutoForecaster(Forecaster):
         points_to_evaluate: Optional[Mapping[str, Any]] = None,
         num_samples: int = -1,
         target_transform: Optional[Transformer] = None,
+        feature_transform: Optional[Transformer] = None,
         **kwargs,
     ):
         self.freq = freq
@@ -82,6 +83,7 @@ class AutoForecaster(Forecaster):
         self.points_to_evaluate = points_to_evaluate
         self.num_samples = num_samples
         self.target_transform = target_transform
+        self.feature_transform = feature_transform
         self.kwargs = kwargs
 
     @property
