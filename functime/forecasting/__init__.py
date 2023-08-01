@@ -13,6 +13,7 @@ from .knn import knn
 from .lance import ann
 from .lightgbm import flaml_lightgbm, lightgbm
 from .linear import elastic_net, lasso, linear_model, ridge
+from .naive import naive
 from .xgboost import xgboost
 
 __all__ = [
@@ -34,5 +35,6 @@ __all__ = [
     "linear_model",
     "ridge",
     "xgboost",
+    "naive",
     "zero_inflated_model",
 ]
