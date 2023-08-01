@@ -505,7 +505,7 @@ def diff(order: int, sp: int = 1):
 
         # Drop null
         artifacts = {
-            "X_new": X.drop_nulls(),
+            "X_new": X.fill_null(strategy="backward"),
             "X_first": X_first.lazy(),
             "X_last": X_last.lazy(),
         }
@@ -520,25 +520,31 @@ def diff(order: int, sp: int = 1):
         idx_cols = entity_col, time_col
 
         X_cutoff = artifacts["X_last"] if from_last else artifacts["X_first"]
-        X_new = (
-            pl.concat(
-                [
-                    X,
-                    X_cutoff.select(
-                        pl.col(col).cast(dtype) for col, dtype in X.schema.items()
-                    ),
-                ],
-                how="diagonal",
-            )
-            .drop_nulls()
-            .sort(idx_cols)
-        )
+        X_new = pl.concat(
+            [
+                X,
+                X_cutoff.select(
+                    pl.col(col).cast(dtype) for col, dtype in X.schema.items()
+                ),
+            ],
+            how="diagonal",
+        ).sort(idx_cols)
         for _ in range(order):
             X_new = X_new.select(
                 [entity_col, time_col, cs.float().cumsum().over(entity_col)]
             )
 
-        return X.select(idx_cols).join(X_new, on=idx_cols, how="left")
+        X_new = (
+            X.select(idx_cols)
+            # Must drop duplicates to deal with case where freq=None
+            # and X to be inverted starts with timestamp == cutoff
+            .join(
+                X_new.unique(subset=[entity_col, time_col], keep="last"),
+                on=idx_cols,
+                how="left",
+            )
+        )
+        return X_new
 
     return transform, invert
 
