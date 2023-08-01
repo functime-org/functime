@@ -99,7 +99,7 @@ class Forecaster(Model):
         target_transform = self.target_transform
         y: pl.LazyFrame = self._set_string_cache(y.lazy().collect()).lazy()
         if target_transform is not None:
-            y = y.pipe(self.target_transform).collect(streaming=True).lazy()
+            y = y.pipe(target_transform).collect(streaming=True).lazy()
         # Prepare X
         if X is not None:
             if X.columns[0] == y.columns[0]:
