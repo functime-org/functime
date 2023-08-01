@@ -341,11 +341,13 @@ def predict_autoreg(
     X: Optional[Union[pl.DataFrame, pl.LazyFrame]] = None,
 ) -> pl.DataFrame:
     strategy = state.strategy
+    time_col = state.time
     predict_kwargs = {
         "state": state,
         "fh": fh,
-        "X": X.lazy().collect() if X is not None else None,
+        "X": X.drop(time_col).lazy().collect() if X is not None else None,
     }
+
     if strategy == "recursive":
         y_pred = predict_recursive(**predict_kwargs)
     elif strategy == "direct":
