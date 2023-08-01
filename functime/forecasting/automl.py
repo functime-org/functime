@@ -6,7 +6,7 @@ import polars as pl
 from flaml import tune
 from typing_extensions import Literal
 
-from functime.base.forecaster import FORECAST_STRATEGIES, Forecaster
+from functime.base.forecaster import FORECAST_STRATEGIES, SUPPORTED_FREQ, Forecaster
 from functime.base.transformer import Transformer
 from functime.forecasting.knn import knn
 from functime.forecasting.lightgbm import lightgbm
@@ -70,6 +70,10 @@ class AutoForecaster(Forecaster):
         feature_transform: Optional[Transformer] = None,
         **kwargs,
     ):
+
+        if freq not in SUPPORTED_FREQ:
+            raise ValueError(f"Offset {freq} not supported")
+
         self.freq = freq
         self.min_lags = min_lags
         self.max_lags = max_lags
