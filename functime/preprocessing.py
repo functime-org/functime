@@ -2,6 +2,7 @@ from typing import List, Mapping, Union
 
 import polars as pl
 import polars.selectors as cs
+from scipy import optimize
 from scipy.stats import boxcox_normmax
 from typing_extensions import Literal
 
@@ -555,13 +556,21 @@ def boxcox(method: str = "mle"):
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+        def optimizer(fun):
+            return optimize.minimize_scalar(
+                fun,
+                bounds=(-2.0, 2.0),
+                method="bounded",
+                options={"maxiter": 200, "xatol": 1e-12},
+            )
+
         idx_cols = X.columns[:2]
         entity_col, time_col = idx_cols
         gb = X.groupby(X.columns[0])
         # Step 1. Compute optimal lambdas
         lmbds = gb.agg(
             PL_NUMERIC_COLS(entity_col, time_col)
-            .apply(lambda x: boxcox_normmax(x, method=method))
+            .apply(lambda x: boxcox_normmax(x, method=method, optimizer=optimizer))
             .cast(pl.Float64())
             .suffix("__lmbd")
         )
@@ -582,20 +591,23 @@ def boxcox(method: str = "mle"):
         return artifacts
 
     def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
-        idx_cols = X.columns[:2]
+        entity_col, time_col = X.columns[:2]
         lmbds = state.artifacts["lmbds"]
-        cols = X.select(PL_NUMERIC_COLS(state.time)).columns
-        X_new = X.join(lmbds, on=X.columns[0], how="left", suffix="__lmbd").select(
-            idx_cols
-            + [
-                pl.when(pl.col(f"{col}__lmbd") == 0)
-                .then(pl.col(col).exp())
-                .otherwise(
-                    (pl.col(f"{col}__lmbd") * pl.col(col) + 1)
-                    ** (1 / pl.col(f"{col}__lmbd"))
-                )
-                for col in cols
-            ]
+        cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).columns
+        X_new = (
+            X.join(lmbds, on=entity_col, how="left", suffix="__lmbd")
+            .with_columns(
+                [
+                    pl.when(pl.col(f"{col}__lmbd") == 0)
+                    .then(pl.col(col).exp())
+                    .otherwise(
+                        (pl.col(col) * pl.col(f"{col}__lmbd") + 1)
+                        ** (1 / pl.col(f"{col}__lmbd"))
+                    )
+                    for col in cols
+                ]
+            )
+            .select(X.columns)
         )
         return X_new
 
