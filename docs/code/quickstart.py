@@ -4,9 +4,14 @@ from timeit import default_timer
 import polars as pl
 
 from functime.cross_validation import train_test_split
-from functime.feature_extraction import add_calendar_effects, add_holiday_effects
+from functime.feature_extraction import (
+    add_calendar_effects,
+    add_fourier_terms,
+    add_holiday_effects,
+)
 from functime.forecasting import auto_lightgbm, lightgbm
 from functime.metrics import mase
+from functime.preprocessing import scale
 
 start_time = default_timer()
 
@@ -73,6 +78,15 @@ y_pred = lightgbm(**best_params)(y=y_train, fh=test_size)
 best_params["strategy"] = "ensemble"  # Override strategy
 # Predict using the "functional" API
 y_pred = lightgbm(**best_params)(y=y_train, fh=test_size)
+
+# Forecast with target transforms and feature transforms
+forecaster = lightgbm(
+    freq="1mo",
+    lags=24,
+    target_transform=scale(),
+    feature_transform=add_fourier_terms(sp=12, K=6),
+)
+y_pred = forecaster(y=y_train, fh=test_size)
 
 elapsed_time = default_timer() - start_time
 print(f"⏱️ Elapsed time: {elapsed_time}")
