@@ -2,7 +2,7 @@
     <h1>Time-series machine learning and embeddings at scale</h1>
 <br />
 
-![functime](https://github.com/descendant-ai/functime/raw/main/static/images/functime_banner.png)
+![functime](https://github.com/descendant-ai/functime/raw/main/docs/img/banner.png)
 [![Python](https://img.shields.io/pypi/pyversions/functime)](https://pypi.org/project/functime/)
 [![PyPi](https://img.shields.io/pypi/v/functime?color=blue)](https://pypi.org/project/functime/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -92,7 +92,7 @@ Deploy and train forecasters the moment you call any `.fit` method.
 Run the `functime list` CLI command to list all deployed models.
 Finally, track data and forecasts usage using `functime usage` CLI command.
 
-![Example CLI usage](static/gifs/functime_cli_usage.gif)
+![Example CLI usage](docs/img/functime_cli_usage.gif)
 
 You can reuse a deployed model for predictions anywhere using the `stub_id` variable.
 Note: the `.from_deployed` model class must be the same as during `.fit`.

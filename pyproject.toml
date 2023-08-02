@@ -36,7 +36,7 @@ dependencies = [
     "numpy",
     "pandas",
     "plotly",
-    "polars==0.18.7",
+    "polars==0.18.11",
     "pyarrow",
     "pylance",
     "pynndescent==0.5.8",

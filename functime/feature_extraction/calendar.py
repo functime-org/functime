@@ -53,16 +53,15 @@ def add_calendar_effects(
 
 
 @transformer
-def add_holiday_effects(country_codes: List[str], freq: str):
+def add_holiday_effects(country_codes: List[str], as_dummies: bool = False):
     """Extract holiday effects from time column for specified ISO-2 country codes and frequency.
 
     Parameters
     ----------
     country_codes : List[str]
         A list of ISO-2 country codes.
-    freq : str
-        Sampling frequency at which to group data.
-        Must be specified as an offset alias supported by Polars.
+    as_dummies : bool
+        Returns calendar effects as columns of one-hot-encoded dummies.
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
@@ -105,6 +104,12 @@ def add_holiday_effects(country_codes: List[str], freq: str):
             .lazy()
         )
         X_new = X.join(holidays, how="left", on=time_col)
+        if as_dummies:
+            X_new = (
+                X_new.collect(streaming=True)
+                .to_dummies(columns=holidays.columns[1:])
+                .lazy()
+            )
         artifacts = {"X_new": X_new}
         return artifacts
 
@@ -143,5 +148,5 @@ def make_future_holiday_effects(
         fh=fh,
         freq=freq,
     ).explode(time_col)
-    transf = add_holiday_effects(country_codes, freq=freq)
+    transf = add_holiday_effects(country_codes)
     return transf(future_idx)
