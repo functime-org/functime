@@ -102,7 +102,9 @@ View the [full walkthrough](embeddings.md) on temporal embeddings with `functime
 ```python
 import polars as pl
 from functime.cross_validation import train_test_split
+from functime.feature_extraction import add_fourier_terms
 from functime.forecasting import lightgbm
+from functime.preprocessing import scale
 from functime.metrics import mase
 
 # Load commodities price data
@@ -113,7 +115,7 @@ entity_col, time_col = y.columns[:2]
 y_train, y_test = y.pipe(train_test_split(test_size=3))
 
 # Fit-predict
-forecaster = lightgbm(freq="1mo", lags=24, max_horizons=3, strategy="ensemble")
+forecaster = lightgbm(freq="1mo", lags=24)
 forecaster.fit(y=y_train)
 y_pred = forecaster.predict(fh=3)
 
@@ -123,6 +125,14 @@ y_pred = lightgbm(freq="1mo", lags=24)(y=y_train, fh=3)
 
 # Score forecasts in parallel
 scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
+
+# Forecast with target transforms and feature transforms
+forecaster = lightgbm(
+    freq="1mo",
+    lags=24,
+    target_transform=scale(),
+    feature_transform=add_fourier_terms(sp=12, K=6)
+)
 ```
 
 ### Splitters
@@ -147,6 +157,8 @@ X_new: pl.LazyFrame = (
 # Call .collect to execute query
 X_new: pl.DataFrame = X_new.collect(streaming=True)
 ```
+
+View [quick examples](preprocessing.md) of time-series preprocessing with `functime`.
 
 ## Time Series Data
 
