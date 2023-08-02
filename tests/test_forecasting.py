@@ -1,3 +1,5 @@
+import logging
+
 import cloudpickle
 import numpy as np
 import polars as pl
@@ -265,6 +267,10 @@ def test_elite_on_m4(m4_dataset, m4_freq_to_lags, m4_freq_to_sp):
         )
         .collect(streaming=True)
     )
+
+    logging.info(fva.filter(pl.col("fva") > 0).describe())
+    logging.info(fva.filter(pl.col("fva") < 0).describe())
+    logging.info(fva.filter(pl.col("fva") == 0).describe())
 
     elite_mean_score = elite_scores.get_column("smape_original").mean()
     naive_mean_score = naive_scores.get_column("smape_original").mean()

@@ -2,8 +2,10 @@ from functools import partial
 from typing import Any, Mapping, Optional, Union
 
 import polars as pl
+import polars.selectors as cs
 from sklearn.linear_model import LassoLarsIC
 from tqdm import tqdm
+from typing_extensions import Literal
 
 from functime.backtesting import backtest
 from functime.base.forecaster import Forecaster
@@ -43,6 +45,8 @@ class elite(Forecaster):
         A `naive` forecaster is always fit as the fallback.
     model_kwargs : Optional[Mapping[str, Mapping[str, Any]]]
         Mapping of forecaster name to model kwargs passed into the underlying sklearn-compatible regressor.
+    ensemble_strategy : Literal["lasso", "log_lasso", "mean"]
+        Strategy to stack base forecasts.
     top_k : Optional[int]
         Select top k performing forecasters from cross-validation to ensemble.
         Defaults to 4 if None.
@@ -67,6 +71,7 @@ class elite(Forecaster):
         sp: Optional[int] = None,
         forecasters: Optional[Mapping[str, Forecaster]] = None,
         model_kwargs: Optional[Mapping[str, Mapping[str, Any]]] = None,
+        ensemble_strategy: Literal["lasso", "log_lasso", "mean"] = "mean",
         top_k: Optional[int] = None,
         scoring: Optional[METRIC_TYPE] = None,
         test_size: Optional[int] = None,
@@ -109,6 +114,21 @@ class elite(Forecaster):
             "lasso_fourier": partial(
                 lasso_cv, feature_transform=add_fourier_terms(sp=self.sp, K=6)
             ),
+            "linear_scaled_fourier": partial(
+                linear_model,
+                target_transform=scale(),
+                feature_transform=add_fourier_terms(sp=self.sp, K=6),
+            ),
+            "ridge_scaled_fourier": partial(
+                ridge_cv,
+                target_transform=scale(),
+                feature_transform=add_fourier_terms(sp=self.sp, K=6),
+            ),
+            "lasso_scaled_fourier": partial(
+                lasso_cv,
+                target_transform=scale(),
+                feature_transform=add_fourier_terms(sp=self.sp, K=6),
+            ),
             # Linear detrended AR models
             "linear_detrend_linear": partial(
                 linear_model, target_transform=detrend(method="linear")
@@ -148,6 +168,7 @@ class elite(Forecaster):
         }
 
         self.model_kwargs = model_kwargs or {}
+        self.ensemble_strategy = ensemble_strategy
         self.top_k = top_k or 12
         self.scoring = scoring
         self.test_size = test_size or max_fh
@@ -230,14 +251,6 @@ class elite(Forecaster):
             y_preds = backtest(forecaster=forecaster, y=y, cv=cv, residualize=False)
             cv_y_preds[model_name] = y_preds.pipe(coerce_dtypes(schema)).collect()
 
-        # Include mean forecasts
-        cv_y_preds["mean"] = (
-            pl.concat([y_preds for y_preds in cv_y_preds.values()])
-            .groupby([entity_col, time_col, "split"])
-            .mean()
-            .select([entity_col, time_col, target_col, "split"])
-        )
-
         # 2. Score individual forecasters
         cv_scores = []
         for model_name, y_preds in (pbar := tqdm(cv_y_preds.items())):
@@ -291,10 +304,12 @@ class elite(Forecaster):
             .collect(streaming=True)
         )
 
-        # 5. Fit final regressor
-        regressor = LassoLarsIC(**self.kwargs).fit(
-            X=X_to_numpy(X_stack), y=y_to_numpy(y_stack)
-        )
+        final_regressor = None
+        if self.ensemble_strategy in ["lasso", "log_lasso"]:
+            # 5. Fit final regressor
+            final_regressor = LassoLarsIC(**self.kwargs).fit(
+                X=X_to_numpy(X_stack), y=y_to_numpy(y_stack)
+            )
 
         # 6. Fit forecasters
         fitted_forecasters = {}
@@ -312,7 +327,7 @@ class elite(Forecaster):
             "scores": scores,
             "best_models": best_models,
             "forecasters": fitted_forecasters,
-            "final_regressor": regressor,
+            "final_regressor": final_regressor,
         }
         return artifacts
 
@@ -331,12 +346,6 @@ class elite(Forecaster):
             y_pred = forecaster.predict(fh=fh).pipe(coerce_dtypes(schema)).collect()
             forecasts[model_name] = y_pred
 
-        forecasts["mean"] = (
-            pl.concat([y_preds for y_preds in forecasts.values()])
-            .groupby([entity_col, time_col])
-            .mean()
-        )
-
         # 2. Prepare ensemble (stacked regression) input
         best_models = state.artifacts["best_models"]
         full_y_pred = pl.concat(
@@ -346,14 +355,39 @@ class elite(Forecaster):
             ]
         )
         X_stack = self._get_X_stack(y_pred=full_y_pred, best_models=best_models, X=X)
-        # 3. Predict using final regressor
-        final_regressor = state.artifacts["final_regressor"]
-        y_pred_values = final_regressor.predict(X=X_to_numpy(X_stack))
-        y_pred = (
-            X_stack.select([entity_col, time_col])
-            .with_columns(pl.lit(y_pred_values).alias(target_col))
-            .pipe(coerce_dtypes(schema))
-            .collect()
+
+        # 3. Predict using final stacker
+        if self.ensemble_strategy == "mean":
+            y_pred = X_stack.select(
+                [
+                    entity_col,
+                    time_col,
+                    (pl.sum_horizontal(cs.starts_with("model_")) / self.top_k).alias(
+                        target_col
+                    ),
+                ]
+            )
+        else:
+            final_regressor = state.artifacts["final_regressor"]
+            y_pred_values = final_regressor.predict(X=X_to_numpy(X_stack))
+            y_pred = (
+                X_stack.select([entity_col, time_col])
+                .with_columns(pl.lit(y_pred_values).alias(target_col))
+                .pipe(coerce_dtypes(schema))
+                .collect()
+            )
+
+        random_walk_series = (
+            best_models.select([entity_col, pl.col("model_name").list.first()])
+            .filter(pl.col("model_name") == "naive")
+            .get_column(entity_col)
         )
+        naive_forecasts = forecasts["naive"].filter(
+            pl.col(entity_col).is_in(random_walk_series)
+        )
+        ensemble_forecasts = y_pred.filter(
+            ~pl.col(entity_col).is_in(random_walk_series)
+        )
+        y_pred = pl.concat([naive_forecasts, ensemble_forecasts])
 
         return y_pred.pipe(self._reset_string_cache)
