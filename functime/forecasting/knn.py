@@ -23,7 +23,7 @@ class knn(Forecaster):
     """Autoregressive k-nearest neighbors.
 
     Reference:
-    https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html
+    https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsRegressor.html
     """
 
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):

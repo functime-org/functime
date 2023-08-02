@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Any, Mapping, Optional, Union
 
 import polars as pl
@@ -9,10 +10,13 @@ from functime.base.forecaster import Forecaster
 from functime.base.metric import METRIC_TYPE
 from functime.conversion import X_to_numpy, y_to_numpy
 from functime.cross_validation import expanding_window_split
-from functime.forecasting.linear import lasso, linear_model, ridge
+from functime.feature_extraction import add_fourier_terms
+from functime.forecasting.knn import knn
+from functime.forecasting.linear import lasso_cv, linear_model, ridge_cv
 from functime.forecasting.naive import naive
-from functime.metrics import rmse
+from functime.metrics import mae
 from functime.offsets import freq_to_sp
+from functime.preprocessing import coerce_dtypes, detrend, diff, scale
 
 
 class elite(Forecaster):
@@ -29,9 +33,9 @@ class elite(Forecaster):
         Offset alias supported by Polars.
     lags : int
         Number of lagged target variables.
-    max_fh : Optional[int]
-        Max forecast horizon (required for `naive` forecaster).
-        If None, defaults to `test_size`.
+    max_fh : int
+        Max forecast horizon.
+        `fh` in predict cannot exceed this value.
     sp : Optional[int]
         Seasonal periods; length of one seasonal cycle.
     forecasters : Optional[Mapping[str, Forecaster]]
@@ -43,11 +47,10 @@ class elite(Forecaster):
         Select top k performing forecasters from cross-validation to ensemble.
         Defaults to 4 if None.
     scoring : Optional[metric]
-        If None, defaults to RMSE.
+        If None, defaults to MAE.
     test_size : Optional[int]
         Number of test samples for each split.
-        If None, defaults to equal to one seasonal period given `freq`
-        (e.g. `test_size=12` if freq is monthly `1mo`).
+        If None, defaults to `max_fh`.
     step_size : Optional[int]
         Step size between windows.
     n_splits : Optional[int]
@@ -72,34 +75,84 @@ class elite(Forecaster):
         **kwargs,
     ):
         self.max_fh = max_fh
-        self.sp = sp
+        self.sp = sp or freq_to_sp(freq=freq)[0]
         self.forecasters = forecasters or {
-            # # "Seasonality" models
-            # "knn": knn,
+            # "Seasonality" models
+            "knn": partial(knn, n_neighbors=lags // 2),
+            "knn_scaled": partial(knn, n_neighbors=lags // 2),
+            "knn_detrend_linear": partial(
+                knn, n_neighbors=lags // 2, target_transform=detrend(method="linear")
+            ),
             # AR linear models
             "linear": linear_model,
-            "ridge": ridge,
-            "lasso": lasso,
-            # # AR models with Fourier terms
-            # # AR models with box-cox scaling
-            # "linear_boxcox": linear_model,
-            # "ridge_boxcox": lasso,
-            # "lasso_boxcox": ridge,
-            # # AR models with box-cox scaling and Fourier terms
-            # "linear_boxcox_fourier": linear_model,
-            # "ridge_boxcox_fourier": lasso,
-            # "lasso_boxcox_fourier": ridge,
-            # # Linear detrended AR models
-            # "linear_detrend": linear_model,
-            # "ridge_detrend": lasso,
-            # "lasso_detrend": ridge,
+            "ridge": ridge_cv,
+            "lasso": lasso_cv,
+            # AR linear models without drift
+            "linear_no_drift": partial(linear_model, fit_intercept=False),
+            "ridge_no_drift": partial(ridge_cv, fit_intercept=False),
+            "lasso_no_drift": partial(lasso_cv, fit_intercept=False),
+            # AR models with local scaling
+            "linear_scaled": partial(linear_model, target_transform=scale()),
+            "ridge_scaled": partial(ridge_cv, target_transform=scale()),
+            "lasso_scaled": partial(lasso_cv, target_transform=scale()),
+            # AR models with first differences
+            "linear_diff": partial(linear_model, target_transform=diff(order=1)),
+            "ridge_diff": partial(ridge_cv, target_transform=diff(order=1)),
+            "lasso_diff": partial(lasso_cv, target_transform=diff(order=1)),
+            # AR models with Fourier terms (defaults to K=6)
+            "linear_fourier": partial(
+                linear_model, feature_transform=add_fourier_terms(sp=self.sp, K=6)
+            ),
+            "ridge_fourier": partial(
+                ridge_cv, feature_transform=add_fourier_terms(sp=self.sp, K=6)
+            ),
+            "lasso_fourier": partial(
+                lasso_cv, feature_transform=add_fourier_terms(sp=self.sp, K=6)
+            ),
+            # Linear detrended AR models
+            "linear_detrend_linear": partial(
+                linear_model, target_transform=detrend(method="linear")
+            ),
+            "ridge_detrend_linear": partial(
+                ridge_cv, target_transform=detrend(method="linear")
+            ),
+            "lasso_detrend_linear": partial(
+                lasso_cv, target_transform=detrend(method="linear")
+            ),
+            # Mean detrended models
+            "linear_detrend_mean": partial(
+                linear_model, target_transform=detrend(method="mean")
+            ),
+            "ridge_detrend_mean": partial(
+                ridge_cv, target_transform=detrend(method="mean")
+            ),
+            "lasso_detrend_mean": partial(
+                lasso_cv, target_transform=detrend(method="mean")
+            ),
+            # Linear detrended fourier AR models
+            "linear_detrend_linear_fourier": partial(
+                linear_model,
+                target_transform=detrend(method="linear"),
+                feature_transform=add_fourier_terms(sp=self.sp, K=12),
+            ),
+            "ridge_detrend_linear_fourier": partial(
+                ridge_cv,
+                target_transform=detrend(method="linear"),
+                feature_transform=add_fourier_terms(sp=self.sp, K=12),
+            ),
+            "lasso_detrend_linear_fourier": partial(
+                lasso_cv,
+                target_transform=detrend(method="linear"),
+                feature_transform=add_fourier_terms(sp=self.sp, K=12),
+            ),
         }
+
         self.model_kwargs = model_kwargs or {}
-        self.top_k = top_k or 4
+        self.top_k = top_k or 12
         self.scoring = scoring
-        self.test_size = test_size
-        self.step_size = step_size
-        self.n_splits = n_splits
+        self.test_size = test_size or max_fh
+        self.step_size = step_size or self.test_size
+        self.n_splits = n_splits or 3
         super().__init__(freq=freq, lags=lags, **kwargs)
 
     def _get_X_stack(
@@ -137,6 +190,9 @@ class elite(Forecaster):
                 .join(X.lazy(), on=[entity_col, time_col], how="left")
                 .collect(streaming=True)
             )
+        X_stack = X_stack.with_columns(
+            trend=pl.col(time_col).arg_sort().over(entity_col)
+        )
         return X_stack
 
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
@@ -144,38 +200,45 @@ class elite(Forecaster):
         lags = self.lags
         top_k = self.top_k
         model_kwargs = self.model_kwargs
-        score = self.scoring or rmse
+        score = self.scoring or mae
         metric_name = score.__name__
         entity_col, time_col, target_col = y.columns
 
         # 1. Cross validation
-        sp = self.sp or freq_to_sp(freq=freq)
-        test_size = self.test_size or sp
-        max_fh = self.max_fh or test_size
-        step_size = self.step_size or sp
-        n_splits = self.n_splits or 3
+        test_size = self.test_size
+        max_fh = self.max_fh
+        step_size = self.step_size
+        n_splits = self.n_splits
         cv = expanding_window_split(
             test_size=test_size,
             step_size=step_size,
             n_splits=n_splits,
         )
         cv_y_preds = {}
+        schema = y.schema
+        forecasters = {**self.forecasters, "naive": naive}
         # NOTE: Parallelized version available in Cloud
-        for model_name, forecaster_cls in (pbar := tqdm(self.forecasters.items())):
+        for model_name, forecaster_cls in (pbar := tqdm(forecasters.items())):
             pbar.set_description(f"Cross-validating [forecaster={model_name}]")
             # TODO: Investigate using residuals to quantify model uncertainty
-            forecaster = forecaster_cls(
-                freq=freq, lags=lags, **model_kwargs.get(model_name, {})
-            )
+            if model_name != "naive":
+                forecaster = forecaster_cls(
+                    freq=freq, lags=lags, **model_kwargs.get(model_name, {})
+                )
+            else:
+                forecaster = forecaster_cls(freq=freq, max_fh=test_size)
             y_preds = backtest(forecaster=forecaster, y=y, cv=cv, residualize=False)
-            cv_y_preds[model_name] = y_preds
+            cv_y_preds[model_name] = y_preds.pipe(coerce_dtypes(schema)).collect()
 
-        # 2. Fit naive (fallback)
-        cv_y_preds["naive"] = backtest(
-            forecaster=naive(freq=freq, max_fh=test_size), y=y, cv=cv, residualize=False
+        # Include mean forecasts
+        cv_y_preds["mean"] = (
+            pl.concat([y_preds for y_preds in cv_y_preds.values()])
+            .groupby([entity_col, time_col, "split"])
+            .mean()
+            .select([entity_col, time_col, target_col, "split"])
         )
 
-        # 3. Score individual forecasters
+        # 2. Score individual forecasters
         cv_scores = []
         for model_name, y_preds in (pbar := tqdm(cv_y_preds.items())):
             pbar.set_description(f"Scoring [forecaster={model_name}]")
@@ -194,7 +257,7 @@ class elite(Forecaster):
                 )
                 cv_scores.append(scores)
 
-        # 4. Select top N best models from CV
+        # 3. Select top N best models from CV
         scores = (
             pl.concat(cv_scores)
             .sort([entity_col, metric_name, "split"])
@@ -209,7 +272,7 @@ class elite(Forecaster):
             .set_sorted([entity_col, metric_name])
             # Select top K scores
             .groupby(entity_col, maintain_order=True)
-            .agg([pl.col("model_name").head(top_k), metric_name])
+            .agg([pl.col("model_name").head(top_k), pl.col(metric_name).head(top_k)])
             .collect(streaming=True)
         )
         full_y_preds = pl.concat(
@@ -219,7 +282,7 @@ class elite(Forecaster):
             ]
         )
 
-        # 5. Prepare ensemble (stacked regression) inputs
+        # 4. Prepare ensemble (stacked regression) inputs
         X_stack = self._get_X_stack(y_pred=full_y_preds, best_models=best_models, X=X)
         y_stack = (
             X_stack.select([entity_col, time_col])
@@ -228,25 +291,27 @@ class elite(Forecaster):
             .collect(streaming=True)
         )
 
-        # 6. Fit final regressor
+        # 5. Fit final regressor
         regressor = LassoLarsIC(**self.kwargs).fit(
             X=X_to_numpy(X_stack), y=y_to_numpy(y_stack)
         )
 
-        # 7. Fit forecasters
-        forecasters = {}
-        for model_name, forecaster_cls in (pbar := tqdm(self.forecasters.items())):
+        # 6. Fit forecasters
+        fitted_forecasters = {}
+        for model_name, forecaster_cls in (pbar := tqdm(forecasters.items())):
             pbar.set_description(f"Refitting [forecaster={model_name}]")
-            forecaster = forecaster_cls(
-                freq=freq, lags=lags, **model_kwargs.get(model_name, {})
-            ).fit(y=y)
-            forecasters[model_name] = forecaster
-        forecasters["naive"] = naive(freq=freq, max_fh=max_fh).fit(y=y)
+            if model_name != "naive":
+                forecaster = forecaster_cls(
+                    freq=freq, lags=lags, **model_kwargs.get(model_name, {})
+                ).fit(y=y)
+            else:
+                forecaster = forecaster_cls(freq=freq, max_fh=max_fh).fit(y=y)
+            fitted_forecasters[model_name] = forecaster
 
         artifacts = {
             "scores": scores,
             "best_models": best_models,
-            "forecasters": forecasters,
+            "forecasters": fitted_forecasters,
             "final_regressor": regressor,
         }
         return artifacts
@@ -256,13 +321,21 @@ class elite(Forecaster):
         entity_col = state.entity
         time_col = state.time
         target_col = state.target
+        schema = state.target_schema
 
         # 1. Get individual forecasts
         forecasters = state.artifacts["forecasters"]
         forecasts = {}
         for model_name, forecaster in (pbar := tqdm(forecasters.items())):
             pbar.set_description(f"Forecast [forecaster={model_name}]")
-            forecasts[model_name] = forecaster.predict(fh=fh)
+            y_pred = forecaster.predict(fh=fh).pipe(coerce_dtypes(schema)).collect()
+            forecasts[model_name] = y_pred
+
+        forecasts["mean"] = (
+            pl.concat([y_preds for y_preds in forecasts.values()])
+            .groupby([entity_col, time_col])
+            .mean()
+        )
 
         # 2. Prepare ensemble (stacked regression) input
         best_models = state.artifacts["best_models"]
@@ -273,13 +346,14 @@ class elite(Forecaster):
             ]
         )
         X_stack = self._get_X_stack(y_pred=full_y_pred, best_models=best_models, X=X)
-
         # 3. Predict using final regressor
         final_regressor = state.artifacts["final_regressor"]
         y_pred_values = final_regressor.predict(X=X_to_numpy(X_stack))
         y_pred = (
             X_stack.select([entity_col, time_col])
             .with_columns(pl.lit(y_pred_values).alias(target_col))
-            .pipe(self._reset_string_cache)
+            .pipe(coerce_dtypes(schema))
+            .collect()
         )
-        return y_pred
+
+        return y_pred.pipe(self._reset_string_cache)

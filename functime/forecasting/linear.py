@@ -55,6 +55,38 @@ def _elastic_net(**kwargs):
     return regress
 
 
+def _lasso_cv(**kwargs):
+    def regress(X: pl.DataFrame, y: pl.DataFrame):
+        from sklearn.linear_model import LassoCV
+
+        regressor = SklearnRegressor(
+            regressor=LassoCV(**kwargs, max_iter=10000, n_jobs=-1),
+        )
+        return regressor.fit(X=X, y=y)
+
+    return regress
+
+
+def _ridge_cv(**kwargs):
+    def regress(X: pl.DataFrame, y: pl.DataFrame):
+        from sklearn.linear_model import RidgeCV
+
+        regressor = SklearnRegressor(regressor=RidgeCV(**kwargs))
+        return regressor.fit(X=X, y=y)
+
+    return regress
+
+
+def _elastic_net_cv(**kwargs):
+    def regress(X: pl.DataFrame, y: pl.DataFrame):
+        from sklearn.linear_model import ElasticNetCV
+
+        regressor = SklearnRegressor(regressor=ElasticNetCV(**kwargs, n_jobs=-1))
+        return regressor.fit(X=X, y=y)
+
+    return regress
+
+
 class linear_model(Forecaster):
     """Autoregressive linear forecaster.
 
@@ -132,6 +164,63 @@ class elastic_net(Forecaster):
 
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         regress = _elastic_net(**self.kwargs)
+        return fit_autoreg(
+            regress=regress,
+            y=y,
+            X=X,
+            lags=self.lags,
+            max_horizons=self.max_horizons,
+            strategy=self.strategy,
+        )
+
+
+class lasso_cv(Forecaster):
+    """Autoregressive LassoCV forecaster.
+
+    Reference:
+    https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html#sklearn.linear_model.LassoCV
+    """
+
+    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+        regress = _lasso_cv(**self.kwargs)
+        return fit_autoreg(
+            regress=regress,
+            y=y,
+            X=X,
+            lags=self.lags,
+            max_horizons=self.max_horizons,
+            strategy=self.strategy,
+        )
+
+
+class ridge_cv(Forecaster):
+    """Autoregressive RidgeCV forecaster.
+
+    Reference:
+    https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html#sklearn.linear_model.RidgeCV
+    """
+
+    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+        regress = _ridge_cv(**self.kwargs)
+        return fit_autoreg(
+            regress=regress,
+            y=y,
+            X=X,
+            lags=self.lags,
+            max_horizons=self.max_horizons,
+            strategy=self.strategy,
+        )
+
+
+class elastic_net_cv(Forecaster):
+    """Autoregressive ElasticNetCV forecaster.
+
+    Reference:
+    https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ElasticNet.html#sklearn.linear_model.ElasticNetCV
+    """
+
+    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+        regress = _elastic_net_cv(**self.kwargs)
         return fit_autoreg(
             regress=regress,
             y=y,

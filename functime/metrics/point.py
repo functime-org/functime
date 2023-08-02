@@ -159,7 +159,7 @@ def smape_original(y_true: pl.DataFrame, y_pred: pl.DataFrame):
     num = 2 * (pl.col("pred") - pl.col("actual")).abs()
     denom = 0.0001 + pl.col("actual").abs() + pl.col("pred").abs()
     pct_error = (100 / pl.col("pred").len()) * (num / denom).sum()
-    return _score(y_true, y_pred, pct_error, "smape")
+    return _score(y_true, y_pred, pct_error, "smape_original")
 
 
 @metric

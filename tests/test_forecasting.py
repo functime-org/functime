@@ -240,7 +240,7 @@ def test_elite_on_m4(m4_dataset, m4_freq_to_lags, m4_freq_to_sp):
     y_train, y_test, fh, freq = m4_dataset
     lags = m4_freq_to_lags[freq]
     sp = m4_freq_to_sp[freq]
-    y_pred = elite(freq="1i", lags=lags, max_fh=fh, sp=sp, scoring=smape)(
+    y_pred = elite(freq="1i", lags=lags, max_fh=fh, sp=sp, scoring=smape_original)(
         y=y_train, fh=fh
     )
     y_pred_naive = naive(freq="1i", max_fh=fh)(y=y_train, fh=fh)
@@ -255,22 +255,18 @@ def test_elite_on_m4(m4_dataset, m4_freq_to_lags, m4_freq_to_sp):
         scores.lazy()
         .with_columns(
             [
-                (pl.col("smape_naive") - pl.col("smape")).alias("fva"),
-                ((pl.col("smape_naive") - pl.col("smape")) >= 0).alias("is_value_add"),
+                (pl.col("smape_original_naive") - pl.col("smape_original")).alias(
+                    "fva"
+                ),
+                ((pl.col("smape_original_naive") - pl.col("smape_original")) > 0).alias(
+                    "is_value_add"
+                ),
             ]
         )
         .collect(streaming=True)
     )
 
-    print(fva.describe())
-    print(fva.filter(pl.col("is_value_add") is True).describe())
-    print(fva.filter(pl.col("is_value_add") is False).describe())
-
-    fva.write_parquet("fva.parquet")
-    y_pred.write_parquet("y_pred.parquet")
-    y_pred_naive.write_parquet("y_pred_naive.parquet")
-
-    elite_mean_score = elite_scores.get_column("smape").mean()
-    naive_mean_score = naive_scores.get_column("smape").mean()
+    elite_mean_score = elite_scores.get_column("smape_original").mean()
+    naive_mean_score = naive_scores.get_column("smape_original").mean()
     assert elite_mean_score < naive_mean_score
     assert fva.get_column("is_value_add").sum() == len(fva)
