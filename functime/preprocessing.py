@@ -118,7 +118,7 @@ def resample(freq: str, agg_method: str, impute_method: Union[str, int, float]):
             # positions are incorrectly swapped in lazy
             .select([entity_col, time_col, target_col])
             # Impute gaps after reindex
-            .pipe(experimental_impute(impute_method))
+            .pipe(impute(impute_method))
             # Defensive fill null with 0 for impute method `ffill`
             .fill_null(0)
         )
@@ -416,14 +416,14 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
 
 
 @transformer
-def experimental_impute(
+def impute(
     method: Union[
         Literal["mean", "median", "fill", "ffill", "bfill", "interpolate"],
         Union[int, float],
     ]
 ):
     """
-    [EXPERIMENTAL] Performs missing value imputation on numeric columns of a DataFrame grouped by entity.
+    Performs missing value imputation on numeric columns of a DataFrame grouped by entity.
 
     Parameters
     ----------
@@ -624,6 +624,8 @@ def boxcox(method: str = "mle"):
 
 @transformer
 def detrend(method: Literal["linear", "mean"] = "linear"):
+    """ """
+
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
         if method == "linear":

@@ -66,7 +66,7 @@ def test_add_holiday_effects():
             }
         ).lazy()
         country_codes = ["US", "UK"]
-        result = add_holiday_effects(country_codes, freq="1mo")(data)
+        result = add_holiday_effects(country_codes)(data)
         expected = pl.DataFrame(
             {
                 "country": ["US", "US", "US", "US", "US", "US"],

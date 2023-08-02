@@ -142,16 +142,18 @@ from functime.preprocessing import boxcox, impute
 # Use df.pipe to chain operations together
 X_new: pl.LazyFrame = (
     X.pipe(boxcox(method="mle"))
-    .pipe(impute(method="linear"))
+    .pipe(detrend(method="linear"))
 )
 # Call .collect to execute query
+X_new: pl.DataFrame = X_new.collect(streaming=True)
 ```
 
 ## Time Series Data
 
-### External Data
+### Feature Engineering
 
-Easily enrich your own data with `functime`'s built-in datasets. Datasets include calendar effects, holidays, weather patterns, economic data, and seasonality features (i.e. Fourier Series).
+Easily enrich your forecasts with calendar effects, holidays, weather patterns (coming soon), economic data (coming soon), and seasonality features (i.e. Fourier Series).
+View API reference for [`functime.feature_extraction`](https://docs.functime.ai/ref/feature-extraction/).
 
 ### Example Data
 

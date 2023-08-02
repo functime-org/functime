@@ -7,22 +7,25 @@ All individual forecasters (e.g. `lasso` / `xgboost`) have the same API. Use `**
 
 `functime` currently supports the following autoregressive global forecasters.
 
-??? info "Forecasters"
+!!! info "Forecasters"
 
     - `ann`
     - `catboost`
     - `censored_model`
+    - `elastic_net_cv`
     - `elastic_net`
     - `flaml_lightgbm`
     - `knn`
+    - `lasso_cv`
     - `lasso`
     - `lightgbm`
     - `linear_model`
+    - `ridge_cv`
     - `ridge`
     - `xgboost`
     - `zero_inflated_model`
 
-??? info "Automated Forecasters"
+!!! info "Automated Forecasters"
 
     - `auto_elastic_net`
     - `auto_knn`
@@ -225,43 +228,66 @@ forecaster.fit(y=y_train, X=X_train)
 y_pred = forecaster.predict(fh=3, X=X_test)
 ```
 
-## Seasonality
+## Transformations / Preprocessing
 
-### Indicators
+Every forecaster has two optional parameters `target_transform` and `feature_transform`, which take a `functime` transformer (e.g. `diff(order=1)`, `detrend(method="linear")`).
 
-To model seasonality effects in global forecasting, we recommend using one-hot encoded features of datetime and calendar effects:
+    - `target_transform` applies a transformation on `y` before fit and predict. An inverse transformation is then applied after predict to return the final forecast.
+    - `feature_transform` applies a transformation on `X` before fit and predict.
 
-  - minute: 1, 2, ..., 60 (in a day)
-  - hour: 1, 2, ..., 24 (in a day)
-  - day: 1, 2, ..., 31 (in a month)
-  - weekday: 1, 2, ..., 7 (in a week)
-  - week: 1, 2,..., 52 (in a year)
-  - quarter: 1, 2, ..., 4 (in a year)
-  - year: 1999, 2000, ..., 2023 (any year)
+We recommend using `target_transform` and `feature_transform` to avoid common pitfalls such as inconsistent feature engineering and data leakage.
+Check out the API reference for [preprocessing](/ref/preprocessing/) and [feature_extraction](/ref/feature-extraction/) for a list of supported transformations.
+
+### Target Transform
 
 ```python
-from functime.feature_extraction import add_calendar_effects
+from functime.forecasting import linear_model
+from functime.preprocessing import diff, scale, boxcox
 
-X_new = X.pipe(add_calendar_effects(["month"])).collect()
+# Apply first differences
+forecaster = linear_model(freq="1mo", lags=12, target_transform=diff(order=1))
+
+# Or local standarization
+forecaster = linear_model(freq="1mo", lags=12, target_transform=scale())
+
+# Or Box-cox
+forecaster = linear_model(freq="1mo", lags=12, target_transform=boxcox())
 ```
 
-### Holidays / Special Events
-
-`functime` has a wrapper function around the [`holidays`](https://pypi.org/project/holidays/) Python package to generate dummy variables for special events.
+### Feature Transform
 
 ```python
-from functime.feature_extraction import add_holiday_effects
+from functime.forecasting import linear_model
+from functime.feature_extraction import add_fourier_terms
+from functime.preprocessing import lag
 
-north_america_holidays = add_holiday_effects(
-    country_codes=["US", "CA"],
-    freq="1mo"
+# Include Fourier terms to model complex seasonality
+forecaster = linear_model(
+    freq="1mo",
+    lags=12,
+    feature_transform=add_fourier_terms(sp=12, K=3)
 )
-X_new = X.pipe(north_america_holidays).collect()
+
+# Create lags of exogenous regressors
+forecaster = linear_model(
+    freq="1mo",
+    lags=12,
+    feature_transform=lag(lags=[1,2,3])
+)
 ```
 
-### Fourier
+### Target and Feature Transform
 
-Coming soon.
+```python
+from functime.forecasting import linear_model
+
+forecaster = linear_model(
+    freq="1mo",
+    lags=12,
+    target_transform=scale(),
+    target_transform=add_fourier_terms(sp=12, K=3)
+)
+```
 
 ## Forecast Strategies
 

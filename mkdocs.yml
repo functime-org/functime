@@ -38,8 +38,10 @@ nav:
   - Quick Start: index.md
   - Installation: installation.md
   - Forecasting: forecasting.md
+  - Preprocessing: preprocessing.md
+  - Seasonality: seasonality.md
   - Embeddings: embeddings.md
-  - Cloud: cloud.md
+  # - Developer Guide: develop.md
   - API Reference:
     - forecasting: ref/forecasting.md
     - preprocessing: ref/preprocessing.md

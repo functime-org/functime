@@ -9,15 +9,9 @@ def add_fourier_terms(sp: int, K: int):
     """Fourier features for time series seasonality.
 
     Fourier Series terms can be used as explanatory variables for the cases of multiple
-    seasonal periods and or complex / long seasonal periods [1]_, [2]_. For every
-    seasonal period, :math:`sp` and fourier term :math:`k` pair there are 2 fourier
-    terms sin_sp_k and cos_sp_k:
-        - sin_sp_k = :math:`sin(\frac{2 \\pi k t}{sp})`
-        - cos_sp_k = :math:`cos(\frac{2 \\pi k t}{sp})`
+    seasonal periods and or complex / long seasonal periods.
 
-    Where :math:`t` is the number of time steps elapsed from the beginning of the time series.
-
-    The implementation is based on the fourier function from the R forecast package [3]_
+    The implementation is based on the Fourier function from the R [forecast package](https://pkg.robjhyndman.com/forecast/reference/fourier.html).
 
     Parameters
     ----------
@@ -26,15 +20,6 @@ def add_fourier_terms(sp: int, K: int):
     K : int
         Maximum order(s) of Fourier terms.
         Must be less than `sp`.
-
-    References
-    ----------
-    .. [1] Hyndsight - Forecasting with long seasonal periods:
-        https://robjhyndman.com/hyndsight/longseasonality/
-    .. [2] Hyndman, R.J., & Athanasopoulos, G. (2021) Forecasting: principles and
-        practice, 3rd edition, OTexts: Melbourne, Australia. OTexts.com/fpp3.
-        Accessed on August 14th 2022.
-    .. [3] https://pkg.robjhyndman.com/forecast/reference/fourier.html
     """
 
     if K > sp:
