@@ -12,7 +12,15 @@ from .elite import elite
 from .knn import knn
 from .lance import ann
 from .lightgbm import flaml_lightgbm, lightgbm
-from .linear import elastic_net, lasso, linear_model, ridge
+from .linear import (
+    elastic_net,
+    elastic_net_cv,
+    lasso,
+    lasso_cv,
+    linear_model,
+    ridge,
+    ridge_cv,
+)
 from .naive import naive
 from .xgboost import xgboost
 
@@ -31,6 +39,9 @@ __all__ = [
     "flaml_lightgbm",
     "knn",
     "lasso",
+    "lasso_cv",
+    "ridge_cv",
+    "elastic_net_cv",
     "lightgbm",
     "linear_model",
     "ridge",
