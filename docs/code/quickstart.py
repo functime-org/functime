@@ -23,7 +23,7 @@ entity_col, time_col = y.columns[:2]
 X = (
     y.select([entity_col, time_col])
     .pipe(add_calendar_effects(["month"]))
-    .pipe(add_holiday_effects(country_codes=["US"], freq="1mo"))
+    .pipe(add_holiday_effects(country_codes=["US"]))
     .collect()
 )
 
