@@ -46,7 +46,8 @@ dependencies = [
     "tqdm",
     "typing-extensions",
     "xgboost",
-    "zarr"
+    "zarr",
+    "requests"
 ]
 
 [project.urls]
