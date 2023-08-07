@@ -36,9 +36,9 @@ def embed(
         Current supports the following model IDs:\n
         - `rocket`: for univariate time-series
         - `bazooka`: for multivariate time-series
-        - `rocket`: for univariate time-series
-        - `rocket`: for univariate time-series
-        - `rocket`: for univariate time-series
+        - `bazooka-turbo`: for multivariate time-series
+        - `hindsight`: for multivariate time-series
+        - `hindsight-turbo`: for multivariate time-series
     user_id : Optional[str]
         A unique identifier representing your end-user,
         which can help functime Cloud to monitor and detect abuse.
