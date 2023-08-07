@@ -7,6 +7,7 @@ import polars as pl
 import pyarrow as pa
 import requests
 from typing_extensions import Literal
+from base64 import b64decode
 
 
 def _pyarrow_table_to_bytes(table: pa.Table) -> BytesIO:
@@ -78,12 +79,13 @@ def embed(
             f"Select multiviarate embeddings model '{model}', but found univariate panel data."
         )
 
-    embs_bytes = requests.get(
+    embs_response = requests.post(
         f"{api_url}/embed",
         headers={"Authorization": f"Bearer {api_token}"},
         files={"X": _pyarrow_table_to_bytes(X.to_arrow())},
         params={"model": model, "user_id": user_id},
-    )
-    embs = np.from_buffer(embs_bytes)
-
+    ).json()
+    embs_bytes = b64decode(embs_response["embeddings"])
+    shape = tuple(embs_response["shape"])
+    embs = np.frombuffer(embs_bytes, dtype=embs_response["dtype"]).reshape(shape)
     return embs
