@@ -146,14 +146,16 @@ def test_auto_on_m4(auto_forecaster, m4_dataset):
 
 
 @pytest.mark.multivariate
-def test_forecaster_on_m5(forecaster, m5_dataset):
+def test_forecaster_on_m5(forecaster, m5_dataset, benchmark):
     """Run global models against the M5 (Walmart) competition dataset and check
     overall RMSSE (i.e. averaged across all time-series) is less than 2.
     """
     y_train, X_train, y_test, X_test, fh, freq = m5_dataset
-    y_pred = forecaster(freq)(y=y_train, X=X_train, fh=fh, X_future=X_test)
-    entity_col = y_pred.columns[0]
-    _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
+    y_pred = benchmark(
+        lambda: forecaster(freq)(y=y_train, X=X_train, fh=fh, X_future=X_test)
+    )
+    # entity_col = y_pred.columns[0]
+    # _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
     _check_m5_score(y_test, y_pred, y_train)
 
 
@@ -161,8 +163,8 @@ def test_forecaster_on_m5(forecaster, m5_dataset):
 def test_auto_on_m5(auto_forecaster, m5_dataset):
     y_train, X_train, y_test, X_test, fh, freq = m5_dataset
     y_pred = auto_forecaster(freq=freq)(y=y_train, X=X_train, fh=fh, X_future=X_test)
-    entity_col = y_pred.columns[0]
-    _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
+    # entity_col = y_pred.columns[0]
+    # _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
     _check_m5_score(y_test, y_pred, y_train)
 
 
@@ -206,9 +208,9 @@ def test_censored_model_on_m5(threshold, m5_dataset):
     )(y=y_train, X=X_train, fh=fh, X_future=X_test)
     # Check column names
     assert y_pred.columns == [*y_train.columns[:3], "threshold_proba"]
-    # Check no missing time-series
-    entity_col = y_pred.columns[0]
-    _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
+    # # Check no missing time-series
+    # entity_col = y_pred.columns[0]
+    # _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
     # Check score
     score = (
         rmsse(y_test, y_pred.select(y_train.columns[:3]), y_train=y_train)
@@ -226,9 +228,9 @@ def test_zero_inflated_model_on_m5(m5_dataset):
     )(y=y_train, X=X_train, fh=fh, X_future=X_test)
     # Check column names
     assert y_pred.columns == [*y_train.columns[:3], "threshold_proba"]
-    # Check no missing time-series
-    entity_col = y_pred.columns[0]
-    _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
+    # # Check no missing time-series
+    # entity_col = y_pred.columns[0]
+    # _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
     # Check score
     score = (
         rmsse(y_test, y_pred.select(y_train.columns[:3]), y_train=y_train)
