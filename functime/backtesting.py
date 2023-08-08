@@ -123,7 +123,10 @@ def backtest(
             .collect(streaming=True)
             .item()
         )
-        X_train, X_test = X_splits[i] if X is not None else None, None
+        if X is None:
+            X_train, X_test = None, None
+        else:
+            X_train, X_test = X_splits[i]
         # Forecast
         forecaster = forecaster.fit(y=y_train, X=X_train)
         y_pred = forecaster.predict(fh=fh, X=X_test)
