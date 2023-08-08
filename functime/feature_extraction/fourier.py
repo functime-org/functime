@@ -38,7 +38,9 @@ def add_fourier_terms(sp: int, K: int):
             for k in range(1, n_sin_terms + 1)
         ]
         X_new = X.with_columns(
-            (pl.col(time_col).to_physical().over(entity_col) / sp).alias("fourier_coef")
+            (pl.col(time_col).arg_sort().mod(sp).over(entity_col) / sp).alias(
+                "fourier_coef"
+            )
         ).select([entity_col, time_col, *cos_terms, *sin_terms])
         artifacts = {"X_new": X_new}
         return artifacts
