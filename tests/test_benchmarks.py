@@ -257,3 +257,63 @@ def test_functime_on_m5(forecaster, m5_dataset_no_missing, benchmark):
             y=y_train, X=X_train, X_future=X_test, fh=fh
         )
     )
+
+
+FREQ_TO_LONG_FH = {
+    "1d": 365,
+    "1w": 52,
+    "1mo": 120,
+    "3mo": 24,
+    "1y": 10,
+}
+
+
+@pytest.fixture
+def pd_m4_dataset_long_fh(pd_m4_dataset):
+    y_train, y_test, _, freq, lags, entity_col, time_col = pd_m4_dataset
+    return y_train, y_test, FREQ_TO_LONG_FH[freq], freq, lags, entity_col, time_col
+
+
+@pytest.fixture
+def m4_dataset_no_missing_long_fh(m4_dataset_no_missing):
+    y_train, y_test, _, freq, lags = m4_dataset_no_missing
+    return y_train, y_test, FREQ_TO_LONG_FH[freq], freq, lags
+
+
+@pytest.mark.benchmark
+def test_mlforecast_on_m4_long_fh(regressor, pd_m4_dataset_long_fh, benchmark):
+    from joblib import cpu_count
+    from mlforecast import MLForecast
+    from mlforecast.target_transforms import LocalStandardScaler
+
+    y_train, _, fh, _, lags, entity_col, time_col = pd_m4_dataset_long_fh
+    _, regressor_cls = regressor
+
+    def fit_predict():
+        forecaster = MLForecast(
+            models=[regressor_cls()],
+            lags=list(range(lags)),
+            num_threads=cpu_count(),
+            target_transforms=[LocalStandardScaler()],
+        )
+        forecaster.fit(
+            y_train,
+            id_col=entity_col,
+            time_col=time_col,
+            target_col=y_train.columns[-1],
+        )
+        y_pred = forecaster.predict(fh)
+        return y_pred
+
+    benchmark(fit_predict)
+
+
+@pytest.mark.benchmark
+def test_functime_on_m4_long_fh(forecaster, m4_dataset_no_missing_long_fh, benchmark):
+    y_train, _, fh, _, lags = m4_dataset_no_missing_long_fh
+    _, forecaster_cls = forecaster
+    benchmark(
+        lambda: forecaster_cls(lags=lags, freq="1i", target_transform=scale())(
+            y=y_train, fh=fh
+        )
+    )
