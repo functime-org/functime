@@ -208,7 +208,7 @@ class Forecaster(Model):
     def backtest(
         self,
         y: DF_TYPE,
-        X: Optional[pl.DataFrame],
+        X: Optional[pl.DataFrame] = None,
         test_size: int = 1,
         step_size: int = 1,
         n_splits: int = 5,
