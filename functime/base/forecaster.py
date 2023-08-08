@@ -154,6 +154,7 @@ class Forecaster(Model):
         entity_col = state.entity
         time_col = state.time
         target_col = state.target
+        schema = state.target_schema
         # Cutoffs cannot be lazy
         cutoffs: pl.DataFrame = state.artifacts["__cutoffs"]
         # Get entity, time "index" for forecast
@@ -186,16 +187,15 @@ class Forecaster(Model):
             )
 
         y_pred_vals = predict_autoreg(self.state, fh=fh, X=X)
+        # BUG: Exploding list[date] errogenously casts
+        # into integer series but only for LazyFrame explode
         y_pred = (
-            y_pred_vals.lazy()
-            .join(future_ranges.lazy(), on=entity_col, how="left")
+            y_pred_vals.join(future_ranges, on=entity_col, how="left")
             .select([entity_col, time_col, target_col])
             .explode(pl.all().exclude(entity_col))
-            .collect(streaming=True)
         )
 
         if self.target_transform is not None:
-            schema = self.state.target_schema
             y_pred = (
                 y_pred.with_columns(pl.col(time_col).cast(schema[time_col]))
                 .pipe(self.target_transform.invert)
