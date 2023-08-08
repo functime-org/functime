@@ -186,12 +186,13 @@ class Forecaster(Model):
             )
 
         y_pred_vals = predict_autoreg(self.state, fh=fh, X=X)
-        y_pred_vals = y_pred_vals.sort(by=entity_col).select(
-            pl.col(y_pred_vals.columns[-1]).alias(target_col)
+        y_pred = (
+            y_pred_vals.lazy()
+            .join(future_ranges.lazy(), on=entity_col, how="left")
+            .select([entity_col, time_col, target_col])
+            .explode(pl.all().exclude(entity_col))
+            .collect(streaming=True)
         )
-        y_pred = pl.concat(
-            [future_ranges.sort(by=entity_col), y_pred_vals], how="horizontal"
-        ).explode(pl.all().exclude(entity_col))
 
         if self.target_transform is not None:
             schema = self.state.target_schema

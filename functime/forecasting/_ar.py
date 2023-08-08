@@ -222,8 +222,10 @@ def predict_recursive(
         artifacts = state.artifacts["recursive"]
     regressor = artifacts["regressor"]
     entity_col = state.entity
-    y_lag: pl.DataFrame = artifacts["y_lag"].sort(entity_col)
-    X = X.sort(entity_col) if X is not None else X
+    y_lag: pl.DataFrame = artifacts["y_lag"].sort(entity_col).set_sorted(entity_col)
+    if X is not None:
+        X = X.groupby(entity_col).agg(pl.all()).sort(entity_col).set_sorted(entity_col)
+
     lag_cols = y_lag.columns[2:]
     lead_col = lag_cols[0]
 
@@ -232,9 +234,7 @@ def predict_recursive(
             [entity_col, pl.all().exclude(entity_col).list.get(-1)]
         )
         if X is not None:
-            x = X.groupby(entity_col, maintain_order=True).agg(
-                pl.all().exclude(entity_col).take(i)
-            )
+            x = X.select([entity_col, pl.all().exclude(entity_col).list.get(i)])
             x_y_slice = x_y_slice.join(x, on=entity_col, how="left")
         return x_y_slice
 
@@ -277,21 +277,21 @@ def predict_direct(state, fh: int, X: Optional[pl.DataFrame] = None) -> pl.DataF
     entity_col = state.entity
     time_col = state.time
     target_col = state.target
-    X_feature_cols = X.columns[1:] if X is not None else []
+    regressor_cols = X.columns[1:] if X is not None else []
     artifacts = state.artifacts
     if "direct" in artifacts.keys():
         artifacts = state.artifacts["direct"]
     regressors = artifacts["regressors"]
     max_horizons = len(regressors)
-
     if fh > max_horizons:
         raise ValueError(
             "`fh` must be less than or equal to `max_horizons` in model parameters."
             f" Expected `fh <= {max_horizons}`, got `{fh}`."
         )
 
-    y_lag: pl.DataFrame = artifacts["y_lag"].sort(entity_col)
-    X = X.sort(entity_col) if X is not None else X
+    y_lag: pl.DataFrame = artifacts["y_lag"].sort(entity_col).set_sorted(entity_col)
+    if X is not None:
+        X = X.groupby(entity_col).agg(pl.all()).sort(entity_col).set_sorted(entity_col)
     lags = (y_lag.width - 1) - max_horizons
 
     n_entities = len(y_lag)
@@ -304,9 +304,7 @@ def predict_direct(state, fh: int, X: Optional[pl.DataFrame] = None) -> pl.DataF
         lag_cols = [pl.col(f"{target_col}__lag_{j}").list.get(i) for j in selected_lags]
         x = y_lag.select([entity_col, pl.col(time_col).list.get(i), *lag_cols])
         if X is not None:
-            x_slice = X.groupby(entity_col, maintain_order=True).agg(
-                pl.col(X_feature_cols).take(i)
-            )
+            x_slice = X.select([entity_col, pl.col(regressor_cols).list.get(i)])
             x = x.join(x_slice, on=entity_col, how="left")
         # Predict
         y_pred_i = regressors[i].predict(x)
