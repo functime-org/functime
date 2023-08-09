@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "functime"
-version = "0.4.3"
+version = "0.4.4"
 description = "The easiest way to run and scale time-series machine learning in the Cloud."
 readme = "README.md"
 requires-python = ">=3.8"
