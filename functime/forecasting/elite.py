@@ -35,9 +35,6 @@ class elite(Forecaster):
         Offset alias supported by Polars.
     lags : int
         Number of lagged target variables.
-    max_fh : int
-        Max forecast horizon.
-        `fh` in predict cannot exceed this value.
     sp : Optional[int]
         Seasonal periods; length of one seasonal cycle.
     forecasters : Optional[Mapping[str, Forecaster]]
@@ -54,7 +51,7 @@ class elite(Forecaster):
         If None, defaults to MAE.
     test_size : Optional[int]
         Number of test samples for each split.
-        If None, defaults to `max_fh`.
+        If None, defaults to 1.
     step_size : Optional[int]
         Step size between windows.
     n_splits : Optional[int]
@@ -67,7 +64,6 @@ class elite(Forecaster):
         self,
         freq: Union[str, None],
         lags: int,
-        max_fh: Optional[int] = None,
         sp: Optional[int] = None,
         forecasters: Optional[Mapping[str, Forecaster]] = None,
         model_kwargs: Optional[Mapping[str, Mapping[str, Any]]] = None,
@@ -79,7 +75,6 @@ class elite(Forecaster):
         n_splits: Optional[int] = None,
         **kwargs,
     ):
-        self.max_fh = max_fh
         self.sp = sp or freq_to_sp(freq=freq)[0]
         self.forecasters = forecasters or {
             # "Seasonality" models
@@ -171,7 +166,7 @@ class elite(Forecaster):
         self.ensemble_strategy = ensemble_strategy
         self.top_k = top_k or 12
         self.scoring = scoring
-        self.test_size = test_size or max_fh
+        self.test_size = test_size or 1
         self.step_size = step_size or self.test_size
         self.n_splits = n_splits or 3
         super().__init__(freq=freq, lags=lags, **kwargs)
@@ -227,7 +222,6 @@ class elite(Forecaster):
 
         # 1. Cross validation
         test_size = self.test_size
-        max_fh = self.max_fh
         step_size = self.step_size
         n_splits = self.n_splits
         cv = expanding_window_split(
@@ -247,7 +241,7 @@ class elite(Forecaster):
                     freq=freq, lags=lags, **model_kwargs.get(model_name, {})
                 )
             else:
-                forecaster = forecaster_cls(freq=freq, max_fh=test_size)
+                forecaster = forecaster_cls(freq=freq)
             y_preds = backtest(forecaster=forecaster, y=y, cv=cv, residualize=False)
             cv_y_preds[model_name] = y_preds.pipe(coerce_dtypes(schema)).collect()
 
@@ -320,7 +314,7 @@ class elite(Forecaster):
                     freq=freq, lags=lags, **model_kwargs.get(model_name, {})
                 ).fit(y=y)
             else:
-                forecaster = forecaster_cls(freq=freq, max_fh=max_fh).fit(y=y)
+                forecaster = forecaster_cls(freq=freq).fit(y=y)
             fitted_forecasters[model_name] = forecaster
 
         artifacts = {

@@ -228,6 +228,24 @@ forecaster.fit(y=y_train, X=X_train)
 y_pred = forecaster.predict(fh=3, X=X_test)
 ```
 
+!!! tip "Naive Forecasting"
+
+    It is best practice to run naive forecasts (random walk, seasonal naive) as benchmarks.
+    These simple forecasting methods can be remarkably difficult to beat![^3]
+
+    ```python
+    from functime.forecasting import naive, snaive
+
+    # Random walk model
+    y_pred_naive = naive(freq="1mo")(y=y_train, fh=3)
+
+    # Seasonal naive model
+    y_pred_snaive = snaive(freq="1mo", sp=12)(y=y_train, fh=3)
+    ```
+
+    [^3]: https://otexts.com/fpp3/simple-methods.html
+
+
 ## Transformations / Preprocessing
 
 Every forecaster has two optional parameters `target_transform` and `feature_transform`, which take a `functime` transformer (e.g. `diff(order=1)`, `detrend(method="linear")`).

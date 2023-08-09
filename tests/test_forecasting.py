@@ -244,10 +244,10 @@ def test_elite_on_m4(m4_dataset, m4_freq_to_lags, m4_freq_to_sp):
     y_train, y_test, fh, freq = m4_dataset
     lags = m4_freq_to_lags[freq]
     sp = m4_freq_to_sp[freq]
-    y_pred = elite(freq="1i", lags=lags, max_fh=fh, sp=sp, scoring=smape_original)(
+    y_pred = elite(freq="1i", lags=lags, sp=sp, scoring=smape_original)(
         y=y_train, fh=fh
     )
-    y_pred_naive = naive(freq="1i", max_fh=fh)(y=y_train, fh=fh)
+    y_pred_naive = naive(freq="1i")(y=y_train, fh=fh)
 
     # Score
     elite_scores = smape_original(y_true=y_test, y_pred=y_pred)

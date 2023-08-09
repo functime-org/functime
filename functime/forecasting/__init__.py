@@ -22,6 +22,7 @@ from .linear import (
     ridge_cv,
 )
 from .naive import naive
+from .snaive import snaive
 from .xgboost import xgboost
 
 __all__ = [
@@ -34,18 +35,19 @@ __all__ = [
     "auto_ridge",
     "catboost",
     "censored_model",
+    "elastic_net_cv",
     "elastic_net",
     "elite",
     "flaml_lightgbm",
     "knn",
-    "lasso",
     "lasso_cv",
-    "ridge_cv",
-    "elastic_net_cv",
+    "lasso",
     "lightgbm",
     "linear_model",
-    "ridge",
-    "xgboost",
     "naive",
+    "ridge_cv",
+    "ridge",
+    "snaive",
+    "xgboost",
     "zero_inflated_model",
 ]
