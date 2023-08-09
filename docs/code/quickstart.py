@@ -5,7 +5,7 @@ import polars as pl
 
 from functime.cross_validation import train_test_split
 from functime.feature_extraction import add_fourier_terms
-from functime.forecasting import auto_linear_model, linear_model
+from functime.forecasting import auto_linear_model, linear_model, naive, snaive
 from functime.metrics import smape
 from functime.preprocessing import scale
 
@@ -26,6 +26,11 @@ test_size = 3
 freq = "1mo"
 y_train, y_test = train_test_split(test_size)(y)
 X_train, X_test = train_test_split(test_size)(X)
+
+# Paralleized naive forecasts!
+y_pred_naive = naive(freq="1mo")(y=y_train, fh=3)
+y_pred_snaive = snaive(freq="1mo", sp=12)(y=y_train, fh=3)
+
 
 # Univariate time-series fit with automated lags and hyperparameter tuning
 auto_forecaster = auto_linear_model(
