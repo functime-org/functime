@@ -9,7 +9,7 @@ from functime.feature_extraction.calendar import (
 )
 
 
-def test_calendar_effects():
+def test_add_calendar_effects():
     """
     Creates new calendar effect columns based on datetime column in a time series DataFrame.
     """
