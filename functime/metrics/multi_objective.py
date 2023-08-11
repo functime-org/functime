@@ -147,7 +147,12 @@ def score_backtest(
         "median": pl.col(target_col).median(),
     }
     y_pred = (
-        y_preds.lazy().groupby([entity_col, time_col]).agg(expr[agg_method]).collect()
+        y_preds.lazy()
+        .groupby([entity_col, time_col])
+        .agg(expr[agg_method])
+        .sort([entity_col, time_col])
+        .set_sorted([entity_col, time_col])
+        .collect()
     )
     scores = score_forecast(y_true, y_pred, y_train=y_true)
     return scores
