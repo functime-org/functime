@@ -3,6 +3,7 @@
 
 from dataclasses import dataclass
 from functools import partial, reduce
+from typing import Optional
 
 import polars as pl
 from typing_extensions import Literal
@@ -109,7 +110,7 @@ def score_forecast(
 def score_backtest(
     y_true: pl.DataFrame,
     y_preds: pl.DataFrame,
-    agg_method: Literal["mean", "median"] = "mean",
+    agg_method: Optional[Literal["mean", "median", "first", "last"]] = None,
 ) -> pl.DataFrame:
     """Return DataFrame of forecast metrics across entities.
 
@@ -133,8 +134,10 @@ def score_backtest(
     y_preds : pl.DataFrame
         Stacked predicted values across CV splits.
         DataFrame contains four columns: entity, time, target, "split".
-    agg_method : str
+    agg_method : Optional[str] = None
         Method ("mean", "median") to aggregate scores across entities by.
+        If None, forecasts in overlapping splits are weighted equally, i.e.
+        no aggregation is applied.
 
     Returns
     -------
@@ -145,14 +148,19 @@ def score_backtest(
     expr = {
         "mean": pl.col(target_col).mean(),
         "median": pl.col(target_col).median(),
+        "first": pl.col(target_col).first(),
+        "last": pl.col(target_col).last(),
     }
-    y_pred = (
-        y_preds.lazy()
-        .groupby([entity_col, time_col])
-        .agg(expr[agg_method])
-        .sort([entity_col, time_col])
-        .set_sorted([entity_col, time_col])
-        .collect()
-    )
-    scores = score_forecast(y_true, y_pred, y_train=y_true)
+    if agg_method:
+        y_pred = (
+            y_preds.lazy()
+            .groupby([entity_col, time_col])
+            .agg(expr[agg_method])
+            .sort([entity_col, time_col])
+            .set_sorted([entity_col, time_col])
+            .collect()
+        )
+        scores = score_forecast(y_true, y_pred, y_train=y_true)
+    else:
+        scores = score_forecast(y_true, y_preds, y_train=y_true)
     return scores
