@@ -43,6 +43,7 @@ class snaive(Forecaster):
         state = self.state
         entity = state.entity
         target = state.target
+        sp = self.sp
         # Cutoffs cannot be lazy
         cutoffs: pl.DataFrame = state.artifacts["__cutoffs"]
         future_ranges = make_future_ranges(
@@ -56,7 +57,7 @@ class snaive(Forecaster):
             y_pred_vals.sort(by=entity)
             .select(
                 pl.concat_list(
-                    [pl.col(target).list.get(i % fh).alias(f"fh{i}") for i in range(fh)]
+                    [pl.col(target).list.get(i % sp).alias(f"fh{i}") for i in range(fh)]
                 ).alias(target)
             )
             .collect()
