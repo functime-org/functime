@@ -9,7 +9,6 @@ from plotly.subplots import make_subplots
 
 from functime.base.metric import METRIC_TYPE
 from functime.evaluation import rank_fva
-from functime.metrics import mase
 
 COLOR_PALETTE = {"actual": "#B7B7B7", "forecast": "#1b57f1", "backtest": "#A76EF4"}
 DEFAULT_LAST_N = 64
@@ -29,17 +28,17 @@ def plot_forecasts(
     y: pl.DataFrame,
     y_pred: pl.DataFrame,
     n_cols: int = 2,
-    top_k: int = 10,
     last_n: int = DEFAULT_LAST_N,
     **kwargs
 ) -> go.Figure:
 
     # Get most recent observations
     entity_col, time_col, target_col = y.columns
-    y = y.groupby(entity_col).tail(last_n).explode(pl.all().exclude(entity_col))
+    y = y.groupby(entity_col).tail(last_n)
 
     # Organize subplots
-    n_rows = int(np.ceil(top_k / n_cols))
+    n_series = y.get_column(entity_col).n_unique()
+    n_rows = int(np.ceil(n_series / n_cols))
     row_idx = np.repeat(range(n_rows), n_cols)
     entity_ids = y.get_column(entity_col).unique(maintain_order=True)
     fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entity_ids)
@@ -83,17 +82,17 @@ def plot_backtests(
     y: pl.DataFrame,
     y_preds: pl.DataFrame,
     n_cols: int = 2,
-    top_k: int = 10,
     last_n: int = DEFAULT_LAST_N,
     **kwargs
 ) -> go.Figure:
 
     # Get most recent observations
     entity_col, time_col, target_col = y.columns
-    y = y.groupby(entity_col).tail(last_n).explode(pl.all().exclude(entity_col))
+    y = y.groupby(entity_col).tail(last_n)
 
     # Organize subplots
-    n_rows = top_k // n_cols
+    n_series = y.get_column(entity_col).n_unique()
+    n_rows = n_series // n_cols
     row_idx = np.repeat(range(n_rows), n_cols)
     entity_ids = y.get_column(entity_col).unique(maintain_order=True)
     fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entity_ids)
@@ -134,14 +133,10 @@ def plot_backtests(
 
 
 def plot_residuals(
-    y_resids: pl.DataFrame, top_k: int = 4, n_bins: Optional[int] = None, **kwargs
+    y_resids: pl.DataFrame, n_bins: Optional[int] = None, **kwargs
 ) -> go.Figure:
-    entity_col, time_col, target_col = y_resids.columns[:3]
-    y_resids = (
-        y_resids.head(top_k)
-        .explode([time_col, target_col])
-        .with_columns(pl.col(target_col).alias("Residuals"))
-    )
+    entity_col, _, target_col = y_resids.columns[:3]
+    y_resids = y_resids.with_columns(pl.col(target_col).alias("Residuals"))
     fig = px.histogram(
         y_resids,
         x="Residuals",
@@ -212,3 +207,23 @@ def plot_fva(
     fig.update_layout(shapes=[deg45_line])
     fig.update_layout(**kwargs)
     return fig
+
+
+if __name__ == "__main__":
+
+    from functime.cross_validation import train_test_split
+    from functime.forecasting import snaive
+    from functime.metrics import mase
+
+    y = pl.read_parquet("data/commodities.parquet")
+    entity_col = y.columns[0]
+    fh = 24
+    y_train, y_test = train_test_split(test_size=fh)(y)
+    y_pred = snaive(freq="1mo", sp=12)(y=y_train, fh=fh)
+    scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
+    top_scoring = scores.sort("mase").get_column(entity_col).head(n=4)
+
+    y = y.filter(pl.col(entity_col).is_in(top_scoring))
+    y_pred = y_pred.filter(pl.col(entity_col).is_in(top_scoring))
+    fig = plot_forecasts(y=y, y_pred=y_pred, width=1150)
+    fig.show()
