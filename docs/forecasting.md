@@ -34,6 +34,13 @@ All individual forecasters (e.g. `lasso` / `xgboost`) have the same API. Use `**
     - `auto_linear_model`
     - `auto_ridge`
 
+`functime` also has the following benchmark models implemented as pure Polars queries.
+
+!!! info "Benchmark Forecasters"
+
+    - `naive`: random walk forecaster
+    - `snaive`: seasonal naive forecaster
+
 ## Quickstart
 
 Want to go straight into code? Run through every forecasting example with the following script:
@@ -214,7 +221,22 @@ scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
     Every `forecaster`, `transformer`, `splitter`, and `metric` in `functime` operates globally across collections of time series.
     We rewrote every time series operation in `polars` for blazing fast multi-threaded parallelism.
 
-    Stop using Databricks to scale your forecasts. Use `functime`.
+    If you are working at a reasonable-scale company, you most likely don't need Databricks to scale your forecasts. Use `functime`.
+
+## Benchmark Forecasters
+
+Naive and seasonal naive forecasters are surprisingly hard to beat!
+You should always consider using the naive and seasonal naive forecasts as benchmarks.
+`functime` implements embarressingly parallel versions of the naive (random walk) and seasonal naive forecasters.
+These forecasters are expressed as pure Polars queries and executed in lazy streaming mode for speed and memory efficiency.
+
+```python
+from functime.forecasting import naive, snaive
+
+y_pred_naive = naive(freq="1mo")(y=y_train, fh=12)
+# sp = seasonal periods (length of one seasonal cycle)
+y_pred_snaive = naive(freq="1mo", sp=12)(y=y_train, fh=12)
+```
 
 ## Exogenous Regressors
 

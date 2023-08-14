@@ -16,3 +16,9 @@ Auto-forecasters uses `FLAML` to optimize both hyperparameters and number of lag
 ::: functime.forecasting.automl.AutoForecaster
 
 [^1]: https://arxiv.org/abs/2005.01571
+
+
+`functime` also has the following benchmark models implemented as pure Polars queries.
+
+::: functime.forecasting.naive
+::: functime.forecasting.snaive
