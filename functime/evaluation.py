@@ -1,8 +1,8 @@
 from functools import partial
-from typing import Optional
+from typing import List, Optional
 
-import numpy as np
 import polars as pl
+import polars.selectors as cs
 from scipy.stats import norm, normaltest
 from typing_extensions import Literal
 
@@ -58,29 +58,116 @@ RESIDUALS_SORT_BY = Literal["bias", "abs_bias", "normality", "autocor_lb", "auto
 FVA_SORT_BY = Literal["naive", "snaive", "linear", "linear_scaled"]
 
 
-def acf(x: pl.Series, max_lags: int, alpha: float = 0.05):
+def acf_formula(x: pl.Expr, max_lags: int) -> List[pl.Expr]:
+    # NOTE: Unsure if lists of expressions are automatically vectorized by the Rust query engine...
+    # Brute force adjusted ACF calculation (might be slow for long series and lags)
     n = x.len()
-    # Brute force ACF calculation (might be slow for long series and lags)
-    acf = [pl.corr(x, x.shift(i), ddof=i) for i in range(1, max_lags + 1)]
+    # Otherwise, the following computation will be faster as eager arrays / series
+    acf = [
+        pl.corr(x, x.shift(i), ddof=i).alias(f"acorr_{i}")
+        for i in range(1, max_lags + 1)
+    ]
+    return [pl.lit(1.0, dtype=pl.Float32).alias("acorr_0"), *acf, n.alias("length")]
+
+
+def acf_confint_formula(acf: pl.Expr, length: pl.Expr, ppf: float) -> pl.Expr:
     # Calculate variance using Bartlett's formula
-    varacf = pl.repeat(1, max_lags + 1, eager=True) / n
-    cumsum_var = pl.cumsum_horizontal(varacf.slice(1, n - 1) ** 2)
-    varacf = [varacf.get(i) * (1 + 2 * cumsum_var) for i in range(2, max_lags)]
-    pff = norm.pff(1 - alpha / 2.0)
-    intervals = [pff * np.sqrt(var) for var in varacf]
-    return acf, intervals
+    var_acf = (1 + 2 * (acf**2).cumsum()).alias("var")
+    intervals = ppf * ((1.0 / length) * var_acf).sqrt().cast(pl.Float32)
+    return intervals.alias("interval")
 
 
-def ljung_box_test(x: pl.Series, max_lags: int):
-    # Brute force ACF calculation (might be slow for long series and lags)
-    acf = [pl.corr(x, x.shift(i), ddof=i) for i in range(1, max_lags + 1)]
-    n = x.len()
-    qstat = n * (n + 2) * np.sum((acf[1:] ** 2) / (n - np.arange(1, max_lags + 1)))
-    return qstat
+def acf(X: pl.DataFrame, max_lags: int, alpha: float = 0.05) -> pl.DataFrame:
+    entity_col, _, target_col = X.columns
+    ppf = norm.ppf(1 - alpha / 2.0)
+    result = (
+        X.lazy()
+        # Defensive downcast and demean
+        .with_columns(
+            (pl.col(target_col) - pl.col(target_col).mean())
+            .over(entity_col)
+            .cast(pl.Float32)
+        )
+        .groupby(entity_col)
+        .agg(acf_formula(pl.col(target_col), max_lags=max_lags))
+        .select(
+            entity_col,
+            pl.concat_list(cs.starts_with("acorr_")).alias("acf"),
+            pl.col("length"),
+        )
+        .explode("acf")
+        .groupby(entity_col)
+        .agg(
+            [
+                pl.col("acf"),
+                pl.lit(0.0, dtype=pl.Float32).alias("interval_0"),
+                ppf
+                * (1.0 / pl.col("length").cast(pl.Float32).first())
+                .sqrt()
+                .alias("interval_1"),
+                acf_confint_formula(
+                    acf=pl.col("acf"), length=pl.col("length"), ppf=ppf
+                ).slice(1, max_lags - 1),
+            ]
+        )
+        .select(
+            [
+                entity_col,
+                "acf",
+                pl.concat_list(cs.starts_with("interval")).alias("interval"),
+            ]
+        )
+        .explode(["acf", "interval"])
+        .groupby(entity_col)
+        .agg(
+            [
+                pl.col("acf"),
+                (pl.col("acf") - pl.col("interval")).alias("confint_lower"),
+                (pl.col("acf") + pl.col("interval")).alias("confint_upper"),
+            ]
+        )
+        .collect(streaming=True)
+    )
+    return result
 
 
-def normality_test(x: pl.Series):
-    return normaltest(x.to_numpy())[0]
+def ljung_box_test(X: pl.DataFrame, max_lags: int):
+    def _acf_sqr_ratio(x: pl.Expr):
+        n = x.len()
+        acf = [
+            pl.corr(x, x.shift(i), ddof=i).alias(f"acorr_{i}")
+            for i in range(1, max_lags + 1)
+        ]
+        acf_sqr = [x**2 for x in acf]
+        acf_sqr_ratio = [x / (n - k) for x, k in zip(acf_sqr, range(1, max_lags + 1))]
+        return [*acf_sqr_ratio, n.alias("length")]
+
+    def _qstat_ljung_box(acf: pl.Expr, length: pl.Expr):
+        qstats = length * (length + 2) * acf.cumsum()
+        return qstats.alias("qstats")
+
+    entity_col, _, target_col = X.columns
+    results = (
+        X.groupby(entity_col)
+        .agg(_acf_sqr_ratio(pl.col(target_col)))
+        .select(
+            entity_col,
+            pl.concat_list(cs.starts_with("acorr_")).alias("acf"),
+            pl.col("length"),
+        )
+        .explode("acf")
+        .groupby(entity_col)
+        .agg(_qstat_ljung_box(pl.col("acf"), pl.col("length")))
+    )
+    return results
+
+
+def normality_test(X: pl.DataFrame) -> pl.DataFrame:
+    entity_col, _, target_col = X.columns
+    results = X.groupby(entity_col).agg(
+        pl.col(target_col).apply(lambda s: normaltest(s.to_numpy())[0])
+    )
+    return results
 
 
 def _rank_entities_by_stat(y_true: pl.DataFrame, sort_by: str, descending: bool):
@@ -143,11 +230,6 @@ def rank_residuals(
         "bias": pl.col(target_col).mean().abs(),
         "abs_bias": pl.col(target_col).mean().abs(),
         "normality": pl.col(target_col).apply(normality_test),
-        "autocorr_lb": (
-            pl.col(target_col)
-            .apply(ljung_box_test, max_lags=max_lags, alpha=alpha)
-            .struct["qstat"]
-        ),
     }
     ranks = (
         y_resids.groupby(entity_col)
