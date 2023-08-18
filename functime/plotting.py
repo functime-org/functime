@@ -31,6 +31,30 @@ def plot_forecasts(
     last_n: int = DEFAULT_LAST_N,
     **kwargs
 ) -> go.Figure:
+    """Given panel DataFrames of observed values `y` and forecasts `y_pred`,
+    returns subplots for each individual entity / time-series.
+
+    Note: if you have over 10 entities / time-series, we recommend using
+    the `rank_` and `filter_` functions in `functime.evaluation` before plotting.
+
+    Parameters
+    ----------
+    y : pl.DataFrame
+        Panel DataFrame of observed values.
+    y_pred : pl.DataFrame
+        Panel DataFrame of forecasted values.
+    n_cols : int
+        Number of columns to arrange subplots.
+        Defaults to 2.
+    last_n : int
+        Plot `last_n` most recent values in `y` and `y_pred`.
+        Defaults to 64.
+
+    Returns
+    -------
+    figure : plotly.graph_objects.Figure
+        Plotly subplots.
+    """
 
     # Get most recent observations
     entity_col, time_col, target_col = y.columns
@@ -85,6 +109,30 @@ def plot_backtests(
     last_n: int = DEFAULT_LAST_N,
     **kwargs
 ) -> go.Figure:
+    """Given panel DataFrame of observed values `y` and backtests across splits `y_pred`,
+    returns subplots for each individual entity / time-series.
+
+    Note: if you have over 10 entities / time-series, we recommend using
+    the `rank_` and `filter_` functions in `functime.evaluation` before plotting.
+
+    Parameters
+    ----------
+    y : pl.DataFrame
+        Panel DataFrame of observed values.
+    y_preds : pl.DataFrame
+        Panel DataFrame of backtested values.
+    n_cols : int
+        Number of columns to arrange subplots.
+        Defaults to 2.
+    last_n : int
+        Plot `last_n` most recent values in `y` and `y_pred`.
+        Defaults to 64.
+
+    Returns
+    -------
+    figure : plotly.graph_objects.Figure
+        Plotly subplots.
+    """
 
     # Get most recent observations
     entity_col, time_col, target_col = y.columns
@@ -135,6 +183,23 @@ def plot_backtests(
 def plot_residuals(
     y_resids: pl.DataFrame, n_bins: Optional[int] = None, **kwargs
 ) -> go.Figure:
+    """Given panel DataFrame of residuals across splits `y_resids`,
+    returns binned counts plot of forecast residuals colored by entity / time-series.
+
+    Useful for residuals analysis (bias and normality) at scale.
+
+    Parameters
+    ----------
+    y_resids : pl.DataFrame
+        Panel DataFrame of forecast residuals (i.e. observed less forecast).
+    n_bins : int
+        Number of bins.
+
+    Returns
+    -------
+    figure : plotly.graph_objects.Figure
+        Plotly histogram.
+    """
     entity_col, _, target_col = y_resids.columns[:3]
     y_resids = y_resids.with_columns(pl.col(target_col).alias("Residuals"))
     fig = px.histogram(
@@ -150,14 +215,6 @@ def plot_residuals(
     return fig
 
 
-def plot_acf(y: pl.DataFrame, max_lags: int, alpha: float = 0.05):
-    pass
-
-
-def plot_residuals_acf(y_resids: pl.DataFrame):
-    pass
-
-
 def plot_comet(
     y_train: pl.DataFrame,
     y_test: pl.DataFrame,
@@ -165,6 +222,25 @@ def plot_comet(
     scoring: Optional[METRIC_TYPE] = None,
     **kwargs
 ):
+    """Given a train-test-split of panel data (`y_train`, `y_test`) and forecast `y_pred`,
+    returns a Comet plot i.e. scatterplot of volatility per entity in `y_train` against the forecast scores.
+
+    Parameters
+    ----------
+    y_train : pl.DataFrame
+        Panel DataFrame of train dataset.
+    y_test : pl.DataFrame
+        Panel DataFrame of test dataset.
+    y_pred : pl.DataFrame
+        Panel DataFrame of forecasted values to score against `y_test`.
+    scoring : Optional[metric]
+        If None, defaults to MASE.
+
+    Returns
+    -------
+    figure : plotly.graph_objects.Figure
+        Plotly scatterplot.
+    """
     entity_col, _, target_col = y_train.columns
     scoring = scoring or partial(mase, y_train=y_train)
     scores = scoring(y_true=y_test, y_pred=y_pred)
@@ -190,6 +266,26 @@ def plot_fva(
     scoring: Optional[METRIC_TYPE] = None,
     **kwargs
 ):
+    """Given two panel data forecasts `y_pred` and `y_pred_bench`,
+    returns scatterplot of benchmark scores against forecast scores.
+    Each dot represents a single entity / time-series.
+
+    Parameters
+    ----------
+    y_true : pl.DataFrame
+        Panel DataFrame of test dataset.
+    y_pred : pl.DataFrame
+        Panel DataFrame of forecasted values.
+    y_pred_bench : pl.DataFrame
+        Panel DataFrame of benchmark forecast values.
+    scoring : Optional[metric]
+        If None, defaults to MASE.
+
+    Returns
+    -------
+    figure : plotly.graph_objects.Figure
+        Plotly scatterplot.
+    """
     uplift = rank_fva(
         y_true=y_true, y_pred=y_pred, y_pred_bench=y_pred_bench, scoring=scoring
     )
