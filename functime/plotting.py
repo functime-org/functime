@@ -35,7 +35,7 @@ def plot_forecasts(
     returns subplots for each individual entity / time-series.
 
     Note: if you have over 10 entities / time-series, we recommend using
-    the `rank_` and `filter_` functions in `functime.evaluation` before plotting.
+    the `rank_` functions in `functime.evaluation` then `df.head()` before plotting.
 
     Parameters
     ----------
@@ -113,7 +113,7 @@ def plot_backtests(
     returns subplots for each individual entity / time-series.
 
     Note: if you have over 10 entities / time-series, we recommend using
-    the `rank_` and `filter_` functions in `functime.evaluation` before plotting.
+    the `rank_` functions in `functime.evaluation` then `df.head()` before plotting.
 
     Parameters
     ----------
@@ -279,7 +279,7 @@ def plot_fva(
     y_pred_bench : pl.DataFrame
         Panel DataFrame of benchmark forecast values.
     scoring : Optional[metric]
-        If None, defaults to MASE.
+        If None, defaults to SMAPE.
 
     Returns
     -------

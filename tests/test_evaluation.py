@@ -10,8 +10,8 @@ from functime.cross_validation import train_test_split
 from functime.evaluation import (
     acf,
     ljung_box_test,
-    rank_forecasts,
     rank_fva,
+    rank_point_forecasts,
     rank_residuals,
 )
 from functime.forecasting import linear_model, snaive
@@ -22,7 +22,9 @@ MAX_LAGS = 24
 
 @pytest.fixture
 def commodities_dataset():
-    y = pl.read_parquet("data/commodities.parquet")
+    y = pl.read_parquet("data/commodities.parquet").with_columns(
+        pl.col("commodity_type").str.strip()
+    )
     y_train, y_test = train_test_split(test_size=6, eager=True)(y)
     return y_train, y_test
 
@@ -34,10 +36,17 @@ def commodities_forecast(commodities_dataset):
     y_pred = linear_model(freq="1mo", lags=12, target_transform=scale())(
         y=y_train, fh=12
     )
+    return y_pred_bench, y_pred
+
+
+@pytest.fixture
+def commodities_backtest(commodities_dataset):
+    y_train, y_test = commodities_dataset
     y_preds, y_resids = linear_model(
         freq="1mo", lags=MAX_LAGS, target_transform=scale()
     ).backtest(y=y_train, test_size=12, step_size=12, n_splits=5)
-    return y_pred_bench, y_pred, y_preds, y_resids
+    print(y_resids)
+    return y_preds, y_resids
 
 
 def test_acf(commodities_dataset):
@@ -112,36 +121,63 @@ def test_ljung_box(commodities_dataset):
     )
 
 
-@pytest.mark.parametrize("sort_by", ["mean", "median", "std", "cv", "smape"])
-def test_rank_forecasts(commodities_forecast, sort_by):
-    y_test, _, y_pred, _, _ = commodities_forecast
-    ranks = rank_forecasts(y_pred=y_pred, y_true=y_test, sort_by=sort_by)
+@pytest.mark.parametrize(
+    "sort_by,top_3",
+    [
+        ("mean", ["Sugar, EU", "Sugar, world", "Sugar, US"]),
+        ("median", ["Sugar, EU", "Sugar, world", "Sugar, US"]),
+        ("std", ["Chicken", "Sugar, EU", "Sugar, world"]),
+        ("cv", ["Chicken", "Palm kernel oil", "Soybeans"]),
+        ("smape", ["Sawnwood, Cameroon", "Banana, Europe", "Plywood"]),
+    ],
+    ids=lambda x: x[0],
+)
+def test_rank_forecasts(commodities_dataset, commodities_forecast, sort_by, top_3):
+    _, y_test = commodities_dataset
+    _, y_pred = commodities_forecast
+    entity_col = y_test.columns[0]
+    ranks = rank_point_forecasts(y_pred=y_pred, y_true=y_test, sort_by=sort_by)
     print(ranks)
-    raise ValueError
+    assert ranks.get_column(entity_col).head(3).to_list() == top_3
 
 
-@pytest.mark.parametrize("sort_by", ["mean", "median", "std", "cv", "smape"])
-def test_rank_backtests(commodities_forecast, sort_by):
-    y_test, _, _, y_preds, _ = commodities_forecast
-    ranks = rank_forecasts(y_pred=y_preds, y_true=y_test, sort_by=sort_by)
+def test_rank_backtests(commodities_dataset, commodities_backtest):
+    y_train, _ = commodities_dataset
+    y_preds, _ = commodities_backtest
+    entity_col = y_train.columns[0]
+    ranks = rank_point_forecasts(y_pred=y_preds, y_true=y_train, sort_by="smape")
+    expected = ["Sawnwood, Cameroon", "Banana, Europe", "Sugar, EU"]
     print(ranks)
-    raise ValueError
+    assert ranks.get_column(entity_col).head(3).to_list() == expected
 
 
-@pytest.mark.parametrize("sort_by", ["bias", "abs_bias", "normality", "autocorr"])
-def test_rank_residuals(commodities_forecast, sort_by):
-    y_test, _, _, y_preds, _ = commodities_forecast
-    ranks = rank_residuals(y_pred=y_preds, y_true=y_test, sort_by=sort_by)
+@pytest.mark.parametrize(
+    "sort_by,top_3",
+    [
+        ("bias", ["Wheat, US HRW", "Wheat, US SRW", "Potassium chloride"]),
+        ("abs_bias", ["Wheat, US HRW", "Wheat, US SRW", "Potassium chloride"]),
+        ("normality", ["Rubber, TSR20", "Cocoa", "Beef"]),
+        ("autocorr", ["Platinum", "Copper", "Rapeseed oil"]),
+    ],
+)
+def test_rank_residuals(commodities_backtest, sort_by, top_3):
+    _, y_resids = commodities_backtest
+    entity_col = y_resids.columns[0]
+    ranks = rank_residuals(y_resids=y_resids, sort_by=sort_by)
     print(ranks)
-    raise ValueError
+    assert ranks.get_column(entity_col).head(3).to_list() == top_3
 
 
-def test_rank_fva(commodities_forecast):
-    y_test, y_pred_bench, y_pred, _, _ = commodities_forecast
+def test_rank_fva(commodities_dataset, commodities_forecast):
+    _, y_test = commodities_dataset
+    y_pred_bench, y_pred = commodities_forecast
+    entity_col = y_test.columns[0]
     ranks = rank_fva(
-        y_true=y_test,
-        y_pred=y_pred,
-        y_pred_bench=y_pred_bench,
+        y_true=y_test, y_pred=y_pred, y_pred_bench=y_pred_bench, descending=True
     )
     print(ranks)
-    raise ValueError
+    assert ranks.get_column(entity_col).head(3).to_list() == [
+        "Palm kernel oil",
+        "Barley",
+        "Rapeseed oil",
+    ]

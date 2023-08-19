@@ -53,7 +53,7 @@ FORECAST_SORT_BY = Literal[
     "underforecast",
 ]
 
-RESIDUALS_SORT_BY = Literal["bias", "abs_bias", "normality", "autocor_lb", "autocor_bg"]
+RESIDUALS_SORT_BY = Literal["bias", "abs_bias", "normality", "autocorr"]
 
 FVA_SORT_BY = Literal["naive", "snaive", "linear", "linear_scaled"]
 
@@ -67,7 +67,7 @@ def acf_formula(x: pl.Expr, max_lags: int) -> List[pl.Expr]:
         pl.corr(x, x.shift(i), ddof=i).alias(f"acorr_{i}")
         for i in range(1, max_lags + 1)
     ]
-    return [pl.lit(1.0, dtype=pl.Float32).alias("acorr_0"), *acf, n.alias("length")]
+    return [*acf, n.alias("length")]
 
 
 def acf_confint_formula(acf: pl.Expr, length: pl.Expr, ppf: float) -> pl.Expr:
@@ -100,7 +100,6 @@ def acf(X: pl.DataFrame, max_lags: int, alpha: float = 0.05) -> pl.DataFrame:
         .agg(
             [
                 pl.col("acf"),
-                pl.lit(0.0, dtype=pl.Float32).alias("interval_0"),
                 ppf
                 * (1.0 / pl.col("length").cast(pl.Float32).first())
                 .sqrt()
@@ -126,6 +125,11 @@ def acf(X: pl.DataFrame, max_lags: int, alpha: float = 0.05) -> pl.DataFrame:
                 (pl.col("acf") + pl.col("interval")).alias("confint_upper"),
             ]
         )
+        .with_columns(
+            pl.lit([1.0]).list.concat("acf").alias("acf"),
+            pl.lit([1.0]).list.concat("confint_lower").alias("confint_lower"),
+            pl.lit([1.0]).list.concat("confint_upper").alias("confint_upper"),
+        )
         .collect(streaming=True)
     )
     return result
@@ -134,6 +138,7 @@ def acf(X: pl.DataFrame, max_lags: int, alpha: float = 0.05) -> pl.DataFrame:
 def ljung_box_test(X: pl.DataFrame, max_lags: int):
     def _acf_sqr_ratio(x: pl.Expr):
         n = x.len()
+        x = x - x.mean()
         acf = [
             pl.corr(x, x.shift(i), ddof=i).alias(f"acorr_{i}")
             for i in range(1, max_lags + 1)
@@ -146,7 +151,7 @@ def ljung_box_test(X: pl.DataFrame, max_lags: int):
         qstats = length * (length + 2) * acf.cumsum()
         return qstats.alias("qstats")
 
-    entity_col, _, target_col = X.columns
+    entity_col, _, target_col = X.columns[:3]
     results = (
         X.groupby(entity_col)
         .agg(_acf_sqr_ratio(pl.col(target_col)))
@@ -163,34 +168,45 @@ def ljung_box_test(X: pl.DataFrame, max_lags: int):
 
 
 def normality_test(X: pl.DataFrame) -> pl.DataFrame:
-    entity_col, _, target_col = X.columns
+    entity_col, _, target_col = X.columns[:3]
     results = X.groupby(entity_col).agg(
-        pl.col(target_col).apply(lambda s: normaltest(s.to_numpy())[0])
+        pl.col(target_col)
+        .apply(lambda s: normaltest(s.to_numpy())[0])
+        .alias("normal_test")
     )
     return results
 
 
 def _rank_entities_by_stat(y_true: pl.DataFrame, sort_by: str, descending: bool):
     entity_col, _, target_col = y_true.columns[:3]
-    ranked_entities = (
-        y_true.groupby(entity_col)
-        .agg(getattr(pl, sort_by)(target_col))
-        .sort(by=sort_by, descending=descending)
-        .select([entity_col, sort_by])
-    )
-    return ranked_entities
+    if sort_by == "mean":
+        stats = y_true.groupby(entity_col).agg(pl.col(target_col).mean().alias(sort_by))
+    elif sort_by == "median":
+        stats = y_true.groupby(entity_col).agg(
+            pl.col(target_col).median().alias(sort_by)
+        )
+    elif sort_by == "std":
+        stats = y_true.groupby(entity_col).agg(pl.col(target_col).std().alias(sort_by))
+    elif sort_by == "cv":
+        stats = y_true.groupby(entity_col).agg(
+            (pl.col(target_col).std() / pl.col(target_col).mean()).alias(sort_by)
+        )
+    else:
+        raise ValueError(f"`sort_by` method '{sort_by}' not found")
+    ranks = stats.sort(by=sort_by, descending=descending).select([entity_col, sort_by])
+    return ranks
 
 
 def _rank_entities_by_score(
     y_true: pl.DataFrame, y_pred: pl.DataFrame, sort_by: str, descending: bool
 ):
-    scoring = SORT_BY_TO_METRIC(y_true)(sort_by)
-    ranked_entities = (
+    scoring = SORT_BY_TO_METRIC(y_true)[sort_by]
+    ranks = (
         scoring(y_true=y_true, y_pred=y_pred)
         .sort(by=sort_by, descending=descending)
         .select([y_true.columns[0], sort_by])
     )
-    return ranked_entities
+    return ranks
 
 
 def _rank_entities(
@@ -207,35 +223,88 @@ def _rank_entities(
     return ranks
 
 
-def rank_forecasts(
-    y_pred: pl.DataFrame,
+def rank_point_forecasts(
     y_true: pl.DataFrame,
-    descending: bool = False,
+    y_pred: pl.DataFrame,
     sort_by: FORECAST_SORT_BY = "smape",
+    descending: bool = False,
 ) -> pl.DataFrame:
+    """Sorts point forecasts in `y_pred` across entities / time-series by score.
+
+    Parameters
+    ----------
+    y_true : pl.DataFrame
+        Panel DataFrame of observed values.
+    y_pred : pl.DataFrame
+        Panel DataFrame of point forecasts.
+    sort_by : str
+        Metric name.
+    descending : bool
+        Sort in descending order. Defaults to False.
+
+    Returns
+    -------
+    ranks : pl.DataFrame
+        Cross-sectional DataFrame with two columns: entity name and score.
+    """
     ranks = _rank_entities(
-        y=y_true, y_pred=y_pred, sort_by=sort_by, descending=descending
+        y_true=y_true, y_pred=y_pred, sort_by=sort_by.lower(), descending=descending
     )
     return ranks
 
 
 def rank_residuals(
     y_resids: pl.DataFrame,
-    sort_by: RESIDUALS_SORT_BY,
-    max_lags: int = 12,
+    sort_by: RESIDUALS_SORT_BY = "abs_bias",
     alpha: float = 0.05,
+    descending: bool = False,
 ) -> pl.DataFrame:
+    """Sorts point forecasts in `y_pred` across entities / time-series by score.
+
+    Parameters
+    ----------
+    y_resids : pl.DataFrame
+        Panel DataFrame of residuals by splits.
+    sort_by : str
+        Method to sort residuals by: `bias`, `abs_bias` (absolute bias),
+        `normality` (via skew and kurtosis tests), or `autocorr` (Ljung-box test for lag = 1).
+        Defaults to `abs_bias`.
+    max_lags : int
+        Number of lags to test.
+    alpha : float
+        To compute (1.0 - alpha) confidence interval.
+    descending : bool
+        Sort in descending order. Defaults to False.
+
+    Returns
+    -------
+    ranks : pl.DataFrame
+        Cross-sectional DataFrame with two columns: entity name and score.
+    """
     entity_col, _, target_col = y_resids.columns[:3]
-    sort_by_to_expr = {
-        "bias": pl.col(target_col).mean().abs(),
-        "abs_bias": pl.col(target_col).mean().abs(),
-        "normality": pl.col(target_col).apply(normality_test),
-    }
-    ranks = (
-        y_resids.groupby(entity_col)
-        .agg(sort_by_to_expr[sort_by].alias(sort_by))
-        .sort(sort_by)
-    )
+    y_resids = y_resids.lazy()
+    if sort_by == "autocorr":
+        ranks = (
+            ljung_box_test(y_resids.collect(), max_lags=1)
+            .with_columns(pl.col("qstats").list.first())
+            .sort("qstats", descending=descending)
+            .rename({"qstats": "qstat"})
+        )
+    elif sort_by == "normality":
+        ranks = normality_test(y_resids.collect()).sort(
+            "normal_test", descending=descending
+        )
+    else:
+        sort_by_to_expr = {
+            "bias": pl.col(target_col).mean().abs(),
+            "abs_bias": pl.col(target_col).mean().abs(),
+        }
+        ranks = (
+            y_resids.groupby(entity_col)
+            .agg(sort_by_to_expr[sort_by].alias(sort_by))
+            .sort(sort_by, descending=descending)
+            .collect()
+        )
     return ranks
 
 
@@ -246,6 +315,26 @@ def rank_fva(
     scoring: Optional[METRIC_TYPE] = None,
     descending: bool = False,
 ) -> pl.DataFrame:
+    """Sorts point forecasts in `y_pred` across entities / time-series by score.
+
+    Parameters
+    ----------
+    y_true : pl.DataFrame
+        Panel DataFrame of observed values.
+    y_pred : pl.DataFrame
+        Panel DataFrame of point forecasts.
+    y_pred_bench : pl.DataFrame
+        Panel DataFrame of benchmark forecast values.
+    scoring : Optional[metric]
+        If None, defaults to SMAPE.
+    descending : bool
+        Sort in descending order. Defaults to False.
+
+    Returns
+    -------
+    ranks : pl.DataFrame
+        Cross-sectional DataFrame with two columns: entity name and score.
+    """
     scoring = scoring or smape
     scores = scoring(y_true=y_true, y_pred=y_pred)
     if y_pred_bench is None:
