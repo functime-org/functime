@@ -40,7 +40,6 @@ nav:
   - Forecasting: forecasting.md
   - Preprocessing: preprocessing.md
   - Seasonality: seasonality.md
-  - Embeddings: embeddings.md
   # - Developer Guide: develop.md
   - API Reference:
     - forecasting: ref/forecasting.md

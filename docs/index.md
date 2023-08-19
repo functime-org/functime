@@ -6,7 +6,7 @@
 
 **functime** is a machine learning library for time-series predictions that [just works](https://www.functime.ai/).
 
-- **Fully-featured:** Powerful and easy-to-use API for [forecasting](#forecasting-highlights) and [temporal embeddings](#embeddings-highlights) (classification, anomaly detection, and clustering)
+- **Fully-featured:** Powerful and easy-to-use API for [forecasting](#forecasting-highlights) and [feature engineering](#feature-engineering-highlights) (tsfresh, Catch22).
 - **Fast:** Forecast and classify [100,000 time series](#global-forecasting) in seconds *on your laptop*
 - **Cloud-native:** Instantly run, deploy, and serve predictive time-series models
 - **Efficient:** Embarressingly parallel feature engineering using [Polars](https://www.pola.rs/) *
@@ -32,25 +32,6 @@ preprocessing, feature extraction, time-series cross-validation / splitters, bac
 
 View the [full walkthrough](forecasting.md) on forecasting with `functime`.
 
-## Embeddings
-
-Currently in closed-beta for `functime` Cloud.
-Have an interesting use-case? Contact us at [Calendly](https://calendly.com/functime).
-
-Temporal embeddings measure the relatedness of time-series.
-Embeddings are more accurate and efficient compared to statistical methods (e.g. Catch22) for characteristing time-series.[^1]
-Embeddings have applications across many domains from finance to IoT monitoring.
-They are commonly used for the following tasks:
-
-- **Matching:** Where time-series are ranked by similarity to a given time-series
-- **Classification:** Where time-series are grouped together by matching patterns
-- **Clustering:** Where time-series are assigned labels (e.g. normal vs irregular heart rate)
-- **Anomaly detection:** Where outliers with unexpected regime / trend changes are identified
-
-View the [full walkthrough](embeddings.md) on temporal embeddings with `functime`.
-
-[^1]: Middlehurst, M., Schäfer, P., & Bagnall, A. (2023). Bake off redux: a review and experimental evaluation of recent time series classification algorithms. arXiv preprint arXiv:2304.13029.
-
 ## Quick Examples
 
 !!! info "Input Data Schemas"
@@ -74,27 +55,6 @@ View the [full walkthrough](embeddings.md) on temporal embeddings with `functime
                      2023-01-01   3309.81
                      2023-02-01   3133.84
                      2023-03-01   2967.46
-    ```
-
-    The `functime.embeddings.embed()` function takes a **wide dataset** where each row represents a single time-series.
-
-    ```
-    >>> X_y_wide
-    shape: (150, 151)
-
-    label     t0        t1     ...    t148      t149
-    --------------------------------------------------
-    1     -1.125013 -1.131338  ... -1.206178 -1.218422
-    2     -0.626956 -0.625919  ... -0.612058 -0.606422
-    2     -2.001163 -1.999575  ... -1.071147 -1.323383
-    1     -1.004587 -0.999843  ... -1.044226 -1.043262
-    1     -0.742625 -0.743770  ... -0.670519 -0.657403
-    ...         ...       ...  ...       ...       ...
-    2     -0.580006 -0.583332  ... -0.548831 -0.553552
-    1     -0.728153 -0.730242  ... -0.686448 -0.690183
-    2     -0.738012 -0.736301  ... -0.608616 -0.612177
-    2     -1.265111 -1.256093  ... -1.193374 -1.192835
-    1     -1.427205 -1.408303  ... -1.153119 -1.222043
     ```
 
 ### Forecasting
