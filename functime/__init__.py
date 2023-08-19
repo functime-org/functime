@@ -1,1 +1,1 @@
-"functime: Time-series machine learning and embeddings at scale."
+"functime: Time-series machine learning at scale."

@@ -1,5 +1,5 @@
 <div align="center">
-    <h1>Time-series machine learning and embeddings at scale</h1>
+    <h1>Time-series machine learning at scale</h1>
 <br />
 
 ![functime](https://github.com/descendant-ai/functime/raw/main/docs/img/banner.png)
@@ -13,7 +13,7 @@
 </div>
 
 ---
-**functime** is a powerful [Python library]((https://pypi.org/project/functime/)) for production-ready forecasting and temporal embeddings.
+**functime** is a powerful [Python library]((https://pypi.org/project/functime/)) for production-ready global forecasting and time-series feature engineering.
 
 **functime** also comes with time-series [preprocessing](https://docs.functime.ai/ref/preprocessing/) (box-cox, differencing etc), cross-validation [splitters](https://docs.functime.ai/ref/cross-validation/) (expanding and sliding window), and forecast [metrics](https://docs.functime.ai/ref/metrics/) (MASE, SMAPE etc). All optimized as [lazy Polars](https://pola-rs.github.io/polars-book/user-guide/lazy/using/) transforms.
 
@@ -75,23 +75,6 @@ forecaster = linear_model(
 ```
 
 View the [full walkthrough](https://docs.functime.ai/forecasting.md) on forecasting with `functime`.
-
-## Embeddings
-
-Currently in closed-beta for `functime` Cloud.
-Have an interesting use-case? Contact us at [Calendly](https://calendly.com/functime).
-
-Temporal embeddings measure the relatedness of time-series.
-Embeddings are more accurate and efficient compared to statistical methods (e.g. Catch22) for characteristing time-series.[^1]
-Embeddings have applications across many domains from finance to IoT monitoring.
-They are commonly used for the following tasks:
-
-- **Matching:** Where time-series are ranked by similarity to a given time-series
-- **Classification:** Where time-series are grouped together by matching patterns
-- **Clustering:** Where time-series are assigned labels (e.g. normal vs irregular heart rate)
-- **Anomaly detection:** Where outliers with unexpected regime / trend changes are identified
-
-View the [full walkthrough](https://docs.functime.ai/embeddings.md) on temporal embeddings with `functime`.
 
 ## Serverless Deployment
 
