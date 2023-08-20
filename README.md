@@ -19,7 +19,7 @@
 
 Want to use **functime** for seamless time-series predictive analytics across your data team?
 Looking for production-grade time-series machine learning in a [serverless](#serverless-deployment) Cloud deployment?
-Shoot Chris a message on [LinkedIn](https://www.linkedin.com/in/chrislohy/) to learn more about `functime` Cloud.
+Contact us via [Calendly](https://calendly.com/functime) to learn more about `functime` Cloud.
 
 ## Highlights
 - **Fast:** Forecast 100,000 time series in seconds *on your laptop*
