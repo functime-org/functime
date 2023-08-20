@@ -2,7 +2,7 @@
     <h1>Time-series machine learning at scale</h1>
 <br />
 
-![functime](https://github.com/descendant-ai/functime/raw/main/docs/img/banner.png)
+![functime](https://github.com/descendant-ai/functime/raw/main/docs/img/banner_dark_bg.png)
 [![Python](https://img.shields.io/pypi/pyversions/functime)](https://pypi.org/project/functime/)
 [![PyPi](https://img.shields.io/pypi/v/functime?color=blue)](https://pypi.org/project/functime/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
