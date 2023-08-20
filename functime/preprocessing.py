@@ -551,7 +551,7 @@ def diff(order: int, sp: int = 1):
 
 @transformer
 def boxcox(method: str = "mle"):
-    """Applies the Box-Cox transformation to numeric columns in a DataFrame.
+    """Applies the Box-Cox transformation to numeric columns in a panel DataFrame.
 
     Parameters
     ----------
@@ -624,7 +624,15 @@ def boxcox(method: str = "mle"):
 
 @transformer
 def detrend(method: Literal["linear", "mean"] = "linear"):
-    """ """
+    """Removes mean or linear trend from numeric columns in a panel DataFrame.
+
+    Parameters
+    ----------
+    method : str
+        If `mean`, subtracts mean from each time-series.
+        If `linear`, subtracts line of best-fit (via OLS) from each time-series.
+        Defaults to `linear`.
+    """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
