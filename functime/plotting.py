@@ -25,7 +25,7 @@ def _remove_legend_duplicates(fig: go.Figure) -> go.Figure:
 
 
 def plot_forecasts(
-    y: pl.DataFrame,
+    y_true: pl.DataFrame,
     y_pred: pl.DataFrame,
     n_cols: int = 2,
     last_n: int = DEFAULT_LAST_N,
@@ -39,7 +39,7 @@ def plot_forecasts(
 
     Parameters
     ----------
-    y : pl.DataFrame
+    y_true : pl.DataFrame
         Panel DataFrame of observed values.
     y_pred : pl.DataFrame
         Panel DataFrame of forecasted values.
@@ -57,8 +57,8 @@ def plot_forecasts(
     """
 
     # Get most recent observations
-    entity_col, time_col, target_col = y.columns
-    y = y.groupby(entity_col).tail(last_n)
+    entity_col, time_col, target_col = y_true.columns
+    y = y_true.groupby(entity_col).tail(last_n)
 
     # Organize subplots
     n_series = y.get_column(entity_col).n_unique()
@@ -103,7 +103,7 @@ def plot_forecasts(
 
 
 def plot_backtests(
-    y: pl.DataFrame,
+    y_true: pl.DataFrame,
     y_preds: pl.DataFrame,
     n_cols: int = 2,
     last_n: int = DEFAULT_LAST_N,
@@ -117,7 +117,7 @@ def plot_backtests(
 
     Parameters
     ----------
-    y : pl.DataFrame
+    y_true : pl.DataFrame
         Panel DataFrame of observed values.
     y_preds : pl.DataFrame
         Panel DataFrame of backtested values.
@@ -135,8 +135,8 @@ def plot_backtests(
     """
 
     # Get most recent observations
-    entity_col, time_col, target_col = y.columns
-    y = y.groupby(entity_col).tail(last_n)
+    entity_col, time_col, target_col = y_true.columns
+    y = y_true.groupby(entity_col).tail(last_n)
 
     # Organize subplots
     n_series = y.get_column(entity_col).n_unique()

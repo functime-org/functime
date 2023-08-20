@@ -13,6 +13,8 @@ theme:
     - navigation.expand
 
 plugins:
+  - mkdocs-jupyter:
+      include: ["*.ipynb"]
   - mkdocstrings:
       handlers:
         python:
@@ -40,6 +42,7 @@ nav:
   - Forecasting: forecasting.md
   - Preprocessing: preprocessing.md
   - Seasonality: seasonality.md
+  - Evaluation: notebooks/evaluation.ipynb
   # - Developer Guide: develop.md
   - API Reference:
     - forecasting: ref/forecasting.md
@@ -49,6 +52,8 @@ nav:
     - offsets: ref/offsets.md
     - metrics: ref/metrics.md
     - multi_objective: ref/multi-objective.md
+    - evaluation: ref/evaluation.md
+    - plotting: ref/plotting.md
 
 extra:
   analytics:
