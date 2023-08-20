@@ -1,13 +1,16 @@
 from typing import List, Mapping, Union
 
+import cloudpickle
 import polars as pl
 import polars.selectors as cs
 from scipy import optimize
 from scipy.stats import boxcox_normmax
+from sklearn.linear_model import LinearRegression, TheilSenRegressor
 from typing_extensions import Literal
 
 from functime.base import transformer
 from functime.base.model import ModelState
+from functime.feature_extraction import add_fourier_terms
 from functime.offsets import _strip_freq_alias
 
 
@@ -701,5 +704,116 @@ def detrend(method: Literal["linear", "mean"] = "linear"):
                 .select(X.columns)
             )
         return X_new
+
+    return transform, invert
+
+
+@transformer
+def deseasonalize_fourier(
+    sp: int, K: int, robust: bool = False, parallelize: bool = False
+):
+    """
+
+    Note: part of this transformer uses sklearn under-the-hood: it is not pure Polars and lazy.
+    """
+
+    if robust:
+        regressor_cls = LinearRegression
+    else:
+        regressor_cls = TheilSenRegressor
+
+    if parallelize:
+        apply_strategy = "threading"
+    else:
+        apply_strategy = "thread_local"
+
+    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+
+        if X.shape[1] > 3:
+            raise ValueError(
+                "Got `X` with more than 3 columns."
+                " Expected `x` with maximum 3 columns: entity column,"
+                " time column, target column."
+            )
+
+        def _deseasonalize(inputs: pl.Series):
+            # Coerce inputs
+            X_y = inputs.struct.unnest()
+            y = X_y.get_column(target_col).to_numpy(zero_copy_only=True)
+            X = X_y.select(pl.all().exclude(target_col)).to_numpy()
+            # Fit-predict
+            regressor = regressor_cls().fit(y=y, X=X)
+            # Subtract prediction from y
+            y_pred = regressor.predict(X=X)
+            y_new = y - y_pred
+            return {
+                target_col: y_new.to_list(),
+                "regressor": cloudpickle.dumps(regressor),
+            }
+
+        entity_col, time_col, target_col = X.columns[:3]
+        X_with_features = X.pipe(add_fourier_terms(sp=sp, K=K)).collect()
+        fourier_cols = list(set(X_with_features.columns) - set(X.columns))
+        X_new = (
+            X_with_features.groupby(entity_col)
+            .agg(
+                [
+                    time_col,
+                    pl.struct([target_col, *fourier_cols])
+                    .apply(_deseasonalize, apply_strategy=apply_strategy)
+                    .alias("result"),
+                    pl.col(X.columns[3:]),
+                ]
+            )
+            .select([time_col, pl.col("result")])
+        )
+        artifacts = {
+            "X_new": X_new.lazy(),
+            "regressors": X_new.select([entity_col, "regressor"]),
+        }
+        return artifacts
+
+    def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
+
+        if X.shape[1] > 3:
+            raise ValueError(
+                "Got `X` with more than 3 columns."
+                "Expected `x` with maximum 3 columns: entity column, time column, target column."
+            )
+
+        def _reseasonalize(inputs: pl.Series):
+            # Coerce inputs
+            data = inputs.struct.unnest()
+            entity_id = data.get_column(entity_col).item(0)
+            y = data.get_column(target_col).to_numpy(zero_copy_only=True)
+            X = data.select(pl.all().exclude(target_col)).to_numpy()
+            # Predict
+            regressor = cloudpickle.loads(regressors.item(entity_id, "regressor"))
+            y_pred = regressor.predict(X=X)
+            # Add prediction to y
+            y_new = y + y_pred
+            return y_new
+
+        entity_col, time_col, target_col = X.columns[:3]
+        regressors = state.artifacts["regressors"]
+        X_with_features = (
+            X.select([entity_col, time_col])
+            .pipe(add_fourier_terms(sp=sp, K=K))
+            .collect()
+        )
+        fourier_cols = list(set(X_with_features.columns) - set(X.columns))
+        y_new = (
+            X_with_features.groupby(entity_col)
+            .agg(
+                [
+                    time_col,
+                    pl.struct([entity_col, target_col, *fourier_cols]).apply(
+                        _reseasonalize, apply_strategy=apply_strategy
+                    ),
+                ]
+            )
+            .explode(pl.all().exclude(entity_col))
+        )
+        return y_new.lazy()
 
     return transform, invert

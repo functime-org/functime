@@ -20,11 +20,25 @@ seasonal_periods = {
 }
 ```
 
-### Method 1. Dummy Variables / Categorical
+### Method 1. (Recommended) Deseasonalize `y` directly per time-series
+
+```python
+
+```
+
+For ease-of-use and protection against data leakage, you can pass this transformer into any forecaster via the `target_transform` parameter:
+
+```python
+
+```
+
+### Method 2. Dummy Variables / Categorical in `X`
 
 Use `add_calendar_effects` to generate datetime and calendar effects. `functime` supports two strategies to model seasonality as discrete features: though a categorical column (useful for forecasters with native categorical features support e.g. `lightgbm`) or multiple binary columns (i.e. one-hot encoding). Check out [Chapter 7.4: Seasonal dummy variables](https://otexts.com/fpp3/useful-predictors.html#seasonal-dummy-variables) for a quick primer.
 
 If you choose the dummy variable strategy, beware of the "dummy variable trap" (i.e. remember to set `fit_intercept=False` if you decide to include all dummy columns).
+
+NOTE: Only use this method if you believe every time-series in the panel DataFrame has similar seasonal effects. Otherwise, adding seasonal exogenous regressors to a global forecaster would bias your predictions.
 
   - minute: 1, 2, ..., 60 (in a day)
   - hour: 1, 2, ..., 24 (in a day)
@@ -45,7 +59,7 @@ X_new = X.pipe(add_calendar_effects(["month"])).collect()
 X_new = X.pipe(add_calendar_effects(["month"]), as_dummies=True).collect()
 ```
 
-### Method 2. Fourier Terms
+### Method 3. Fourier Terms in `X`
 
 Fourier terms are a common way to model multiple seasonal periods and complex seasonality (e.g. long seasonal periods 365.25 / 7 ≈ 52.179 for weekly time series). For every seasonal period `sp` and Fourier term `k=1,..,K` pair, there are 2 fourier terms `sin_sp_k` and `cos_sp_k`.
 
@@ -55,6 +69,7 @@ Fourier terms can be used to approximate a continuous periodic signal, which can
 `add_fourier_terms` returns the original `X` DataFrame along with the Fourier terms as additional columns.
 For example, if `sp=12` and `K=3`, `X_new` would contain the columns `sin_12_1`, `cos_12_1`, `sin_12_2`, `cos_12_2`, `sin_12_3`, and `cos_12_3`.
 
+NOTE: Only use this method if you believe every time-series in the panel DataFrame is seasonal. Otherwise, adding seasonal exogenous regressors to a global forecaster would bias your predictions.
 
 ```python
 from functime.offsets import freq_to_sp
