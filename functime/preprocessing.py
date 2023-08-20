@@ -356,12 +356,13 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
             X = X.join(_mean, on=entity_col).select(
                 idx_cols + [pl.col(col) - pl.col(f"{col}_mean") for col in numeric_cols]
             )
+            print(X.collect())
         if use_std:
             _std = X.groupby(entity_col).agg(
-                PL_NUMERIC_COLS(entity_col, time_col).mean().suffix("_std")
+                PL_NUMERIC_COLS(entity_col, time_col).std().suffix("_std")
             )
             X = X.join(_std, on=entity_col).select(
-                idx_cols + [pl.col(col) - pl.col(f"{col}_std") for col in numeric_cols]
+                idx_cols + [pl.col(col) / pl.col(f"{col}_std") for col in numeric_cols]
             )
         if rescale_bool:
             boolean_cols = X.select(pl.col(pl.Boolean)).columns
