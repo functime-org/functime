@@ -11,7 +11,7 @@ from scipy import signal
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import PowerTransformer
 
-from functime.preprocessing import boxcox, detrend, diff, lag, roll
+from functime.preprocessing import boxcox, detrend, diff, lag, roll, scale
 
 
 @pytest.fixture
@@ -178,6 +178,21 @@ def test_roll(pd_X, rolling_pd_dataframe, benchmark):
     )
     expected = df.reset_index().loc[:, result.columns]
     assert_frame_equal(result, pl.DataFrame(expected), check_exact=False, rtol=0.01)
+
+
+def test_scale(pd_X):
+    entity_col = pd_X.index.names[0]
+    numeric_cols = pd_X.select_dtypes(include=["float"]).columns
+    pd_X = pd_X.assign(**{col: pd_X[col].abs() for col in numeric_cols}).replace(0, 1)
+    expected = pd_X.groupby(entity_col)[numeric_cols].transform(
+        lambda x: (x - x.mean()) / x.std()
+    )
+    X = pl.from_pandas(pd_X.reset_index()).lazy()
+    transformer = scale()
+    X_new = X.pipe(transformer).collect()
+    assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()))
+    X_original = X_new.pipe(transformer.invert)
+    assert_frame_equal(X_original, X, check_dtype=False)
 
 
 @pytest.mark.parametrize("sp", [1])
