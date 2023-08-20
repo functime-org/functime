@@ -356,7 +356,6 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
             X = X.join(_mean, on=entity_col).select(
                 idx_cols + [pl.col(col) - pl.col(f"{col}_mean") for col in numeric_cols]
             )
-            print(X.collect())
         if use_std:
             _std = X.groupby(entity_col).agg(
                 PL_NUMERIC_COLS(entity_col, time_col).std().suffix("_std")
