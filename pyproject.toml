@@ -67,7 +67,7 @@ test = [
     # "skforecast",
     # "u8darts==0.24.0",
 ]
-doc = ["mkdocs", "mkdocs-material", "mkdocstrings-python"]
+doc = ["mkdocs", "mkdocs-material", "mkdocstrings-python", "mkdocs-jupyter"]
 
 [tool.setuptools.packages.find]
 include = ["functime", "functime.*"]

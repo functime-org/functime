@@ -21,7 +21,7 @@ from functime.forecasting import (  # ann,
     zero_inflated_model,
 )
 from functime.metrics import rmsse, smape, smape_original
-from functime.preprocessing import scale
+from functime.preprocessing import detrend
 
 patch_sklearn()
 
@@ -36,9 +36,9 @@ FORECASTERS_TO_TEST = [
     # ("ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq)),
     # ("direct__ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq, **DIRECT_KWARGS)),
     # ("ensemble__ann", lambda freq: ann(lags=DEFAULT_LAGS, freq=freq, **ENSEMBLE_KWARGS)),
-    ("linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=scale())),
-    ("direct__linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=scale(), **DIRECT_KWARGS)),
-    ("ensemble__linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=scale(), **ENSEMBLE_KWARGS)),
+    ("linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=detrend())),
+    ("direct__linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=detrend(), **DIRECT_KWARGS)),
+    ("ensemble__linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=detrend(), **ENSEMBLE_KWARGS)),
     ("catboost", lambda freq: catboost(lags=DEFAULT_LAGS, freq=freq, iterations=10)),
     ("xgboost", lambda freq: xgboost(lags=DEFAULT_LAGS, freq=freq, num_boost_round=10)),
     ("lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10)),
