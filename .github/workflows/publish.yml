@@ -24,7 +24,7 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install build setuptools
       - name: Build package
-        run: python3 -m build --wheel
+        run: python3 -m build --sdist --wheel
       - name: Publish package to PyPi
         uses: pypa/gh-action-pypi-publish@v1.8.6
         with:
