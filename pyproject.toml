@@ -60,6 +60,7 @@ test = [
     "coverage[toml]",
     "fastapi",
     "mlforecast==0.8.1",
+    "statsmodels",
     "pytest-benchmark",
     "pytest-memray",
     "pytest-timeout",
