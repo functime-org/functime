@@ -95,4 +95,4 @@ y_pred = forecaster.predict(fh=3)
 ```
 
 ## License
-`functime` is distributed under [AGPL-3.0-only](LICENSE). For Apache-2.0 exceptions, see [LICENSING.md](https://github.com/descendant-ai/functime/blob/HEAD/LICENSING.md).
+`functime` is distributed under [Apache-2.0](LICENSE).
