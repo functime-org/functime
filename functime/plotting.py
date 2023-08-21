@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Optional
 
 import numpy as np
@@ -8,7 +7,7 @@ import polars as pl
 from plotly.subplots import make_subplots
 
 from functime.base.metric import METRIC_TYPE
-from functime.evaluation import rank_fva
+from functime.metrics import smape
 
 COLOR_PALETTE = {"actual": "#B7B7B7", "forecast": "#1b57f1", "backtest": "#A76EF4"}
 DEFAULT_LAST_N = 64
@@ -29,7 +28,7 @@ def plot_forecasts(
     y_pred: pl.DataFrame,
     n_cols: int = 2,
     last_n: int = DEFAULT_LAST_N,
-    **kwargs
+    **kwargs,
 ) -> go.Figure:
     """Given panel DataFrames of observed values `y` and forecasts `y_pred`,
     returns subplots for each individual entity / time-series.
@@ -107,7 +106,7 @@ def plot_backtests(
     y_preds: pl.DataFrame,
     n_cols: int = 2,
     last_n: int = DEFAULT_LAST_N,
-    **kwargs
+    **kwargs,
 ) -> go.Figure:
     """Given panel DataFrame of observed values `y` and backtests across splits `y_pred`,
     returns subplots for each individual entity / time-series.
@@ -220,7 +219,7 @@ def plot_comet(
     y_test: pl.DataFrame,
     y_pred: pl.DataFrame,
     scoring: Optional[METRIC_TYPE] = None,
-    **kwargs
+    **kwargs,
 ):
     """Given a train-test-split of panel data (`y_train`, `y_test`) and forecast `y_pred`,
     returns a Comet plot i.e. scatterplot of volatility per entity in `y_train` against the forecast scores.
@@ -234,7 +233,7 @@ def plot_comet(
     y_pred : pl.DataFrame
         Panel DataFrame of forecasted values to score against `y_test`.
     scoring : Optional[metric]
-        If None, defaults to MASE.
+        If None, defaults to SMAPE.
 
     Returns
     -------
@@ -242,10 +241,10 @@ def plot_comet(
         Plotly scatterplot.
     """
     entity_col, _, target_col = y_train.columns
-    scoring = scoring or partial(mase, y_train=y_train)
+    scoring = scoring or smape
     scores = scoring(y_true=y_test, y_pred=y_pred)
     cvs = y_train.groupby(entity_col).agg(
-        pl.col(target_col).var() / pl.col(target_col).mean()
+        (pl.col(target_col).var() / pl.col(target_col).mean()).alias("CV")
     )
     comet = scores.join(cvs, on=entity_col, how="left").drop_nulls()
     mean_score = scores.get_column(scores.columns[-1]).mean()
@@ -264,7 +263,7 @@ def plot_fva(
     y_pred: pl.DataFrame,
     y_pred_bench: pl.DataFrame,
     scoring: Optional[METRIC_TYPE] = None,
-    **kwargs
+    **kwargs,
 ):
     """Given two panel data forecasts `y_pred` and `y_pred_bench`,
     returns scatterplot of benchmark scores against forecast scores.
@@ -286,11 +285,18 @@ def plot_fva(
     figure : plotly.graph_objects.Figure
         Plotly scatterplot.
     """
-    uplift = rank_fva(
-        y_true=y_true, y_pred=y_pred, y_pred_bench=y_pred_bench, scoring=scoring
+    scoring = scoring or smape
+    scores = scoring(y_true=y_true, y_pred=y_pred)
+    scores_bench = scoring(y_true=y_true, y_pred=y_pred_bench)
+    entity_col, metric_name = scores_bench.columns
+    x_title = f"Benchmark ({metric_name})"
+    y_title = f"Forecast ({metric_name})"
+    uplift = scores.rename({metric_name: y_title}).join(
+        scores_bench.rename({metric_name: x_title}),
+        how="left",
+        on=scores.columns[0],
     )
-    entity_col, metric_name, metric_bench_name = uplift.columns[:2]
-    fig = px.scatter(uplift, x=metric_bench_name, y=metric_name, hover_data=entity_col)
+    fig = px.scatter(uplift, x=x_title, y=y_title, hover_data=entity_col)
     deg45_line = {
         "type": "line",
         "yref": "paper",
@@ -300,7 +306,17 @@ def plot_fva(
         "x0": 0,
         "x1": 1,
     }
-    fig.update_layout(shapes=[deg45_line])
+    max_score = max(
+        scores.get_column(metric_name).max(), scores_bench.get_column(metric_name).max()
+    )
+    min_score = min(
+        scores.get_column(metric_name).min(), scores_bench.get_column(metric_name).min()
+    )
+    fig.update_layout(
+        shapes=[deg45_line],
+        xaxis={"range": [min_score, max_score]},
+        yaxis={"range": [min_score, max_score]},
+    )
     fig.update_layout(**kwargs)
     return fig
 
