@@ -74,7 +74,7 @@ forecaster = linear_model(
 )
 ```
 
-View the [full walkthrough](https://docs.functime.ai/forecasting.md) on forecasting with `functime`.
+View the [full walkthrough](https://docs.functime.ai/forecasting/) on forecasting with `functime`.
 
 ## Serverless Deployment
 
