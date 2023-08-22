@@ -296,6 +296,141 @@ def lempel_ziv_complexity(x: pl.Series, bins: Optional[List[int]] = None):
     return complexities
 
 
+def length(x: pl.Expr):
+    return x.len()
+
+
+def longest_strike_above_mean(x: pl.Expr):
+    pass
+
+
+def longest_strike_below_mean(x: pl.Expr):
+    pass
+
+
+def max_langevin_fixed_point(x: pl.Expr, m: int, r: float):
+    pass
+
+
+def maximum(x: pl.Expr):
+    return x.max()
+
+
+def mean(x: pl.Expr):
+    return x.mean()
+
+
+def mean_abs_change(x: pl.Expr):
+    return x.diff().abs().mean()
+
+
+def mean_change(x: pl.Expr):
+    return (x.last() - x.first()) / (x.len() - 1)
+
+
+def mean_n_absolute_max(x: pl.Expr, n_maxima: int):
+    pass
+
+
+def mean_second_derivative_central(x: pl.Expr):
+    return (x.last() - x.take(x.len() - 1) - x.take(1) + x.first()) / (
+        2 * (x.len() - 2)
+    )
+
+
+def median(x: pl.Expr):
+    return x.median()
+
+
+def minimum(x: pl.Expr):
+    return x.min()
+
+
+def number_crossing_threshold(x: pl.Expr, threshold: float = 0.0):
+    signs = (x > threshold).diff().sign()
+    return (signs != signs.shift()).sum()
+
+
+def number_cwt_peaks(x: pl.Expr, max_width: int):
+    pass
+
+
+def number_peaks(x: pl.Expr, support: int):
+    pass
+
+
+def permutation_entropy(x: pl.Expr, tau: float, n_dims: int):
+    pass
+
+
+def quantile(x: pl.Expr, q: float):
+    return x.quantile(q)
+
+
+def query_similarity_count(x: pl.Expr, query, threshold, normalize):
+    pass
+
+
+def ratio_beyond_r_sigma(x: pl.Expr, ratio: float):
+    pass
+
+
+def ratio_n_unique_to_length(x: pl.Expr):
+    return x.n_unique() / x.len()
+
+
+def root_mean_square(x: pl.Expr):
+    return (x**2).mean().sqrt()
+
+
+def sample_entropy(x: pl.Expr):
+    pass
+
+
+def skewness(x: pl.Expr):
+    return x.skew()
+
+
+def spkt_welch_density(x: pl.Expr, coeff: int):
+    pass
+
+
+def standard_deviation(x: pl.Expr):
+    return x.std()
+
+
+def sum_reocurring_points(x: pl.Expr):
+    pass
+
+
+def sum_reocurring_values(x: pl.Expr):
+    pass
+
+
+def sum_values(x: pl.Expr):
+    return x.sum()
+
+
+def is_approx_symmetric(x: pl.Expr, r: float):
+    return (x.mean() - x.median()).abs() < r * (x.max() - x.min())
+
+
+def time_reversal_asymmetry_statistic(x: pl.Expr):
+    pass
+
+
+def variance(x: pl.Expr):
+    return x.var()
+
+
+def var_gt_std(x: pl.Expr):
+    return x.var() > x.std()
+
+
+def coefficient_of_variation(x: pl.Expr):
+    return x.var() / x.mean()
+
+
 # FFT Features
 
 
