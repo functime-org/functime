@@ -43,7 +43,7 @@ nav:
   - Preprocessing: preprocessing.md
   - Seasonality: seasonality.md
   - Evaluation: notebooks/evaluation.ipynb
-  - LLM: notebooks/llm.ipynb
+  - LLM Interoperability: notebooks/llm.ipynb
   # - Developer Guide: develop.md
   - API Reference:
     - forecasting: ref/forecasting.md
