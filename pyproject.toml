@@ -58,6 +58,7 @@ Homepage = "https://github.com/descendant-ai/functime"
 performance = ["scikit-learn-intelex"]
 llm = ["openai", "tenacity", "tiktoken"]
 test = [
+    "aeon",
     "coverage[toml]",
     "fastapi",
     "mlforecast==0.8.1",
