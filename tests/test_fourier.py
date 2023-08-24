@@ -2,6 +2,7 @@ from datetime import date
 
 import polars as pl
 import pytest
+from aeon.transformations.series.fourier import FourierFeatures
 from polars.testing import assert_frame_equal
 
 from functime.cross_validation import train_test_split
@@ -54,3 +55,20 @@ def test_fourier_with_dates(freq: str, sp: int):
         X0_test_fourier.sort(idx_cols).drop(idx_cols),
         X1_test_fourier.sort(idx_cols).drop(idx_cols),
     )
+
+
+def test_fourier_compare_with_aeon():
+    sp = 12
+    K = 4
+    y = pl.read_parquet("data/commodities.parquet")
+    entity_col, time_col, target_col = y.columns
+    result = (
+        y.pipe(add_fourier_terms(sp=sp, K=K)).sort([entity_col, time_col]).collect()
+    )
+    aeon_add_fourier_terms = FourierFeatures(
+        sp_list=[sp], fourier_terms_list=[K], keep_original_columns=False
+    ).fit_transform
+    expected = pl.from_pandas(
+        y.to_pandas().groupby(entity_col)[target_col].apply(aeon_add_fourier_terms)
+    )
+    assert_frame_equal(result.select(expected.columns), expected)

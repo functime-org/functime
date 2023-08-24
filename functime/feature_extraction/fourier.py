@@ -27,15 +27,13 @@ def add_fourier_terms(sp: int, K: int):
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
-        n_cos_terms = K // 2 + K % 2
-        n_sin_terms = K // 2
         cos_terms = [
             np.cos(2 * np.pi * k * pl.col("fourier_coef")).alias(f"cos_{sp}_{k}")
-            for k in range(1, n_cos_terms + 1)
+            for k in range(1, K + 1)
         ]
         sin_terms = [
             np.sin(2 * np.pi * k * pl.col("fourier_coef")).alias(f"sin_{sp}_{k}")
-            for k in range(1, n_sin_terms + 1)
+            for k in range(1, K + 1)
         ]
         X_new = X.with_columns(
             (pl.col(time_col).arg_sort().mod(sp).over(entity_col) / sp).alias(
