@@ -104,29 +104,40 @@ def _merge_autoreg_residuals(
 
 def backtest(
     forecaster: Forecaster,
+    fh: int,
     y: pl.DataFrame,
     cv: Callable[[pl.DataFrame], Mapping[int, pl.DataFrame]],
     X: Optional[pl.DataFrame] = None,
     residualize: bool = True,
 ) -> Tuple[pl.DataFrame, pl.DataFrame]:
     pl.enable_string_cache(True)
-    entity_col, time_col = y.columns[:2]
-    y_splits = cv(y)
-    X_splits = X if X is None else cv(X)
+    entity_col, time_col, target_col = y.columns[:3]
+    if X is None:
+        splits = cv(y)
+    else:
+        # Defensive left join y and X to defend against misalignment issues
+        splits = (
+            y.lazy()
+            .join(X.lazy(), how="left", on=[entity_col, time_col])
+            .collect(streaming=True)
+            .lazy()
+            .pipe(cv)
+        )
     y_preds = []
     y_resids = []
-    for i in range(len(y_splits)):
-        y_train, y_test = y_splits[i]
-        fh = int(
-            y_test.lazy()
-            .select(pl.count() / pl.col(entity_col).n_unique())
-            .collect(streaming=True)
-            .item()
+    X_train, X_test = None, None
+    for i in range(len(splits)):
+        split = splits[i]
+        X_y_train, X_y_test = split
+        y_train, y_test = (
+            X_y_train.select([entity_col, time_col, target_col]),
+            X_y_test.select([entity_col, time_col, target_col]),
         )
-        if X is None:
-            X_train, X_test = None, None
-        else:
-            X_train, X_test = X_splits[i]
+        if X is not None:
+            X_train, X_test = (
+                X_y_train.select(pl.all().exclude(target_col)),
+                X_y_test.select(pl.all().exclude(target_col)),
+            )
         # Forecast
         forecaster = forecaster.fit(y=y_train, X=X_train)
         y_pred = forecaster.predict(fh=fh, X=X_test)

@@ -500,6 +500,9 @@ y_preds, y_residuals = forecaster.backtest(
     n_splits=3,
     window_size=1,  # Only applicable if `strategy` equals "sliding"
     strategy="expanding",
+    # Raises ValueError if drop_short=False and there are
+    # entities with insufficient length for cross-validation
+    drop_short=True
 )
 ```
 
