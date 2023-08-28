@@ -278,3 +278,41 @@ def test_elite_on_m4(m4_dataset, m4_freq_to_lags, m4_freq_to_sp):
     naive_mean_score = naive_scores.get_column("smape_original").mean()
     assert elite_mean_score < naive_mean_score
     assert fva.get_column("is_value_add").sum() == len(fva)
+
+
+def test_conformalize_non_crossing_m4(m4_dataset):
+    y_train, _, fh, _ = m4_dataset
+    entity_col, time_col, target_col = y_train.columns[:3]
+    y_preds = linear_model(freq="1i", lags=12).conformalize(
+        y=y_train, fh=fh, alphas=[0.1, 0.9]
+    )
+    y_pred_qnt_10 = (
+        y_preds.sort([entity_col, time_col])
+        .filter(pl.col("quantile") == 10)
+        .get_column(target_col)
+    )
+    y_pred_qnt_90 = (
+        y_preds.sort([entity_col, time_col])
+        .filter(pl.col("quantile") == 90)
+        .get_column(target_col)
+    )
+    assert (y_pred_qnt_10 < y_pred_qnt_90).all()
+
+
+def test_conformalize_non_crossing_m5(m5_dataset):
+    y_train, X_train, _, X_test, fh, freq = m5_dataset
+    entity_col, time_col, target_col = y_train.columns[:3]
+    y_preds = linear_model(freq=freq, lags=12).conformalize(
+        y=y_train, X=X_train, X_future=X_test, fh=fh, alphas=[0.1, 0.9]
+    )
+    y_pred_qnt_10 = (
+        y_preds.sort([entity_col, time_col])
+        .filter(pl.col("quantile") == 10)
+        .get_column(target_col)
+    )
+    y_pred_qnt_90 = (
+        y_preds.sort([entity_col, time_col])
+        .filter(pl.col("quantile") == 90)
+        .get_column(target_col)
+    )
+    assert (y_pred_qnt_10 < y_pred_qnt_90).all()

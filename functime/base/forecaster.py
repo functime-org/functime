@@ -259,6 +259,7 @@ class Forecaster(Model):
     ) -> pl.DataFrame:
         from functime.conformal import conformalize
 
+        self.fit(y=y, X=X)
         y_pred = self.predict(fh=fh, X=X_future)
         y_preds, y_resids = self.backtest(
             y=y,
@@ -269,17 +270,7 @@ class Forecaster(Model):
             window_size=window_size,
             strategy=strategy,
         )
-        y_pred = pl.concat(
-            [
-                y_pred,
-                y_preds.groupby(y_pred.columns[:2]).agg(
-                    pl.col(y_pred.columns[-1])
-                    .median()
-                    .cast(y_pred.schema[y_pred.columns[-1]])
-                ),
-            ]
-        )
-        y_pred_qnts = conformalize(y_pred, y_resids, alphas=alphas)
+        y_pred_qnts = conformalize(y_pred, y_preds, y_resids, alphas=alphas)
         if return_results:
             return y_pred, y_pred_qnts, y_preds, y_resids
         return y_pred_qnts
