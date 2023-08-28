@@ -529,17 +529,13 @@ from functime.forecasting import linear_model
 
 forecaster = linear_model(lags=24, fit_intercept=False, freq="1mo")
 y_preds, y_residuals = forecaster.backtest(y=y_train, X=X_train)
-# Take the mean prediction across backtest windows per entity
-y_pred = pl.concat(
-    [
-        y_pred,
-        y_preds.groupby(y_pred.columns[:2]).agg(
-            pl.col(y_pred.columns[-1])
-            .median()
-            .cast(y_pred.schema[y_pred.columns[-1]])
-        ),
-    ]
-)
 # Forecasts at 10th and 90th percentile
-y_pred_quantiles = conformalize(y_pred, y_resids, alphas=[0.1, 0.9])
+# Requires forecast (y_pred), backtest values (y_preds),
+# and residuals from backtest (y_resid)
+y_pred_quantiles = conformalize(
+    y_pred=y_pred,
+    y_preds=y_preds,
+    y_resids=y_resids,
+    alphas=[0.1, 0.9]
+)
 ```
