@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from typing import Callable, List, Mapping, Optional, Tuple, TypeVar, Union
 
@@ -31,6 +32,44 @@ SUPPORTED_FREQ = [
     "3mo",
     "1y",
 ]
+
+
+def check_backtest_lengths(
+    y: pl.LazyFrame,
+    max_lags: int,
+    test_size: int,
+    drop_short: bool,
+    drop_tolerance: float,
+):
+    # Heuristic check that the shortest time series
+    # in the panel dataset is sufficiently long
+    # for the given cross-validation parameters
+    entity_col, time_col = y.columns[:2]
+    lengths = (
+        y.groupby(entity_col)
+        .agg(pl.col(time_col).len().alias("len"))
+        .collect(streaming=True)
+    )
+    n_entities = len(lengths)
+    min_length = int(max_lags + test_size * drop_tolerance)
+    short_series = lengths.filter(pl.col("len") < min_length + 1)
+    n_short = len(short_series)
+    if n_short > 0:
+        if drop_short:
+            logging.warning(
+                "Dropping %s / %s entities with insufficient length."
+                " Expected all individual time-series to have length > %s.",
+                n_short,
+                n_entities,
+                min_length,
+            )
+            y = y.filter(~pl.col(entity_col).is_in(short_series.get_column(entity_col)))
+        else:
+            raise ValueError(
+                f"Found {n_short} / {n_entities} entities with insufficient length."
+                f" Expected all individual time-series to have length > {min_length}."
+            )
+    return y
 
 
 @dataclass(frozen=True)
@@ -189,11 +228,20 @@ class Forecaster(Model):
         y_pred_vals = predict_autoreg(self.state, fh=fh, X=X)
         # BUG: Exploding list[date] errogenously casts
         # into integer series but only for LazyFrame explode
-        y_pred = (
-            y_pred_vals.join(future_ranges, on=entity_col, how="left")
-            .select([entity_col, time_col, target_col])
-            .explode(pl.all().exclude(entity_col))
+        y_pred = y_pred_vals.join(future_ranges, on=entity_col, how="left").select(
+            [entity_col, time_col, target_col]
         )
+        if fh > 1:
+            y_pred = y_pred.explode(pl.all().exclude(entity_col))
+        else:
+            # BUG: Cannot explode list[date] and list[f32] with only single element
+            # Raises: exploded columns must have matching element counts
+            y_pred = y_pred.with_columns(
+                [
+                    pl.col(time_col).list.last(),
+                    pl.col(target_col).list.last(),
+                ]
+            )
 
         if self.target_transform is not None:
             y_pred = (
@@ -214,6 +262,8 @@ class Forecaster(Model):
         n_splits: int = 5,
         window_size: int = 10,
         strategy: Literal["expanding", "sliding"] = "expanding",
+        drop_short: bool = False,
+        drop_tolerance: float = 2.0,
     ):
         from functime.backtesting import backtest
         from functime.cross_validation import (
@@ -221,6 +271,13 @@ class Forecaster(Model):
             sliding_window_split,
         )
 
+        y = check_backtest_lengths(
+            y,
+            max_lags=self.lags,
+            test_size=test_size,
+            drop_short=drop_short,
+            drop_tolerance=drop_tolerance,
+        )
         if strategy == "expanding":
             cv = expanding_window_split(
                 test_size=test_size,
@@ -236,6 +293,7 @@ class Forecaster(Model):
             )
         y_preds, y_resids = backtest(
             forecaster=self,
+            fh=test_size,
             y=y,
             X=X,
             cv=cv,
@@ -255,6 +313,8 @@ class Forecaster(Model):
         n_splits: int = 5,
         window_size: int = 10,
         strategy: Literal["expanding", "sliding"] = "expanding",
+        drop_short: bool = False,
+        drop_tolerance: float = 5.0,
         return_results: bool = False,
     ) -> pl.DataFrame:
         from functime.conformal import conformalize
@@ -269,6 +329,8 @@ class Forecaster(Model):
             n_splits=n_splits,
             window_size=window_size,
             strategy=strategy,
+            drop_short=drop_short,
+            drop_tolerance=drop_tolerance,
         )
         y_pred_qnts = conformalize(y_pred, y_preds, y_resids, alphas=alphas)
         if return_results:
