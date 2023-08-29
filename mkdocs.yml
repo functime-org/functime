@@ -1,6 +1,7 @@
 site_name: functime
 site_url: https://docs.functime.ai/
 repo_url: https://github.com/descendant-ai/functime
+repo_name: descendant-ai/functime
 
 theme:
   name: "material"
