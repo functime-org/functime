@@ -1,8 +1,11 @@
 site_name: functime
 site_url: https://docs.functime.ai/
+repo_url: https://github.com/descendant-ai/functime
 
 theme:
   name: "material"
+  icon:
+    repo: fontawesome/brands/github
   favicon: img/logo_dark.png
   logo: img/logo.png
   palette:
@@ -13,6 +16,8 @@ theme:
     - navigation.expand
 
 plugins:
+  - search:
+      lang: en
   - mkdocs-jupyter:
       include: ["*.ipynb"]
   - mkdocstrings:
