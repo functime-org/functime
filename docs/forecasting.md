@@ -492,7 +492,7 @@ and [`sliding_window_split`](https://docs.functime.ai/ref/cross-validation/#func
 from functime.forecasting import linear_model
 
 forecaster = linear_model(lags=24, fit_intercept=False, freq="1mo")
-y_preds, y_residuals = forecaster.backtest(
+y_preds, y_resids = forecaster.backtest(
     y=y_train,
     X=X_train,
     test_size=6,
@@ -531,7 +531,7 @@ from functime.conformal import conformalize
 from functime.forecasting import linear_model
 
 forecaster = linear_model(lags=24, fit_intercept=False, freq="1mo")
-y_preds, y_residuals = forecaster.backtest(y=y_train, X=X_train)
+y_preds, y_resids = forecaster.backtest(y=y_train, X=X_train)
 # Forecasts at 10th and 90th percentile
 # Requires forecast (y_pred), backtest values (y_preds),
 # and residuals from backtest (y_resid)
