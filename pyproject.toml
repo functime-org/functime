@@ -26,16 +26,11 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 dependencies = [
-    "bottleneck",
-    "catboost",
     "dask",
-    "flaml[automl]==1.2.4",
+    "flaml==2.0.2",
     "holidays",
-    "joblib",
     "kaleido==0.2.1",
-    "lightgbm",
     "numpy",
-    "pandas",
     "plotly",
     "polars==0.18.11",
     "pyarrow",
@@ -46,7 +41,6 @@ dependencies = [
     "scipy",
     "tqdm",
     "typing-extensions",
-    "xgboost",
     "zarr",
     "requests"
 ]
@@ -55,20 +49,23 @@ dependencies = [
 Homepage = "https://github.com/descendant-ai/functime"
 
 [project.optional-dependencies]
-performance = ["scikit-learn-intelex"]
+cat = ["catboost"]
+xgb = ["xgboost"]
+lgb = ["lightgbm"]
 llm = ["openai", "tenacity", "tiktoken"]
 test = [
     "aeon",
     "coverage[toml]",
     "fastapi",
+    "joblib",
     "mlforecast==0.8.1",
-    "statsmodels",
+    "pandas",
     "pytest-benchmark",
     "pytest-memray",
     "pytest-timeout",
     "pytest",
-    # "skforecast",
-    # "u8darts==0.24.0",
+    "scikit-learn-intelex",
+    "statsmodels",
 ]
 doc = ["mkdocs", "mkdocs-material", "mkdocstrings-python", "mkdocs-jupyter"]
 
