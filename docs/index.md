@@ -147,7 +147,3 @@ Our GitHub repo contains a growing number of time-series data stored as `parquet
 [^6]: https://www.sciencedirect.com/science/article/pii/S2352340920306612
 [^7]: http://www.timeseriesclassification.com/description.php?Dataset=GunPoint
 [^8]: http://www.timeseriesclassification.com/description.php?Dataset=JapaneseVowels
-
-## Contact Us
-
-Book a quick 15 minute discovery call on [Calendly](https://calendly.com/functime).

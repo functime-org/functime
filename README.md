@@ -17,10 +17,6 @@
 
 **functime** also comes with time-series [preprocessing](https://docs.functime.ai/ref/preprocessing/) (box-cox, differencing etc), cross-validation [splitters](https://docs.functime.ai/ref/cross-validation/) (expanding and sliding window), and forecast [metrics](https://docs.functime.ai/ref/metrics/) (MASE, SMAPE etc). All optimized as [lazy Polars](https://pola-rs.github.io/polars-book/user-guide/lazy/using/) transforms.
 
-Want to use **functime** for seamless time-series predictive analytics across your data team?
-Looking for production-grade time-series machine learning in a [serverless](#serverless-deployment) Cloud deployment?
-Contact us via [Calendly](https://calendly.com/functime) to learn more about `functime` Cloud.
-
 ## Highlights
 - **Fast:** Forecast 100,000 time series in seconds *on your laptop*
 - **Efficient:** Embarrassingly parallel [feature engineering](https://docs.functime.ai/ref/preprocessing/) for time-series using [`Polars`](https://www.pola.rs/)
@@ -75,24 +71,6 @@ forecaster = linear_model(
 ```
 
 View the [full walkthrough](https://docs.functime.ai/forecasting/) on forecasting with `functime`.
-
-## Serverless Deployment
-
-Currently in closed-beta for `functime` Cloud.
-Contact us for a demo via [Calendly](https://calendly.com/functime).
-
-Deploy and train forecasters the moment you call any `.fit` method.
-Run the `functime list` CLI command to list all deployed models.
-Finally, track data and forecasts usage using `functime usage` CLI command.
-
-![Example CLI usage](docs/img/functime_cli_usage.gif)
-
-You can reuse a deployed model for predictions anywhere using the `stub_id` variable.
-Note: the `.from_deployed` model class must be the same as during `.fit`.
-```python
-forecaster = LightGBM.from_deployed(stub_id)
-y_pred = forecaster.predict(fh=3)
-```
 
 ## License
 `functime` is distributed under [Apache-2.0](LICENSE).
