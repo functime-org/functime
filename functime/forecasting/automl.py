@@ -9,8 +9,12 @@ from typing_extensions import Literal
 from functime.base.forecaster import FORECAST_STRATEGIES, SUPPORTED_FREQ, Forecaster
 from functime.base.transformer import Transformer
 from functime.forecasting.knn import knn
-from functime.forecasting.lightgbm import lightgbm
 from functime.forecasting.linear import elastic_net, lasso, linear_model, ridge
+
+try:
+    from functime.forecasting.lightgbm import lightgbm
+except ImportError:
+    pass
 
 
 class AutoForecaster(Forecaster):

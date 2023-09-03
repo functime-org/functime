@@ -2,16 +2,13 @@ from .automl import (
     auto_elastic_net,
     auto_knn,
     auto_lasso,
-    auto_lightgbm,
     auto_linear_model,
     auto_ridge,
 )
-from .catboost import catboost
 from .censored import censored_model, zero_inflated_model
 from .elite import elite
 from .knn import knn
 from .lance import ann
-from .lightgbm import flaml_lightgbm, lightgbm
 from .linear import (
     elastic_net,
     elastic_net_cv,
@@ -23,7 +20,25 @@ from .linear import (
 )
 from .naive import naive
 from .snaive import snaive
-from .xgboost import xgboost
+
+try:
+    from .automl import auto_lightgbm
+    from .lightgbm import flaml_lightgbm, lightgbm
+except ImportError:
+    auto_lightgbm = ImportError
+    flaml_lightgbm = ImportError
+    lightgbm = ImportError
+
+try:
+    from .catboost import catboost
+except ImportError:
+    catboost = ImportError
+
+try:
+    from .xgboost import xgboost
+except ImportError:
+    xgboost = ImportError
+
 
 __all__ = [
     "ann",
