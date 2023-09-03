@@ -1,0 +1,1645 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://docs.functime.ai/forecasting/">
+      
+      
+        <link rel="prev" href="../installation/">
+      
+      
+        <link rel="next" href="../preprocessing/">
+      
+      
+      <link rel="icon" href="../img/logo_dark.png">
+      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.7">
+    
+    
+      
+        <title>Forecasting - functime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.046329b4.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.85d0ee34.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
+
+  
+  
+
+<script id="__analytics">function __md_analytics(){function n(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],n("js",new Date),n("config","G-CYGTL9FJ4R"),document.addEventListener("DOMContentLoaded",function(){document.forms.search&&document.forms.search.query.addEventListener("blur",function(){this.value&&n("event","search",{search_term:this.value})}),document$.subscribe(function(){var a=document.forms.feedback;if(void 0!==a)for(var e of a.querySelectorAll("[type=submit]"))e.addEventListener("click",function(e){e.preventDefault();var t=document.location.pathname,e=this.getAttribute("data-md-value");n("event","feedback",{page:t,data:e}),a.firstElementChild.disabled=!0;e=a.querySelector(".md-feedback__note [data-md-value='"+e+"']");e&&(e.hidden=!1)}),a.hidden=!1}),location$.subscribe(function(e){n("config","G-CYGTL9FJ4R",{page_path:e.pathname})})});var e=document.createElement("script");e.async=!0,e.src="https://www.googletagmanager.com/gtag/js?id=G-CYGTL9FJ4R",document.getElementById("__analytics").insertAdjacentElement("afterEnd",e)}</script>
+  
+    <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
+  
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="indigo">
+  
+    
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#global-forecasting-walkthrough" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="functime" class="md-header__button md-logo" aria-label="functime" data-md-component="logo">
+      
+  <img src="../img/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            functime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Forecasting
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/descendant-ai/functime" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.4.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    descendant-ai/functime
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="functime" class="md-nav__button md-logo" aria-label="functime" data-md-component="logo">
+      
+  <img src="../img/logo.png" alt="logo">
+
+    </a>
+    functime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/descendant-ai/functime" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.4.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    descendant-ai/functime
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Quick Start
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Forecasting
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Forecasting
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#api-usage" class="md-nav__link">
+    API Usage
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supported-forecasters" class="md-nav__link">
+    Supported Forecasters
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quickstart" class="md-nav__link">
+    Quickstart
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prepare-data" class="md-nav__link">
+    Prepare Data
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fit-predict-score" class="md-nav__link">
+    Fit / Predict / Score
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#global-forecasting" class="md-nav__link">
+    Global Forecasting
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#benchmark-forecasters" class="md-nav__link">
+    Benchmark Forecasters
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exogenous-regressors" class="md-nav__link">
+    Exogenous Regressors
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transformations-preprocessing" class="md-nav__link">
+    Transformations / Preprocessing
+  </a>
+  
+    <nav class="md-nav" aria-label="Transformations / Preprocessing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#target-transform" class="md-nav__link">
+    Target Transform
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#feature-transform" class="md-nav__link">
+    Feature Transform
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#target-and-feature-transform" class="md-nav__link">
+    Target and Feature Transform
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#forecast-strategies" class="md-nav__link">
+    Forecast Strategies
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#censored-forecasts" class="md-nav__link">
+    Censored Forecasts
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#automated-parameter-tuning" class="md-nav__link">
+    Automated Parameter Tuning
+  </a>
+  
+    <nav class="md-nav" aria-label="Automated Parameter Tuning">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optimal-lag-length" class="md-nav__link">
+    Optimal Lag Length
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hyperparameter-tuning" class="md-nav__link">
+    Hyperparameter Tuning
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backtesting" class="md-nav__link">
+    Backtesting
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#probablistic-forecasts" class="md-nav__link">
+    Probablistic Forecasts
+  </a>
+  
+    <nav class="md-nav" aria-label="Probablistic Forecasts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quantile-regression" class="md-nav__link">
+    Quantile Regression
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conformal-prediction" class="md-nav__link">
+    Conformal Prediction
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../preprocessing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Preprocessing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../seasonality/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Seasonality
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../notebooks/evaluation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Evaluation Procedure
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../notebooks/llm/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LLM Interoperability
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../develop/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Developer Guide
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_9" >
+        
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    API Reference
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ref/forecasting/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    forecasting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ref/preprocessing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    preprocessing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ref/feature-extraction/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    feature_extraction
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ref/cross-validation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    cross_validation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ref/offsets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    offsets
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ref/metrics/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    metrics
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ref/multi-objective/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    multi_objective
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ref/evaluation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    evaluation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ref/plotting/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    plotting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#api-usage" class="md-nav__link">
+    API Usage
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supported-forecasters" class="md-nav__link">
+    Supported Forecasters
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quickstart" class="md-nav__link">
+    Quickstart
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prepare-data" class="md-nav__link">
+    Prepare Data
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fit-predict-score" class="md-nav__link">
+    Fit / Predict / Score
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#global-forecasting" class="md-nav__link">
+    Global Forecasting
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#benchmark-forecasters" class="md-nav__link">
+    Benchmark Forecasters
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exogenous-regressors" class="md-nav__link">
+    Exogenous Regressors
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transformations-preprocessing" class="md-nav__link">
+    Transformations / Preprocessing
+  </a>
+  
+    <nav class="md-nav" aria-label="Transformations / Preprocessing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#target-transform" class="md-nav__link">
+    Target Transform
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#feature-transform" class="md-nav__link">
+    Feature Transform
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#target-and-feature-transform" class="md-nav__link">
+    Target and Feature Transform
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#forecast-strategies" class="md-nav__link">
+    Forecast Strategies
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#censored-forecasts" class="md-nav__link">
+    Censored Forecasts
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#automated-parameter-tuning" class="md-nav__link">
+    Automated Parameter Tuning
+  </a>
+  
+    <nav class="md-nav" aria-label="Automated Parameter Tuning">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optimal-lag-length" class="md-nav__link">
+    Optimal Lag Length
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hyperparameter-tuning" class="md-nav__link">
+    Hyperparameter Tuning
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backtesting" class="md-nav__link">
+    Backtesting
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#probablistic-forecasts" class="md-nav__link">
+    Probablistic Forecasts
+  </a>
+  
+    <nav class="md-nav" aria-label="Probablistic Forecasts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quantile-regression" class="md-nav__link">
+    Quantile Regression
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conformal-prediction" class="md-nav__link">
+    Conformal Prediction
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="global-forecasting-walkthrough">Global Forecasting Walkthrough</h1>
+<h2 id="api-usage">API Usage</h2>
+<p>All individual forecasters (e.g. <code>lasso</code> / <code>xgboost</code>) have the same API. Use <code>**kwargs</code> to pass custom hyperparameters into the underlying regressor (e.g. sklearn's <code>LinearRegression</code> regressor in functime's <code>linear_model</code> forecaster). Forecasters with automated hyperparameter tuning (e.g. <code>auto_lasso</code> and <code>auto_xgboost</code>) follow a similar API design. View <a href="/ref/forecasting/">API reference</a> for details.</p>
+<h2 id="supported-forecasters">Supported Forecasters</h2>
+<p><code>functime</code> currently supports the following autoregressive global forecasters.</p>
+<div class="admonition info">
+<p class="admonition-title">Forecasters</p>
+<ul>
+<li><code>ann</code></li>
+<li><code>catboost</code></li>
+<li><code>censored_model</code></li>
+<li><code>elastic_net_cv</code></li>
+<li><code>elastic_net</code></li>
+<li><code>flaml_lightgbm</code></li>
+<li><code>knn</code></li>
+<li><code>lasso_cv</code></li>
+<li><code>lasso</code></li>
+<li><code>lightgbm</code></li>
+<li><code>linear_model</code></li>
+<li><code>ridge_cv</code></li>
+<li><code>ridge</code></li>
+<li><code>xgboost</code></li>
+<li><code>zero_inflated_model</code></li>
+</ul>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Automated Forecasters</p>
+<ul>
+<li><code>auto_elastic_net</code></li>
+<li><code>auto_knn</code></li>
+<li><code>auto_lasso</code></li>
+<li><code>auto_lightgbm</code></li>
+<li><code>auto_linear_model</code></li>
+<li><code>auto_ridge</code></li>
+</ul>
+</div>
+<p><code>functime</code> also has the following benchmark models implemented as pure Polars queries.</p>
+<div class="admonition info">
+<p class="admonition-title">Benchmark Forecasters</p>
+<ul>
+<li><code>naive</code>: random walk forecaster</li>
+<li><code>snaive</code>: seasonal naive forecaster</li>
+</ul>
+</div>
+<h2 id="quickstart">Quickstart</h2>
+<p>Want to go straight into code? Run through every forecasting example with the following script:</p>
+<details class="tip">
+<summary><code>quickstart.py</code></summary>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span> <span class="nn">json</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span> <span class="nn">timeit</span> <span class="kn">import</span> <span class="n">default_timer</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="kn">import</span> <span class="nn">polars</span> <span class="k">as</span> <span class="nn">pl</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="kn">from</span> <span class="nn">functime.cross_validation</span> <span class="kn">import</span> <span class="n">train_test_split</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="kn">from</span> <span class="nn">functime.feature_extraction</span> <span class="kn">import</span> <span class="n">add_fourier_terms</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">auto_linear_model</span><span class="p">,</span> <span class="n">linear_model</span><span class="p">,</span> <span class="n">naive</span><span class="p">,</span> <span class="n">snaive</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="kn">from</span> <span class="nn">functime.metrics</span> <span class="kn">import</span> <span class="n">smape</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="kn">from</span> <span class="nn">functime.preprocessing</span> <span class="kn">import</span> <span class="n">scale</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">start_time</span> <span class="o">=</span> <span class="n">default_timer</span><span class="p">()</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="c1"># Load data</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="n">y</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="s2">&quot;https://github.com/descendant-ai/functime/raw/main/data/commodities.parquet&quot;</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="p">)</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="n">entity_col</span><span class="p">,</span> <span class="n">time_col</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">columns</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="n">X</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">select</span><span class="p">([</span><span class="n">entity_col</span><span class="p">,</span> <span class="n">time_col</span><span class="p">])</span><span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">add_fourier_terms</span><span class="p">(</span><span class="n">sp</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">K</span><span class="o">=</span><span class="mi">6</span><span class="p">))</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;🎯 Target variable (y):</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;📉 Exogenous variables (X):</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="c1"># Train-test splits</span>
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="n">test_size</span> <span class="o">=</span> <span class="mi">3</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="n">freq</span> <span class="o">=</span> <span class="s2">&quot;1mo&quot;</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="n">y_train</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">test_size</span><span class="p">)(</span><span class="n">y</span><span class="p">)</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="n">X_train</span><span class="p">,</span> <span class="n">X_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">test_size</span><span class="p">)(</span><span class="n">X</span><span class="p">)</span>
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="c1"># Paralleized naive forecasts!</span>
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="n">y_pred_naive</span> <span class="o">=</span> <span class="n">naive</span><span class="p">(</span><span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">)(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">fh</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="n">y_pred_snaive</span> <span class="o">=</span> <span class="n">snaive</span><span class="p">(</span><span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">,</span> <span class="n">sp</span><span class="o">=</span><span class="mi">12</span><span class="p">)(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">fh</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a><span class="c1"># Univariate time-series fit with automated lags and hyperparameter tuning</span>
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a><span class="n">auto_forecaster</span> <span class="o">=</span> <span class="n">auto_linear_model</span><span class="p">(</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>    <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">test_size</span><span class="o">=</span><span class="n">test_size</span><span class="p">,</span> <span class="n">min_lags</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">max_lags</span><span class="o">=</span><span class="mi">18</span><span class="p">,</span> <span class="n">n_splits</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">time_budget</span><span class="o">=</span><span class="mi">3</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a><span class="p">)</span>
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a><span class="n">auto_forecaster</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">)</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a><span class="c1"># Predict</span>
+<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a><span class="n">y_pred</span> <span class="o">=</span> <span class="n">auto_forecaster</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">fh</span><span class="o">=</span><span class="n">test_size</span><span class="p">)</span>
+<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a><span class="c1"># Score</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a><span class="n">scores</span> <span class="o">=</span> <span class="n">smape</span><span class="p">(</span><span class="n">y_true</span><span class="o">=</span><span class="n">y_test</span><span class="p">,</span> <span class="n">y_pred</span><span class="o">=</span><span class="n">y_pred</span><span class="p">)</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;✅ Predictions (univariate):</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">y_pred</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">entity_col</span><span class="p">))</span>
+<a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;💯 Scores (univariate):</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">scores</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="s2">&quot;smape&quot;</span><span class="p">))</span>
+<a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;💯 Scores summary (univariate):</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">scores</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">&quot;smape&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">describe</span><span class="p">())</span>
+<a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>
+<a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a><span class="c1"># Retrieve best lags and hyperparameters</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a><span class="n">best_params</span> <span class="o">=</span> <span class="n">auto_forecaster</span><span class="o">.</span><span class="n">best_params</span>
+<a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✨ Best parameters (y only):</span><span class="se">\n</span><span class="si">{</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">best_params</span><span class="p">,</span><span class="w"> </span><span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a>
+<a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a><span class="c1"># Multivariate</span>
+<a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a><span class="n">forecaster</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span><span class="o">**</span><span class="n">best_params</span><span class="p">)</span>
+<a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a><span class="n">forecaster</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="n">X_train</span><span class="p">)</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a><span class="c1"># Predict</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a><span class="n">y_pred</span> <span class="o">=</span> <span class="n">forecaster</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">fh</span><span class="o">=</span><span class="n">test_size</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="n">X_test</span><span class="p">)</span>
+<a id="__codelineno-0-57" name="__codelineno-0-57" href="#__codelineno-0-57"></a><span class="c1"># Score</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58" href="#__codelineno-0-58"></a><span class="n">scores_with_exog</span> <span class="o">=</span> <span class="n">smape</span><span class="p">(</span><span class="n">y_true</span><span class="o">=</span><span class="n">y_test</span><span class="p">,</span> <span class="n">y_pred</span><span class="o">=</span><span class="n">y_pred</span><span class="p">)</span>
+<a id="__codelineno-0-59" name="__codelineno-0-59" href="#__codelineno-0-59"></a>
+<a id="__codelineno-0-60" name="__codelineno-0-60" href="#__codelineno-0-60"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;✅ Predictions (multivariate):</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">y_pred</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">entity_col</span><span class="p">))</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61" href="#__codelineno-0-61"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;💯 Scores (multivariate):</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">scores_with_exog</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="s2">&quot;smape&quot;</span><span class="p">))</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62" href="#__codelineno-0-62"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;💯 Scores summary (multivariate):</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">scores_with_exog</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">&quot;smape&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">describe</span><span class="p">())</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63" href="#__codelineno-0-63"></a>
+<a id="__codelineno-0-64" name="__codelineno-0-64" href="#__codelineno-0-64"></a><span class="c1"># Check uplift from Fourier features</span>
+<a id="__codelineno-0-65" name="__codelineno-0-65" href="#__codelineno-0-65"></a><span class="n">uplift</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-0-66" name="__codelineno-0-66" href="#__codelineno-0-66"></a>    <span class="n">scores_with_exog</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">entity_col</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;_univar&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-67" name="__codelineno-0-67" href="#__codelineno-0-67"></a>    <span class="o">.</span><span class="n">with_columns</span><span class="p">(</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68" href="#__codelineno-0-68"></a>        <span class="n">uplift</span><span class="o">=</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;smape_univar&quot;</span><span class="p">)</span> <span class="o">-</span> <span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;smape&quot;</span><span class="p">),</span>
+<a id="__codelineno-0-69" name="__codelineno-0-69" href="#__codelineno-0-69"></a>        <span class="n">has_uplift</span><span class="o">=</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;smape_univar&quot;</span><span class="p">)</span> <span class="o">-</span> <span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;smape&quot;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-0-70" name="__codelineno-0-70" href="#__codelineno-0-70"></a>    <span class="p">)</span>
+<a id="__codelineno-0-71" name="__codelineno-0-71" href="#__codelineno-0-71"></a>    <span class="o">.</span><span class="n">select</span><span class="p">([</span><span class="n">entity_col</span><span class="p">,</span> <span class="s2">&quot;uplift&quot;</span><span class="p">,</span> <span class="s2">&quot;has_uplift&quot;</span><span class="p">])</span>
+<a id="__codelineno-0-72" name="__codelineno-0-72" href="#__codelineno-0-72"></a><span class="p">)</span>
+<a id="__codelineno-0-73" name="__codelineno-0-73" href="#__codelineno-0-73"></a>
+<a id="__codelineno-0-74" name="__codelineno-0-74" href="#__codelineno-0-74"></a><span class="c1"># NOTE: Fourier features lead to uplift for ~20% of commodities</span>
+<a id="__codelineno-0-75" name="__codelineno-0-75" href="#__codelineno-0-75"></a><span class="c1"># However, at the expense of an overall mean and variance SMAPE</span>
+<a id="__codelineno-0-76" name="__codelineno-0-76" href="#__codelineno-0-76"></a><span class="c1"># (likely due to overfitting on seasonal features)</span>
+<a id="__codelineno-0-77" name="__codelineno-0-77" href="#__codelineno-0-77"></a>
+<a id="__codelineno-0-78" name="__codelineno-0-78" href="#__codelineno-0-78"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;💯 Uplift:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">uplift</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="s2">&quot;uplift&quot;</span><span class="p">,</span> <span class="n">descending</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+<a id="__codelineno-0-79" name="__codelineno-0-79" href="#__codelineno-0-79"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;💯 Proportion with uplift:&quot;</span><span class="p">,</span> <span class="n">uplift</span><span class="o">.</span><span class="n">get_column</span><span class="p">(</span><span class="s2">&quot;has_uplift&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span>
+<a id="__codelineno-0-80" name="__codelineno-0-80" href="#__codelineno-0-80"></a>
+<a id="__codelineno-0-81" name="__codelineno-0-81" href="#__codelineno-0-81"></a><span class="c1"># &quot;Direct&quot; strategy forecasting</span>
+<a id="__codelineno-0-82" name="__codelineno-0-82" href="#__codelineno-0-82"></a><span class="n">best_params</span><span class="p">[</span><span class="s2">&quot;max_horizons&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">test_size</span>  <span class="c1"># Override max_horizons</span>
+<a id="__codelineno-0-83" name="__codelineno-0-83" href="#__codelineno-0-83"></a><span class="n">best_params</span><span class="p">[</span><span class="s2">&quot;strategy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;direct&quot;</span>  <span class="c1"># Override strategy</span>
+<a id="__codelineno-0-84" name="__codelineno-0-84" href="#__codelineno-0-84"></a><span class="c1"># Predict using the &quot;functional&quot; API</span>
+<a id="__codelineno-0-85" name="__codelineno-0-85" href="#__codelineno-0-85"></a><span class="n">y_pred</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span><span class="o">**</span><span class="n">best_params</span><span class="p">)(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">fh</span><span class="o">=</span><span class="n">test_size</span><span class="p">)</span>
+<a id="__codelineno-0-86" name="__codelineno-0-86" href="#__codelineno-0-86"></a>
+<a id="__codelineno-0-87" name="__codelineno-0-87" href="#__codelineno-0-87"></a><span class="c1"># &quot;Ensemble&quot; strategy forecasting</span>
+<a id="__codelineno-0-88" name="__codelineno-0-88" href="#__codelineno-0-88"></a><span class="n">best_params</span><span class="p">[</span><span class="s2">&quot;strategy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;ensemble&quot;</span>  <span class="c1"># Override strategy</span>
+<a id="__codelineno-0-89" name="__codelineno-0-89" href="#__codelineno-0-89"></a>
+<a id="__codelineno-0-90" name="__codelineno-0-90" href="#__codelineno-0-90"></a><span class="c1"># Backtesting</span>
+<a id="__codelineno-0-91" name="__codelineno-0-91" href="#__codelineno-0-91"></a><span class="n">y_preds</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span><span class="o">**</span><span class="n">best_params</span><span class="p">)</span><span class="o">.</span><span class="n">backtest</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="n">X_train</span><span class="p">)</span>
+<a id="__codelineno-0-92" name="__codelineno-0-92" href="#__codelineno-0-92"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;✅ Backtests:&quot;</span><span class="p">,</span> <span class="n">y_preds</span><span class="p">)</span>
+<a id="__codelineno-0-93" name="__codelineno-0-93" href="#__codelineno-0-93"></a>
+<a id="__codelineno-0-94" name="__codelineno-0-94" href="#__codelineno-0-94"></a><span class="c1"># Forecast with target transforms and feature transforms</span>
+<a id="__codelineno-0-95" name="__codelineno-0-95" href="#__codelineno-0-95"></a><span class="n">forecaster</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span>
+<a id="__codelineno-0-96" name="__codelineno-0-96" href="#__codelineno-0-96"></a>    <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-97" name="__codelineno-0-97" href="#__codelineno-0-97"></a>    <span class="n">lags</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span>
+<a id="__codelineno-0-98" name="__codelineno-0-98" href="#__codelineno-0-98"></a>    <span class="n">target_transform</span><span class="o">=</span><span class="n">scale</span><span class="p">(),</span>
+<a id="__codelineno-0-99" name="__codelineno-0-99" href="#__codelineno-0-99"></a>    <span class="n">feature_transform</span><span class="o">=</span><span class="n">add_fourier_terms</span><span class="p">(</span><span class="n">sp</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">K</span><span class="o">=</span><span class="mi">6</span><span class="p">),</span>
+<a id="__codelineno-0-100" name="__codelineno-0-100" href="#__codelineno-0-100"></a><span class="p">)</span>
+<a id="__codelineno-0-101" name="__codelineno-0-101" href="#__codelineno-0-101"></a><span class="n">y_pred</span> <span class="o">=</span> <span class="n">forecaster</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">fh</span><span class="o">=</span><span class="n">test_size</span><span class="p">)</span>
+<a id="__codelineno-0-102" name="__codelineno-0-102" href="#__codelineno-0-102"></a>
+<a id="__codelineno-0-103" name="__codelineno-0-103" href="#__codelineno-0-103"></a><span class="n">elapsed_time</span> <span class="o">=</span> <span class="n">default_timer</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span>
+<a id="__codelineno-0-104" name="__codelineno-0-104" href="#__codelineno-0-104"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⏱️ Elapsed time: </span><span class="si">{</span><span class="n">elapsed_time</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+</details>
+<h2 id="prepare-data">Prepare Data</h2>
+<p>Load a collection of time series, also known as panel data, into a <a href="https://pola-rs.github.io/polars/py-polars/html/reference/lazyframe/index.html"><code>polars.LazyFrame</code></a> (recommended) or <code>polars.DataFrame</code> and split them into train/test subsets.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span> <span class="nn">polars</span> <span class="k">as</span> <span class="nn">pl</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span> <span class="nn">functime.cross_validation</span> <span class="kn">import</span> <span class="n">train_test_split</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kn">from</span> <span class="nn">functime.metrics</span> <span class="kn">import</span> <span class="n">mase</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="kn">from</span> <span class="nn">functime.feature_extraction</span> <span class="kn">import</span> <span class="n">add_calendar_effects</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Load data</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">y</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="s2">&quot;https://github.com/descendant-ai/functime/raw/main/data/commodities.parquet&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">entity_col</span><span class="p">,</span> <span class="n">time_col</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">columns</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="n">X</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="n">y</span><span class="o">.</span><span class="n">select</span><span class="p">([</span><span class="n">entity_col</span><span class="p">,</span> <span class="n">time_col</span><span class="p">])</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">add_calendar_effects</span><span class="p">([</span><span class="s2">&quot;month&quot;</span><span class="p">]))</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="p">)</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># Train-test splits</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="n">test_size</span> <span class="o">=</span> <span class="mi">3</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="n">freq</span> <span class="o">=</span> <span class="s2">&quot;1mo&quot;</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="n">y_train</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">test_size</span><span class="p">)(</span><span class="n">y</span><span class="p">)</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="n">X_train</span><span class="p">,</span> <span class="n">X_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">test_size</span><span class="p">)(</span><span class="n">X</span><span class="p">)</span>
+</code></pre></div>
+<div class="admonition info">
+<p class="admonition-title">Supported Data Schemas</p>
+<p><code>X: polars.LazyFrame | polars.DataFrame</code> and <code>y: polars.LazyFrame | polars.DataFrame</code> must contain at least three columns.
+The first column must represent the <code>entity</code> / <code>series_id</code> dimension.
+The second column must represent the <code>time</code> dimension as an integer, <code>pl.Date</code>, or <code>pl.Datetime</code> series.
+Remaining columns are considered as features.</p>
+</div>
+<h2 id="fit-predict-score">Fit / Predict / Score</h2>
+<p><code>functime</code> forecasters expose sklearn-compatible <code>.fit</code> and <code>.predict</code> methods.
+<code>functime.metrics</code> contains a comprehensive range of scoring functions for both point and probablistic forecasts.</p>
+<details class="info">
+<summary>Supported Forecast Metrics</summary>
+</details>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">linear_model</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">from</span> <span class="nn">functime.metrics</span> <span class="kn">import</span> <span class="n">mase</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Fit</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">forecaster</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span><span class="n">lags</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">forecaster</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">)</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="c1"># Predict</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">y_pred</span> <span class="o">=</span> <span class="n">forecaster</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">fh</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="c1"># Score</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="n">scores</span> <span class="o">=</span> <span class="n">mase</span><span class="p">(</span><span class="n">y_true</span><span class="o">=</span><span class="n">y_test</span><span class="p">,</span> <span class="n">y_pred</span><span class="o">=</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">y_train</span><span class="o">=</span><span class="n">y_train</span><span class="p">)</span>
+</code></pre></div>
+<div class="admonition info">
+<p class="admonition-title">Supported Data Schemas</p>
+<p><code>X: polars.LazyFrame | polars.DataFrame</code> and <code>y: polars.LazyFrame | polars.DataFrame</code> must contain at least three columns.
+The first column must represent the <code>entity</code> / <code>series_id</code> dimension.
+The second column must represent the <code>time</code> dimension as an integer, <code>pl.Date</code>, or <code>pl.Datetime</code> series.
+Remaining columns are considered as features.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">functime ❤️ currying</p>
+<p>Every <code>transformer</code> and <code>splitter</code> are <a href="https://composingprograms.com/pages/16-higher-order-functions.html#currying">curried functions</a>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span> <span class="nn">functime.preprocessing</span> <span class="kn">import</span> <span class="n">boxcox</span><span class="p">,</span> <span class="n">impute</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># Use df.pipe to chain operations together</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">X_new</span><span class="p">:</span> <span class="n">pl</span><span class="o">.</span><span class="n">LazyFrame</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">X</span><span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">boxcox</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;mle&quot;</span><span class="p">))</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">impute</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;linear&quot;</span><span class="p">))</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">)</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="c1"># Call .collect to execute query</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">X_new</span> <span class="o">=</span> <span class="n">X_splits</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+</code></pre></div>
+<p>You can also use any <code>forecaster</code> as a curried function to run fit-predict in a single line of code.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">linear_model</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">y_pred</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span><span class="n">lags</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">)(</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="n">fh</span><span class="o">=</span><span class="mi">28</span><span class="p">,</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">X</span><span class="o">=</span><span class="n">X_train</span><span class="p">,</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="n">X_future</span><span class="o">=</span><span class="n">X_test</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="p">)</span>
+</code></pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">functime is lazy</p>
+<p><code>transformers</code> and <code>splitters</code> in <code>cross_validation</code>, <code>feature_extraction</code>, and <code>preprocessing</code> are lazy.
+These callables return <code>LazyFrames</code>, which represents a Lazy computation graph/query against the input <code>DataFrame</code> / <code>LazyFrame</code>.
+<strong>No computation is run until the <code>collect()</code> method is called on the <code>LazyFrame</code>.</strong></p>
+<p><code>X</code> and <code>y</code> should be preprocessed lazily for optimal performance.
+Lazy evaluation allows <code>polars</code> to optimize all operations on the input <code>DataFrame</code> / <code>LazyFrame</code> at once.
+Lazy preprocessing in <code>functime</code> allows for more efficient <code>groupby</code> operations.</p>
+<p>With lazy transforms, operations series-by-series (e.g. <code>boxcox</code>, <code>impute</code>, <code>diff</code>) are chained in parallel: <code>groupby</code> is only called once.
+By contrast, with eager transforms, operations series-by-series is called in sequence: <code>groupby-aggregate</code> is called per transform.</p>
+</div>
+<h2 id="global-forecasting">Global Forecasting</h2>
+<p>Every <code>forecaster</code> exposes a scikit-learn <code>fit</code> and <code>predict</code> API.
+The <code>fit</code> method takes <code>y</code> and <code>X</code> (optional).
+The <code>predict</code> method takes the forecast horizon <code>fh: int</code>, frequency alias <code>freq: str</code>, and <code>X</code> (optional).</p>
+<div class="admonition info">
+<p class="admonition-title">Supported Frequency Aliases</p>
+<ul>
+<li>1s (1 second)</li>
+<li>1m (1 minute)</li>
+<li>30m (30 minute)</li>
+<li>1h (1 hour)</li>
+<li>1d (1 day)</li>
+<li>1w (1 week)</li>
+<li>1mo (1 calendar month)</li>
+<li>3mo (1 calendar quarter)</li>
+<li>1y (1 calendar year)</li>
+<li>1i (1 index count)</li>
+</ul>
+</div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">linear_model</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="kn">from</span> <span class="nn">functime.metrics</span> <span class="kn">import</span> <span class="n">mase</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Fit</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">forecaster</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span><span class="n">lags</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">)</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">forecaster</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">)</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="c1"># Predict</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="n">y_pred</span> <span class="o">=</span> <span class="n">forecaster</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">fh</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="c1"># Score</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="n">scores</span> <span class="o">=</span> <span class="n">mase</span><span class="p">(</span><span class="n">y_true</span><span class="o">=</span><span class="n">y_test</span><span class="p">,</span> <span class="n">y_pred</span><span class="o">=</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">y_train</span><span class="o">=</span><span class="n">y_train</span><span class="p">)</span>
+</code></pre></div>
+<div class="admonition question">
+<p class="admonition-title">Global vs Local Forecasting</p>
+<p><strong><code>functime</code> only supports global forecasters.</strong>
+Global forecasters fit and predict a collection of time series using a single model.
+Local forecasters (e.g. ARIMA, ETS, Theta) fit and predict one series per model.
+Example collections of time series, which are also known as panel data, include:</p>
+<ul>
+<li>Sales across product in a retail store</li>
+<li>Churn rates across customer segments</li>
+<li>Sensor data across devices in a factory</li>
+<li>Delivery times across trucks in a logistics fleet</li>
+</ul>
+<p>Global forecasters, trained on a collection of similar time series, consistently outperform local forecasters.<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup>
+Most notably, all top 50 competitors in the M5 Forecasting Competition used a global LightGBM forecasting model.<sup id="fnref:2"><a class="footnote-ref" href="#fn:2">2</a></sup></p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Save 100x in Cloud spend</p>
+<p>Local forecasting is expensive and slow.
+To productionize forecasts at scale (&gt;1,000 series), local models have no choice but distributed computing.
+Every fit-predict call per local model per series are executed in parallel across the distributed cluster.
+Running a distributed cluster, however, is a significant cost and time sink for any data team.</p>
+<p><strong><code>functime</code> believes that the vast majority of businesses do not need distributed computing to produce high-quality forecasts</strong>.
+Every <code>forecaster</code>, <code>transformer</code>, <code>splitter</code>, and <code>metric</code> in <code>functime</code> operates globally across collections of time series.
+We rewrote every time series operation in <code>polars</code> for blazing fast multi-threaded parallelism.</p>
+<p>If you are working at a reasonable-scale company, you most likely don't need Databricks to scale your forecasts. Use <code>functime</code>.</p>
+</div>
+<h2 id="benchmark-forecasters">Benchmark Forecasters</h2>
+<p>Naive and seasonal naive forecasters are surprisingly hard to beat!
+You should always consider using the naive and seasonal naive forecasts as benchmarks.
+<code>functime</code> implements embarressingly parallel versions of the naive (random walk) and seasonal naive forecasters.
+These forecasters are expressed as pure Polars queries and executed in lazy streaming mode for speed and memory efficiency.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">naive</span><span class="p">,</span> <span class="n">snaive</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">y_pred_naive</span> <span class="o">=</span> <span class="n">naive</span><span class="p">(</span><span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">)(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">fh</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># sp = seasonal periods (length of one seasonal cycle)</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">y_pred_snaive</span> <span class="o">=</span> <span class="n">naive</span><span class="p">(</span><span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">,</span> <span class="n">sp</span><span class="o">=</span><span class="mi">12</span><span class="p">)(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">fh</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="exogenous-regressors">Exogenous Regressors</h2>
+<p>Every forecaster in <code>functime</code> supports exogenous regressors.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">linear_model</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">forecaster</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span><span class="n">lags</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">fit_intercept</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">)</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="n">forecaster</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="n">X_train</span><span class="p">)</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="n">y_pred</span> <span class="o">=</span> <span class="n">forecaster</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">fh</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="n">X_test</span><span class="p">)</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Naive Forecasting</p>
+<p>It is best practice to run naive forecasts (random walk, seasonal naive) as benchmarks.
+These simple forecasting methods can be remarkably difficult to beat!<sup id="fnref:3"><a class="footnote-ref" href="#fn:3">3</a></sup></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">naive</span><span class="p">,</span> <span class="n">snaive</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="c1"># Random walk model</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">y_pred_naive</span> <span class="o">=</span> <span class="n">naive</span><span class="p">(</span><span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">)(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">fh</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="c1"># Seasonal naive model</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="n">y_pred_snaive</span> <span class="o">=</span> <span class="n">snaive</span><span class="p">(</span><span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">,</span> <span class="n">sp</span><span class="o">=</span><span class="mi">12</span><span class="p">)(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">fh</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+</code></pre></div>
+</div>
+<h2 id="transformations-preprocessing">Transformations / Preprocessing</h2>
+<p>Every forecaster has two optional parameters <code>target_transform</code> and <code>feature_transform</code>, which take a <code>functime</code> transformer (e.g. <code>diff(order=1)</code>, <code>detrend(method="linear")</code>).</p>
+<div class="highlight"><pre><span></span><code>- `target_transform` applies a transformation on `y` before fit and predict. An inverse transformation is then applied after predict to return the final forecast.
+- `feature_transform` applies a transformation on `X` before fit and predict.
+</code></pre></div>
+<p>We recommend using <code>target_transform</code> and <code>feature_transform</code> to avoid common pitfalls such as inconsistent feature engineering and data leakage.
+Check out the API reference for <a href="/ref/preprocessing/">preprocessing</a> and <a href="/ref/feature-extraction/">feature_extraction</a> for a list of supported transformations.</p>
+<h3 id="target-transform">Target Transform</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">linear_model</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">from</span> <span class="nn">functime.preprocessing</span> <span class="kn">import</span> <span class="n">diff</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">boxcox</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="c1"># Apply first differences</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="n">forecaster</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span><span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">,</span> <span class="n">lags</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">target_transform</span><span class="o">=</span><span class="n">diff</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="c1"># Or local standarization</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="n">forecaster</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span><span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">,</span> <span class="n">lags</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">target_transform</span><span class="o">=</span><span class="n">scale</span><span class="p">())</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="c1"># Or Box-cox</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="n">forecaster</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span><span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">,</span> <span class="n">lags</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">target_transform</span><span class="o">=</span><span class="n">boxcox</span><span class="p">())</span>
+</code></pre></div>
+<h3 id="feature-transform">Feature Transform</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">linear_model</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="kn">from</span> <span class="nn">functime.feature_extraction</span> <span class="kn">import</span> <span class="n">add_fourier_terms</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="kn">from</span> <span class="nn">functime.preprocessing</span> <span class="kn">import</span> <span class="n">lag</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="c1"># Include Fourier terms to model complex seasonality</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="n">forecaster</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">,</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>    <span class="n">lags</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>    <span class="n">feature_transform</span><span class="o">=</span><span class="n">add_fourier_terms</span><span class="p">(</span><span class="n">sp</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">K</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="p">)</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="c1"># Create lags of exogenous regressors</span>
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="n">forecaster</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span>
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>    <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">,</span>
+<a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a>    <span class="n">lags</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+<a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a>    <span class="n">feature_transform</span><span class="o">=</span><span class="n">lag</span><span class="p">(</span><span class="n">lags</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">])</span>
+<a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a><span class="p">)</span>
+</code></pre></div>
+<h3 id="target-and-feature-transform">Target and Feature Transform</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">linear_model</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">forecaster</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">,</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="n">lags</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="n">target_transform</span><span class="o">=</span><span class="n">scale</span><span class="p">(),</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>    <span class="n">target_transform</span><span class="o">=</span><span class="n">add_fourier_terms</span><span class="p">(</span><span class="n">sp</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">K</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="p">)</span>
+</code></pre></div>
+<h2 id="forecast-strategies">Forecast Strategies</h2>
+<p><code>functime</code> supports three forecast strategies: <code>recursive</code>, <code>direct</code> multi-step, and a simple ensemble of both <code>recursive</code> and <code>direct</code>.</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">linear_model</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="c1"># Recursive (Default)</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">recursive_forecaster</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s2">&quot;recursive&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">y_pred_rec</span> <span class="o">=</span> <span class="n">recursive_model</span><span class="p">(</span><span class="n">y_train</span><span class="p">,</span> <span class="n">fh</span><span class="p">)</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="c1"># Direct</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="n">max_horizons</span> <span class="o">=</span> <span class="mi">12</span>  <span class="c1"># Number of direct models</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="n">direct_forecaster</span> <span class="o">=</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s2">&quot;direct&quot;</span><span class="p">,</span><span class="n">max_horizons</span><span class="o">=</span><span class="n">max_horizons</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="n">y_pred_dir</span> <span class="o">=</span> <span class="n">recursive_model</span><span class="p">(</span><span class="n">y_train</span><span class="p">,</span> <span class="n">fh</span><span class="p">)</span>
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a><span class="c1"># Ensemble</span>
+<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a><span class="n">ensemble_forecaster</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s2">&quot;ensemble&quot;</span><span class="p">,</span> <span class="n">max_horizons</span><span class="o">=</span><span class="n">max_horizons</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="n">y_pred_ens</span> <span class="o">=</span> <span class="n">ensemble_model</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">fh</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+</code></pre></div>
+where <code>max_horizons</code> is the number of models specific to each forecast horizon.
+For example, if <code>max_horizons = 12</code>, then twelve forecasters are fitted in total: the 1-step ahead forecast, the 2-steps ahead forecast, the 3-steps ahead forecast, ..., and the final 12-steps ahead forecast.</p>
+<h2 id="censored-forecasts">Censored Forecasts</h2>
+<p>Most real-world datasets in e-commerce and logistics contain zeros in the target variable: e.g. periods with no sales. To address this problem, <code>functime</code> implements the <code>censored_model</code> forecaster, which trains a binary classifier and two forecasters. The binary classifier predicts the probability that a forecast falls above or below a certain threshold (e.g. zero). The final forecast is a weighted average of the above and below threshold forecasters.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">censored_model</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="c1"># Load the M5 competition Walmart dataset</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="n">y_train</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="s2">&quot;data/m5_y_train.parquet&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="n">X_train</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="s2">&quot;data/m5_X_train.parquet&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="c1"># Fit-predict given threshold = 0.0</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="n">y_pred</span> <span class="o">=</span> <span class="n">censored_model</span><span class="p">(</span><span class="n">lags</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1d&quot;</span><span class="p">)(</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>    <span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="n">X_train</span><span class="p">,</span> <span class="n">fh</span><span class="o">=</span><span class="n">fh</span><span class="p">,</span> <span class="n">X_future</span><span class="o">=</span><span class="n">X_test</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a><span class="p">)</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Custom Classfier and Regressors</p>
+<p>By default, <code>censored_model</code> uses sklearn's <code>HistGradientBoostingClassifier</code> and <code>HistGradientBoostingRegressor</code>.
+To use your own classifier and regressor, implement a function that takes <code>X</code> and <code>y</code> numpy arrays and returns a fitted sklearn-compatible classifier and regressor.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">from</span> <span class="nn">sklearn.neural_network</span> <span class="kn">import</span> <span class="n">MLPRegressor</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="kn">from</span> <span class="nn">sklearn.ensemble</span> <span class="kn">import</span> <span class="n">RandomForestClassifier</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="k">def</span> <span class="nf">regress</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>    <span class="n">regressor</span> <span class="o">=</span> <span class="n">MLPRegressor</span><span class="p">()</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>    <span class="n">regressor</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>    <span class="k">return</span> <span class="n">regressor</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="k">def</span> <span class="nf">classify</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>    <span class="n">classifier</span> <span class="o">=</span> <span class="n">RandomForestClassifier</span><span class="p">()</span>
+<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>    <span class="n">classifier</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">))</span>
+<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>    <span class="k">return</span> <span class="n">classifier</span>
+<a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a>
+<a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a>
+<a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a><span class="c1"># Censored model with custom classifier and regressor</span>
+<a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a><span class="n">forecaster</span> <span class="o">=</span> <span class="n">censored_model</span><span class="p">(</span>
+<a id="__codelineno-14-18" name="__codelineno-14-18" href="#__codelineno-14-18"></a>    <span class="n">lags</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+<a id="__codelineno-14-19" name="__codelineno-14-19" href="#__codelineno-14-19"></a>    <span class="n">threshold</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+<a id="__codelineno-14-20" name="__codelineno-14-20" href="#__codelineno-14-20"></a>    <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1d&quot;</span><span class="p">,</span>
+<a id="__codelineno-14-21" name="__codelineno-14-21" href="#__codelineno-14-21"></a>    <span class="n">classify</span><span class="o">=</span><span class="n">classify</span><span class="p">,</span>
+<a id="__codelineno-14-22" name="__codelineno-14-22" href="#__codelineno-14-22"></a>    <span class="n">regress</span><span class="o">=</span><span class="n">regress</span>
+<a id="__codelineno-14-23" name="__codelineno-14-23" href="#__codelineno-14-23"></a><span class="p">)</span>
+<a id="__codelineno-14-24" name="__codelineno-14-24" href="#__codelineno-14-24"></a><span class="n">y_pred</span> <span class="o">=</span> <span class="n">forecaster</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="n">X_train</span><span class="p">,</span> <span class="n">fh</span><span class="o">=</span><span class="n">fh</span><span class="p">,</span> <span class="n">X_future</span><span class="o">=</span><span class="n">X_test</span><span class="p">)</span>
+</code></pre></div>
+</div>
+<h2 id="automated-parameter-tuning">Automated Parameter Tuning</h2>
+<p>Forecasters in <a href="http://localhost:8000/ref/auto-forecasting/">auto_forecasting</a> automatically tune the number of lagged regressors and the model's hyperparameters (e.g. <code>alpha</code> for <code>Lasso</code>). Cross-validation, lags tuning, and model parameters tuning are performed simultaneously for maximum efficiency.</p>
+<h3 id="optimal-lag-length">Optimal Lag Length</h3>
+<p><code>auto_{model}</code> forecasters automatically select the optimal number of lags via cross-validation.
+These forecasters conduct a search over possible models within <code>min_lags</code> and <code>max_lags</code>.
+The best model is the model with the lowest average RMSE (root mean squared error) across splits.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">auto_linear_model</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="c1"># Fit then predict</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="n">forecaster</span> <span class="o">=</span> <span class="n">auto_linear_model</span><span class="p">(</span><span class="n">min_lags</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">max_lags</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">)</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="n">forecaster</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="n">X_train</span><span class="p">)</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="n">y_pred</span> <span class="o">=</span> <span class="n">forecaster</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">fh</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="n">X_test</span><span class="p">)</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="c1"># Fit and predict</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="n">y_pred</span> <span class="o">=</span> <span class="n">auto_linear_model</span><span class="p">(</span><span class="n">min_lags</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">max_lags</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">)(</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>    <span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span>
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>    <span class="n">X</span><span class="o">=</span><span class="n">X_train</span><span class="p">,</span>
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>    <span class="n">X_future</span><span class="o">=</span><span class="n">X_test</span><span class="p">,</span>
+<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a>    <span class="n">fh</span><span class="o">=</span><span class="mi">3</span>
+<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a><span class="p">)</span>
+</code></pre></div>
+<h3 id="hyperparameter-tuning">Hyperparameter Tuning</h3>
+<p><code>auto_{model}</code> forecasters automatically select the optimal number of lags via cross-validation.
+These forecasters conduct a search over possible models within <code>min_lags</code> and <code>max_lags</code>.
+The best model is the model with the lowest average RMSE (root mean squared error) across splits.</p>
+<div class="admonition tip">
+<p class="admonition-title">Sane Hyperparameter Defaults</p>
+<p>Sane defaults are used if <code>search_space</code> or <code>points_to_evaluate</code> are left as <code>None</code>.
+<code>functime</code> specify default hyperparameters search spaces according to best-practices from industry, top Kaggle solutions, and research.</p>
+</div>
+<p><code>functime</code> uses <a href="https://microsoft.github.io/FLAML/docs/getting-started"><code>FLAML</code></a> under the hood to conduct hyperparameter tuning.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span> <span class="nn">flaml</span> <span class="kn">import</span> <span class="n">tune</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">auto_lightgbm</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1"># Specify search space, initial conditions, and time budget</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="n">search_space</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>    <span class="s2">&quot;reg_alpha&quot;</span><span class="p">:</span> <span class="n">tune</span><span class="o">.</span><span class="n">loguniform</span><span class="p">(</span><span class="mf">1e-08</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">),</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>    <span class="s2">&quot;reg_lambda&quot;</span><span class="p">:</span> <span class="n">tune</span><span class="o">.</span><span class="n">loguniform</span><span class="p">(</span><span class="mf">1e-08</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">),</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>    <span class="s2">&quot;num_leaves&quot;</span><span class="p">:</span> <span class="n">tune</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>        <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="o">**</span><span class="n">max_depth</span> <span class="k">if</span> <span class="n">max_depth</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">2</span><span class="o">**</span><span class="n">DEFAULT_TREE_DEPTH</span>
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>    <span class="p">),</span>
+<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>    <span class="s2">&quot;colsample_bytree&quot;</span><span class="p">:</span> <span class="n">tune</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>    <span class="s2">&quot;subsample&quot;</span><span class="p">:</span> <span class="n">tune</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+<a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>    <span class="s2">&quot;subsample_freq&quot;</span><span class="p">:</span> <span class="n">tune</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span>
+<a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>    <span class="s2">&quot;min_child_samples&quot;</span><span class="p">:</span> <span class="n">tune</span><span class="o">.</span><span class="n">qlograndint</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span>
+<a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a><span class="p">}</span>
+<a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a><span class="n">points_to_evaluate</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a>    <span class="p">{</span>
+<a id="__codelineno-16-18" name="__codelineno-16-18" href="#__codelineno-16-18"></a>        <span class="s2">&quot;num_leaves&quot;</span><span class="p">:</span> <span class="mi">31</span><span class="p">,</span>
+<a id="__codelineno-16-19" name="__codelineno-16-19" href="#__codelineno-16-19"></a>        <span class="s2">&quot;colsample_bytree&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+<a id="__codelineno-16-20" name="__codelineno-16-20" href="#__codelineno-16-20"></a>        <span class="s2">&quot;subsample&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+<a id="__codelineno-16-21" name="__codelineno-16-21" href="#__codelineno-16-21"></a>        <span class="s2">&quot;min_child_samples&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
+<a id="__codelineno-16-22" name="__codelineno-16-22" href="#__codelineno-16-22"></a>    <span class="p">}</span>
+<a id="__codelineno-16-23" name="__codelineno-16-23" href="#__codelineno-16-23"></a><span class="p">]</span>
+<a id="__codelineno-16-24" name="__codelineno-16-24" href="#__codelineno-16-24"></a><span class="n">time_budget</span> <span class="o">=</span> <span class="mi">420</span>
+<a id="__codelineno-16-25" name="__codelineno-16-25" href="#__codelineno-16-25"></a>
+<a id="__codelineno-16-26" name="__codelineno-16-26" href="#__codelineno-16-26"></a><span class="c1"># Fit model</span>
+<a id="__codelineno-16-27" name="__codelineno-16-27" href="#__codelineno-16-27"></a><span class="n">forecaster</span> <span class="o">=</span> <span class="n">auto_lightgbm</span><span class="p">(</span>
+<a id="__codelineno-16-28" name="__codelineno-16-28" href="#__codelineno-16-28"></a>    <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&#39;,</span>
+<a id="__codelineno-16-29" name="__codelineno-16-29" href="#__codelineno-16-29"></a>    <span class="n">min_lags</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+<a id="__codelineno-16-30" name="__codelineno-16-30" href="#__codelineno-16-30"></a>    <span class="n">max_lags</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span>
+<a id="__codelineno-16-31" name="__codelineno-16-31" href="#__codelineno-16-31"></a>    <span class="n">time_budget</span><span class="o">=</span><span class="n">time_budget</span><span class="p">,</span>
+<a id="__codelineno-16-32" name="__codelineno-16-32" href="#__codelineno-16-32"></a>    <span class="n">search_space</span><span class="o">=</span><span class="n">search_space</span><span class="p">,</span>
+<a id="__codelineno-16-33" name="__codelineno-16-33" href="#__codelineno-16-33"></a>    <span class="n">points_to_evaluate</span><span class="o">=</span><span class="n">points_to_evaluate</span>
+<a id="__codelineno-16-34" name="__codelineno-16-34" href="#__codelineno-16-34"></a><span class="p">)</span>
+<a id="__codelineno-16-35" name="__codelineno-16-35" href="#__codelineno-16-35"></a><span class="n">forecaster</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">)</span>
+<a id="__codelineno-16-36" name="__codelineno-16-36" href="#__codelineno-16-36"></a>
+<a id="__codelineno-16-37" name="__codelineno-16-37" href="#__codelineno-16-37"></a><span class="c1"># Get best lags and model hyperparameters</span>
+<a id="__codelineno-16-38" name="__codelineno-16-38" href="#__codelineno-16-38"></a><span class="n">best_params</span> <span class="o">=</span> <span class="n">forecaster</span><span class="o">.</span><span class="n">best_params</span>
+</code></pre></div>
+<h2 id="backtesting">Backtesting</h2>
+<p>Every <code>forecaster</code> and <code>auto_forecaster</code> has a <code>backtest</code> method.
+<code>functime</code> supports both <a href="https://docs.functime.ai/ref/cross-validation/#functime.cross_validation.expanding_window_split"><code>expanding_window_split</code></a>
+and <a href="https://docs.functime.ai/ref/cross-validation/#functime.cross_validation.sliding_window_split"><code>sliding_window_split</code></a> for backtesting and cross-validation.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">linear_model</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="n">forecaster</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span><span class="n">lags</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">fit_intercept</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">)</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="n">y_preds</span><span class="p">,</span> <span class="n">y_resids</span> <span class="o">=</span> <span class="n">forecaster</span><span class="o">.</span><span class="n">backtest</span><span class="p">(</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    <span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>    <span class="n">X</span><span class="o">=</span><span class="n">X_train</span><span class="p">,</span>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>    <span class="n">test_size</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>    <span class="n">step_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>    <span class="n">n_splits</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>    <span class="n">window_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>  <span class="c1"># Only applicable if `strategy` equals &quot;sliding&quot;</span>
+<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>    <span class="n">strategy</span><span class="o">=</span><span class="s2">&quot;expanding&quot;</span><span class="p">,</span>
+<a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>    <span class="c1"># Raises ValueError if drop_short=False and there are</span>
+<a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a>    <span class="c1"># entities with insufficient length for cross-validation</span>
+<a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a>    <span class="n">drop_short</span><span class="o">=</span><span class="kc">True</span>
+<a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a><span class="p">)</span>
+</code></pre></div>
+<h2 id="probablistic-forecasts">Probablistic Forecasts</h2>
+<p><code>functime</code> supports two methods for generating prediction intervals.</p>
+<h3 id="quantile-regression">Quantile Regression</h3>
+<p>Supported by <code>LightGBM</code>, <code>XGBoost</code>, and <code>Catboost</code> forecasters and their automated equivalents.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">auto_lightgbm</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="c1"># Forecasts at 10th and 90th percentile</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="n">y_pred_10</span> <span class="o">=</span> <span class="n">auto_lightgbm</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1d&quot;</span><span class="p">)(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">fh</span><span class="o">=</span><span class="mi">28</span><span class="p">)</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="n">y_pred_90</span> <span class="o">=</span> <span class="n">auto_lightgbm</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1d&quot;</span><span class="p">)(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">fh</span><span class="o">=</span><span class="mi">28</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="conformal-prediction">Conformal Prediction</h3>
+<p><code>functime</code> currently supports batch prediction intervals (EnbPI) from the paper <a href="https://arxiv.org/abs/2010.09107">Conformal prediction interval for dynamic time-series</a></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span> <span class="nn">functime.conformal</span> <span class="kn">import</span> <span class="n">conformalize</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="kn">from</span> <span class="nn">functime.forecasting</span> <span class="kn">import</span> <span class="n">linear_model</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="n">forecaster</span> <span class="o">=</span> <span class="n">linear_model</span><span class="p">(</span><span class="n">lags</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">fit_intercept</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1mo&quot;</span><span class="p">)</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="n">y_preds</span><span class="p">,</span> <span class="n">y_resids</span> <span class="o">=</span> <span class="n">forecaster</span><span class="o">.</span><span class="n">backtest</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="n">X_train</span><span class="p">)</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="c1"># Forecasts at 10th and 90th percentile</span>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="c1"># Requires forecast (y_pred), backtest values (y_preds),</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="c1"># and residuals from backtest (y_resid)</span>
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="n">y_pred_quantiles</span> <span class="o">=</span> <span class="n">conformalize</span><span class="p">(</span>
+<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>    <span class="n">y_pred</span><span class="o">=</span><span class="n">y_pred</span><span class="p">,</span>
+<a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a>    <span class="n">y_preds</span><span class="o">=</span><span class="n">y_preds</span><span class="p">,</span>
+<a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a>    <span class="n">y_resids</span><span class="o">=</span><span class="n">y_resids</span><span class="p">,</span>
+<a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a>    <span class="n">alphas</span><span class="o">=</span><span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">]</span>
+<a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a><span class="p">)</span>
+</code></pre></div>
+<div class="footnote">
+<hr />
+<ol>
+<li id="fn:1">
+<p>Montero-Manso, P., &amp; Hyndman, R. J. (2021). Principles and algorithms for forecasting groups of time series: Locality and globality. International Journal of Forecasting, 37(4), 1632-1653.&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+</li>
+<li id="fn:2">
+<p>Makridakis, S., Spiliotis, E., &amp; Assimakopoulos, V. (2022). M5 accuracy competition: Results, findings, and conclusions. International Journal of Forecasting.&#160;<a class="footnote-backref" href="#fnref:2" title="Jump back to footnote 2 in the text">&#8617;</a></p>
+</li>
+<li id="fn:3">
+<p>https://otexts.com/fpp3/simple-methods.html&#160;<a class="footnote-backref" href="#fnref:3" title="Jump back to footnote 3 in the text">&#8617;</a></p>
+</li>
+</ol>
+</div>
+
+
+  
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var tab,labels=set.querySelector(".tabbed-labels");for(tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    <script id="__config" type="application/json">{"base": "..", "features": ["content.code.copy", "content.tabs.link", "navigation.expand"], "search": "../assets/javascripts/workers/search.dfff1995.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.dff1b7c8.min.js"></script>
+      
+    
+  </body>
+</html>
