@@ -64,7 +64,7 @@ def make_y_lag(X_y: pl.DataFrame, target_col: str, lags: int):
     y_lag = (
         X_y.lazy()
         .select([entity_col, time_col, pl.col(rf"^{target_col}__lag_(\d+)$")])
-        .groupby(entity_col)
+        .group_by(entity_col)
         .agg(pl.all().tail(lags))
         .collect(streaming=True)
         .lazy()
