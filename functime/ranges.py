@@ -22,7 +22,7 @@ def make_future_ranges(
             future_ranges = cutoffs.select(
                 [
                     pl.col(entity_col),
-                    pl.int_range(
+                    pl.int_ranges(
                         pl.col("low") + 1,
                         pl.col("low") + fh + 1,
                         step=int(freq[:-1]),
@@ -53,7 +53,7 @@ def make_future_ranges(
         future_ranges = cutoffs.select(
             [
                 pl.col(entity_col),
-                pl.int_range(
+                pl.int_ranges(
                     pl.ones(len(cutoffs), eager=False),
                     pl.ones(len(cutoffs), eager=False) + fh,
                     eager=False,
