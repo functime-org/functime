@@ -4,6 +4,7 @@ from typing import List, Mapping, Optional
 import bottleneck as bn
 import numpy as np
 import polars as pl
+import math
 from numpy.linalg import lstsq
 from scipy.signal import ricker, welch
 
@@ -359,9 +360,49 @@ def number_peaks(x: pl.Expr, support: int):
     pass
 
 
-def permutation_entropy(x: pl.Expr, tau: float, n_dims: int):
-    pass
+def permutation_entropy(
+    x: pl.Expr,
+    tau:int=1,
+    n_dims:int=3,
+    base:float=math.e,
+    normalize:bool=False
+) -> pl.Expr:
+    '''
+    Computes permutation entropy.
 
+    Paramters
+    ---------
+    tau : int
+        The embedding time delay which controls the number of time periods between elements 
+        of each of the new column vectors.
+    n_dims : int, > 1
+        The embedding dimension which controls the length of each of the new column vectors
+    base : float
+        The base for log in the entropy computation
+    normalize : bool
+        Whether to normalize in the entropy computation
+
+    Reference
+    ---------
+        https://www.aptech.com/blog/permutation-entropy/
+        https://tsfresh.readthedocs.io/en/latest/api/tsfresh.feature_extraction.html#tsfresh.feature_extraction.feature_calculators.permutation_entropy
+    '''
+
+    # CSE should take care of x.shift(-n_dims+1).is_not_null() ?
+    # If input is eager, then in the divide statement we don't need need
+    # a lazy expression to compute the remaining length.
+    max_shift = -n_dims + 1
+    out = (
+        pl.concat_list(x, *(x.shift(-i) for i in range(1,n_dims))) # create list columns
+        .take_every(tau) # take every tau
+        .filter(x.shift(max_shift).is_not_null()) # This is a filter because length of df is unknown
+        .list.eval(pl.element().rank(method="ordinal")) # for each inner list, do an argsort
+        .value_counts() # groupby and count, but returns a struct
+        .struct.field("counts") # extract the field named "counts"
+        / x.shift(max_shift).is_not_null().sum() # get probabilities
+    ).entropy(base=base, normalize=normalize).suffix("_permutation_entropy")
+
+    return out
 
 def quantile(x: pl.Expr, q: float):
     return x.quantile(q)
