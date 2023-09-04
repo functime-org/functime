@@ -69,6 +69,6 @@ def test_fourier_compare_with_aeon():
         sp_list=[sp], fourier_terms_list=[K], keep_original_columns=False
     ).fit_transform
     expected = pl.from_pandas(
-        y.to_pandas().groupby(entity_col)[target_col].apply(aeon_add_fourier_terms)
+        y.to_pandas().group_by(entity_col)[target_col].apply(aeon_add_fourier_terms)
     )
     assert_frame_equal(result.select(expected.columns), expected)

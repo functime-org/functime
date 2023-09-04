@@ -184,7 +184,7 @@ class elite(Forecaster):
             .explode("model_name")
             .lazy()
             .join(y_pred, how="left", on=[entity_col, "model_name"])
-            .groupby([entity_col, time_col])
+            .group_by([entity_col, time_col])
             .agg(pl.col(target_col))
             .select(
                 [
@@ -272,13 +272,13 @@ class elite(Forecaster):
         )
         best_models = (
             scores.lazy()
-            .groupby([entity_col, "model_name"])
+            .group_by([entity_col, "model_name"])
             # Compute average score across splits
             .agg(pl.col(metric_name).mean())
             .sort([entity_col, metric_name])
             .set_sorted([entity_col, metric_name])
             # Select top K scores
-            .groupby(entity_col, maintain_order=True)
+            .group_by(entity_col, maintain_order=True)
             .agg([pl.col("model_name").head(top_k), pl.col(metric_name).head(top_k)])
             .collect(streaming=True)
         )

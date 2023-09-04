@@ -10,7 +10,7 @@ def _score(y_true, y_pred, formula: pl.Expr, alias: str):
     entity_col, time_col = y_true.columns[:2]
     scores = (
         y_true.join(y_pred, on=[entity_col, time_col], how="left")
-        .groupby(entity_col)
+        .group_by(entity_col)
         .agg(formula.alias(alias))
     )
     return scores
@@ -185,7 +185,7 @@ def mase(
     mae_scores = mae(y_true, y_pred)
     naive_mae_scores = (
         y_train.rename({y_train.columns[-1]: "naive"})
-        .groupby(y_train.columns[0])
+        .group_by(y_train.columns[0])
         .agg((pl.col("naive") - pl.col("naive").shift(sp)).abs().mean())
     )
     entity_col = y_true.columns[0]
@@ -221,7 +221,7 @@ def rmsse(
     mse_scores = mse(y_true, y_pred)
     naive_mse_scores = (
         y_train.rename({y_train.columns[-1]: "naive"})
-        .groupby(y_train.columns[0])
+        .group_by(y_train.columns[0])
         .agg(((pl.col("naive") - pl.col("naive").shift(sp)) ** 2).mean())
     )
     entity_col = y_true.columns[0]
