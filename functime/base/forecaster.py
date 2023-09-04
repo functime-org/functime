@@ -172,7 +172,9 @@ class Forecaster(Model):
         artifacts = self._fit(y=y, X=X)
         # Prepare artifacts
         cutoffs = y.groupby(y.columns[0]).agg(pl.col(y.columns[1]).max().alias("low"))
-        artifacts["__cutoffs"] = cutoffs.collect(streaming=True)
+        # BUG: Regression after changing arange to int_ranges
+        # artifacts["__cutoffs"] = cutoffs.collect(streaming=True)
+        artifacts["__cutoffs"] = cutoffs.collect()
         state = ForecastState(
             entity=y.columns[0],
             time=y.columns[1],
@@ -204,6 +206,7 @@ class Forecaster(Model):
             fh=fh,
             freq=self.freq,
         )
+        print(future_ranges)
         # Prepare X
         if X is not None:
             X = X.lazy()
