@@ -46,7 +46,7 @@ def check_backtest_lengths(
     # for the given cross-validation parameters
     entity_col, time_col = y.columns[:2]
     lengths = (
-        y.groupby(entity_col)
+        y.group_by(entity_col)
         .agg(pl.col(time_col).len().alias("len"))
         .collect(streaming=True)
     )
@@ -170,7 +170,7 @@ class Forecaster(Model):
         # Fit AR forecaster
         artifacts = self._fit(y=y, X=X)
         # Prepare artifacts
-        cutoffs = y.groupby(y.columns[0]).agg(pl.col(y.columns[1]).max().alias("low"))
+        cutoffs = y.group_by(y.columns[0]).agg(pl.col(y.columns[1]).max().alias("low"))
         artifacts["__cutoffs"] = cutoffs.collect(streaming=True)
         state = ForecastState(
             entity=y.columns[0],

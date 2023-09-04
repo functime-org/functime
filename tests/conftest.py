@@ -202,7 +202,7 @@ def m4_dataset(request):
 
     def update_test_time_ranges(y_train, y_test):
         entity_col, time_col = y_train.columns[:2]
-        cutoffs = y_train.groupby(entity_col).agg(
+        cutoffs = y_train.group_by(entity_col).agg(
             pl.col(time_col).last().alias("cutoff")
         )
         y_test = (
@@ -245,7 +245,7 @@ def m5_dataset():
     # Check series lengths
     entity_col, time_col = y_train.columns[:2]
     short_ts_counts = (
-        y_train.groupby(entity_col)
+        y_train.group_by(entity_col)
         .agg(pl.col(time_col).count().alias("count"))
         .filter(pl.col("count") <= max_lags)
         .sort(by="count")

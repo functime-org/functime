@@ -27,7 +27,7 @@ class naive(Forecaster):
         y_pred = (
             y.sort(idx_cols)
             .set_sorted(idx_cols)
-            .groupby(entity_col)
+            .group_by(entity_col)
             .agg(pl.col(target_col).last())
         )
         artifacts = {"y_pred": y_pred}
