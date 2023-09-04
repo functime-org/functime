@@ -45,7 +45,7 @@ def fruits_panel_data(fruits_example):
 
 
 def pd_gb_transform(df: pd.DataFrame, model):
-    return df.group_by("series_id").apply(lambda s: model.fit_transform(s))
+    return df.groupby("series_id").apply(lambda s: model.fit_transform(s))
 
 
 @pytest.mark.benchmark
@@ -98,7 +98,7 @@ def pd_lag(X: pd.DataFrame, lags: List[int]) -> pd.DataFrame:
     """Lag values in panel pd.DataFrame by `lags` and suffix k-lag
     column names with `_lag_{k}`. Includes original columns.
     """
-    gb = X.group_by(level=0)
+    gb = X.groupby(level=0)
     X_lags = []
     for _lag in lags:
         X_lag = gb.shift(_lag).add_suffix(f"__lag_{_lag}")
@@ -107,7 +107,7 @@ def pd_lag(X: pd.DataFrame, lags: List[int]) -> pd.DataFrame:
 
 
 def pd_roll(X: pd.DataFrame, window_sizes: List[int], stats: str):
-    # Pandas currently does not support group_by with rolling on multi-index
+    # Pandas currently does not support groupby with rolling on multi-index
     # See: https://github.com/pandas-dev/pandas/issues/34642
     # To bypass this, we perform a few pivots so that the rolling
     # operation is performed on a single index, but the final
@@ -184,7 +184,7 @@ def test_scale(pd_X):
     entity_col = pd_X.index.names[0]
     numeric_cols = pd_X.select_dtypes(include=["float"]).columns
     pd_X = pd_X.assign(**{col: pd_X[col].abs() for col in numeric_cols}).replace(0, 1)
-    expected = pd_X.group_by(entity_col)[numeric_cols].transform(
+    expected = pd_X.groupby(entity_col)[numeric_cols].transform(
         lambda x: (x - x.mean()) / x.std()
     )
     X = pl.from_pandas(pd_X.reset_index()).lazy()
@@ -201,7 +201,7 @@ def test_diff(pd_X, sp):
     idx_cols = (entity_col, time_col)
     numeric_cols = pd_X.select_dtypes(include=["float"]).columns
     expected_X_new = (
-        pd_X.group_by(entity_col, group_keys=False)[numeric_cols]
+        pd_X.groupby(entity_col, group_keys=False)[numeric_cols]
         .diff(periods=sp)
         .dropna()
     )
@@ -230,7 +230,7 @@ def test_boxcox(pd_X):
     pd_X = pd_X.assign(**{col: pd_X[col].abs() for col in numeric_cols}).replace(0, 1)
 
     transformer = PowerTransformer(method="box-cox", standardize=False)
-    expected = pd_X.group_by(entity_col)[numeric_cols].transform(
+    expected = pd_X.groupby(entity_col)[numeric_cols].transform(
         lambda x: np.concatenate(transformer.fit_transform(x.values.reshape(-1, 1)))
     )
     X = pl.from_pandas(pd_X.reset_index()).lazy()
@@ -244,7 +244,7 @@ def test_boxcox(pd_X):
 @pytest.mark.parametrize("method", ["linear", "mean"])
 def test_detrend(method, pd_X):
     entity_col = pd_X.index.names[0]
-    expected = pd_X.group_by(entity_col).transform(
+    expected = pd_X.groupby(entity_col).transform(
         signal.detrend, type=method if method == "linear" else "constant"
     )
     X = pl.from_pandas(pd_X.reset_index()).lazy()

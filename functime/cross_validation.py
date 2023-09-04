@@ -26,12 +26,12 @@ def train_test_split(
         X = X.lazy()  # Defensive
         entity_col = X.columns[0]
         train_split = (
-            X.group_by(entity_col)
+            X.groupby(entity_col)
             .agg(pl.all().slice(0, pl.count() - test_size))
             .explode(pl.all().exclude(entity_col))
         )
         test_split = (
-            X.group_by(entity_col)
+            X.groupby(entity_col)
             .agg(pl.all().slice(-1 * test_size, test_size))
             .explode(pl.all().exclude(entity_col))
         )
@@ -69,10 +69,10 @@ def _window_split(
     for i, train_test_expr in enumerate(train_test_exprs):
         train_expr, test_expr = train_test_expr
         train_split = (
-            X.group_by(entity_col).agg(train_expr).explode(pl.all().exclude(entity_col))
+            X.groupby(entity_col).agg(train_expr).explode(pl.all().exclude(entity_col))
         )
         test_split = (
-            X.group_by(entity_col).agg(test_expr).explode(pl.all().exclude(entity_col))
+            X.groupby(entity_col).agg(test_expr).explode(pl.all().exclude(entity_col))
         )
         splits[i] = train_split, test_split
     return splits

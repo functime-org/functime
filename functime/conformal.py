@@ -19,7 +19,7 @@ def enbpi(
     y_pred_qnts = []
     for alpha in alphas:
         y_pred_qnt = y_pred.join(
-            y_resid.group_by(entity_col)
+            y_resid.groupby(entity_col)
             .agg(pl.col(y_resid.columns[-1]).quantile(alpha).alias("score"))
             .lazy(),
             how="left",

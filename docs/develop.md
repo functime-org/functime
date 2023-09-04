@@ -43,7 +43,7 @@ def lag(lags: List[int]):
                 pl.col(time_col).set_sorted(),
                 *lagged_series,
             )
-            .group_by(entity_col)
+            .groupby(entity_col)
             .agg(pl.all().slice(max_lag))
             .explode(pl.all().exclude(entity_col))
         )

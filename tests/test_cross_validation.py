@@ -36,11 +36,11 @@ def test_train_test_split(test_size, pl_y, benchmark):
 
     # Check train window lengths
     ts_lengths = (
-        pl_y.group_by(entity_col, maintain_order=True)
+        pl_y.groupby(entity_col, maintain_order=True)
         .agg(pl.col(time_col).count())
         .collect()
     )
-    train_lengths = y_train.group_by(entity_col, maintain_order=True).agg(
+    train_lengths = y_train.groupby(entity_col, maintain_order=True).agg(
         pl.col(time_col).count()
     )
     assert (
@@ -48,7 +48,7 @@ def test_train_test_split(test_size, pl_y, benchmark):
     ).select(pl.all().all())[0, 0]
 
     # Check test window lengths
-    test_lengths = y_test.group_by(entity_col).agg(pl.col(time_col).count())
+    test_lengths = y_test.groupby(entity_col).agg(pl.col(time_col).count())
     assert (test_lengths.select("time") == test_size).select(pl.all().all())[0, 0]
 
 
@@ -66,7 +66,7 @@ def test_expanding_window_split(test_size, n_splits, step_size, pl_y, benchmark)
     for split in splits.values():
         _, y_test = split
         # Check test window lengths
-        test_lengths = y_test.group_by(entity_col, maintain_order=True).agg(
+        test_lengths = y_test.groupby(entity_col, maintain_order=True).agg(
             pl.col(time_col).count()
         )
         assert (test_lengths.select("time") == test_size).select(pl.all().all())[0, 0]
@@ -88,7 +88,7 @@ def test_sliding_window_split(test_size, n_splits, step_size, pl_y, benchmark):
     for split in splits.values():
         _, y_test = split
         # Check test window lengths
-        test_lengths = y_test.group_by(entity_col, maintain_order=True).agg(
+        test_lengths = y_test.groupby(entity_col, maintain_order=True).agg(
             pl.col(time_col).count()
         )
         assert (test_lengths.select("time") == test_size).select(pl.all().all())[0, 0]
