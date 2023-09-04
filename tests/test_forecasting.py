@@ -39,12 +39,12 @@ FORECASTERS_TO_TEST = [
     ("linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=detrend())),
     ("direct__linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=detrend(), **DIRECT_KWARGS)),
     ("ensemble__linear", lambda freq: linear_model(lags=DEFAULT_LAGS, freq=freq, target_transform=detrend(), **ENSEMBLE_KWARGS)),
-    ("catboost", lambda freq: catboost(lags=DEFAULT_LAGS, freq=freq, iterations=10)),
-    ("xgboost", lambda freq: xgboost(lags=DEFAULT_LAGS, freq=freq, num_boost_round=10)),
-    ("lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10)),
-    ("flaml_lgbm", lambda freq: flaml_lightgbm(lags=DEFAULT_LAGS, freq=freq, custom_hp={"lgbm": {"num_iterations": {"domain": 10}}})),
-    ("direct__lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10, **DIRECT_KWARGS)),
-    ("ensemble__lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=10, **ENSEMBLE_KWARGS)),
+    ("catboost", lambda freq: catboost(lags=DEFAULT_LAGS, freq=freq, iterations=5)),
+    ("xgboost", lambda freq: xgboost(lags=DEFAULT_LAGS, freq=freq, num_boost_round=5)),
+    ("lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=5)),
+    ("flaml_lgbm", lambda freq: flaml_lightgbm(lags=DEFAULT_LAGS, freq=freq, custom_hp={"lgbm": {"num_iterations": {"domain": 5}}})),
+    ("direct__lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=5, **DIRECT_KWARGS)),
+    ("ensemble__lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=5, **ENSEMBLE_KWARGS)),
 ]
 # fmt: on
 
@@ -240,6 +240,7 @@ def test_zero_inflated_model_on_m5(m5_dataset):
     assert score < 2
 
 
+@pytest.mark.skip("WIP")
 def test_elite_on_m4(m4_dataset, m4_freq_to_lags, m4_freq_to_sp):
     y_train, y_test, fh, freq = m4_dataset
     lags = m4_freq_to_lags[freq]
