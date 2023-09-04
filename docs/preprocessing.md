@@ -1,6 +1,6 @@
 # Preprocessing
 
-`functime` supports parallelized time-series preprocessing using Polars. All `functime` preprocessors take a [panel DataFrame](/#quick-examples) as a input and transform each time-series locally (i.e. time-series by time-series as a parallelized group_by operation).
+`functime` supports parallelized time-series preprocessing using Polars. All `functime` preprocessors take a [panel DataFrame](/#quick-examples) as a input and transform each time-series locally (i.e. time-series by time-series as a parallelized groupby operation).
 
 Time-series transformations are commonly used to stabilize the time-series (e.g. `boxcox` for variance stabilzation) or make the time-series [stationary](https://otexts.com/fpp3/stationarity.html) through first differences or detrending. Some transformations are also invertible, such as `diff` and `detrend`, which is useful for converting the forecast of a transformed time-series back to the original scale.
 

@@ -224,7 +224,7 @@ def predict_recursive(
     entity_col = state.entity
     y_lag: pl.DataFrame = artifacts["y_lag"].sort(entity_col).set_sorted(entity_col)
     if X is not None:
-        X = X.group_by(entity_col).agg(pl.all()).sort(entity_col).set_sorted(entity_col)
+        X = X.groupby(entity_col).agg(pl.all()).sort(entity_col).set_sorted(entity_col)
 
     lag_cols = y_lag.columns[2:]
     lead_col = lag_cols[0]
@@ -291,7 +291,7 @@ def predict_direct(state, fh: int, X: Optional[pl.DataFrame] = None) -> pl.DataF
 
     y_lag: pl.DataFrame = artifacts["y_lag"].sort(entity_col).set_sorted(entity_col)
     if X is not None:
-        X = X.group_by(entity_col).agg(pl.all()).sort(entity_col).set_sorted(entity_col)
+        X = X.groupby(entity_col).agg(pl.all()).sort(entity_col).set_sorted(entity_col)
     lags = (y_lag.width - 1) - max_horizons
 
     n_entities = len(y_lag)
@@ -365,7 +365,7 @@ def predict_autoreg(
                     ((pl.col("recursive") + pl.col("direct")) / 2).alias(target_col),
                 ]
             )
-            .group_by(state.entity)
+            .groupby(state.entity)
             .agg(target_col)
         )
     else:

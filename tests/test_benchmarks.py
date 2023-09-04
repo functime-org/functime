@@ -43,7 +43,7 @@ def forecaster(request):
 def get_short_series(X: pl.LazyFrame, min_counts: int) -> pl.DataFrame:
     entity_col, time_col = X.columns[:2]
     short_ts = (
-        X.group_by(entity_col)
+        X.groupby(entity_col)
         .agg(pl.col(time_col).count().alias("count"))
         .filter(pl.col("count") <= min_counts)
         .collect(streaming=True)

@@ -151,10 +151,10 @@ scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 
     `X` and `y` should be preprocessed lazily for optimal performance.
     Lazy evaluation allows `polars` to optimize all operations on the input `DataFrame` / `LazyFrame` at once.
-    Lazy preprocessing in `functime` allows for more efficient `group_by` operations.
+    Lazy preprocessing in `functime` allows for more efficient `groupby` operations.
 
-    With lazy transforms, operations series-by-series (e.g. `boxcox`, `impute`, `diff`) are chained in parallel: `group_by` is only called once.
-    By contrast, with eager transforms, operations series-by-series is called in sequence: `group_by-aggregate` is called per transform.
+    With lazy transforms, operations series-by-series (e.g. `boxcox`, `impute`, `diff`) are chained in parallel: `groupby` is only called once.
+    By contrast, with eager transforms, operations series-by-series is called in sequence: `groupby-aggregate` is called per transform.
 
 ## Global Forecasting
 

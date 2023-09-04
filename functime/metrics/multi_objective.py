@@ -154,7 +154,7 @@ def score_backtest(
     if agg_method:
         y_pred = (
             y_preds.lazy()
-            .group_by([entity_col, time_col])
+            .groupby([entity_col, time_col])
             .agg(expr[agg_method])
             .sort([entity_col, time_col])
             .set_sorted([entity_col, time_col])

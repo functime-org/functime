@@ -112,7 +112,7 @@ def resample(freq: str, agg_method: str, impute_method: Union[str, int, float]):
         X_new = (
             # Defensive resampling
             X.lazy()
-            .group_by_dynamic(time_col, every=freq, by=entity_col)
+            .groupby_dynamic(time_col, every=freq, by=entity_col)
             .agg(agg_exprs[agg_method])
             # Must defensive sort columns otherwise time_col and target_col
             # positions are incorrectly swapped in lazy
@@ -143,12 +143,12 @@ def trim(direction: Literal["both", "left", "right"] = "both"):
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
         maxmin = (
-            X.group_by(entity_col)
+            X.groupby(entity_col)
             .agg(pl.col(time_col).min())
             .select(pl.col(time_col).max())
         )
         minmax = (
-            X.group_by(entity_col)
+            X.groupby(entity_col)
             .agg(pl.col(time_col).max())
             .select(pl.col(time_col).min())
         )
@@ -199,7 +199,7 @@ def lag(lags: List[int]):
                 pl.col(time_col).set_sorted(),
                 *lagged_series,
             )
-            .group_by(entity_col)
+            .groupby(entity_col)
             .agg(pl.all().slice(max_lag))
             .explode(pl.all().exclude(entity_col))
         )
@@ -297,7 +297,7 @@ def roll(
         X_all = [
             (
                 X.sort([entity_col, time_col])
-                .group_by_dynamic(
+                .groupby_dynamic(
                     index_column=time_col,
                     by=entity_col,
                     every=freq,
@@ -350,14 +350,14 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
         _mean = None
         _std = None
         if use_mean:
-            _mean = X.group_by(entity_col).agg(
+            _mean = X.groupby(entity_col).agg(
                 PL_NUMERIC_COLS(entity_col, time_col).mean().suffix("_mean")
             )
             X = X.join(_mean, on=entity_col).select(
                 idx_cols + [pl.col(col) - pl.col(f"{col}_mean") for col in numeric_cols]
             )
         if use_std:
-            _std = X.group_by(entity_col).agg(
+            _std = X.groupby(entity_col).agg(
                 PL_NUMERIC_COLS(entity_col, time_col).std().suffix("_std")
             )
             X = X.join(_std, on=entity_col).select(
@@ -496,8 +496,8 @@ def diff(order: int, sp: int = 1):
 
         X_first, X_last = pl.collect_all(
             [
-                X.group_by(entity_col).head(1),
-                X.group_by(entity_col).tail(1),
+                X.groupby(entity_col).head(1),
+                X.groupby(entity_col).tail(1),
             ]
         )
         for _ in range(order):
@@ -574,7 +574,7 @@ def boxcox(method: str = "mle"):
 
         idx_cols = X.columns[:2]
         entity_col, time_col = idx_cols
-        gb = X.group_by(X.columns[0])
+        gb = X.groupby(X.columns[0])
         # Step 1. Compute optimal lambdas
         lmbds = gb.agg(
             PL_NUMERIC_COLS(entity_col, time_col)
@@ -664,7 +664,7 @@ def detrend(method: Literal["linear", "mean"] = "linear"):
                 "X_new": X_new.select(X.columns),
             }
         if method == "mean":
-            _mean = X.group_by(entity_col).agg(
+            _mean = X.groupby(entity_col).agg(
                 pl.col(X.columns[2:]).mean().suffix("__mean")
             )
             X_new = X.with_columns(

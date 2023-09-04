@@ -123,7 +123,7 @@ def make_future_calendar_effects(
     freq: Optional[str] = None,
 ):
     entity_col, time_col = idx.columns[:2]
-    cutoffs = idx.group_by(entity_col).agg(pl.col(time_col).max().alias("low"))
+    cutoffs = idx.groupby(entity_col).agg(pl.col(time_col).max().alias("low"))
     future_idx = make_future_ranges(
         time_col=time_col,
         cutoffs=cutoffs,
@@ -141,7 +141,7 @@ def make_future_holiday_effects(
     freq: Optional[str] = None,
 ):
     entity_col, time_col = idx.columns[:2]
-    cutoffs = idx.group_by(entity_col).agg(pl.col(time_col).max().alias("low"))
+    cutoffs = idx.groupby(entity_col).agg(pl.col(time_col).max().alias("low"))
     future_idx = make_future_ranges(
         time_col=time_col,
         cutoffs=cutoffs,
