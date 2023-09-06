@@ -255,9 +255,9 @@ def one_hot_encode(drop_first: bool = False):
 
 @transformer
 def roll(
-        window_sizes: List[int],
-        stats: List[Literal["mean", "min", "max", "mlm", "sum", "std", "cv"]],
-        freq: str,
+    window_sizes: List[int],
+    stats: List[Literal["mean", "min", "max", "mlm", "sum", "std", "cv"]],
+    freq: str,
 ):
     """
     Performs rolling window calculations on specified columns of a DataFrame.
@@ -417,10 +417,10 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
 
 @transformer
 def impute(
-        method: Union[
-            Literal["mean", "median", "fill", "ffill", "bfill", "interpolate"],
-            Union[int, float],
-        ]
+    method: Union[
+        Literal["mean", "median", "fill", "ffill", "bfill", "interpolate"],
+        Union[int, float],
+    ]
 ):
     """
     Performs missing value imputation on numeric columns of a DataFrame grouped by entity.
@@ -489,7 +489,6 @@ def diff(order: int, sp: int = 1):
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-
         idx_cols = X.columns[:2]
         entity_col = idx_cols[0]
         time_col = idx_cols[1]
@@ -512,7 +511,7 @@ def diff(order: int, sp: int = 1):
         return artifacts
 
     def invert(
-            state: ModelState, X: pl.LazyFrame, from_last: bool = False
+        state: ModelState, X: pl.LazyFrame, from_last: bool = False
     ) -> pl.LazyFrame:
         artifacts = state.artifacts
         entity_col = X.columns[0]
@@ -588,8 +587,8 @@ def boxcox(method: str = "mle"):
             idx_cols
             + [
                 pl.when(pl.col(f"{col}__lmbd") == 0)
-            .then(pl.col(col).log())
-            .otherwise(
+                .then(pl.col(col).log())
+                .otherwise(
                     (pl.col(col) ** pl.col(f"{col}__lmbd") - 1) / pl.col(f"{col}__lmbd")
                 )
                 for col in cols
@@ -652,12 +651,16 @@ def yeojohnson(brack: tuple = (-2, 2)):
                 pl.when((pl.col(col) >= 0) & (pl.col(f"{col}__lmbd") == 0))
                 .then(pl.col(col).log1p())
                 .when(pl.col(col) >= 0)
-                .then(((pl.col(col) + 1) ** pl.col(f"{col}__lmbd") - 1)
-                      / pl.col(f"{col}__lmbd"))
+                .then(
+                    ((pl.col(col) + 1) ** pl.col(f"{col}__lmbd") - 1)
+                    / pl.col(f"{col}__lmbd")
+                )
                 .when((pl.col(col) < 0) & (pl.col(f"{col}__lmbd") == 2))
                 .then(-pl.col(col).log1p())
-                .otherwise(-((-pl.col(col) + 1) ** (2 - pl.col(f"{col}__lmbd")) - 1)
-                           / (2 - pl.col(f"{col}__lmbd")))
+                .otherwise(
+                    -((-pl.col(col) + 1) ** (2 - pl.col(f"{col}__lmbd")) - 1)
+                    / (2 - pl.col(f"{col}__lmbd"))
+                )
                 for col in cols
             ]
         )
@@ -675,13 +678,17 @@ def yeojohnson(brack: tuple = (-2, 2)):
                     pl.when((pl.col(col) >= 0) & (pl.col(f"{col}__lmbd") == 0))
                     .then((pl.col(col).exp()) - 1)
                     .when(pl.col(col) >= 0)
-                    .then((pl.col(col) * pl.col(f"{col}__lmbd") + 1) ** (1 / pl.col(f"{col}__lmbd")) - 1)
+                    .then(
+                        (pl.col(col) * pl.col(f"{col}__lmbd") + 1)
+                        ** (1 / pl.col(f"{col}__lmbd"))
+                        - 1
+                    )
                     .when((pl.col(col) < 0) & (pl.col(f"{col}__lmbd") == 2))
                     .then(1 - (-(pl.col(col)).exp()))
                     .otherwise(
-                        (1 - (-(2 - pl.col(f"{col}__lmbd")) * pl.col(col) + 1) **
-                         (1 / (2 - pl.col(f"{col}__lmbd")))
-                         )
+                        1
+                        - (-(2 - pl.col(f"{col}__lmbd")) * pl.col(col) + 1)
+                        ** (1 / (2 - pl.col(f"{col}__lmbd")))
                     )
                     for col in cols
                 ]
@@ -715,8 +722,8 @@ def detrend(method: Literal["linear", "mean"] = "linear"):
             ]
             alphas = [
                 (
-                        pl.col(col).mean().over(entity_col)
-                        - pl.col(f"{col}__beta") * x.mean()
+                    pl.col(col).mean().over(entity_col)
+                    - pl.col(f"{col}__beta") * x.mean()
                 ).alias(f"{col}__alpha")
                 for col in X.columns[2:]
             ]
