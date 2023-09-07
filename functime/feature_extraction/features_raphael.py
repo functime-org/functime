@@ -1,11 +1,9 @@
 import polars as pl
-from typing import Union
 
-def change_quantiles(x: pl.Expr,
-                    ql: float,
-                    qh: float,
-                    isabs: bool,
-                    f_agg: str) -> pl.Expr:
+
+def change_quantiles(
+    x: pl.Expr, ql: float, qh: float, isabs: bool, f_agg: str
+) -> pl.Expr:
     """
     First fixes a corridor given by the quantiles ql and qh of the distribution of x.
     Then calculates the average, absolute value of consecutive changes of the series x inside this corridor.
@@ -24,11 +22,23 @@ def change_quantiles(x: pl.Expr,
         pl.Expr: the value of this feature
     """
     if isabs:
-        x = x.filter(
-        x.is_between(x.quantile(ql), x.quantile(qh))
-    ).diff(null_behavior="drop").abs()
+        return getattr(
+            x.diff()
+            .abs()
+            .filter(
+                x.qcut([ql, qh], labels=["pre", "corridor", "past"], left_closed=True)
+                == "corridor"
+            )
+            .drop_nulls(),
+            f_agg,
+        )().fill_null(0.0)
     else:
-        x = x.filter(
-        x.is_between(x.quantile(ql), x.quantile(qh))
-    ).diff(null_behavior="drop")
-    return getattr(x, f_agg)()
+        return getattr(
+            x.diff()
+            .filter(
+                x.qcut([ql, qh], labels=["pre", "corridor", "past"], left_closed=True)
+                == "corridor"
+            )
+            .drop_nulls(),
+            f_agg,
+        )().fill_null(0.0)
