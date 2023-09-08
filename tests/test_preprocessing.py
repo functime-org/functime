@@ -11,7 +11,7 @@ from scipy import signal
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import PowerTransformer
 
-from functime.preprocessing import boxcox, detrend, diff, lag, roll, scale
+from functime.preprocessing import boxcox, detrend, diff, lag, roll, scale, yeojohnson
 
 
 @pytest.fixture
@@ -235,6 +235,23 @@ def test_boxcox(pd_X):
     )
     X = pl.from_pandas(pd_X.reset_index()).lazy()
     transformer = boxcox()
+    X_new = X.pipe(transformer).collect()
+    assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()))
+    X_original = X_new.pipe(transformer.invert)
+    assert_frame_equal(X_original, X, check_dtype=False)
+
+
+def test_yeojohnson(pd_X):
+    entity_col = pd_X.index.names[0]
+    numeric_cols = pd_X.select_dtypes(include=["float"]).columns
+    print(pd_X.info())
+    print(pd_X[numeric_cols].head())  # Print the first row of each group
+    transformer = PowerTransformer(method="yeo-johnson", standardize=False)
+    expected = pd_X.groupby(entity_col)[numeric_cols].transform(
+        lambda x: np.concatenate(transformer.fit_transform(x.values.reshape(-1, 1)))
+    )
+    X = pl.from_pandas(pd_X.reset_index()).lazy()
+    transformer = yeojohnson()
     X_new = X.pipe(transformer).collect()
     assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()))
     X_original = X_new.pipe(transformer.invert)

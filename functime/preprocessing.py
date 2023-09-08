@@ -3,7 +3,7 @@ from typing import List, Mapping, Union
 import polars as pl
 import polars.selectors as cs
 from scipy import optimize
-from scipy.stats import boxcox_normmax
+from scipy.stats import boxcox_normmax, yeojohnson_normmax
 from typing_extensions import Literal
 
 from functime.base import transformer
@@ -489,7 +489,6 @@ def diff(order: int, sp: int = 1):
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-
         idx_cols = X.columns[:2]
         entity_col = idx_cols[0]
         time_col = idx_cols[1]
@@ -611,6 +610,85 @@ def boxcox(method: str = "mle"):
                     .otherwise(
                         (pl.col(col) * pl.col(f"{col}__lmbd") + 1)
                         ** (1 / pl.col(f"{col}__lmbd"))
+                    )
+                    for col in cols
+                ]
+            )
+            .select(X.columns)
+        )
+        return X_new
+
+    return transform, invert
+
+
+@transformer
+def yeojohnson(brack: tuple = (-2, 2)):
+    """Applies the Yeo-Johnson transformation to numeric columns in a panel DataFrame.
+
+    Parameters
+    ----------
+    brack : 2-tuple, optional
+        The starting interval for a downhill bracket search with optimize.brent. Note that this
+        is in most cases not critical; the final result is allowed to be outside this bracket.
+    """
+
+    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+        idx_cols = X.columns[:2]
+        entity_col, time_col = idx_cols
+        gb = X.groupby(X.columns[0])
+        # Step 1. Compute optimal lambdas
+        lmbds = gb.agg(
+            PL_NUMERIC_COLS(entity_col, time_col)
+            .apply(lambda x: yeojohnson_normmax(x, brack))
+            .cast(pl.Float64())
+            .suffix("__lmbd")
+        )
+        # Step 2. Transform
+        cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).columns
+        X_new = X.join(lmbds, on=entity_col, how="left").select(
+            idx_cols
+            + [
+                pl.when((pl.col(col) >= 0) & (pl.col(f"{col}__lmbd") == 0))
+                .then(pl.col(col).log1p())
+                .when(pl.col(col) >= 0)
+                .then(
+                    ((pl.col(col) + 1) ** pl.col(f"{col}__lmbd") - 1)
+                    / pl.col(f"{col}__lmbd")
+                )
+                .when((pl.col(col) < 0) & (pl.col(f"{col}__lmbd") == 2))
+                .then(-pl.col(col).log1p())
+                .otherwise(
+                    -((-pl.col(col) + 1) ** (2 - pl.col(f"{col}__lmbd")) - 1)
+                    / (2 - pl.col(f"{col}__lmbd"))
+                )
+                for col in cols
+            ]
+        )
+        artifacts = {"X_new": X_new, "lmbds": lmbds}
+        return artifacts
+
+    def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
+        entity_col, time_col = X.columns[:2]
+        lmbds = state.artifacts["lmbds"]
+        cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).columns
+        X_new = (
+            X.join(lmbds, on=entity_col, how="left", suffix="__lmbd")
+            .with_columns(
+                [
+                    pl.when((pl.col(col) >= 0) & (pl.col(f"{col}__lmbd") == 0))
+                    .then((pl.col(col).exp()) - 1)
+                    .when(pl.col(col) >= 0)
+                    .then(
+                        (pl.col(col) * pl.col(f"{col}__lmbd") + 1)
+                        ** (1 / pl.col(f"{col}__lmbd"))
+                        - 1
+                    )
+                    .when((pl.col(col) < 0) & (pl.col(f"{col}__lmbd") == 2))
+                    .then(1 - (-(pl.col(col)).exp()))
+                    .otherwise(
+                        1
+                        - (-(2 - pl.col(f"{col}__lmbd")) * pl.col(col) + 1)
+                        ** (1 / (2 - pl.col(f"{col}__lmbd")))
                     )
                     for col in cols
                 ]
