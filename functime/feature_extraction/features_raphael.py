@@ -22,23 +22,34 @@ def change_quantiles(
         pl.Expr: the value of this feature
     """
     if isabs:
-        return getattr(
+        x = (
             x.diff()
             .abs()
             .filter(
-                x.qcut([ql, qh], labels=["pre", "corridor", "past"], left_closed=True)
-                == "corridor"
+                x.is_between(
+                    x.quantile(ql, interpolation="linear"),
+                    x.quantile(qh, interpolation="linear"),
+                ).and_(
+                    x.is_between(
+                        x.quantile(ql, interpolation="linear"),
+                        x.quantile(qh, interpolation="linear"),
+                    ).shift_and_fill(fill_value=False, periods=1)
+                )
             )
-            .drop_nulls(),
-            f_agg,
-        )().fill_null(0.0)
+        )
     else:
-        return getattr(
-            x.diff()
-            .filter(
-                x.qcut([ql, qh], labels=["pre", "corridor", "past"], left_closed=True)
-                == "corridor"
+        x = x.diff().filter(
+            x.is_between(
+                x.quantile(ql, interpolation="linear"),
+                x.quantile(qh, interpolation="linear"),
+            ).and_(
+                x.is_between(
+                    x.quantile(ql, interpolation="linear"),
+                    x.quantile(qh, interpolation="linear"),
+                ).shift_and_fill(fill_value=False, periods=1)
             )
-            .drop_nulls(),
-            f_agg,
-        )().fill_null(0.0)
+        )
+    if f_agg == "std":
+        return getattr(x, f_agg)(ddof=0).fill_null(0.0)
+    else:
+        return getattr(x, f_agg)().fill_null(0.0)
