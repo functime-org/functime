@@ -53,3 +53,7 @@ def change_quantiles(
         return getattr(x, f_agg)(ddof=0).fill_null(0.0)
     else:
         return getattr(x, f_agg)().fill_null(0.0)
+
+
+def mean_abs_change(x: pl.Expr) -> pl.Expr:
+    return x.diff(null_behavior="drop").abs().mean()
