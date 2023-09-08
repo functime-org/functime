@@ -1,7 +1,7 @@
 from itertools import product
 from typing import List, Mapping, Optional
 
-import bottleneck as bn
+# import bottleneck as bn
 import numpy as np
 import polars as pl
 import math
@@ -443,43 +443,38 @@ def root_mean_square(x: pl.Expr):
 
 
 def _into_sequential_chunks(x:pl.Series, m:int) -> np.ndarray:
+
+    cname = x.name
     n_rows = x.len() - m + 1
-    matrix = []
-    for i, values in enumerate(zip(x, *(x.shift(-i) for i in range(1,m)))):
-        if i < n_rows:
-            matrix.append(values)
-    return np.asarray(matrix)
+    df = x.to_frame().select(
+        pl.col(cname)
+        , *(pl.col(cname).shift(-i).suffix(str(i)) for i in range(1,m))
+    ).slice(0, n_rows)
+    return df.to_numpy()
 
 def sample_entropy(x: pl.Series, r:float=0.2) -> float:
-    
+    # This is much faster than Tsfresh if x is big. 
+    # Mostly because of the
+    # distance computation below (b and a). However, 
+    # I am positive we can improve if we go into Rust.
+    # This is still a very slow method because we need 
+    # to compute distance matrix. For big numbers,
+    # this seems to overflow and return negative entropy..
+
     threshold = r * x.std(ddof=0)
     m = 2
-    mat_m = _into_sequential_chunks(x, m)
-    b = 0
-    mat_m_p1 = _into_sequential_chunks(x, m+1)
-    a = 0
+    mat = _into_sequential_chunks(x, m)
+    mat_p1 = _into_sequential_chunks(x, m+1)
 
-    b = sum(
-        np.sum((np.abs(mat_m[i, :] - mat_m[i+1:, :])).max(axis=1) <= threshold)
-        for i in range(mat_m.shape[0]-1)
-    )
-    # for i in range(mat_m.shape[0]-1):
-    #     row = mat_m[i, :] # numpy slice view, no copy
-    #     to_compare = mat_m[i+1:, :] # numpy slice view, no copy
-    #     b += np.sum((np.abs(row - to_compare)).max(axis=1) <= threshold)
-
-    a = sum(
-        np.sum((np.abs(mat_m_p1[i, :] - mat_m_p1[i+1:, :])).max(axis=1) <= threshold)
-        for i in range(mat_m_p1.shape[0]-1)
-    )
-    # for i in range(mat_m_p1.shape[0]-1):
-    #     row = mat_m_p1[i, :] # numpy slice view, no copy
-    #     to_compare = mat_m_p1[i+1:, :] # numpy slice view, no copy
-    #     a += np.sum((np.abs(row - to_compare)).max(axis=1) <= threshold)
-
-    #print(b)
-    # print(a)
-    return np.log(b / a) # -ln(a/b) = ln(b/a)
+    b = np.sum([
+        np.sum((np.abs(mat[i, :] - mat[i+1:, :]).max(axis=1) <= threshold))
+        for i in range(mat.shape[0]-1)
+    ])
+    a = np.sum([
+        np.sum((np.abs(mat_p1[i, :] - mat_p1[i+1:, :]).max(axis=1) <= threshold))
+        for i in range(mat_p1.shape[0]-1)
+    ])
+    return np.log(b/a) # -ln(a/b) = ln(b/a)
 
 def skewness(x: pl.Expr):
     return x.skew()
