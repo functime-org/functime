@@ -1,4 +1,5 @@
 import polars as pl
+import numpy as np
 
 def benford_correlation(x: pl.Series)-> float:
     """
@@ -225,3 +226,6 @@ def sum_reocurring_values(x: pl.Series)-> float:
         .filter(pl.col("counts") > 1).sum()
     )
     return X[0,0]
+
+x = pl.Series(values=[0,0])
+# benford_correlation(x)
