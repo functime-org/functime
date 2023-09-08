@@ -7,6 +7,7 @@ import polars as pl
 import math
 from numpy.linalg import lstsq
 from scipy.signal import ricker, welch
+from scipy.spatial import KDTree
 
 from functime.base import transformer
 
@@ -453,27 +454,17 @@ def _into_sequential_chunks(x:pl.Series, m:int) -> np.ndarray:
     return df.to_numpy()
 
 def sample_entropy(x: pl.Series, r:float=0.2) -> float:
-    # This is much faster than Tsfresh if x is big. 
-    # Mostly because of the
-    # distance computation below (b and a). However, 
-    # I am positive we can improve if we go into Rust.
-    # This is still a very slow method because we need 
-    # to compute distance matrix. For big numbers,
-    # this seems to overflow and return negative entropy..
+    # This is significantly faster than tsfresh
 
     threshold = r * x.std(ddof=0)
     m = 2
     mat = _into_sequential_chunks(x, m)
     mat_p1 = _into_sequential_chunks(x, m+1)
 
-    b = np.sum([
-        np.sum((np.abs(mat[i, :] - mat[i+1:, :]).max(axis=1) <= threshold))
-        for i in range(mat.shape[0]-1)
-    ])
-    a = np.sum([
-        np.sum((np.abs(mat_p1[i, :] - mat_p1[i+1:, :]).max(axis=1) <= threshold))
-        for i in range(mat_p1.shape[0]-1)
-    ])
+    tree = KDTree(mat)
+    b = np.sum(tree.query_ball_point(mat, r = threshold, p = np.inf, workers=-1, return_length=True)) - mat.shape[0]
+    tree = KDTree(mat_p1)
+    a = np.sum(tree.query_ball_point(mat_p1, r = threshold, p = np.inf, workers=-1, return_length=True)) - mat_p1.shape[0]
     return np.log(b/a) # -ln(a/b) = ln(b/a)
 
 def skewness(x: pl.Expr):

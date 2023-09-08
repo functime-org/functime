@@ -7,7 +7,7 @@ import functime.feature_extraction.tsfresh as ft
 COL = "price"
 
 @pytest.mark.parametrize("execution_times", [5])
-def test_sample_entropy(execution_times:int):
+def test_sample_entropy_tsfresh(execution_times:int):
     test_df = pl.read_parquet("data/commodities.parquet")
     for _ in range(execution_times):
         df = test_df.sample(n=2000)
