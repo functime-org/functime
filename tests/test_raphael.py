@@ -4,6 +4,7 @@ from polars.testing import assert_frame_equal
 from functime.feature_extraction.features_raphael import (
     change_quantiles,
     mean_abs_change,
+    mean_change,
 )
 
 
@@ -151,4 +152,28 @@ def test_mean_abs_change():
     df = pl.DataFrame({"value": [1, 2, -1]})
     assert_frame_equal(
         df.select(mean_abs_change(pl.col("value"))), pl.DataFrame({"value": [2.0]})
+    )
+
+
+def test_mean_change():
+    df = pl.DataFrame({"value": [-2, 2, 5]})
+    assert_frame_equal(
+        df.select(mean_change(pl.col("value"))), pl.DataFrame({"value": [3.5]})
+    )
+    df = pl.DataFrame({"value": [1, 2, -1]})
+    assert_frame_equal(
+        df.select(mean_change(pl.col("value"))), pl.DataFrame({"value": [-1.0]})
+    )
+    df = pl.DataFrame({"value": [10, 20]})
+    assert_frame_equal(
+        df.select(mean_change(pl.col("value"))), pl.DataFrame({"value": [10.0]})
+    )
+    df = pl.DataFrame({"value": [1]})
+    assert_frame_equal(
+        df.select(mean_change(pl.col("value"))),
+        pl.DataFrame({"value": [None]}, schema={"value": pl.Float64}),
+    )
+    df = pl.DataFrame({"value": []})
+    assert_frame_equal(
+        df.select(mean_change(pl.col("value"))), pl.DataFrame({"value": [None]})
     )

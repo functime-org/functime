@@ -57,3 +57,7 @@ def change_quantiles(
 
 def mean_abs_change(x: pl.Expr) -> pl.Expr:
     return x.diff(null_behavior="drop").abs().mean()
+
+
+def mean_change(x: pl.Expr) -> pl.Expr:
+    return x.diff(null_behavior="drop").mean()
