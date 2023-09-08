@@ -70,6 +70,19 @@ X_new = X.pipe(transformer).collect()
 X_original = transformer.invert(X_new)
 ```
 
+
+### Yeo-Johnson
+
+Applies optimized Yeo-Johnson transform for each time-series. This transform is invertible.
+
+```python
+from functime.preprocessing import yeojohnson
+transformer = yeojohnson()
+X_new = X.pipe(transformer).collect()
+X_original = transformer.invert(X_new)
+```
+
+
 ### Local Scaling
 
 Standardizes each time-series with subtracting mean and dividing by the standard deviation. This transform is invertible.
