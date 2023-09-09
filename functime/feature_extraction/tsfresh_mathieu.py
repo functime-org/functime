@@ -1,5 +1,5 @@
 import polars as pl
-import numpy as np
+
 
 def benford_correlation(x: pl.Series)-> float:
     """
@@ -82,7 +82,7 @@ def _get_length_sequences_where(x: pl.Series)-> pl.Series:
             mask=pl.col("orig").ne(pl.col("shift")).fill_null(0).cumsum()
         )
         .filter(pl.col("orig") == 1)
-        .groupby(pl.col("mask")).count()
+        .group_by(pl.col("mask"), maintain_order=True).count()
     )["count"]
     return X
 
@@ -95,9 +95,12 @@ def longest_strike_below_mean(x: pl.Series)-> float:
     :return: the value of this feature
     :return type: float
     """
-    X = _get_length_sequences_where(
-        (x < x.mean())
-    )
+    if not x.is_empty():
+        X = _get_length_sequences_where(
+            (x.cast(pl.Float64) < x.mean())
+        )
+    else:
+        return 0
     return X.max() if X.len() > 0 else 0
 
 
@@ -110,9 +113,12 @@ def longest_strike_above_mean(x: pl.Series)-> float:
     :return: the value of this feature
     :return type: float
     """
-    X = _get_length_sequences_where(
-        (x > x.mean())
-    )
+    if not x.is_empty():
+        X = _get_length_sequences_where(
+            (x.cast(pl.Float64) > x.mean())
+        )
+    else:
+        return 0
     return X.max() if X.len() > 0 else 0
 
 def mean_n_absolute_max(x: pl.Series, n_maxima: int)-> float:
@@ -127,6 +133,8 @@ def mean_n_absolute_max(x: pl.Series, n_maxima: int)-> float:
     :return: the value of this feature
     :return type: float
     """
+    if n_maxima <= 0:
+        raise ValueError("The number of maxima should be > 0.")
     return x.abs().sort(descending=True)[:n_maxima].mean() if x.len() > n_maxima else None
 
 def percent_reocurring_points(x: pl.Series)-> float:
@@ -226,6 +234,3 @@ def sum_reocurring_values(x: pl.Series)-> float:
         .filter(pl.col("counts") > 1).sum()
     )
     return X[0,0]
-
-x = pl.Series(values=[0,0])
-# benford_correlation(x)
