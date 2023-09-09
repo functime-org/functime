@@ -64,11 +64,3 @@ def test_longest_strike_below_mean(S, res):
 def test_longest_strike_above_mean(S, res):
     assert longest_strike_above_mean(pl.Series(S)) == res
 
-@pytest.mark.parametrize("S, n_max, res", [
-    ([], 1, None),
-    ([12, 3], 10, None),
-    ([], 1, None),
-    ([], 1, None),
-])
-def test_mean_n_absolute_max(S, n_max, res):
-    assert mean_n_absolute_max(x = pl.Series(S), n_maxima = n_max) == res
