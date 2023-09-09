@@ -1,6 +1,5 @@
 import polars as pl
 
-
 def benford_correlation(x: pl.Series)-> float:
     """
      Useful for anomaly detection applications [1][2]. Returns the correlation from first digit distribution when
@@ -152,6 +151,8 @@ def percent_reocurring_points(x: pl.Series)-> float:
     :return: the value of this feature
     :return type: float
     """
+    if x.is_empty():
+        raise ValueError("The serie is empty.")
     X = (
         x
         .value_counts()
@@ -174,6 +175,8 @@ def percent_recoccuring_values(x: pl.Series)-> float:
     :return: the value of this feature
     :return type: float
     """
+    if x.is_empty():
+        raise ValueError("The serie is empty.")
     X = (
         x
         .value_counts()
