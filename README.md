@@ -67,6 +67,14 @@ forecaster = linear_model(
     target_transform=scale(),
     feature_transform=add_fourier_terms(sp=12, K=6)
 )
+
+# Forecast with exogenous regressors!
+# Just pass them into X
+X = (
+    y.select([entity_col, time_col])
+    .pipe(add_fourier_terms(sp=12, K=6)).collect()
+)
+y_pred = linear_model(freq="1mo", lags=24)(y=y, X=X, fh=3)
 ```
 
 View the [full walkthrough](https://docs.functime.ai/forecasting/) on forecasting with `functime`.
