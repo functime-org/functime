@@ -74,7 +74,10 @@ X = (
     y.select([entity_col, time_col])
     .pipe(add_fourier_terms(sp=12, K=6)).collect()
 )
-y_pred = linear_model(freq="1mo", lags=24)(y=y, X=X, fh=3)
+X_train, X_future = y.pipe(train_test_split(test_size=3))
+forecaster = linear_model(freq="1mo", lags=24)
+forecaster.fit(y=y_train, X=X_train)
+y_pred = forecaster.predict(fh=3, X=X_future)
 ```
 
 View the [full walkthrough](https://docs.functime.ai/forecasting/) on forecasting with `functime`.
