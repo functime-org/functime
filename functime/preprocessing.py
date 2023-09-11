@@ -507,10 +507,7 @@ def diff(order: int, sp: int = 1, fill_strategy: Optional[str] = None):
                 [
                     entity_col,
                     time_col,
-                    cs.numeric()
-                    .exclude([entity_col, time_col])
-                    .diff(n=sp)
-                    .over(entity_col),
+                    PL_NUMERIC_COLS(entity_col, time_col).diff(n=sp).over(entity_col),
                 ]
             )
 
@@ -544,7 +541,11 @@ def diff(order: int, sp: int = 1, fill_strategy: Optional[str] = None):
         ).sort(idx_cols)
         for _ in range(order):
             X_new = X_new.select(
-                [entity_col, time_col, cs.numeric().cumsum().over(entity_col)]
+                [
+                    entity_col,
+                    time_col,
+                    PL_NUMERIC_COLS(entity_col, time_col).cumsum().over(entity_col),
+                ]
             )
 
         X_new = (
