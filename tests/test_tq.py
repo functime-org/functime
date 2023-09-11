@@ -2,7 +2,7 @@ import polars as pl
 import numpy as np
 import pytest 
 import tsfresh.feature_extraction.feature_calculators as fc
-import functime.feature_extraction.tsfresh as ft
+import functime.feature_extraction.tq_feature_extractions as ft
 
 COL = "price"
 
