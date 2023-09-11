@@ -272,8 +272,8 @@ y_pred = forecaster.predict(fh=3, X=X_test)
 
 Every forecaster has two optional parameters `target_transform` and `feature_transform`, which can take a single `functime` transformer (e.g. `diff(order=1, fill_strategy="backward")`, `detrend(method="linear")`) or a list of transformers!
 
-    - `target_transform` applies a transformation on `y` before fit and predict. An inverse transformation is then applied after predict to return the final forecast.
-    - `feature_transform` applies a transformation on `X` before fit and predict.
+  - `target_transform` applies a transformation on `y` before fit and predict. An inverse transformation is then applied after predict to return the final forecast.
+  - `feature_transform` applies a transformation on `X` before fit and predict.
 
 We recommend using `target_transform` and `feature_transform` to avoid common pitfalls such as inconsistent feature engineering and data leakage.
 Check out the API reference for [preprocessing](/ref/preprocessing/) and [feature_extraction](/ref/feature-extraction/) for a list of supported transformations.
