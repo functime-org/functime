@@ -6,6 +6,7 @@ from functime.feature_extraction.features_raphael import (
     mean_abs_change,
     mean_change,
     number_crossing_m,
+    var_greater_than_std,
 )
 
 
@@ -206,4 +207,17 @@ def test_number_crossing_m():
             number_crossing_m(pl.col("value"), 15.0),
         ),
         pl.DataFrame({"value": [1]}, schema={"value": pl.UInt32}),
+    )
+
+
+def test_var_larger_than_std():
+    df = pl.DataFrame({"value": [-1, -1, 1, 1, 1]})
+    assert_frame_equal(
+        df.select(var_greater_than_std(pl.col("value"))),
+        pl.DataFrame({"value": [False]}),
+    )
+    df = pl.DataFrame({"value": [-1, -1, 1, 1, 2]})
+    assert_frame_equal(
+        df.select(var_greater_than_std(pl.col("value"))),
+        pl.DataFrame({"value": [True]}),
     )

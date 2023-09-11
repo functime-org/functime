@@ -77,3 +77,8 @@ def number_crossing_m(x: pl.Expr, m: float) -> pl.Expr:
         pl.Expr: how many times x crosses m.
     """
     return x.gt(m).cast(pl.Int8).diff(null_behavior="drop").abs().eq(1).sum()
+
+
+def var_greater_than_std(x: pl.Expr) -> pl.Expr:
+    y = x.var(ddof=0)
+    return y > y.sqrt()
