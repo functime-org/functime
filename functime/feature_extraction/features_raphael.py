@@ -97,16 +97,56 @@ def var_greater_than_std(x: pl.Expr) -> pl.Expr:
 
 
 def first_location_of_maximum(x: pl.Expr) -> pl.Expr:
+    """
+    Returns the first location of the maximum value of x.
+    The position is calculated relatively to the length of x.
+
+    Args:
+        x (pl.Expr): the time series to calculate the feature of
+
+    Returns:
+        pl.Expr: the first location of maximum as float fraction
+    """
     return x.arg_max() / x.len()
 
 
 def last_location_of_maximum(x: pl.Expr) -> pl.Expr:
+    """
+    Returns the last location of the maximum value of x.
+    The position is calculated relatively to the length of x.
+
+    Args:
+        x (pl.Expr): the time series to calculate the feature of
+
+    Returns:
+        pl.Expr: the last location of maximum as float fraction
+    """
     return (x.len() - x.reverse().arg_max()) / x.len()
 
 
 def first_location_of_minimum(x: pl.Expr) -> pl.Expr:
+    """
+    Returns the first location of the minimum value of x.
+    The position is calculated relatively to the length of x.
+
+    Args:
+        x (pl.Expr): the time series to calculate the feature of
+
+    Returns:
+        pl.Expr: the first location of minimum as float fraction
+    """
     return x.arg_min() / x.len()
 
 
 def last_location_of_minimum(x: pl.Expr) -> pl.Expr:
+    """
+    Returns the last location of the minimum value of x.
+    The position is calculated relatively to the length of x.
+
+    Args:
+        x (pl.Expr): the time series to calculate the feature of
+
+    Returns:
+        pl.Expr: the last location of minimum as float fraction
+    """
     return (x.len() - x.reverse().arg_min()) / x.len()
