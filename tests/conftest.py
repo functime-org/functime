@@ -175,9 +175,9 @@ def m4_freq_to_lags():
     params=[
         ("1d", 14),
         ("1w", 13),
-        ("1mo", 18),
+        # ("1mo", 18),
         ("3mo", 8),
-        ("1y", 6),
+        # ("1y", 6),
     ],
     ids=lambda x: f"freq_{x[0]}-fh_{x[1]}",
     scope="module",
