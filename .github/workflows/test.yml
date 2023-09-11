@@ -39,4 +39,4 @@ jobs:
           python3 -m pip install scikit-learn-intelex
           python3 -m pip install ".[test,cat,xgb,lgb]"
       - name: Test
-        run: pytest tests --benchmark-disable -k "not test_benchmarks" -m "not multivariate"
+        run: pytest tests -vv --benchmark-disable -k "not test_benchmarks" -m "not multivariate"
