@@ -5,6 +5,7 @@ repo_name: neocortexdb/functime
 
 theme:
   name: "material"
+  custom_dir: docs/overrides
   icon:
     repo: fontawesome/brands/github
   favicon: img/logo_dark.png
