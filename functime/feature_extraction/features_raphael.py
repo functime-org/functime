@@ -94,3 +94,19 @@ def var_greater_than_std(x: pl.Expr) -> pl.Expr:
     """
     y = x.var(ddof=0)
     return y > y.sqrt()
+
+
+def first_location_of_maximum(x: pl.Expr) -> pl.Expr:
+    return x.arg_max() / x.len()
+
+
+def last_location_of_maximum(x: pl.Expr) -> pl.Expr:
+    return (x.len() - x.reverse().arg_max()) / x.len()
+
+
+def first_location_of_minimum(x: pl.Expr) -> pl.Expr:
+    return x.arg_min() / x.len()
+
+
+def last_location_of_minimum(x: pl.Expr) -> pl.Expr:
+    return (x.len() - x.reverse().arg_min()) / x.len()

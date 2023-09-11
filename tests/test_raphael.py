@@ -3,6 +3,10 @@ from polars.testing import assert_frame_equal
 
 from functime.feature_extraction.features_raphael import (
     change_quantiles,
+    first_location_of_maximum,
+    first_location_of_minimum,
+    last_location_of_maximum,
+    last_location_of_minimum,
     mean_abs_change,
     mean_change,
     number_crossing_m,
@@ -220,4 +224,136 @@ def test_var_larger_than_std():
     assert_frame_equal(
         df.select(var_greater_than_std(pl.col("value"))),
         pl.DataFrame({"value": [True]}),
+    )
+
+
+def test_first_location_of_maximum():
+    df = pl.DataFrame({"value": [1, 2, 1, 2, 1]})
+    assert_frame_equal(
+        df.select(first_location_of_maximum(pl.col("value"))),
+        pl.DataFrame({"value": [0.2]}),
+    )
+    df = pl.DataFrame({"value": [1, 2, 1, 1, 1]})
+    assert_frame_equal(
+        df.select(first_location_of_maximum(pl.col("value"))),
+        pl.DataFrame({"value": [0.2]}),
+    )
+    df = pl.DataFrame({"value": [2, 1, 1, 1, 1]})
+    assert_frame_equal(
+        df.select(first_location_of_maximum(pl.col("value"))),
+        pl.DataFrame({"value": [0.0]}),
+    )
+    df = pl.DataFrame({"value": [1, 1, 1, 1, 1]})
+    assert_frame_equal(
+        df.select(first_location_of_maximum(pl.col("value"))),
+        pl.DataFrame({"value": [0.0]}),
+    )
+    df = pl.DataFrame({"value": [1]})
+    assert_frame_equal(
+        df.select(first_location_of_maximum(pl.col("value"))),
+        pl.DataFrame({"value": [0.0]}),
+    )
+    df = pl.DataFrame({"value": []})
+    assert_frame_equal(
+        df.select(first_location_of_maximum(pl.col("value"))),
+        pl.DataFrame({"value": [None]}, schema={"value": pl.Float64}),
+    )
+
+
+def test_last_location_of_maximum():
+    df = pl.DataFrame({"value": [1, 2, 1, 2, 1]})
+    assert_frame_equal(
+        df.select(last_location_of_maximum(pl.col("value"))),
+        pl.DataFrame({"value": [0.8]}),
+    )
+    df = pl.DataFrame({"value": [1, 2, 1, 1, 2]})
+    assert_frame_equal(
+        df.select(last_location_of_maximum(pl.col("value"))),
+        pl.DataFrame({"value": [1.0]}),
+    )
+    df = pl.DataFrame({"value": [2, 1, 1, 1, 1]})
+    assert_frame_equal(
+        df.select(last_location_of_maximum(pl.col("value"))),
+        pl.DataFrame({"value": [0.2]}),
+    )
+    df = pl.DataFrame({"value": [1, 1, 1, 1, 1]})
+    assert_frame_equal(
+        df.select(last_location_of_maximum(pl.col("value"))),
+        pl.DataFrame({"value": [1.0]}),
+    )
+    df = pl.DataFrame({"value": [1]})
+    assert_frame_equal(
+        df.select(last_location_of_maximum(pl.col("value"))),
+        pl.DataFrame({"value": [1.0]}),
+    )
+    df = pl.DataFrame({"value": []})
+    assert_frame_equal(
+        df.select(last_location_of_maximum(pl.col("value"))),
+        pl.DataFrame({"value": [None]}, schema={"value": pl.Float64}),
+    )
+
+
+def test_last_location_of_minimum():
+    df = pl.DataFrame({"value": [1, 2, 1, 2, 1]})
+    assert_frame_equal(
+        df.select(last_location_of_minimum(pl.col("value"))),
+        pl.DataFrame({"value": [1.0]}),
+    )
+    df = pl.DataFrame({"value": [1, 2, 1, 2, 2]})
+    assert_frame_equal(
+        df.select(last_location_of_minimum(pl.col("value"))),
+        pl.DataFrame({"value": [0.6]}),
+    )
+    df = pl.DataFrame({"value": [2, 1, 1, 1, 2]})
+    assert_frame_equal(
+        df.select(last_location_of_minimum(pl.col("value"))),
+        pl.DataFrame({"value": [0.8]}),
+    )
+    df = pl.DataFrame({"value": [1, 1, 1, 1, 1]})
+    assert_frame_equal(
+        df.select(last_location_of_minimum(pl.col("value"))),
+        pl.DataFrame({"value": [1.0]}),
+    )
+    df = pl.DataFrame({"value": [1]})
+    assert_frame_equal(
+        df.select(last_location_of_minimum(pl.col("value"))),
+        pl.DataFrame({"value": [1.0]}),
+    )
+    df = pl.DataFrame({"value": []})
+    assert_frame_equal(
+        df.select(last_location_of_minimum(pl.col("value"))),
+        pl.DataFrame({"value": [None]}, schema={"value": pl.Float64}),
+    )
+
+
+def test_first_location_of_minimum():
+    df = pl.DataFrame({"value": [1, 2, 1, 2, 1]})
+    assert_frame_equal(
+        df.select(first_location_of_minimum(pl.col("value"))),
+        pl.DataFrame({"value": [0.0]}),
+    )
+    df = pl.DataFrame({"value": [2, 2, 1, 2, 2]})
+    assert_frame_equal(
+        df.select(first_location_of_minimum(pl.col("value"))),
+        pl.DataFrame({"value": [0.4]}),
+    )
+    df = pl.DataFrame({"value": [2, 1, 1, 1, 2]})
+    assert_frame_equal(
+        df.select(first_location_of_minimum(pl.col("value"))),
+        pl.DataFrame({"value": [0.2]}),
+    )
+    df = pl.DataFrame({"value": [1, 1, 1, 1, 1]})
+    assert_frame_equal(
+        df.select(first_location_of_minimum(pl.col("value"))),
+        pl.DataFrame({"value": [0.0]}),
+    )
+    df = pl.DataFrame({"value": [1]})
+    assert_frame_equal(
+        df.select(first_location_of_minimum(pl.col("value"))),
+        pl.DataFrame({"value": [0.0]}),
+    )
+    df = pl.DataFrame({"value": []})
+    assert_frame_equal(
+        df.select(first_location_of_minimum(pl.col("value"))),
+        pl.DataFrame({"value": [None]}, schema={"value": pl.Float64}),
     )
