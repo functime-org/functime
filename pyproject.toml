@@ -52,7 +52,7 @@ Homepage = "https://github.com/descendant-ai/functime"
 cat = ["catboost"]
 xgb = ["xgboost"]
 lgb = ["lightgbm"]
-llm = ["openai", "tenacity", "tiktoken"]
+llm = ["openai", "tabulate", "tenacity", "tiktoken"]
 test = [
     "aeon",
     "coverage[toml]",
