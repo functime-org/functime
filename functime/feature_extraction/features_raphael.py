@@ -61,3 +61,19 @@ def mean_abs_change(x: pl.Expr) -> pl.Expr:
 
 def mean_change(x: pl.Expr) -> pl.Expr:
     return x.diff(null_behavior="drop").mean()
+
+
+def number_crossing_m(x: pl.Expr, m: float) -> pl.Expr:
+    """
+    Calculates the number of crossings of x on m. A crossing is defined as two sequential values where the first value
+    is lower than m and the next is greater, or vice-versa. If you set m to zero, you will get the number of zero
+    crossings.
+
+    Args:
+        x (pl.Expr): the time series to calculate the feature of.
+        m (float): the crossing value.
+
+    Returns:
+        pl.Expr: how many times x crosses m.
+    """
+    return x.gt(m).cast(pl.Int8).diff(null_behavior="drop").abs().eq(1).sum()

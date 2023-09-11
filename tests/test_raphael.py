@@ -5,6 +5,7 @@ from functime.feature_extraction.features_raphael import (
     change_quantiles,
     mean_abs_change,
     mean_change,
+    number_crossing_m,
 )
 
 
@@ -176,4 +177,33 @@ def test_mean_change():
     df = pl.DataFrame({"value": []})
     assert_frame_equal(
         df.select(mean_change(pl.col("value"))), pl.DataFrame({"value": [None]})
+    )
+
+
+def test_number_crossing_m():
+    df = pl.DataFrame({"value": [10, -10, 10, -10]})
+    assert_frame_equal(
+        df.select(
+            number_crossing_m(pl.col("value"), 0.0),
+        ),
+        pl.DataFrame({"value": [3]}, schema={"value": pl.UInt32}),
+    )
+    assert_frame_equal(
+        df.select(
+            number_crossing_m(pl.col("value"), 10.0),
+        ),
+        pl.DataFrame({"value": [0]}, schema={"value": pl.UInt32}),
+    )
+    df = pl.DataFrame({"value": [10, 20, 20, 30]})
+    assert_frame_equal(
+        df.select(
+            number_crossing_m(pl.col("value"), 0.0),
+        ),
+        pl.DataFrame({"value": [0]}, schema={"value": pl.UInt32}),
+    )
+    assert_frame_equal(
+        df.select(
+            number_crossing_m(pl.col("value"), 15.0),
+        ),
+        pl.DataFrame({"value": [1]}, schema={"value": pl.UInt32}),
     )
