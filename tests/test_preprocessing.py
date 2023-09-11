@@ -200,10 +200,8 @@ def test_diff(pd_X, sp):
     entity_col, time_col = pd_X.index.names
     idx_cols = (entity_col, time_col)
     numeric_cols = pd_X.select_dtypes(include=["float"]).columns
-    expected_X_new = (
-        pd_X.groupby(entity_col, group_keys=False)[numeric_cols]
-        .diff(periods=sp)
-        .dropna()
+    expected_X_new = pd_X.groupby(entity_col, group_keys=False)[numeric_cols].diff(
+        periods=sp
     )
     X = pl.from_pandas(pd_X.reset_index()).lazy()
     transform = diff(order=1, sp=sp)
