@@ -25,6 +25,9 @@
 - **Automated lags and hyperparameter tuning** using [`FLAML`](https://github.com/microsoft/FLAML)
 - **Censored forecaster:** for zero-inflated and thresholding forecasts
 
+## Additional Highlights
+`functime` comes with a specialized LLM agent to analyze, describe, and compare your forecasts! Check out the walkthrough [here](https://docs.functime.ai/notebooks/llm/). Currently supports OpenAI's GPT-3.5 and GPT-4 as the underyling engine.
+
 ## Getting Started
 Install `functime` via the [pip](https://pypi.org/project/functime) package manager.
 ```bash
@@ -80,7 +83,37 @@ forecaster.fit(y=y_train, X=X_train)
 y_pred = forecaster.predict(fh=3, X=X_future)
 ```
 
-View the [full walkthrough](https://docs.functime.ai/forecasting/) on forecasting with `functime`.
+View the full walkthrough on forecasting [here](https://docs.functime.ai/forecasting/).
+
+## LLM Copilot
+
+Requires an OpenAI API key set as an environment variable `OPENAI_API_KEY`.
+
+```python
+import polars as pl
+import functime.llm
+
+y = pl.read_parquet("../../data/commodities.parquet")
+context = "This dataset comprises of historical commodity prices between 1980 to 2022."
+
+# Analyze trend and seasonality for two commodities
+analysis = y_pred.llm.analyze(
+    context=dataset_context,
+    basket=["Aluminum", "Banana, Europe"]
+)
+print("📊 Analysis:\n", analysis)
+
+# Compare two baskets of commodities!
+basket_a = ["Aluminum", "Banana, Europe"]
+basket_b = ["Chicken", "Cocoa"]
+comparison = y_pred.llm.compare(
+    basket=basket_a,
+    other_basket=basket_b
+)
+print("📊 Comparison:\n", comparison)
+```
+
+View the full walkthrough on the LLM copilot [here](https://docs.functime.ai/notebooks/llm/).
 
 ## License
 `functime` is distributed under [Apache-2.0](LICENSE).
