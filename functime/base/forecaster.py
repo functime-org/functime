@@ -110,8 +110,8 @@ class Forecaster(Model):
         lags: int,
         max_horizons: Optional[int] = None,
         strategy: FORECAST_STRATEGIES = None,
-        target_transform: Optional[Transformer] = None,
-        feature_transform: Optional[Transformer] = None,
+        target_transform: Optional[Union[Transformer, List[Transformer]]] = None,
+        feature_transform: Optional[Union[Transformer, List[Transformer]]] = None,
         **kwargs,
     ):
 
@@ -124,6 +124,7 @@ class Forecaster(Model):
         self.strategy = strategy
         self.target_transform = target_transform
         self.feature_transform = feature_transform
+        self.fitted_target_transform = []
         self.kwargs = kwargs
         super().__init__()
 
@@ -141,25 +142,36 @@ class Forecaster(Model):
     def name(self):
         return f"{self.__class__.__name__}(strategy={self.strategy})"
 
+    def _transform_y(self, y: DF_TYPE):
+        fitted_transformers = []
+        target_transform = self.target_transform
+        if not isinstance(target_transform, List):
+            target_transform = [target_transform]
+        for transf in target_transform:
+            y = y.pipe(transf)
+            fitted_transformers.append(transf)
+        y_new = (
+            y.collect().lazy()
+        )  # Disable streaming (still buggy with groupby as of v0.19.1 polars)
+        self.fitted_target_transform = fitted_transformers
+        return y_new
+
     def _transform_X(self, y: DF_TYPE, X: Optional[DF_TYPE] = None):
-        # Feature transform
+        feature_transform = self.feature_transform
         if X is None:
-            X_new = (
-                y.select(y.columns[:2])
-                .pipe(self.feature_transform)
-                .collect(streaming=True)
-                .lazy()
-            )
-        else:
-            X_new = X.pipe(self.feature_transform).collect(streaming=True).lazy()
+            X = y.select(y.columns[:2])
+        if not isinstance(feature_transform, List):
+            feature_transform = [feature_transform]
+        for transf in feature_transform:
+            X = X.pipe(transf)
+        X_new = X.collect().lazy()
         return X_new
 
     def fit(self, y: DF_TYPE, X: Optional[DF_TYPE] = None):
         # Prepare y
-        target_transform = self.target_transform
         y: pl.LazyFrame = self._set_string_cache(y.lazy().collect()).lazy()
-        if target_transform is not None:
-            y = y.pipe(target_transform).collect(streaming=True).lazy()
+        if self.target_transform is not None:
+            y = self._transform_y(y=y)
         # Prepare X
         if X is not None:
             if X.columns[0] == y.columns[0]:
@@ -185,7 +197,6 @@ class Forecaster(Model):
             features=X.columns[2:] if X is not None else None,
         )
         self.state = state
-        self.target_transform = target_transform
         return self
 
     def predict(self, fh: int, X: Optional[DF_TYPE] = None) -> pl.DataFrame:
@@ -246,14 +257,13 @@ class Forecaster(Model):
                 ]
             )
 
+        # Invert target transforms
         if self.target_transform is not None:
-            y_pred = (
-                y_pred.with_columns(pl.col(time_col).cast(schema[time_col]))
-                .pipe(self.target_transform.invert)
-                .collect(streaming=True)
-            )
-
-        y_pred = y_pred.pipe(self._reset_string_cache)
+            for transf in reversed(self.fitted_target_transform):
+                y_pred = y_pred.with_columns(
+                    pl.col(time_col).cast(schema[time_col])
+                ).pipe(transf.invert)
+        y_pred = y_pred.lazy().collect().pipe(self._reset_string_cache)
         return y_pred
 
     def backtest(

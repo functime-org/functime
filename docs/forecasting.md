@@ -270,7 +270,7 @@ y_pred = forecaster.predict(fh=3, X=X_test)
 
 ## Transformations / Preprocessing
 
-Every forecaster has two optional parameters `target_transform` and `feature_transform`, which take a `functime` transformer (e.g. `diff(order=1)`, `detrend(method="linear")`).
+Every forecaster has two optional parameters `target_transform` and `feature_transform`, which can take a single `functime` transformer (e.g. `diff(order=1, fill_strategy="backward")`, `detrend(method="linear")`) or a list of transformers!
 
     - `target_transform` applies a transformation on `y` before fit and predict. An inverse transformation is then applied after predict to return the final forecast.
     - `feature_transform` applies a transformation on `X` before fit and predict.
@@ -285,13 +285,23 @@ from functime.forecasting import linear_model
 from functime.preprocessing import diff, scale, boxcox
 
 # Apply first differences
-forecaster = linear_model(freq="1mo", lags=12, target_transform=diff(order=1))
+forecaster = linear_model(freq="1mo", lags=12, target_transform=diff(order=1, fill_strategy="backward"))
 
 # Or local standarization
 forecaster = linear_model(freq="1mo", lags=12, target_transform=scale())
 
 # Or Box-cox
 forecaster = linear_model(freq="1mo", lags=12, target_transform=boxcox())
+
+# Or chain first differences then box-cox!
+forecaster = linear_model(
+    freq="1mo",
+    lags=12,
+    target_transform=[
+        diff(order=1, fill_strategy="backward"),
+        boxcox()
+    ]
+)
 ```
 
 ### Feature Transform
@@ -308,11 +318,21 @@ forecaster = linear_model(
     feature_transform=add_fourier_terms(sp=12, K=3)
 )
 
-# Create lags of exogenous regressors
+# Create moving average features on exogenous regressors!
 forecaster = linear_model(
     freq="1mo",
     lags=12,
-    feature_transform=lag(lags=[1,2,3])
+    feature_transform=roll(window_sizes=[6, 12], stats=["mean", "std"], freq="1mo")
+)
+
+# Or include both Fourier terms and lags!
+forecaster = linear_model(
+    freq="1mo",
+    lags=12,
+    feature_transform=[
+        add_fourier_terms(sp=12, K=3),
+        roll(window_sizes=[6, 12], stats=["mean", "std"], freq="1mo")
+    ]
 )
 ```
 
