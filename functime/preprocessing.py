@@ -503,7 +503,9 @@ def diff(order: int, sp: int = 1, fill_strategy: Optional[str] = None):
             ]
         )
         for _ in range(order):
-            X = X.select([entity_col, time_col, cs.float().diff(n=sp).over(entity_col)])
+            X = X.select(
+                [entity_col, time_col, cs.numeric().diff(n=sp).over(entity_col)]
+            )
 
         # Drop null
         if fill_strategy:
@@ -535,7 +537,7 @@ def diff(order: int, sp: int = 1, fill_strategy: Optional[str] = None):
         ).sort(idx_cols)
         for _ in range(order):
             X_new = X_new.select(
-                [entity_col, time_col, cs.float().cumsum().over(entity_col)]
+                [entity_col, time_col, cs.numeric().cumsum().over(entity_col)]
             )
 
         X_new = (
