@@ -47,7 +47,7 @@ def check_backtest_lengths(
     y = y.lazy()
     entity_col, time_col = y.columns[:2]
     lengths = (
-        y.groupby(entity_col)
+        y.group_by(entity_col)
         .agg(pl.col(time_col).len().alias("len"))
         .collect(streaming=True)
     )
@@ -152,7 +152,7 @@ class Forecaster(Model):
             fitted_transformers.append(transf)
         y_new = (
             y.collect().lazy()
-        )  # Disable streaming (still buggy with groupby as of v0.19.1 polars)
+        )  # Disable streaming (still buggy with group_by as of v0.19.1 polars)
         self.fitted_target_transform = fitted_transformers
         return y_new
 
@@ -183,7 +183,7 @@ class Forecaster(Model):
         # Fit AR forecaster
         artifacts = self._fit(y=y, X=X)
         # Prepare artifacts
-        cutoffs = y.groupby(y.columns[0]).agg(pl.col(y.columns[1]).max().alias("low"))
+        cutoffs = y.group_by(y.columns[0]).agg(pl.col(y.columns[1]).max().alias("low"))
         # BUG: Regression after changing arange to int_ranges
         # artifacts["__cutoffs"] = cutoffs.collect(streaming=True)
         artifacts["__cutoffs"] = cutoffs.collect()
