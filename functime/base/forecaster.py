@@ -206,7 +206,6 @@ class Forecaster(Model):
             fh=fh,
             freq=self.freq,
         )
-        print(future_ranges)
         # Prepare X
         if X is not None:
             X = X.lazy()
