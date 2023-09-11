@@ -168,13 +168,16 @@ def trim(direction: Literal["both", "left", "right"] = "both"):
 
 
 @transformer
-def lag(lags: List[int]):
+def lag(lags: List[int], fill_strategy: Optional[str] = None):
     """Applies lag transformation to a LazyFrame.
 
     Parameters
     ----------
     lags : List[int]
         A list of lag values to apply.
+    fill_strategy : Optional[str]
+        Strategy to fill nulls by. Nulls are not filled if None.
+        Supported strategies include: ["backward", "forward", "mean", "zero"].
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
@@ -203,6 +206,8 @@ def lag(lags: List[int]):
             .agg(pl.all().slice(max_lag))
             .explode(pl.all().exclude(entity_col))
         )
+        if fill_strategy:
+            X_new = X_new.fill_null(strategy=fill_strategy)
         artifacts = {"X_new": X_new}
         return artifacts
 
@@ -488,7 +493,7 @@ def diff(order: int, sp: int = 1, fill_strategy: Optional[str] = None):
         Seasonal periodicity.
     fill_strategy : Optional[str]
         Strategy to fill nulls by. Nulls are not filled if None.
-        Supported strategies include: ["backward", "forward", "mean"].
+        Supported strategies include: ["backward", "forward", "mean", "zero"].
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
