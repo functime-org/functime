@@ -80,5 +80,17 @@ def number_crossing_m(x: pl.Expr, m: float) -> pl.Expr:
 
 
 def var_greater_than_std(x: pl.Expr) -> pl.Expr:
+    """
+    Is variance higher than the standard deviation?
+
+    Boolean variable denoting if the variance of x is greater than its standard deviation. Is equal to variance of x
+    being larger than 1
+
+    Args:
+        x (pl.Expr): the time series to calculate the feature of
+
+    Returns:
+        pl.Expr: the value of this feature
+    """
     y = x.var(ddof=0)
     return y > y.sqrt()
