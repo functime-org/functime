@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "functime"
-version = "0.6.0"
+version = "0.6.1"
 description = "Time-series machine learning at scale."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -52,7 +52,7 @@ Homepage = "https://github.com/descendant-ai/functime"
 cat = ["catboost"]
 xgb = ["xgboost"]
 lgb = ["lightgbm"]
-llm = ["openai", "tenacity", "tiktoken"]
+llm = ["openai", "tabulate", "tenacity", "tiktoken"]
 test = [
     "aeon",
     "coverage[toml]",

@@ -35,7 +35,7 @@ SUPPORTED_FREQ = [
 
 
 def check_backtest_lengths(
-    y: pl.LazyFrame,
+    y: DF_TYPE,
     max_lags: int,
     test_size: int,
     drop_short: bool,
@@ -44,6 +44,7 @@ def check_backtest_lengths(
     # Heuristic check that the shortest time series
     # in the panel dataset is sufficiently long
     # for the given cross-validation parameters
+    y = y.lazy()
     entity_col, time_col = y.columns[:2]
     lengths = (
         y.groupby(entity_col)
@@ -171,7 +172,9 @@ class Forecaster(Model):
         artifacts = self._fit(y=y, X=X)
         # Prepare artifacts
         cutoffs = y.groupby(y.columns[0]).agg(pl.col(y.columns[1]).max().alias("low"))
-        artifacts["__cutoffs"] = cutoffs.collect(streaming=True)
+        # BUG: Regression after changing arange to int_ranges
+        # artifacts["__cutoffs"] = cutoffs.collect(streaming=True)
+        artifacts["__cutoffs"] = cutoffs.collect()
         state = ForecastState(
             entity=y.columns[0],
             time=y.columns[1],

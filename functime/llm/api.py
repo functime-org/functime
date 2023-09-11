@@ -50,7 +50,7 @@ class LLMActions:
             " Describe trend, seasonality, and anomalies. Do not provide recommendations. Do not describe the table."
             " Do not introduce yourself or your role."
         )
-        forecasts = self._filter_panel_entities(self.df, basket=basket)
+        forecasts = self._filter_panel_entities(self._df, basket=basket)
         wide_forecasts = self._panel_to_wide(forecasts)
         prompt = (
             f"{task}"

@@ -71,13 +71,3 @@ def y_to_numpy(y: pl.DataFrame) -> np.ndarray:
         .to_numpy(zero_copy_only=True)
     )
     return y_arr
-
-
-if __name__ == "__main__":
-
-    from timeit import default_timer
-
-    df = pl.DataFrame({f"x{i}": pl.arange(0, 1_000_000, eager=True) for i in range(48)})
-    start = default_timer()
-    X = df_to_ndarray(df)
-    print(default_timer() - start)  # 1 second

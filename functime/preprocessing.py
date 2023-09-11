@@ -1,4 +1,4 @@
-from typing import List, Mapping, Union
+from typing import List, Mapping, Optional, Union
 
 import polars as pl
 import polars.selectors as cs
@@ -71,7 +71,7 @@ def time_to_arange(eager: bool = False):
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
         time_range_expr = (
-            pl.arange(0, pl.col(time_col).count())
+            pl.int_ranges(0, pl.col(time_col).count())
             .over(entity_col)
             .alias(time_col)
             .cast(pl.Int32)
@@ -477,7 +477,7 @@ def impute(
 
 
 @transformer
-def diff(order: int, sp: int = 1):
+def diff(order: int, sp: int = 1, fill_strategy: Optional[str] = None):
     """Difference time-series in panel data given order and seasonal period.
 
     Parameters
@@ -486,6 +486,9 @@ def diff(order: int, sp: int = 1):
         The order to difference.
     sp : int
         Seasonal periodicity.
+    fill_strategy : Optional[str]
+        Strategy to fill nulls by. Nulls are not filled if None.
+        Supported strategies include: ["backward", "forward", "mean"].
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
@@ -503,8 +506,10 @@ def diff(order: int, sp: int = 1):
             X = X.select([entity_col, time_col, cs.float().diff(n=sp).over(entity_col)])
 
         # Drop null
+        if fill_strategy:
+            X = X.fill_null(strategy=fill_strategy)
         artifacts = {
-            "X_new": X.fill_null(strategy="backward"),
+            "X_new": X,
             "X_first": X_first.lazy(),
             "X_last": X_last.lazy(),
         }
