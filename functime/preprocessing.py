@@ -504,7 +504,14 @@ def diff(order: int, sp: int = 1, fill_strategy: Optional[str] = None):
         )
         for _ in range(order):
             X = X.select(
-                [entity_col, time_col, cs.numeric().diff(n=sp).over(entity_col)]
+                [
+                    entity_col,
+                    time_col,
+                    cs.numeric()
+                    .exclude([entity_col, time_col])
+                    .diff(n=sp)
+                    .over(entity_col),
+                ]
             )
 
         # Drop null
