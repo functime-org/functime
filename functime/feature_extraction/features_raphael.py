@@ -56,10 +56,28 @@ def change_quantiles(
 
 
 def mean_abs_change(x: pl.Expr) -> pl.Expr:
+    """
+    Compute mean absolute change.
+
+    Args:
+        x (pl.Expr): The time series to compute the feature of.
+
+    Returns:
+        pl.Expr: The mean absolute change of the time series
+    """
     return x.diff(null_behavior="drop").abs().mean()
 
 
 def mean_change(x: pl.Expr) -> pl.Expr:
+    """
+    Compute mean change.
+
+    Args:
+        x (pl.Expr): The time series to compute the feature of.
+
+    Returns:
+        pl.Expr: The mean change of the time series
+    """
     return x.diff(null_behavior="drop").mean()
 
 
