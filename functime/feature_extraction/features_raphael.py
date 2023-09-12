@@ -11,15 +11,20 @@ def change_quantiles(
     Think about selecting a corridor on the
     y-Axis and only calculating the mean of the absolute change of the time series inside this corridor.
 
-    Args:
-        x (pl.Expr): the time series to calculate the feature of
-        ql (float): the lower quantile of the corridor
-        qh (float): the higher quantile of the corridor
-        isabs (bool): should the absolute differences be taken?
-        f_agg (str): the aggregator function that is applied to the differences in the bin
-
-    Returns:
-        pl.Expr: the value of this feature
+    Parameters
+    ----------
+    x: pl.Expr
+        the time series to calculate the feature of
+    ql : float
+        the lower quantile of the corridor
+        Must be less than `qh`.
+    qh : float
+        the upper quantile of the corridor
+        Must be greater than `ql`.
+    isabs : bool
+        should the absolute differences be taken instead?
+    f_agg : str
+        the aggregator function that is applied to the differences in the bin
     """
     if isabs:
         x = (
@@ -59,11 +64,10 @@ def mean_abs_change(x: pl.Expr) -> pl.Expr:
     """
     Compute mean absolute change.
 
-    Args:
-        x (pl.Expr): The time series to compute the feature of.
-
-    Returns:
-        pl.Expr: The mean absolute change of the time series
+    Parameters
+    ----------
+    x : pl.Expr
+        The time series to compute the feature of.
     """
     return x.diff(null_behavior="drop").abs().mean()
 
@@ -72,11 +76,10 @@ def mean_change(x: pl.Expr) -> pl.Expr:
     """
     Compute mean change.
 
-    Args:
-        x (pl.Expr): The time series to compute the feature of.
-
-    Returns:
-        pl.Expr: The mean change of the time series
+    Parameters
+    ----------
+    x : pl.Expr
+        The time series to compute the feature of.
     """
     return x.diff(null_behavior="drop").mean()
 
@@ -87,12 +90,12 @@ def number_crossing_m(x: pl.Expr, m: float) -> pl.Expr:
     is lower than m and the next is greater, or vice-versa. If you set m to zero, you will get the number of zero
     crossings.
 
-    Args:
-        x (pl.Expr): the time series to calculate the feature of.
-        m (float): the crossing value.
-
-    Returns:
-        pl.Expr: how many times x crosses m.
+    Parameters
+    ----------
+    x : pl.Expr
+        the time series to calculate the feature of.
+    m : float
+        the crossing value.
     """
     return x.gt(m).cast(pl.Int8).diff(null_behavior="drop").abs().eq(1).sum()
 
@@ -104,11 +107,10 @@ def var_greater_than_std(x: pl.Expr) -> pl.Expr:
     Boolean variable denoting if the variance of x is greater than its standard deviation. Is equal to variance of x
     being larger than 1
 
-    Args:
-        x (pl.Expr): the time series to calculate the feature of
-
-    Returns:
-        pl.Expr: the value of this feature
+    Parameters
+    ----------
+    x : pl.Expr
+        the time series to calculate the feature of
     """
     y = x.var(ddof=0)
     return y > y.sqrt()
@@ -119,11 +121,10 @@ def first_location_of_maximum(x: pl.Expr) -> pl.Expr:
     Returns the first location of the maximum value of x.
     The position is calculated relatively to the length of x.
 
-    Args:
-        x (pl.Expr): the time series to calculate the feature of
-
-    Returns:
-        pl.Expr: the first location of maximum as float fraction
+    Parameters
+    ----------
+    x : pl.Expr
+        the time series to calculate the feature of
     """
     return x.arg_max() / x.len()
 
@@ -133,11 +134,10 @@ def last_location_of_maximum(x: pl.Expr) -> pl.Expr:
     Returns the last location of the maximum value of x.
     The position is calculated relatively to the length of x.
 
-    Args:
-        x (pl.Expr): the time series to calculate the feature of
-
-    Returns:
-        pl.Expr: the last location of maximum as float fraction
+    Parameters
+    ----------
+    x : pl.Expr
+        the time series to calculate the feature of
     """
     return (x.len() - x.reverse().arg_max()) / x.len()
 
@@ -147,11 +147,10 @@ def first_location_of_minimum(x: pl.Expr) -> pl.Expr:
     Returns the first location of the minimum value of x.
     The position is calculated relatively to the length of x.
 
-    Args:
-        x (pl.Expr): the time series to calculate the feature of
-
-    Returns:
-        pl.Expr: the first location of minimum as float fraction
+    Parameters
+    ----------
+    x : pl.Expr
+        the time series to calculate the feature of
     """
     return x.arg_min() / x.len()
 
@@ -161,10 +160,9 @@ def last_location_of_minimum(x: pl.Expr) -> pl.Expr:
     Returns the last location of the minimum value of x.
     The position is calculated relatively to the length of x.
 
-    Args:
-        x (pl.Expr): the time series to calculate the feature of
-
-    Returns:
-        pl.Expr: the last location of minimum as float fraction
+    Parameters
+    ----------
+    x : pl.Expr
+        the time series to calculate the feature of
     """
     return (x.len() - x.reverse().arg_min()) / x.len()
