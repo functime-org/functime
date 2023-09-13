@@ -195,7 +195,7 @@ def count_above_mean(x: pl.Expr) -> pl.Expr:
     Note:
     - Make sure 'x' is a valid Polars Series.
     """
-    return x.filter(x >= x.mean()).count()
+    return x.filter(x > x.mean()).count()
 
 
 def has_duplicate(x: pl.Expr) -> pl.Expr:
