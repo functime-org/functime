@@ -37,7 +37,6 @@ def test_autocorrelation(rental_car_dataset):
         autocorrelation(pl.col("mitsubishi"), 0).alias("autocorrelation-mitsubishi"),
     )
 
-    print(result)
     expected = pl.DataFrame(
         {
             "autocorrelation-volvo": [0.4554973821989529],
@@ -48,7 +47,6 @@ def test_autocorrelation(rental_car_dataset):
     )
 
     assert_frame_equal(result, expected)
-    pass
 
 
 def test_count_below(rental_car_dataset):
