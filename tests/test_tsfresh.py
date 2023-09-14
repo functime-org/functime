@@ -14,9 +14,10 @@ from functime.feature_extraction.tsfresh import (
 )
 
 
-@pytest.fixture
-def rental_car_dataset():
-    return pl.DataFrame(
+@pytest.fixture(params=[pl.DataFrame, pl.LazyFrame])
+def rental_car_dataset(request):
+    df_cls = request.param
+    return df_cls, df_cls(
         {
             "volvo": [10, 12, 12, 14, 17, 22],
             "tesla": [4, 5, 3, 2, 3, 2],
@@ -30,14 +31,15 @@ def rental_car_dataset():
 
 
 def test_autocorrelation(rental_car_dataset):
-    result = rental_car_dataset.select(
+    df_cls, dataset = rental_car_dataset
+    result = dataset.select(
         autocorrelation(pl.col("volvo"), 1).alias("autocorrelation-volvo"),
         autocorrelation(pl.col("tesla"), 2).alias("autocorrelation-tesla"),
         autocorrelation(pl.col("ford"), 1).alias("autocorrelation-ford"),
         autocorrelation(pl.col("mitsubishi"), 0).alias("autocorrelation-mitsubishi"),
     )
 
-    expected = pl.DataFrame(
+    expected = df_cls(
         {
             "autocorrelation-volvo": [0.4554973821989529],
             "autocorrelation-tesla": [-0.19512195121951229],
@@ -50,14 +52,15 @@ def test_autocorrelation(rental_car_dataset):
 
 
 def test_count_below(rental_car_dataset):
-    result = rental_car_dataset.select(
+    df_cls, dataset = rental_car_dataset
+    result = dataset.select(
         count_below(pl.col("volvo"), 15).alias("count-below-volvo"),
         count_below(pl.col("tesla"), 0).alias("count-below-tesla"),
         count_below(pl.col("ford"), 10).alias("count-below-ford"),
         count_below(pl.col("mitsubishi"), 12).alias("count-below-mitsubishi"),
     )
 
-    expected = pl.DataFrame(
+    expected = df_cls(
         {
             "count-below-volvo": [200 / 3],
             "count-below-tesla": [0.0],
@@ -70,14 +73,15 @@ def test_count_below(rental_car_dataset):
 
 
 def test_count_above(rental_car_dataset):
-    result = rental_car_dataset.select(
+    df_cls, dataset = rental_car_dataset
+    result = dataset.select(
         count_above(pl.col("volvo"), 15).alias("count-above-volvo"),
         count_above(pl.col("tesla"), 0).alias("count-above-tesla"),
         count_above(pl.col("ford"), 3).alias("count-above-ford"),
         count_above(pl.col("mitsubishi"), 8).alias("count-above-mitsubishi"),
     )
 
-    expected = pl.DataFrame(
+    expected = df_cls(
         {
             "count-above-volvo": [200 / 6],
             "count-above-tesla": [100.0],
@@ -89,14 +93,15 @@ def test_count_above(rental_car_dataset):
 
 
 def test_count_below_mean(rental_car_dataset):
-    result = rental_car_dataset.select(
+    df_cls, dataset = rental_car_dataset
+    result = dataset.select(
         count_below_mean(pl.col("volvo")).alias("count_below_mean-volvo"),
         count_below_mean(pl.col("tesla")).alias("count_below_mean-tesla"),
         count_below_mean(pl.col("ford")).alias("count_below_mean-ford"),
         count_below_mean(pl.col("mitsubishi")).alias("count_below_mean-mitsubishi"),
     )
 
-    expected = pl.DataFrame(
+    expected = df_cls(
         {
             "count_below_mean-volvo": [4],
             "count_below_mean-tesla": [4],
@@ -108,14 +113,15 @@ def test_count_below_mean(rental_car_dataset):
 
 
 def test_count_above_mean(rental_car_dataset):
-    result = rental_car_dataset.select(
+    df_cls, dataset = rental_car_dataset
+    result = dataset.select(
         count_above_mean(pl.col("volvo")).alias("count_above_mean-volvo"),
         count_above_mean(pl.col("tesla")).alias("count_above_mean-tesla"),
         count_above_mean(pl.col("ford")).alias("count_above_mean-ford"),
         count_above_mean(pl.col("mitsubishi")).alias("count_above_mean-mitsubishi"),
     )
 
-    expected = pl.DataFrame(
+    expected = df_cls(
         {
             "count_above_mean-volvo": [2],
             "count_above_mean-tesla": [2],
@@ -127,14 +133,15 @@ def test_count_above_mean(rental_car_dataset):
 
 
 def test_has_duplicate(rental_car_dataset):
-    result = rental_car_dataset.select(
+    df_cls, dataset = rental_car_dataset
+    result = dataset.select(
         has_duplicate(pl.col("volvo")).alias("has_duplicate-volvo"),
         has_duplicate(pl.col("tesla")).alias("has_duplicate-tesla"),
         has_duplicate(pl.col("ford")).alias("has_duplicate-ford"),
         has_duplicate(pl.col("toyota")).alias("has_duplicate-toyota"),
     )
 
-    expected = pl.DataFrame(
+    expected = df_cls(
         {
             "has_duplicate-volvo": [True],
             "has_duplicate-tesla": [True],
@@ -147,14 +154,15 @@ def test_has_duplicate(rental_car_dataset):
 
 
 def test_has_duplicate_max(rental_car_dataset):
-    result = rental_car_dataset.select(
+    df_cls, dataset = rental_car_dataset
+    result = dataset.select(
         has_duplicate_max(pl.col("mercedes")).alias("has_duplicate_max-mercedes"),
         has_duplicate_max(pl.col("audi")).alias("has_duplicate_max-audi"),
         has_duplicate_max(pl.col("tesla")).alias("has_duplicate_max-tesla"),
         has_duplicate_max(pl.col("toyota")).alias("has_duplicate_max-toyota"),
     )
 
-    expected = pl.DataFrame(
+    expected = df_cls(
         {
             "has_duplicate_max-mercedes": [True],
             "has_duplicate_max-audi": [False],
@@ -167,14 +175,15 @@ def test_has_duplicate_max(rental_car_dataset):
 
 
 def test_has_duplicate_min(rental_car_dataset):
-    result = rental_car_dataset.select(
+    df_cls, dataset = rental_car_dataset
+    result = dataset.select(
         has_duplicate_min(pl.col("mercedes")).alias("has_duplicate_min-mercedes"),
         has_duplicate_min(pl.col("audi")).alias("has_duplicate_min-audi"),
         has_duplicate_min(pl.col("tesla")).alias("has_duplicate_min-tesla"),
         has_duplicate_min(pl.col("toyota")).alias("has_duplicate_min-toyota"),
     )
 
-    expected = pl.DataFrame(
+    expected = df_cls(
         {
             "has_duplicate_min-mercedes": [False],
             "has_duplicate_min-audi": [True],
