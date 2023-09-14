@@ -3,76 +3,87 @@ import polars as pl
 
 # helper function should not be exposed
 def has_duplicate_of_value(x: pl.Expr, t: float) -> pl.Expr:
-    """
-    Check if a Polars Series has duplicates of a specific value.
+    """Check if a value exists as a duplicate in a Polars Series.
 
-    Parameters:
-    - x (pl.Expr): The input Polars Series to be checked for duplicates.
-    - t (float): The target value to check for duplicates.
+    Parameters
+    ----------
+    x : pl.Series
+        The input Polars Series to search for duplicates in.
+    t : float
+        The value to check for duplicates of within the Series.
 
-    Returns:
-    - pl.Expr: A Boolean Polars Series indicating whether duplicates of 't' exist in 'x'.
+    Returns
+    -------
+    bool
+        Returns True if duplicates of the specified value `t` exist in the
+        input Series `x`, otherwise returns False.
 
-    This function checks if the input Polars Series 'x' contains duplicates of the specified value 't'.
-    It performs the following steps:
+    Examples
+    --------
+    >>> import polars as pl
+    >>> data = pl.DataFrame({'A': [1, 2, 3, 2, 4]})
+    >>> series = data['A']
+    >>> result = has_duplicate_of_value(series, 2)
+    >>> print(result)
+    True
 
-    1. Filters 'x' to retain only the elements equal to 't'.
-    2. Determines if there are any duplicates within the filtered Series.
-    3. Returns a Boolean Polars Series indicating the presence of duplicates.
+    See Also
+    --------
+    pl.Series.filter : Filter a Series using a boolean expression.
+    pl.Series.is_duplicated : Check for duplicate values in a Series.
+    pl.Series.any : Check if any elements in a boolean Series are True.
 
-    Example:
-    If 'x' contains [1.0, 2.0, 3.0, 1.0, 4.0], and 't' is 1.0, the function will return True,
-    as there is a duplicate of the value 1.0 in 'x'.
-
-    Note:
-    - Make sure 'x' is a valid Polars Series.
     """
     return x.filter(x == t).is_duplicated().any()
 
 
 def autocorrelation(x: pl.Expr, lag: int) -> pl.Expr:
-    """
-    Compute the autocorrelation coefficient at a given lag 'l' for a given input time series 'x'.
+    """Calculate the autocorrelation of a Polars Expression for a specified lag.
 
-    Parameters:
-    -----------
+    The autocorrelation measures the linear dependence between a timeseries and a lagged version of itself.
+
+    Parameters
+    ----------
     x : pl.Expr
-        The input time series data.
-    l : int
-        The lag at which the autocorrelation is to be computed. Should be a non-negative integer.
+        The Polars Expression for which the autocorrelation will be calculated.
+    lag : int
+        The lag at which to calculate the autocorrelation. Must be a non-negative integer.
 
-    Returns:
-    --------
-    pl.Expr
-        The autocorrelation coefficient at the specified lag 'l' for the input time series 'x'.
-
-    Raises:
+    Returns
     -------
-    Exception
-        If the provided 'lag' value 'l' is negative.
+    pl.Expr
+        A Polars Expression representing the autocorrelation at the given lag. If `lag` is 0, a constant
+        expression with a value of 1.0 is returned.
 
-    Notes:
+    Raises
     ------
-    The autocorrelation coefficient at lag 'l' is calculated using the following formula:
+    Exception
+        If `lag` is a negative number, an exception is raised.
 
-    .. math::
-        R(l) = \\frac{\\sum_{t=0}^{n-l-1}(x[t] - \\bar{x})(x[t+l] - \\bar{x})}{(n-l) \\cdot \\text{Var}(x)}
-
-    Where:
-    - 'n' is the length of the time series 'x'.
-    - 'x[t]' represents the value of 'x' at time 't'.
-    - '\\bar{x}' is the mean of the time series 'x'.
-    - '\\text{Var}(x)' is the variance of the time series 'x'.
-
-    If 'l' is 0, the autocorrelation at lag 0 is 1.0, indicating perfect correlation with itself.
-
-    Example:
+    Examples
     --------
-    >>> x = pl.DataFrame({"values": [1.0, 2.0, 3.0, 4.0, 5.0]})
-    >>> lag = 2
-    >>> autocorrelation_result = autocorrelation(x['values'], lag)
-    >>> print(autocorrelation_result)
-    0.25
+    >>> import polars as pl
+    >>> data = pl.DataFrame({'A': [1, 2, 3, 2, 4]})
+    >>> expr = data.select(pl.autocorrelation(data['A'], 1).alias('autocorr'))
+    >>> print(expr)
+       autocorr
+    0  0.214286
+
+    Notes
+    -----
+    - This function calculates the autocorrelation using https://en.wikipedia.org/wiki/Autocorrelation#Estimation
+    - If `lag` is 0, the autocorrelation is always 1.0, as it represents the correlation of the timeseries with itself.
+
+    See Also
+    --------
+    pl.Expr.shift : Shift a Polars Expression by a specified number of periods.
+    pl.Expr.drop_nulls : Remove rows with null values from a Polars Expression.
+    pl.Expr.sub : Subtract a value or Expression from a Polars Expression.
+    pl.Expr.dot : Calculate the dot product of two Polars Expressions.
+    pl.Expr.truediv : Perform element-wise true division on a Polars Expression.
+    pl.Expr.count : Count the non-null elements in a Polars Expression.
+    pl.Expr.var : Calculate the variance of a Polars Expression.
+
     """
     if lag < 0:
         raise Exception("Lag cannot be a negative number")
@@ -81,200 +92,297 @@ def autocorrelation(x: pl.Expr, lag: int) -> pl.Expr:
         return pl.lit(1.0)
 
     return (
-        x.slice(offset=0, length=x.count() - lag)
+        x.shift(periods=-lag)
+        .drop_nulls()
         .sub(x.mean())
-        .dot(x.slice(offset=lag, length=x.count() - lag).sub(x.mean()))
+        .dot(x.shift(periods=lag).drop_nulls().sub(x.mean()))
         .truediv((x.count() - lag).mul(x.var(ddof=0)))
     )
 
 
 def count_below(x: pl.Expr, t: float) -> pl.Expr:
-    """
-    Calculate the percentage of values below or equal to a specified threshold in a Polars Series.
+    """Calculate the percentage of values below or equal to a threshold in a Polars Expression.
 
-    Parameters:
-    - x (pl.Expr): The input Polars Series for which the percentage is calculated.
-    - t (float): The threshold value for comparison.
+    This function computes the percentage of values in the input Polars Expression `x` that are less than
+    or equal to the specified threshold `t`.
 
-    Returns:
-    - pl.Expr: A Polars Series representing the percentage of values in 'x' that are below or equal to 't'.
+    Parameters
+    ----------
+    x : pl.Expr
+        The Polars Expression containing the values to be counted.
+    t : float
+        The threshold value for comparison.
 
-    This function calculates the percentage of values in the input Polars Series 'x' that are below or equal to
-    the specified threshold 't'. The calculation proceeds as follows:
+    Returns
+    -------
+    pl.Expr
+        A Polars Expression representing the percentage of values in `x` that are less than or equal to `t`.
 
-    1. Filters 'x' to retain only the elements that are less than or equal to 't'.
-    2. Counts the number of elements that meet the condition.
-    3. Divides the count by the total number of elements in 'x'.
-    4. Multiplies the result by 100 to express the percentage.
+    Examples
+    --------
+    >>> import polars as pl
+    >>> data = pl.DataFrame({'A': [1, 2, 3, 4, 5, 6, 7]})
+    >>> expr = count_below(data['A'], 4)
+    >>> print(expr)
+    57.14285714285714
 
-    Example:
-    If 'x' contains [10.0, 15.0, 20.0, 5.0, 10.0], and 't' is 12.0, the function will return 60.0,
-    as 60% of the values in 'x' (3 out of 5) are below or equal to 12.0.
+    Notes
+    -----
+    - This function filters the values in the input Polars Expression `x` using the condition `x <= t`, counts
+      the number of values that satisfy the condition, and then computes the percentage relative to the total
+      number of values in `x`.
+    - The result is expressed as a percentage, which is a floating-point number between 0 and 100.
 
-    Note:
-    - Make sure 'x' is a valid Polars Series.
+    See Also
+    --------
+    pl.Expr.filter : Filter a Polars Expression based on a condition.
+    pl.Expr.count : Count the number of elements in a Polars Expression.
+    pl.Expr.truediv : Perform element-wise true division on a Polars Expression.
+    pl.Expr.mul : Multiply a Polars Expression by a scalar or another Expression.
+
     """
     return x.filter(x <= t).count().truediv(x.count()).mul(100)
 
 
 def count_above(x: pl.Expr, t: float) -> pl.Expr:
-    """
-    Calculate the percentage of values above or equal to a specified threshold in a Polars Series.
+    """Calculate the percentage of values above or equal to a threshold in a Polars Expression.
 
-    Parameters:
-    - x (pl.Expr): The input Polars Series for which the percentage is calculated.
-    - t (float): The threshold value for comparison.
+    This function computes the percentage of values in the input Polars Expression `x` that are greater than
+    or equal to the specified threshold `t`.
 
-    Returns:
-    - pl.Expr: A Polars Series representing the percentage of values in 'x' that are above or equal to 't'.
+    Parameters
+    ----------
+    x : pl.Expr
+        The Polars Expression containing the values to be counted.
+    t : float
+        The threshold value for comparison.
 
-    This function calculates the percentage of values in the input Polars Series 'x' that are above or equal to
-    the specified threshold 't'. The calculation proceeds as follows:
+    Returns
+    -------
+    pl.Expr
+        A Polars Expression representing the percentage of values in `x` that are greater than or equal to `t`.
 
-    1. Filters 'x' to retain only the elements that are greater than or equal to 't'.
-    2. Counts the number of elements that meet the condition.
-    3. Divides the count by the total number of elements in 'x'.
-    4. Multiplies the result by 100 to express the percentage.
+    Examples
+    --------
+    >>> import polars as pl
+    >>> data = pl.DataFrame({'A': [1, 2, 3, 4, 5, 6, 7]})
+    >>> expr = count_above(data['A'], 4)
+    >>> print(expr)
+    42.857142857142854
 
-    Example:
-    If 'x' contains [10.0, 15.0, 20.0, 5.0, 10.0], and 't' is 12.0, the function will return 40.0,
-    as 40% of the values in 'x' (2 out of 5) are above or equal to 12.0.
+    Notes
+    -----
+    - This function filters the values in the input Polars Expression `x` using the condition `x >= t`, counts
+      the number of values that satisfy the condition, and then computes the percentage relative to the total
+      number of values in `x`.
+    - The result is expressed as a percentage, which is a floating-point number between 0 and 100.
 
-    Note:
-    - Make sure 'x' is a valid Polars Series.
+    See Also
+    --------
+    pl.Expr.filter : Filter a Polars Expression based on a condition.
+    pl.Expr.count : Count the number of elements in a Polars Expression.
+    pl.Expr.truediv : Perform element-wise true division on a Polars Expression.
+    pl.Expr.mul : Multiply a Polars Expression by a scalar or another Expression.
+
     """
     return x.filter(x >= t).count().truediv(x.count()).mul(100)
 
 
 def count_below_mean(x: pl.Expr) -> pl.Expr:
-    """
-    Count the number of values in a Polars Series that are below the mean.
+    """Count the number of values in a Polars Expression that are below the mean.
 
-    Parameters:
-    - x (pl.Expr): The input Polars Series for which the count is calculated.
+    This function filters the values in the input Polars Expression `x` and counts the number of values that are
+    less than the mean of the expression.
 
-    Returns:
-    - pl.Expr: A Polars Series representing the count of values in 'x' that are below the mean.
+    Parameters
+    ----------
+    x : pl.Expr
+        The Polars Expression containing the values to be counted.
 
-    This function calculates the count of values in the input Polars Series 'x' that are below the mean value of 'x'.
-    The calculation proceeds as follows:
+    Returns
+    -------
+    pl.Expr
+        A Polars Expression representing the count of values in `x` that are below the mean.
 
-    1. Filters 'x' to retain only the elements that are less than the mean of 'x'.
-    2. Counts the number of elements that meet the condition.
+    Examples
+    --------
+    >>> import polars as pl
+    >>> data = pl.DataFrame({'A': [1, 2, 3, 4, 5, 6, 7]})
+    >>> expr = count_below_mean(data['A'])
+    >>> print(expr)
+    3
 
-    Example:
-    If 'x' contains [10.0, 15.0, 20.0, 5.0, 10.0], the mean of 'x' is 12.0.
-    The function will return 2, as there are 2 values in 'x' (5.0 and 10.0) that are below the mean (12.0).
+    Notes
+    -----
+    - This function filters the values in the input Polars Expression `x` using the condition `x < x.mean()`,
+      and then counts the number of values that satisfy the condition.
+    - The result is an integer representing the count of values below the mean.
 
-    Note:
-    - Make sure 'x' is a valid Polars Series.
+    See Also
+    --------
+    pl.Expr.filter : Filter a Polars Expression based on a condition.
+    pl.Expr.count : Count the number of elements in a Polars Expression.
+    pl.Expr.mean : Calculate the mean (average) of a Polars Expression.
+
     """
     return x.filter(x < x.mean()).count()
 
 
 def count_above_mean(x: pl.Expr) -> pl.Expr:
-    """
-    Count the number of values in a Polars Series that are above or equal to the mean.
+    """Count the number of values in a Polars Expression that are above the mean.
 
-    Parameters:
-    - x (pl.Expr): The input Polars Series for which the count is calculated.
+    This function filters the values in the input Polars Expression `x` and counts the number of values that are
+    greater than the mean of the expression.
 
-    Returns:
-    - pl.Expr: A Polars Series representing the count of values in 'x' that are above or equal to the mean.
+    Parameters
+    ----------
+    x : pl.Expr
+        The Polars Expression containing the values to be counted.
 
-    This function calculates the count of values in the input Polars Series 'x' that are above or equal to
-    the mean value of 'x'. The calculation proceeds as follows:
+    Returns
+    -------
+    pl.Expr
+        A Polars Expression representing the count of values in `x` that are above the mean.
 
-    1. Filters 'x' to retain only the elements that are greater than or equal to the mean of 'x'.
-    2. Counts the number of elements that meet the condition.
+    Examples
+    --------
+    >>> import polars as pl
+    >>> data = pl.DataFrame({'A': [1, 2, 3, 4, 5, 6, 7]})
+    >>> expr = count_above_mean(data['A'])
+    >>> print(expr)
+    3
 
-    Example:
-    If 'x' contains [10.0, 15.0, 20.0, 5.0, 10.0], the mean of 'x' is 12.0.
-    The function will return 3, as there are 3 values in 'x' (10.0, 15.0, and 20.0) that are above or equal to the mean (12.0).
+    Notes
+    -----
+    - This function filters the values in the input Polars Expression `x` using the condition `x > x.mean()`,
+      and then counts the number of values that satisfy the condition.
+    - The result is an integer representing the count of values above the mean.
 
-    Note:
-    - Make sure 'x' is a valid Polars Series.
+    See Also
+    --------
+    pl.Expr.filter : Filter a Polars Expression based on a condition.
+    pl.Expr.count : Count the number of elements in a Polars Expression.
+    pl.Expr.mean : Calculate the mean (average) of a Polars Expression.
+
     """
     return x.filter(x > x.mean()).count()
 
 
 def has_duplicate(x: pl.Expr) -> pl.Expr:
-    """
-    Check if a Polars Series contains any duplicate values.
+    """Check if a Polars Expression contains any duplicate values.
 
-    Parameters:
-    - x (pl.Expr): The input Polars Series to be checked for duplicates.
+    This function checks whether the input Polars Expression `x` contains any duplicate values.
 
-    Returns:
-    - pl.Expr: A Boolean Polars Series indicating whether any duplicates exist in 'x'.
+    Parameters
+    ----------
+    x : pl.Expr
+        The Polars Expression to be checked for duplicates.
 
-    This function checks if the input Polars Series 'x' contains any duplicate values.
-    It performs the following steps:
+    Returns
+    -------
+    pl.Expr
+        A boolean Polars Expression indicating whether there are duplicate values in `x`.
+        Returns True if duplicates exist, otherwise False.
 
-    1. Determines if there are any duplicate values within 'x'.
-    2. Returns a Boolean Polars Series indicating the presence of duplicates.
+    Examples
+    --------
+    >>> import polars as pl
+    >>> data = pl.DataFrame({'A': [1, 2, 2, 3, 4, 4]})
+    >>> expr = has_duplicate(data['A'])
+    >>> print(expr)
+    True
 
-    Example:
-    If 'x' contains [10.0, 15.0, 10.0, 5.0, 20.0], the function will return True,
-    as there are duplicate values (10.0) in 'x'.
+    Notes
+    -----
+    - This function uses the `is_duplicated` method to identify duplicate values within the input Polars Expression.
+    - The result is a boolean expression, where True indicates the presence of duplicates and False indicates no duplicates.
 
-    Note:
-    - Make sure 'x' is a valid Polars Series.
+    See Also
+    --------
+    pl.Expr.is_duplicated : Check for duplicate values in a Polars Expression.
+    pl.Expr.any : Check if any elements in a boolean Polars Expression are True.
+
     """
     return x.is_duplicated().any()
 
 
 def has_duplicate_max(x: pl.Expr) -> pl.Expr:
-    """
-    Check if a Polars Series contains duplicates of its maximum value.
+    """Check if a Polars Expression contains duplicate values equal to its maximum value.
 
-    Parameters:
-    - x (pl.Expr): The input Polars Series to be checked for duplicates of its maximum value.
+    This function checks whether the input Polars Expression `x` contains any duplicate values equal to its maximum value.
 
-    Returns:
-    - pl.Expr: A Boolean Polars Series indicating whether duplicates of the maximum value exist in 'x'.
+    Parameters
+    ----------
+    x : pl.Expr
+        The Polars Expression to be checked for duplicates.
 
-    This function checks if the input Polars Series 'x' contains duplicates of its maximum value.
-    It performs the following steps:
+    Returns
+    -------
+    pl.Expr
+        A boolean Polars Expression indicating whether there are duplicate values in `x` equal to its maximum value.
+        Returns True if such duplicates exist, otherwise False.
 
-    1. Calculates the maximum value in 'x'.
-    2. Uses the 'has_duplicate_of_value' function to check if there are duplicates of the maximum value in 'x'.
-    3. Returns a Boolean Polars Series indicating the presence of duplicates.
+    Examples
+    --------
+    >>> import polars as pl
+    >>> data = pl.DataFrame({'A': [1, 2, 2, 3, 4, 4]})
+    >>> expr = has_duplicate_max(data['A'])
+    >>> print(expr)
+    True
 
-    Example:
-    If 'x' contains [10.0, 15.0, 10.0, 5.0, 20.0], and the maximum value in 'x' is 20.0, the function will return True,
-    as there are duplicate values (10.0) equal to the maximum value in 'x'.
+    Notes
+    -----
+    - This function first calculates the maximum value in the input Polars Expression `x` using the `max` method.
+    - It then checks for duplicates of that maximum value using the `has_duplicate_of_value` function.
+    - The result is a boolean expression, where True indicates the presence of such duplicates and False indicates none.
 
-    Note:
-    - Make sure 'x' is a valid Polars Series.
-    - The 'has_duplicate_of_value' function is used internally to perform the duplicate check.
+    See Also
+    --------
+    has_duplicate_of_value : Check for duplicate values equal to a specified value in a Polars Expression.
+    pl.Expr.max : Calculate the maximum value in a Polars Expression.
+    pl.Expr.is_duplicated : Check for duplicate values in a Polars Expression.
+    pl.Expr.any : Check if any elements in a boolean Polars Expression are True.
+
     """
     return has_duplicate_of_value(x, x.max())
 
 
 def has_duplicate_min(x: pl.Expr) -> pl.Expr:
-    """
-    Check if a Polars Series contains duplicates of its minimum value.
+    """Check if a Polars Expression contains duplicate values equal to its minimum value.
 
-    Parameters:
-    - x (pl.Expr): The input Polars Series to be checked for duplicates of its minimum value.
+    This function checks whether the input Polars Expression `x` contains any duplicate values equal to its minimum value.
 
-    Returns:
-    - pl.Expr: A Boolean Polars Series indicating whether duplicates of the minimum value exist in 'x'.
+    Parameters
+    ----------
+    x : pl.Expr
+        The Polars Expression to be checked for duplicates.
 
-    This function checks if the input Polars Series 'x' contains duplicates of its minimum value.
-    It performs the following steps:
+    Returns
+    -------
+    pl.Expr
+        A boolean Polars Expression indicating whether there are duplicate values in `x` equal to its minimum value.
+        Returns True if such duplicates exist, otherwise False.
 
-    1. Calculates the minimum value in 'x'.
-    2. Uses the 'has_duplicate_of_value' function to check if there are duplicates of the minimum value in 'x'.
-    3. Returns a Boolean Polars Series indicating the presence of duplicates.
+    Examples
+    --------
+    >>> import polars as pl
+    >>> data = pl.DataFrame({'A': [1, 2, 2, 3, 4, 4]})
+    >>> expr = has_duplicate_min(data['A'])
+    >>> print(expr)
+    True
 
-    Example:
-    If 'x' contains [10.0, 15.0, 5.0, 5.0, 20.0], and the minimum value in 'x' is 5.0, the function will return True,
-    as there are duplicate values (5.0) equal to the minimum value in 'x'.
+    Notes
+    -----
+    - This function first calculates the minimum value in the input Polars Expression `x` using the `min` method.
+    - It then checks for duplicates of that minimum value using the `has_duplicate_of_value` function.
+    - The result is a boolean expression, where True indicates the presence of such duplicates and False indicates none.
 
-    Note:
-    - Make sure 'x' is a valid Polars Series.
-    - The 'has_duplicate_of_value' function is used internally to perform the duplicate check.
+    See Also
+    --------
+    has_duplicate_of_value : Check for duplicate values equal to a specified value in a Polars Expression.
+    pl.Expr.min : Calculate the minimum value in a Polars Expression.
+    pl.Expr.is_duplicated : Check for duplicate values in a Polars Expression.
+    pl.Expr.any : Check if any elements in a boolean Polars Expression are True.
+
     """
     return has_duplicate_of_value(x, x.min())
