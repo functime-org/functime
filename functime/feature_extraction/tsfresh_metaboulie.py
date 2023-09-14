@@ -1,8 +1,264 @@
-from typing import Dict, List
+from collections import defaultdict
+from math import ceil
+from typing import Dict, List, Union
 
-import numpy as np
 import polars as pl
+from numpy.linalg import LinAlgError
+from scipy.signal import cwt, ricker
+from scipy.stats import linregress
+from statsmodels.tools.sm_exceptions import MissingDataError
 from statsmodels.tsa.ar_model import AutoReg
+from statsmodels.tsa.stattools import adfuller
+
+
+def _aggregate_on_chunks(x: pl.Series, f_agg: str, chunk_len: int) -> list:
+    """
+    Takes the time series x and constructs a lower sampled version of it by applying the aggregation function f_agg on
+    consecutive chunks of length chunk_len
+
+    :param x: the time series to calculate the aggregation of
+    :type x: polars.Series
+    :param f_agg: The name of the aggregation function that should be an attribute of the polars.Series
+    :type f_agg: str
+    :param chunk_len: The size of the chunks where to aggregate the time series
+    :type chunk_len: int
+    :return: A list of the aggregation function over the chunks
+    :return type: list
+    """
+    return [
+        getattr(x[i * chunk_len : (i + 1) * chunk_len], f_agg)()
+        for i in range(ceil(len(x) / chunk_len))
+    ]
+
+
+def agg_linear_trend(
+    x: pl.Series, param: List[Dict[str, Union[str, int, str]]]
+) -> pl.DataFrame:
+    """
+    Calculates a linear least-squares regression for values of the time series that were aggregated over chunks versus
+    the sequence from 0 up to the number of chunks minus one.
+
+    This feature assumes the signal to be uniformly sampled. It will not use the time stamps to fit the model.
+
+    The parameters attr controls which of the characteristics are returned. Possible extracted attributes are "pvalue",
+    "rvalue", "intercept", "slope", "stderr", see the documentation of linregress for more information.
+
+    The chunksize is regulated by "chunk_len". It specifies how many time series values are in each chunk.
+
+    Further, the aggregation function is controlled by "f_agg", which can use "max", "min" or , "mean", "median"
+
+    :param x: the time series to calculate the feature of
+    :type x: polars.Series
+    :param param: contains dictionaries {"attr": x, "chunk_len": l, "f_agg": f} with x, f an string and l an int
+    :type param: list
+    :return: the different feature values
+    :return type: polars.DataFrame
+    """
+    # todo: we could use the index of the DataFrame here
+
+    calculated_agg = defaultdict(dict)
+    res_data = []
+    res_index = []
+
+    for parameter_combination in param:
+
+        chunk_len = parameter_combination["chunk_len"]
+        f_agg = parameter_combination["f_agg"]
+
+        if f_agg not in calculated_agg or chunk_len not in calculated_agg[f_agg]:
+            if chunk_len >= len(x):
+                calculated_agg[f_agg][chunk_len] = float("nan")
+            else:
+                aggregate_result = _aggregate_on_chunks(x, f_agg, chunk_len)
+                lin_reg_result = linregress(
+                    range(len(aggregate_result)), aggregate_result
+                )
+                calculated_agg[f_agg][chunk_len] = lin_reg_result
+
+        attr = parameter_combination["attr"]
+
+        if chunk_len >= len(x):
+            res_data.append(float("nan"))
+        else:
+            res_data.append(getattr(calculated_agg[f_agg][chunk_len], attr))
+
+        res_index.append(
+            'attr_"{}"__chunk_len_{}__f_agg_"{}"'.format(attr, chunk_len, f_agg)
+        )
+
+        res = [res_index, res_data]
+
+    return pl.DataFrame(res, schema=["res_index", "res_data"], orient="col")
+
+
+def ar_coefficient(
+    x: pl.Series, param: List[Dict[str, Union[int, int]]]
+) -> pl.DataFrame:
+    """
+    This feature calculator fits the unconditional maximum likelihood
+    of an autoregressive AR(k) process.
+    The k parameter is the maximum lag of the process
+
+    .. math::
+
+        X_{t}=\\varphi_0 +\\sum _{{i=1}}^{k}\\varphi_{i}X_{{t-i}}+\\varepsilon_{t}
+
+    For the configurations from param which should contain the maxlag "k" and such an AR process is calculated. Then
+    the coefficients :math:`\\varphi_{i}` whose index :math:`i` contained from "coeff" are returned.
+
+    :param x: the time series to calculate the feature of
+    :type x: polars.Series
+    :param param: contains dictionaries {"coeff": x, "k": y} with x,y int
+    :type param: list
+    :return x: the different feature values
+    :return type: polars.DataFrame
+    """
+    calculated_ar_params = {}
+    res = {}
+
+    for parameter_combination in param:
+        k = parameter_combination["k"]
+        p = parameter_combination["coeff"]
+
+        column_name = f"coeff_{p}__k_{k}"
+
+        if k not in calculated_ar_params:
+            try:
+                calculated_AR = AutoReg(x.to_list(), lags=k, trend="c")
+                calculated_ar_params[k] = calculated_AR.fit().params
+            except (ZeroDivisionError, LinAlgError, ValueError):
+                calculated_ar_params[k] = [float("nan")] * k
+
+        mod = calculated_ar_params[k]
+        if p <= k:
+            try:
+                res[column_name] = mod[p]
+            except IndexError:
+                res[column_name] = 0
+        else:
+            res[column_name] = float("nan")
+
+    return pl.DataFrame(data=res)
+
+
+def augmented_dickey_fuller(
+    x: pl.Series, param: List[Dict[str, Union[str, str]]]
+) -> pl.DataFrame:
+    """
+    Does the time series have a unit root?
+
+    The Augmented Dickey-Fuller test is a hypothesis test which checks whether a unit root is present in a time
+    series sample. This feature calculator returns the value of the respective test statistic.
+
+    See the statsmodels implementation for references and more details.
+
+    :param x: the time series to calculate the feature of
+    :type x: polars.Series
+    :param param: contains dictionaries {"attr": x, "autolag": y} with x str, either "teststat", "pvalue" or "usedlag"
+                  and with y str, either of "AIC", "BIC", "t-stats" or None (See the documentation of adfuller() in
+                  statsmodels).
+    :type param: list
+    :return: the value of this feature
+    :return type: polars.DataFrame
+    """
+
+    def compute_adf(autolag):
+        try:
+            return adfuller(x, autolag=autolag)
+        except LinAlgError:
+            return float("nan"), float("nan"), float("nan")
+        except ValueError:  # occurs if sample size is too small
+            return float("nan"), float("nan"), float("nan")
+        except MissingDataError:  # is thrown for e.g. inf or nan in the data
+            return float("nan"), float("nan"), float("nan")
+
+    res = []
+
+    for config in param:
+        autolag = config.get("autolag", "AIC")
+
+        adf = compute_adf(autolag)
+        index = f'attr_"{config["attr"]}"__autolag_"{autolag}"'
+
+        if config["attr"] == "teststat":
+            res.append((index, adf[0]))
+        elif config["attr"] == "pvalue":
+            res.append((index, adf[1]))
+        elif config["attr"] == "usedlag":
+            res.append((index, adf[2]))
+        else:
+            res.append((index, float("nan")))
+        return pl.DataFrame(res)
+
+
+def cwt_coefficients(
+    x: pl.Series, param: List[Dict[str, Union[List[int], int, int]]]
+) -> pl.DataFrame:
+    """
+    Calculates a Continuous wavelet transform for the Ricker wavelet, also known as the "Mexican hat wavelet" which is
+    defined by
+
+    .. math::
+        \\frac{2}{\\sqrt{3a} \\pi^{\\frac{1}{4}}} (1 - \\frac{x^2}{a^2}) exp(-\\frac{x^2}{2a^2})
+
+    where :math:`a` is the width parameter of the wavelet function.
+
+    This feature calculator takes three different parameter: widths, coeff and w. The feature calculator takes all the
+    different widths arrays and then calculates the cwt one time for each different width array. Then the values for the
+    different coefficient for coeff and width w are returned. (For each dic in param one feature is returned)
+
+    :param x: the time series to calculate the feature of
+    :type x: polars.Series
+    :param param: contains dictionaries {"widths":x, "coeff": y, "w": z} with x array of int and y,z int
+    :type param: list
+    :return: the different feature values
+    :return type: polars.DataFrame
+    """
+    calculated_cwt = {}
+    res = []
+    indices = []
+
+    for parameter_combination in param:
+        widths = tuple(parameter_combination["widths"])
+        w = parameter_combination["w"]
+        coeff = parameter_combination["coeff"]
+
+        if widths not in calculated_cwt:
+            calculated_cwt[widths] = cwt(x, ricker, widths)
+
+        calculated_cwt_for_widths = calculated_cwt[widths]
+
+        indices += [f"coeff_{coeff}__w_{w}__widths_{widths}"]
+
+        i = widths.index(w)
+        if calculated_cwt_for_widths.shape[1] <= coeff:
+            res += [float("nan")]
+        else:
+            res += [calculated_cwt_for_widths[i, coeff]]
+
+    data = [indices, res]
+
+    return pl.DataFrame(data, schema=["index", "res"], orient="col")
+
+
+def mean_second_derivative_central(x: pl.Series) -> float:
+    """
+    Returns the mean value of a central approximation of the second derivative
+
+    .. math::
+
+        \\frac{1}{2(n-2)} \\sum_{i=1,\\ldots, n-1}  \\frac{1}{2} (x_{i+2} - 2 \\cdot x_{i+1} + x_i)
+
+    :param x: the time series to calculate the feature of
+    :type x: polars.Series
+    :return: the value of this feature
+    :return type: float | float("nan")
+    """
+    return (
+        (x[-1] - x[-2] - x[1] + x[0]) / (2 * (len(x) - 2))
+        if len(x) > 2
+        else float("nan")
+    )
 
 
 def symmetry_looking(x: pl.Series, param: List[Dict[str, float]]) -> pl.DataFrame:
@@ -14,11 +270,11 @@ def symmetry_looking(x: pl.Series, param: List[Dict[str, float]]) -> pl.DataFram
         | mean(X)-median(X)| < r * (max(X)-min(X))
 
     :param x: the time series to calculate the feature of
-    :type x: pl.Series
+    :type x: polars.Series
     :param param: contains dictionaries {"r": x} with x (float) is the percentage of the range to compare with
     :type param: list
     :return: the value of this feature with different r values
-    :return type: pl.DataFrame
+    :return type: polars.DataFrame
     """
     mean_median_difference = abs(x.mean() - x.median())
     max_min_difference = x.max() - x.min()
@@ -59,7 +315,7 @@ def time_reversal_asymmetry_statistic(x: pl.Series, lag: int) -> float:
     |  Knowledge and Data Engineering, IEEE Transactions on 26, 3026–3037.
 
     :param x: the time series to calculate the feature of
-    :type x: pl.Series
+    :type x: polars.Series
     :param lag: the lag that should be used in the calculation of the feature
     :type lag: int
     :return: the value of this feature
@@ -76,51 +332,3 @@ def time_reversal_asymmetry_statistic(x: pl.Series, lag: int) -> float:
         )
 
     return result
-
-
-def ar_coefficient(x: pl.Series, param: List[Dict[str, int]]) -> pl.DataFrame:
-    """
-    This feature calculator fits the unconditional maximum likelihood
-    of an autoregressive AR(k) process.
-    The k parameter is the maximum lag of the process
-
-    .. math::
-
-        X_{t}=\\varphi_0 +\\sum _{{i=1}}^{k}\\varphi_{i}X_{{t-i}}+\\varepsilon_{t}
-
-    For the configurations from param which should contain the maxlag "k" and such an AR process is calculated. Then
-    the coefficients :math:`\\varphi_{i}` whose index :math:`i` contained from "coeff" are returned.
-
-    :param x: the time series to calculate the feature of
-    :type x: pl.Series
-    :param param: contains dictionaries {"coeff": x, "k": y} with x,y int
-    :type param: list
-    :return x: the different feature values
-    :return type: pandas.Series
-    """
-    calculated_ar_params = {}
-    res = {}
-
-    for parameter_combination in param:
-        k = parameter_combination["k"]
-        p = parameter_combination["coeff"]
-
-        column_name = f"coeff_{p}__k_{k}"
-
-        if k not in calculated_ar_params:
-            try:
-                calculated_AR = AutoReg(x.to_list(), lags=k, trend="c")
-                calculated_ar_params[k] = calculated_AR.fit().params
-            except (ZeroDivisionError, np.linalg.LinAlgError, ValueError):
-                calculated_ar_params[k] = [np.NaN] * k
-
-        mod = calculated_ar_params[k]
-        if p <= k:
-            try:
-                res[column_name] = mod[p]
-            except IndexError:
-                res[column_name] = 0
-        else:
-            res[column_name] = np.NaN
-
-    return pl.DataFrame(data=res)
