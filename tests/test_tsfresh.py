@@ -2,7 +2,7 @@ import polars as pl
 import pytest
 from polars.testing import assert_frame_equal
 
-from functime.feature_extraction.tsfresh import (
+from functime.feature_extraction.tsfresh_achasol import (
     autocorrelation,
     count_above,
     count_above_mean,
