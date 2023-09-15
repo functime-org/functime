@@ -57,7 +57,7 @@ def plot_forecasts(
 
     # Get most recent observations
     entity_col, time_col, target_col = y_true.columns
-    y = y_true.groupby(entity_col).tail(last_n)
+    y = y_true.group_by(entity_col).tail(last_n)
 
     # Organize subplots
     n_series = y.get_column(entity_col).n_unique()
@@ -135,7 +135,7 @@ def plot_backtests(
 
     # Get most recent observations
     entity_col, time_col, target_col = y_true.columns
-    y = y_true.groupby(entity_col).tail(last_n)
+    y = y_true.group_by(entity_col).tail(last_n)
 
     # Organize subplots
     n_series = y.get_column(entity_col).n_unique()
@@ -243,7 +243,7 @@ def plot_comet(
     entity_col, _, target_col = y_train.columns
     scoring = scoring or smape
     scores = scoring(y_true=y_test, y_pred=y_pred)
-    cvs = y_train.groupby(entity_col).agg(
+    cvs = y_train.group_by(entity_col).agg(
         (pl.col(target_col).var() / pl.col(target_col).mean()).alias("CV")
     )
     comet = scores.join(cvs, on=entity_col, how="left").drop_nulls()

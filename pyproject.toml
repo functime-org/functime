@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "functime"
-version = "0.6.1"
+version = "0.7.0"
 description = "Time-series machine learning at scale."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -32,7 +32,7 @@ dependencies = [
     "kaleido==0.2.1",
     "numpy",
     "plotly",
-    "polars==0.18.11",
+    "polars==0.19.2",
     "pyarrow",
     "pylance",
     "pynndescent==0.5.8",
