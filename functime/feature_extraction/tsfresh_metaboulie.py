@@ -54,7 +54,6 @@ def agg_linear_trend(
     :return: the different feature values
     :return type: polars.DataFrame
     """
-    # todo: we could use the index of the DataFrame here
 
     calculated_agg = defaultdict(dict)
     res_data = []
@@ -188,7 +187,7 @@ def augmented_dickey_fuller(
             res.append((index, adf[2]))
         else:
             res.append((index, float("nan")))
-        return pl.DataFrame(res)
+    return pl.DataFrame(res, schema=["index", "res"])
 
 
 def cwt_coefficients(

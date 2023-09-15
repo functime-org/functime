@@ -1,3 +1,4 @@
+import numpy as np
 import polars as pl
 import pytest
 from polars.testing import assert_frame_equal, assert_series_equal
@@ -12,6 +13,8 @@ from functime.feature_extraction.tsfresh_metaboulie import (
     symmetry_looking,
     time_reversal_asymmetry_statistic,
 )
+
+np.random.seed(42)
 
 
 @pytest.mark.parametrize(
@@ -201,9 +204,82 @@ def test_ar_coefficient(x, param, res):
     assert_frame_equal(ar_coefficient(x, param), res)
 
 
-@pytest.mark.parametrize("x, param, res", [()])
+def generate_ar1():
+    np.random.seed(42)
+    e = np.random.normal(0.1, 0.1, size=100)
+    m = 50
+    x = [0] * m
+    x[0] = 100
+    for i in range(1, m):
+        x[i] = x[i - 1] * 0.5 + e[i]
+    return pl.Series(x, dtype=pl.Float64)
+
+
+@pytest.mark.parametrize(
+    "x, param, res",
+    [
+        (
+            pl.Series(np.cumsum(np.random.uniform(size=100))),
+            [
+                {"autolag": "BIC", "attr": "teststat"},
+                {"autolag": "BIC", "attr": "pvalue"},
+                {"autolag": "BIC", "attr": "usedlag"},
+            ],
+            pl.DataFrame(
+                [
+                    [
+                        'attr_"teststat"__autolag_"BIC"',
+                        'attr_"pvalue"__autolag_"BIC"',
+                        'attr_"usedlag"__autolag_"BIC"',
+                    ],
+                    [0.037064, 0.961492, 0],
+                ],
+                schema=["index", "res"],
+            ),
+        ),
+        (
+            generate_ar1(),
+            [
+                {"autolag": "AIC", "attr": "teststat"},
+                {"autolag": "AIC", "attr": "pvalue"},
+                {"autolag": "AIC", "attr": "usedlag"},
+            ],
+            pl.DataFrame(
+                [
+                    [
+                        'attr_"teststat"__autolag_"AIC"',
+                        'attr_"pvalue"__autolag_"AIC"',
+                        'attr_"usedlag"__autolag_"AIC"',
+                    ],
+                    [-595.259534, 0, 0],
+                ],
+                schema=["index", "res"],
+            ),
+        ),
+    ],
+)
 def test_augmented_dickey_fuller(x, param, res):
-    assert_frame_equal(augmented_dickey_fuller(x, param), res)
+    assert_frame_equal(augmented_dickey_fuller(x, param), res, atol=1e-7)
+    res_linalg_error = (
+        augmented_dickey_fuller(x=pl.Series(np.repeat(np.nan, 100)), param=param)
+        .get_column("res")
+        .to_numpy()
+    )
+    assert all(np.isnan(res_linalg_error))
+    res_value_error = (
+        augmented_dickey_fuller(x=pl.Series([]), param=param)
+        .get_column("res")
+        .to_numpy()
+    )
+    assert all(np.isnan(res_value_error))
+
+    # Should return NaN if "attr" is unknown
+    res_attr_error = (
+        augmented_dickey_fuller(x=x, param=[{"autolag": "AIC", "attr": ""}])
+        .get_column("res")
+        .to_numpy()
+    )
+    assert all(np.isnan(res_attr_error))
 
 
 @pytest.mark.parametrize(
