@@ -60,7 +60,6 @@ def agg_linear_trend(
     res_index = []
 
     for parameter_combination in param:
-
         chunk_len = parameter_combination["chunk_len"]
         f_agg = parameter_combination["f_agg"]
 
