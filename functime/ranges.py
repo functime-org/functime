@@ -37,7 +37,7 @@ def make_future_ranges(
             future_ranges = cutoffs.select(
                 [
                     pl.col(entity_col),
-                    pl.date_range(
+                    pl.date_ranges(
                         pl.col("low"),
                         pl.col("low")
                         .dt.offset_by(f"{fh * offset_n}{offset_alias}")

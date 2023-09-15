@@ -88,7 +88,7 @@ def acf(X: pl.DataFrame, max_lags: int, alpha: float = 0.05) -> pl.DataFrame:
             .over(entity_col)
             .cast(pl.Float32)
         )
-        .groupby(entity_col)
+        .group_by(entity_col)
         .agg(acf_formula(pl.col(target_col), max_lags=max_lags))
         .select(
             entity_col,
@@ -96,7 +96,7 @@ def acf(X: pl.DataFrame, max_lags: int, alpha: float = 0.05) -> pl.DataFrame:
             pl.col("length"),
         )
         .explode("acf")
-        .groupby(entity_col)
+        .group_by(entity_col)
         .agg(
             [
                 pl.col("acf"),
@@ -117,7 +117,7 @@ def acf(X: pl.DataFrame, max_lags: int, alpha: float = 0.05) -> pl.DataFrame:
             ]
         )
         .explode(["acf", "interval"])
-        .groupby(entity_col)
+        .group_by(entity_col)
         .agg(
             [
                 pl.col("acf"),
@@ -153,7 +153,7 @@ def ljung_box_test(X: pl.DataFrame, max_lags: int):
 
     entity_col, _, target_col = X.columns[:3]
     results = (
-        X.groupby(entity_col)
+        X.group_by(entity_col)
         .agg(_acf_sqr_ratio(pl.col(target_col)))
         .select(
             entity_col,
@@ -161,7 +161,7 @@ def ljung_box_test(X: pl.DataFrame, max_lags: int):
             pl.col("length"),
         )
         .explode("acf")
-        .groupby(entity_col)
+        .group_by(entity_col)
         .agg(_qstat_ljung_box(pl.col("acf"), pl.col("length")))
     )
     return results
@@ -169,7 +169,7 @@ def ljung_box_test(X: pl.DataFrame, max_lags: int):
 
 def normality_test(X: pl.DataFrame) -> pl.DataFrame:
     entity_col, _, target_col = X.columns[:3]
-    results = X.groupby(entity_col).agg(
+    results = X.group_by(entity_col).agg(
         pl.col(target_col)
         .apply(lambda s: normaltest(s.to_numpy())[0])
         .alias("normal_test")
@@ -180,15 +180,17 @@ def normality_test(X: pl.DataFrame) -> pl.DataFrame:
 def _rank_entities_by_stat(y_true: pl.DataFrame, sort_by: str, descending: bool):
     entity_col, _, target_col = y_true.columns[:3]
     if sort_by == "mean":
-        stats = y_true.groupby(entity_col).agg(pl.col(target_col).mean().alias(sort_by))
+        stats = y_true.group_by(entity_col).agg(
+            pl.col(target_col).mean().alias(sort_by)
+        )
     elif sort_by == "median":
-        stats = y_true.groupby(entity_col).agg(
+        stats = y_true.group_by(entity_col).agg(
             pl.col(target_col).median().alias(sort_by)
         )
     elif sort_by == "std":
-        stats = y_true.groupby(entity_col).agg(pl.col(target_col).std().alias(sort_by))
+        stats = y_true.group_by(entity_col).agg(pl.col(target_col).std().alias(sort_by))
     elif sort_by == "cv":
-        stats = y_true.groupby(entity_col).agg(
+        stats = y_true.group_by(entity_col).agg(
             (pl.col(target_col).std() / pl.col(target_col).mean()).alias(sort_by)
         )
     else:
@@ -300,7 +302,7 @@ def rank_residuals(
             "abs_bias": pl.col(target_col).mean().abs(),
         }
         ranks = (
-            y_resids.groupby(entity_col)
+            y_resids.group_by(entity_col)
             .agg(sort_by_to_expr[sort_by].alias(sort_by))
             .sort(sort_by, descending=descending)
             .collect()

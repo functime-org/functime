@@ -112,7 +112,7 @@ def resample(freq: str, agg_method: str, impute_method: Union[str, int, float]):
         X_new = (
             # Defensive resampling
             X.lazy()
-            .groupby_dynamic(time_col, every=freq, by=entity_col)
+            .group_by_dynamic(time_col, every=freq, by=entity_col)
             .agg(agg_exprs[agg_method])
             # Must defensive sort columns otherwise time_col and target_col
             # positions are incorrectly swapped in lazy
@@ -143,12 +143,12 @@ def trim(direction: Literal["both", "left", "right"] = "both"):
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
         maxmin = (
-            X.groupby(entity_col)
+            X.group_by(entity_col)
             .agg(pl.col(time_col).min())
             .select(pl.col(time_col).max())
         )
         minmax = (
-            X.groupby(entity_col)
+            X.group_by(entity_col)
             .agg(pl.col(time_col).max())
             .select(pl.col(time_col).min())
         )
@@ -168,13 +168,16 @@ def trim(direction: Literal["both", "left", "right"] = "both"):
 
 
 @transformer
-def lag(lags: List[int]):
+def lag(lags: List[int], fill_strategy: Optional[str] = None):
     """Applies lag transformation to a LazyFrame.
 
     Parameters
     ----------
     lags : List[int]
         A list of lag values to apply.
+    fill_strategy : Optional[str]
+        Strategy to fill nulls by. Nulls are not filled if None.
+        Supported strategies include: ["backward", "forward", "mean", "zero"].
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
@@ -199,10 +202,12 @@ def lag(lags: List[int]):
                 pl.col(time_col).set_sorted(),
                 *lagged_series,
             )
-            .groupby(entity_col)
+            .group_by(entity_col)
             .agg(pl.all().slice(max_lag))
             .explode(pl.all().exclude(entity_col))
         )
+        if fill_strategy:
+            X_new = X_new.fill_null(strategy=fill_strategy)
         artifacts = {"X_new": X_new}
         return artifacts
 
@@ -297,7 +302,7 @@ def roll(
         X_all = [
             (
                 X.sort([entity_col, time_col])
-                .groupby_dynamic(
+                .group_by_dynamic(
                     index_column=time_col,
                     by=entity_col,
                     every=freq,
@@ -350,14 +355,14 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
         _mean = None
         _std = None
         if use_mean:
-            _mean = X.groupby(entity_col).agg(
+            _mean = X.group_by(entity_col).agg(
                 PL_NUMERIC_COLS(entity_col, time_col).mean().suffix("_mean")
             )
             X = X.join(_mean, on=entity_col).select(
                 idx_cols + [pl.col(col) - pl.col(f"{col}_mean") for col in numeric_cols]
             )
         if use_std:
-            _std = X.groupby(entity_col).agg(
+            _std = X.group_by(entity_col).agg(
                 PL_NUMERIC_COLS(entity_col, time_col).std().suffix("_std")
             )
             X = X.join(_std, on=entity_col).select(
@@ -488,7 +493,7 @@ def diff(order: int, sp: int = 1, fill_strategy: Optional[str] = None):
         Seasonal periodicity.
     fill_strategy : Optional[str]
         Strategy to fill nulls by. Nulls are not filled if None.
-        Supported strategies include: ["backward", "forward", "mean"].
+        Supported strategies include: ["backward", "forward", "mean", "zero"].
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
@@ -498,12 +503,18 @@ def diff(order: int, sp: int = 1, fill_strategy: Optional[str] = None):
 
         X_first, X_last = pl.collect_all(
             [
-                X.groupby(entity_col).head(1),
-                X.groupby(entity_col).tail(1),
+                X.group_by(entity_col).head(1),
+                X.group_by(entity_col).tail(1),
             ]
         )
         for _ in range(order):
-            X = X.select([entity_col, time_col, cs.float().diff(n=sp).over(entity_col)])
+            X = X.select(
+                [
+                    entity_col,
+                    time_col,
+                    PL_NUMERIC_COLS(entity_col, time_col).diff(n=sp).over(entity_col),
+                ]
+            )
 
         # Drop null
         if fill_strategy:
@@ -535,7 +546,11 @@ def diff(order: int, sp: int = 1, fill_strategy: Optional[str] = None):
         ).sort(idx_cols)
         for _ in range(order):
             X_new = X_new.select(
-                [entity_col, time_col, cs.float().cumsum().over(entity_col)]
+                [
+                    entity_col,
+                    time_col,
+                    PL_NUMERIC_COLS(entity_col, time_col).cumsum().over(entity_col),
+                ]
             )
 
         X_new = (
@@ -578,7 +593,7 @@ def boxcox(method: str = "mle"):
 
         idx_cols = X.columns[:2]
         entity_col, time_col = idx_cols
-        gb = X.groupby(X.columns[0])
+        gb = X.group_by(X.columns[0])
         # Step 1. Compute optimal lambdas
         lmbds = gb.agg(
             PL_NUMERIC_COLS(entity_col, time_col)
@@ -640,7 +655,7 @@ def yeojohnson(brack: tuple = (-2, 2)):
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         idx_cols = X.columns[:2]
         entity_col, time_col = idx_cols
-        gb = X.groupby(X.columns[0])
+        gb = X.group_by(X.columns[0])
         # Step 1. Compute optimal lambdas
         lmbds = gb.agg(
             PL_NUMERIC_COLS(entity_col, time_col)
@@ -747,7 +762,7 @@ def detrend(method: Literal["linear", "mean"] = "linear"):
                 "X_new": X_new.select(X.columns),
             }
         if method == "mean":
-            _mean = X.groupby(entity_col).agg(
+            _mean = X.group_by(entity_col).agg(
                 pl.col(X.columns[2:]).mean().suffix("__mean")
             )
             X_new = X.with_columns(
