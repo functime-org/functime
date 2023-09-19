@@ -3,12 +3,8 @@ from math import ceil
 from typing import Dict, List, Union
 
 import polars as pl
-from numpy.linalg import LinAlgError
 from scipy.signal import cwt, ricker
 from scipy.stats import linregress
-from statsmodels.tools.sm_exceptions import MissingDataError
-from statsmodels.tsa.ar_model import AutoReg
-from statsmodels.tsa.stattools import adfuller
 
 
 def _aggregate_on_chunks(x: pl.Series, f_agg: str, chunk_len: int) -> list:
@@ -111,32 +107,7 @@ def ar_coefficient(
     :return x: the different feature values
     :return type: polars.DataFrame
     """
-    calculated_ar_params = {}
-    res = {}
-
-    for parameter_combination in param:
-        k = parameter_combination["k"]
-        p = parameter_combination["coeff"]
-
-        column_name = f"coeff_{p}__k_{k}"
-
-        if k not in calculated_ar_params:
-            try:
-                calculated_AR = AutoReg(x.to_list(), lags=k, trend="c")
-                calculated_ar_params[k] = calculated_AR.fit().params
-            except (ZeroDivisionError, LinAlgError, ValueError):
-                calculated_ar_params[k] = [float("nan")] * k
-
-        mod = calculated_ar_params[k]
-        if p <= k:
-            try:
-                res[column_name] = mod[p]
-            except IndexError:
-                res[column_name] = 0
-        else:
-            res[column_name] = float("nan")
-
-    return pl.DataFrame(data=res)
+    return NotImplemented
 
 
 def augmented_dickey_fuller(
@@ -159,34 +130,7 @@ def augmented_dickey_fuller(
     :return: the value of this feature
     :return type: polars.DataFrame
     """
-
-    def compute_adf(autolag):
-        try:
-            return adfuller(x, autolag=autolag)
-        except LinAlgError:
-            return float("nan"), float("nan"), float("nan")
-        except ValueError:  # occurs if sample size is too small
-            return float("nan"), float("nan"), float("nan")
-        except MissingDataError:  # is thrown for e.g. inf or nan in the data
-            return float("nan"), float("nan"), float("nan")
-
-    res = []
-
-    for config in param:
-        autolag = config.get("autolag", "AIC")
-
-        adf = compute_adf(autolag)
-        index = f'attr_"{config["attr"]}"__autolag_"{autolag}"'
-
-        if config["attr"] == "teststat":
-            res.append((index, adf[0]))
-        elif config["attr"] == "pvalue":
-            res.append((index, adf[1]))
-        elif config["attr"] == "usedlag":
-            res.append((index, adf[2]))
-        else:
-            res.append((index, float("nan")))
-    return pl.DataFrame(res, schema=["index", "res"])
+    return NotImplemented
 
 
 def cwt_coefficients(
