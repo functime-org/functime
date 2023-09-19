@@ -1,40 +1,171 @@
 import polars as pl
 
 
-# helper function should not be exposed
-def has_duplicate_of_value(x: pl.Expr, t: float) -> pl.Expr:
-    """Check if a value exists as a duplicate in a Polars Series.
+def change_quantiles(
+    x: pl.Expr, ql: float, qh: float, isabs: bool, f_agg: str
+) -> pl.Expr:
+    """
+    First fixes a corridor given by the quantiles ql and qh of the distribution of x.
+    Then calculates the average, absolute value of consecutive changes of the series x inside this corridor.
+
+    Think about selecting a corridor on the
+    y-Axis and only calculating the mean of the absolute change of the time series inside this corridor.
 
     Parameters
     ----------
-    x : pl.Series
-        The input Polars Series to search for duplicates in.
-    t : float
-        The value to check for duplicates of within the Series.
-
-    Returns
-    -------
-    bool
-        Returns True if duplicates of the specified value `t` exist in the
-        input Series `x`, otherwise returns False.
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> data = pl.DataFrame({'A': [1, 2, 3, 2, 4]})
-    >>> series = data['A']
-    >>> result = has_duplicate_of_value(series, 2)
-    >>> print(result)
-    True
-
-    See Also
-    --------
-    pl.Series.filter : Filter a Series using a boolean expression.
-    pl.Series.is_duplicated : Check for duplicate values in a Series.
-    pl.Series.any : Check if any elements in a boolean Series are True.
-
+    x: pl.Expr
+        the time series to calculate the feature of
+    ql : float
+        the lower quantile of the corridor
+        Must be less than `qh`.
+    qh : float
+        the upper quantile of the corridor
+        Must be greater than `ql`.
+    isabs : bool
+        should the absolute differences be taken instead?
+    f_agg : str
+        the aggregator function that is applied to the differences in the bin
     """
-    return x.filter(x == t).is_duplicated().any()
+    if isabs:
+        x = (
+            x.diff()
+            .abs()
+            .filter(
+                x.is_between(
+                    x.quantile(ql, interpolation="linear"),
+                    x.quantile(qh, interpolation="linear"),
+                ).and_(
+                    x.is_between(
+                        x.quantile(ql, interpolation="linear"),
+                        x.quantile(qh, interpolation="linear"),
+                    ).shift_and_fill(fill_value=False, periods=1)
+                )
+            )
+        )
+    else:
+        x = x.diff().filter(
+            x.is_between(
+                x.quantile(ql, interpolation="linear"),
+                x.quantile(qh, interpolation="linear"),
+            ).and_(
+                x.is_between(
+                    x.quantile(ql, interpolation="linear"),
+                    x.quantile(qh, interpolation="linear"),
+                ).shift_and_fill(fill_value=False, periods=1)
+            )
+        )
+    if f_agg == "std":
+        return getattr(x, f_agg)(ddof=0).fill_null(0.0)
+    else:
+        return getattr(x, f_agg)().fill_null(0.0)
+
+
+def mean_abs_change(x: pl.Expr) -> pl.Expr:
+    """
+    Compute mean absolute change.
+
+    Parameters
+    ----------
+    x : pl.Expr
+        The time series to compute the feature of.
+    """
+    return x.diff(null_behavior="drop").abs().mean()
+
+
+def mean_change(x: pl.Expr) -> pl.Expr:
+    """
+    Compute mean change.
+
+    Parameters
+    ----------
+    x : pl.Expr
+        The time series to compute the feature of.
+    """
+    return x.diff(null_behavior="drop").mean()
+
+
+def number_crossing_m(x: pl.Expr, m: float) -> pl.Expr:
+    """
+    Calculates the number of crossings of x on m. A crossing is defined as two sequential values where the first value
+    is lower than m and the next is greater, or vice-versa. If you set m to zero, you will get the number of zero
+    crossings.
+
+    Parameters
+    ----------
+    x : pl.Expr
+        the time series to calculate the feature of.
+    m : float
+        the crossing value.
+    """
+    return x.gt(m).cast(pl.Int8).diff(null_behavior="drop").abs().eq(1).sum()
+
+
+def var_greater_than_std(x: pl.Expr) -> pl.Expr:
+    """
+    Is variance higher than the standard deviation?
+
+    Boolean variable denoting if the variance of x is greater than its standard deviation. Is equal to variance of x
+    being larger than 1
+
+    Parameters
+    ----------
+    x : pl.Expr
+        the time series to calculate the feature of
+    """
+    y = x.var(ddof=0)
+    return y > y.sqrt()
+
+
+def first_location_of_maximum(x: pl.Expr) -> pl.Expr:
+    """
+    Returns the first location of the maximum value of x.
+    The position is calculated relatively to the length of x.
+
+    Parameters
+    ----------
+    x : pl.Expr
+        the time series to calculate the feature of
+    """
+    return x.arg_max() / x.len()
+
+
+def last_location_of_maximum(x: pl.Expr) -> pl.Expr:
+    """
+    Returns the last location of the maximum value of x.
+    The position is calculated relatively to the length of x.
+
+    Parameters
+    ----------
+    x : pl.Expr
+        the time series to calculate the feature of
+    """
+    return (x.len() - x.reverse().arg_max()) / x.len()
+
+
+def first_location_of_minimum(x: pl.Expr) -> pl.Expr:
+    """
+    Returns the first location of the minimum value of x.
+    The position is calculated relatively to the length of x.
+
+    Parameters
+    ----------
+    x : pl.Expr
+        the time series to calculate the feature of
+    """
+    return x.arg_min() / x.len()
+
+
+def last_location_of_minimum(x: pl.Expr) -> pl.Expr:
+    """
+    Returns the last location of the minimum value of x.
+    The position is calculated relatively to the length of x.
+
+    Parameters
+    ----------
+    x : pl.Expr
+        the time series to calculate the feature of
+    """
+    return (x.len() - x.reverse().arg_min()) / x.len()
 
 
 def autocorrelation(x: pl.Expr, lag: int) -> pl.Expr:
@@ -306,6 +437,42 @@ def has_duplicate(x: pl.Expr) -> pl.Expr:
     return x.is_duplicated().any()
 
 
+# helper function should not be exposed
+def _has_duplicate_of_value(x: pl.Expr, t: float) -> pl.Expr:
+    """Check if a value exists as a duplicate in a Polars Series.
+
+    Parameters
+    ----------
+    x : pl.Series
+        The input Polars Series to search for duplicates in.
+    t : float
+        The value to check for duplicates of within the Series.
+
+    Returns
+    -------
+    bool
+        Returns True if duplicates of the specified value `t` exist in the
+        input Series `x`, otherwise returns False.
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> data = pl.DataFrame({'A': [1, 2, 3, 2, 4]})
+    >>> series = data['A']
+    >>> result = _has_duplicate_of_value(series, 2)
+    >>> print(result)
+    True
+
+    See Also
+    --------
+    pl.Series.filter : Filter a Series using a boolean expression.
+    pl.Series.is_duplicated : Check for duplicate values in a Series.
+    pl.Series.any : Check if any elements in a boolean Series are True.
+
+    """
+    return x.filter(x == t).is_duplicated().any()
+
+
 def has_duplicate_max(x: pl.Expr) -> pl.Expr:
     """Check if a Polars Expression contains duplicate values equal to its maximum value.
 
@@ -333,18 +500,18 @@ def has_duplicate_max(x: pl.Expr) -> pl.Expr:
     Notes
     -----
     - This function first calculates the maximum value in the input Polars Expression `x` using the `max` method.
-    - It then checks for duplicates of that maximum value using the `has_duplicate_of_value` function.
+    - It then checks for duplicates of that maximum value using the `_has_duplicate_of_value` function.
     - The result is a boolean expression, where True indicates the presence of such duplicates and False indicates none.
 
     See Also
     --------
-    has_duplicate_of_value : Check for duplicate values equal to a specified value in a Polars Expression.
+    _has_duplicate_of_value : Check for duplicate values equal to a specified value in a Polars Expression.
     pl.Expr.max : Calculate the maximum value in a Polars Expression.
     pl.Expr.is_duplicated : Check for duplicate values in a Polars Expression.
     pl.Expr.any : Check if any elements in a boolean Polars Expression are True.
 
     """
-    return has_duplicate_of_value(x, x.max())
+    return _has_duplicate_of_value(x, x.max())
 
 
 def has_duplicate_min(x: pl.Expr) -> pl.Expr:
@@ -374,15 +541,15 @@ def has_duplicate_min(x: pl.Expr) -> pl.Expr:
     Notes
     -----
     - This function first calculates the minimum value in the input Polars Expression `x` using the `min` method.
-    - It then checks for duplicates of that minimum value using the `has_duplicate_of_value` function.
+    - It then checks for duplicates of that minimum value using the `_has_duplicate_of_value` function.
     - The result is a boolean expression, where True indicates the presence of such duplicates and False indicates none.
 
     See Also
     --------
-    has_duplicate_of_value : Check for duplicate values equal to a specified value in a Polars Expression.
+    _has_duplicate_of_value : Check for duplicate values equal to a specified value in a Polars Expression.
     pl.Expr.min : Calculate the minimum value in a Polars Expression.
     pl.Expr.is_duplicated : Check for duplicate values in a Polars Expression.
     pl.Expr.any : Check if any elements in a boolean Polars Expression are True.
 
     """
-    return has_duplicate_of_value(x, x.min())
+    return _has_duplicate_of_value(x, x.min())
