@@ -1,90 +1,148 @@
+from typing import List, Mapping, Union
+
 import polars as pl
 
+TIME_SERIES_T = Union[pl.Series, pl.Expr]
 
-def change_quantiles(
-    x: pl.Expr, ql: float, qh: float, isabs: bool, f_agg: str
-) -> pl.Expr:
+
+def absolute_energy(x: TIME_SERIES_T) -> float:
     """
-    First fixes a corridor given by the quantiles ql and qh of the distribution of x.
-    Then calculates the average, absolute value of consecutive changes of the series x inside this corridor.
-
-    Think about selecting a corridor on the
-    y-Axis and only calculating the mean of the absolute change of the time series inside this corridor.
+    Compute the absolute energy of a time series.
 
     Parameters
     ----------
-    x: pl.Expr
-        the time series to calculate the feature of
-    ql : float
-        the lower quantile of the corridor
-        Must be less than `qh`.
-    qh : float
-        the upper quantile of the corridor
-        Must be greater than `ql`.
-    isabs : bool
-        should the absolute differences be taken instead?
-    f_agg : str
-        the aggregator function that is applied to the differences in the bin
+    x : pl.Expr | pl.Series
+        Input time-series.
+
+    Returns
+    -------
+    float
     """
-    if isabs:
-        x = (
-            x.diff()
-            .abs()
-            .filter(
-                x.is_between(
-                    x.quantile(ql, interpolation="linear"),
-                    x.quantile(qh, interpolation="linear"),
-                ).and_(
-                    x.is_between(
-                        x.quantile(ql, interpolation="linear"),
-                        x.quantile(qh, interpolation="linear"),
-                    ).shift_and_fill(fill_value=False, periods=1)
-                )
-            )
-        )
-    else:
-        x = x.diff().filter(
+    return x.dot(x)
+
+
+def absolute_maximum(x: TIME_SERIES_T) -> float:
+    """
+    Compute the absolute maximum of a time series.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+
+    Returns
+    -------
+    float
+    """
+    return x.abs().max()
+
+
+def absolute_sum_of_changes(x: TIME_SERIES_T) -> float:
+    """
+    Compute the absolute sum of changes of a time series.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+
+    Returns
+    -------
+    float
+    """
+    return x.diff(n=1, null_behavior="drop").abs().sum()
+
+
+def linear_trend(x: TIME_SERIES_T) -> Mapping[str, float]:
+    """
+    Compute the slope, intercept, and RSS of the linear trend.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+
+    Returns
+    -------
+    dict
+        A dictionary containing OLS results.
+    """
+    x_range = pl.int_range(1, x.len() + 1)
+    beta = pl.cov(x, x_range) / x.var()
+    alpha = x.mean() - beta * x_range.mean()
+    resid = x - beta * x_range + alpha
+    rss = resid.pow(2).sum()
+    return {"slope": beta, "intercept": alpha, "rss": rss}
+
+
+def change_quantiles(
+    x: TIME_SERIES_T, ql: float, qh: float, is_abs: bool
+) -> List[float]:
+    """First fixes a corridor given by the quantiles ql and qh of the distribution of x.
+    Then calculates the average, absolute value of consecutive changes of the series x inside this corridor.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        A single time-series.
+    ql : float
+        The lower quantile of the corridor. Must be less than `qh`.
+    qh : float
+        The upper quantile of the corridor. Must be greater than `ql`.
+    is_abs : bool
+        If True, takes absolute difference.
+
+    Returns
+    -------
+    """
+    x = x.diff()
+    if is_abs:
+        x = x.abs()
+    x = x.filter(
+        x.is_between(
+            x.quantile(ql, interpolation="linear"),
+            x.quantile(qh, interpolation="linear"),
+        ).and_(
             x.is_between(
                 x.quantile(ql, interpolation="linear"),
                 x.quantile(qh, interpolation="linear"),
-            ).and_(
-                x.is_between(
-                    x.quantile(ql, interpolation="linear"),
-                    x.quantile(qh, interpolation="linear"),
-                ).shift_and_fill(fill_value=False, periods=1)
-            )
+            ).shift_and_fill(fill_value=False, periods=1)
         )
-    if f_agg == "std":
-        return getattr(x, f_agg)(ddof=0).fill_null(0.0)
-    else:
-        return getattr(x, f_agg)().fill_null(0.0)
+    )
+    return x
 
 
-def mean_abs_change(x: pl.Expr) -> pl.Expr:
+def mean_abs_change(x: TIME_SERIES_T) -> float:
     """
     Compute mean absolute change.
 
     Parameters
     ----------
-    x : pl.Expr
-        The time series to compute the feature of.
+    x : pl.Expr | pl.Series
+        A single time-series.
+
+    Returns
+    -------
     """
     return x.diff(null_behavior="drop").abs().mean()
 
 
-def mean_change(x: pl.Expr) -> pl.Expr:
+def mean_change(x: TIME_SERIES_T) -> float:
     """
     Compute mean change.
 
     Parameters
     ----------
-    x : pl.Expr
-        The time series to compute the feature of.
+    x : pl.Expr | pl.Series
+        A single time-series.
+
+    Returns
+    -------
     """
     return x.diff(null_behavior="drop").mean()
 
 
-def number_crossing_m(x: pl.Expr, m: float) -> pl.Expr:
+def number_crossing_m(x: TIME_SERIES_T, m: float) -> float:
     """
     Calculates the number of crossings of x on m. A crossing is defined as two sequential values where the first value
     is lower than m and the next is greater, or vice-versa. If you set m to zero, you will get the number of zero
@@ -92,15 +150,18 @@ def number_crossing_m(x: pl.Expr, m: float) -> pl.Expr:
 
     Parameters
     ----------
-    x : pl.Expr
-        the time series to calculate the feature of.
+    x : pl.Expr | pl.Series
+        A single time-series.
     m : float
-        the crossing value.
+        The crossing value.
+
+    Returns
+    -------
     """
     return x.gt(m).cast(pl.Int8).diff(null_behavior="drop").abs().eq(1).sum()
 
 
-def var_greater_than_std(x: pl.Expr) -> pl.Expr:
+def var_greater_than_std(x: TIME_SERIES_T) -> bool:
     """
     Is variance higher than the standard deviation?
 
@@ -109,115 +170,95 @@ def var_greater_than_std(x: pl.Expr) -> pl.Expr:
 
     Parameters
     ----------
-    x : pl.Expr
-        the time series to calculate the feature of
+    x : pl.Expr | pl.Series
+        Input time-series.
+
+    Returns
+    -------
     """
     y = x.var(ddof=0)
     return y > y.sqrt()
 
 
-def first_location_of_maximum(x: pl.Expr) -> pl.Expr:
+def first_location_of_maximum(x: TIME_SERIES_T) -> float:
     """
     Returns the first location of the maximum value of x.
     The position is calculated relatively to the length of x.
 
     Parameters
     ----------
-    x : pl.Expr
-        the time series to calculate the feature of
+    x : pl.Expr | pl.Series
+        Input time-series.
+
+    Returns
+    -------
     """
     return x.arg_max() / x.len()
 
 
-def last_location_of_maximum(x: pl.Expr) -> pl.Expr:
+def last_location_of_maximum(x: TIME_SERIES_T) -> float:
     """
     Returns the last location of the maximum value of x.
     The position is calculated relatively to the length of x.
 
     Parameters
     ----------
-    x : pl.Expr
-        the time series to calculate the feature of
+    x : pl.Expr | pl.Series
+        Input time-series.
     """
     return (x.len() - x.reverse().arg_max()) / x.len()
 
 
-def first_location_of_minimum(x: pl.Expr) -> pl.Expr:
+def first_location_of_minimum(x: TIME_SERIES_T) -> float:
     """
     Returns the first location of the minimum value of x.
     The position is calculated relatively to the length of x.
 
     Parameters
     ----------
-    x : pl.Expr
-        the time series to calculate the feature of
+    x : pl.Expr | pl.Series
+        Input time-series.
     """
     return x.arg_min() / x.len()
 
 
-def last_location_of_minimum(x: pl.Expr) -> pl.Expr:
+def last_location_of_minimum(x: TIME_SERIES_T) -> float:
     """
     Returns the last location of the minimum value of x.
     The position is calculated relatively to the length of x.
 
     Parameters
     ----------
-    x : pl.Expr
-        the time series to calculate the feature of
+    x : pl.Expr | pl.Series
+        Input time-series.
     """
     return (x.len() - x.reverse().arg_min()) / x.len()
 
 
-def autocorrelation(x: pl.Expr, lag: int) -> pl.Expr:
-    """Calculate the autocorrelation of a Polars Expression for a specified lag.
+def autocorr(x: TIME_SERIES_T, lag: int) -> float:
+    """Calculate the autocorrelation for a specified lag.
 
-    The autocorrelation measures the linear dependence between a timeseries and a lagged version of itself.
+    The autocorrelation measures the linear dependence between a time-series and a lagged version of itself.
 
     Parameters
     ----------
-    x : pl.Expr
-        The Polars Expression for which the autocorrelation will be calculated.
+    x : pl.Expr | pl.Series
+        Input time-series.
     lag : int
         The lag at which to calculate the autocorrelation. Must be a non-negative integer.
 
     Returns
     -------
-    pl.Expr
-        A Polars Expression representing the autocorrelation at the given lag. If `lag` is 0, a constant
-        expression with a value of 1.0 is returned.
-
-    Raises
-    ------
-    Exception
-        If `lag` is a negative number, an exception is raised.
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> data = pl.DataFrame({'A': [1, 2, 3, 2, 4]})
-    >>> expr = data.select(pl.autocorrelation(data['A'], 1).alias('autocorr'))
-    >>> print(expr)
-       autocorr
-    0  0.214286
+    float | None
+        Autocorrelation at the given lag. Returns None, if lag is less than 0.
 
     Notes
     -----
     - This function calculates the autocorrelation using https://en.wikipedia.org/wiki/Autocorrelation#Estimation
     - If `lag` is 0, the autocorrelation is always 1.0, as it represents the correlation of the timeseries with itself.
-
-    See Also
-    --------
-    pl.Expr.shift : Shift a Polars Expression by a specified number of periods.
-    pl.Expr.drop_nulls : Remove rows with null values from a Polars Expression.
-    pl.Expr.sub : Subtract a value or Expression from a Polars Expression.
-    pl.Expr.dot : Calculate the dot product of two Polars Expressions.
-    pl.Expr.truediv : Perform element-wise true division on a Polars Expression.
-    pl.Expr.count : Count the non-null elements in a Polars Expression.
-    pl.Expr.var : Calculate the variance of a Polars Expression.
-
     """
     if lag < 0:
-        raise Exception("Lag cannot be a negative number")
+        return None
 
     if lag == 0:
         return pl.lit(1.0)
@@ -231,339 +272,145 @@ def autocorrelation(x: pl.Expr, lag: int) -> pl.Expr:
     )
 
 
-def count_below(x: pl.Expr, t: float) -> pl.Expr:
-    """Calculate the percentage of values below or equal to a threshold in a Polars Expression.
-
-    This function computes the percentage of values in the input Polars Expression `x` that are less than
-    or equal to the specified threshold `t`.
+def count_below(x: TIME_SERIES_T, t: float) -> float:
+    """Calculate the percentage of values below or equal to a threshold.
 
     Parameters
     ----------
-    x : pl.Expr
-        The Polars Expression containing the values to be counted.
+    x : pl.Expr | pl.Series
+        Input time-series.
     t : float
         The threshold value for comparison.
 
     Returns
     -------
-    pl.Expr
-        A Polars Expression representing the percentage of values in `x` that are less than or equal to `t`.
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> data = pl.DataFrame({'A': [1, 2, 3, 4, 5, 6, 7]})
-    >>> expr = count_below(data['A'], 4)
-    >>> print(expr)
-    57.14285714285714
-
-    Notes
-    -----
-    - This function filters the values in the input Polars Expression `x` using the condition `x <= t`, counts
-      the number of values that satisfy the condition, and then computes the percentage relative to the total
-      number of values in `x`.
-    - The result is expressed as a percentage, which is a floating-point number between 0 and 100.
-
-    See Also
-    --------
-    pl.Expr.filter : Filter a Polars Expression based on a condition.
-    pl.Expr.count : Count the number of elements in a Polars Expression.
-    pl.Expr.truediv : Perform element-wise true division on a Polars Expression.
-    pl.Expr.mul : Multiply a Polars Expression by a scalar or another Expression.
-
+    float
+        The percentage of values in `x` that are less than or equal to `t`.
     """
     return x.filter(x <= t).count().truediv(x.count()).mul(100)
 
 
-def count_above(x: pl.Expr, t: float) -> pl.Expr:
-    """Calculate the percentage of values above or equal to a threshold in a Polars Expression.
-
-    This function computes the percentage of values in the input Polars Expression `x` that are greater than
-    or equal to the specified threshold `t`.
+def count_above(x: TIME_SERIES_T, t: float) -> float:
+    """Calculate the percentage of values above or equal to a threshold.
 
     Parameters
     ----------
-    x : pl.Expr
-        The Polars Expression containing the values to be counted.
+    x : pl.Expr | pl.Series
+        Input time-series.
     t : float
         The threshold value for comparison.
 
     Returns
     -------
-    pl.Expr
-        A Polars Expression representing the percentage of values in `x` that are greater than or equal to `t`.
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> data = pl.DataFrame({'A': [1, 2, 3, 4, 5, 6, 7]})
-    >>> expr = count_above(data['A'], 4)
-    >>> print(expr)
-    42.857142857142854
-
-    Notes
-    -----
-    - This function filters the values in the input Polars Expression `x` using the condition `x >= t`, counts
-      the number of values that satisfy the condition, and then computes the percentage relative to the total
-      number of values in `x`.
-    - The result is expressed as a percentage, which is a floating-point number between 0 and 100.
-
-    See Also
-    --------
-    pl.Expr.filter : Filter a Polars Expression based on a condition.
-    pl.Expr.count : Count the number of elements in a Polars Expression.
-    pl.Expr.truediv : Perform element-wise true division on a Polars Expression.
-    pl.Expr.mul : Multiply a Polars Expression by a scalar or another Expression.
-
+    float
+        The percentage of values in `x` that are greater than or equal to `t`.
     """
     return x.filter(x >= t).count().truediv(x.count()).mul(100)
 
 
-def count_below_mean(x: pl.Expr) -> pl.Expr:
-    """Count the number of values in a Polars Expression that are below the mean.
-
-    This function filters the values in the input Polars Expression `x` and counts the number of values that are
-    less than the mean of the expression.
+def count_below_mean(x: pl.Expr) -> int:
+    """Count the number of values that are below the mean.
 
     Parameters
     ----------
-    x : pl.Expr
-        The Polars Expression containing the values to be counted.
+    x : pl.Expr | pl.Series
+        Input time-series.
 
     Returns
     -------
-    pl.Expr
-        A Polars Expression representing the count of values in `x` that are below the mean.
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> data = pl.DataFrame({'A': [1, 2, 3, 4, 5, 6, 7]})
-    >>> expr = count_below_mean(data['A'])
-    >>> print(expr)
-    3
-
-    Notes
-    -----
-    - This function filters the values in the input Polars Expression `x` using the condition `x < x.mean()`,
-      and then counts the number of values that satisfy the condition.
-    - The result is an integer representing the count of values below the mean.
-
-    See Also
-    --------
-    pl.Expr.filter : Filter a Polars Expression based on a condition.
-    pl.Expr.count : Count the number of elements in a Polars Expression.
-    pl.Expr.mean : Calculate the mean (average) of a Polars Expression.
-
+    int
+        The count of values in `x` that are below the mean.
     """
     return x.filter(x < x.mean()).count()
 
 
-def count_above_mean(x: pl.Expr) -> pl.Expr:
-    """Count the number of values in a Polars Expression that are above the mean.
-
-    This function filters the values in the input Polars Expression `x` and counts the number of values that are
-    greater than the mean of the expression.
+def count_above_mean(x: TIME_SERIES_T) -> int:
+    """Count the number of values that are above the mean.
 
     Parameters
     ----------
-    x : pl.Expr
-        The Polars Expression containing the values to be counted.
+    x : pl.Expr | pl.Series
+        Input time-series.
 
     Returns
     -------
-    pl.Expr
-        A Polars Expression representing the count of values in `x` that are above the mean.
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> data = pl.DataFrame({'A': [1, 2, 3, 4, 5, 6, 7]})
-    >>> expr = count_above_mean(data['A'])
-    >>> print(expr)
-    3
-
-    Notes
-    -----
-    - This function filters the values in the input Polars Expression `x` using the condition `x > x.mean()`,
-      and then counts the number of values that satisfy the condition.
-    - The result is an integer representing the count of values above the mean.
-
-    See Also
-    --------
-    pl.Expr.filter : Filter a Polars Expression based on a condition.
-    pl.Expr.count : Count the number of elements in a Polars Expression.
-    pl.Expr.mean : Calculate the mean (average) of a Polars Expression.
-
+    int
+        The count of values in `x` that are above the mean.
     """
     return x.filter(x > x.mean()).count()
 
 
-def has_duplicate(x: pl.Expr) -> pl.Expr:
-    """Check if a Polars Expression contains any duplicate values.
-
-    This function checks whether the input Polars Expression `x` contains any duplicate values.
+def has_duplicate(x: TIME_SERIES_T) -> bool:
+    """Check if the time-series contains any duplicate values.
 
     Parameters
     ----------
-    x : pl.Expr
-        The Polars Expression to be checked for duplicates.
-
-    Returns
-    -------
-    pl.Expr
-        A boolean Polars Expression indicating whether there are duplicate values in `x`.
-        Returns True if duplicates exist, otherwise False.
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> data = pl.DataFrame({'A': [1, 2, 2, 3, 4, 4]})
-    >>> expr = has_duplicate(data['A'])
-    >>> print(expr)
-    True
-
-    Notes
-    -----
-    - This function uses the `is_duplicated` method to identify duplicate values within the input Polars Expression.
-    - The result is a boolean expression, where True indicates the presence of duplicates and False indicates no duplicates.
-
-    See Also
-    --------
-    pl.Expr.is_duplicated : Check for duplicate values in a Polars Expression.
-    pl.Expr.any : Check if any elements in a boolean Polars Expression are True.
-
-    """
-    return x.is_duplicated().any()
-
-
-# helper function should not be exposed
-def _has_duplicate_of_value(x: pl.Expr, t: float) -> pl.Expr:
-    """Check if a value exists as a duplicate in a Polars Series.
-
-    Parameters
-    ----------
-    x : pl.Series
-        The input Polars Series to search for duplicates in.
-    t : float
-        The value to check for duplicates of within the Series.
+    x : pl.Expr | pl.Series
+        Input time-series.
 
     Returns
     -------
     bool
-        Returns True if duplicates of the specified value `t` exist in the
-        input Series `x`, otherwise returns False.
+        A boolean indicating whether there are duplicate values in `x`.
+        Returns True if duplicates exist, otherwise False.
+    """
+    return x.is_duplicated().any()
 
-    Examples
-    --------
-    >>> import polars as pl
-    >>> data = pl.DataFrame({'A': [1, 2, 3, 2, 4]})
-    >>> series = data['A']
-    >>> result = _has_duplicate_of_value(series, 2)
-    >>> print(result)
-    True
 
-    See Also
-    --------
-    pl.Series.filter : Filter a Series using a boolean expression.
-    pl.Series.is_duplicated : Check for duplicate values in a Series.
-    pl.Series.any : Check if any elements in a boolean Series are True.
+def _has_duplicate_of_value(x: TIME_SERIES_T, t: float) -> bool:
+    """Check if a value exists as a duplicate.
 
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+    t : float
+        The value to check for duplicates of.
+
+    Returns
+    -------
+    bool
     """
     return x.filter(x == t).is_duplicated().any()
 
 
-def has_duplicate_max(x: pl.Expr) -> pl.Expr:
-    """Check if a Polars Expression contains duplicate values equal to its maximum value.
-
-    This function checks whether the input Polars Expression `x` contains any duplicate values equal to its maximum value.
+def has_duplicate_max(x: TIME_SERIES_T) -> bool:
+    """Check if the time-series contains any duplicate values equal to its maximum value.
 
     Parameters
     ----------
-    x : pl.Expr
-        The Polars Expression to be checked for duplicates.
+    x : pl.Expr | pl.Series
+        Input time-series.
 
     Returns
     -------
-    pl.Expr
-        A boolean Polars Expression indicating whether there are duplicate values in `x` equal to its maximum value.
-        Returns True if such duplicates exist, otherwise False.
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> data = pl.DataFrame({'A': [1, 2, 2, 3, 4, 4]})
-    >>> expr = has_duplicate_max(data['A'])
-    >>> print(expr)
-    True
-
-    Notes
-    -----
-    - This function first calculates the maximum value in the input Polars Expression `x` using the `max` method.
-    - It then checks for duplicates of that maximum value using the `_has_duplicate_of_value` function.
-    - The result is a boolean expression, where True indicates the presence of such duplicates and False indicates none.
-
-    See Also
-    --------
-    _has_duplicate_of_value : Check for duplicate values equal to a specified value in a Polars Expression.
-    pl.Expr.max : Calculate the maximum value in a Polars Expression.
-    pl.Expr.is_duplicated : Check for duplicate values in a Polars Expression.
-    pl.Expr.any : Check if any elements in a boolean Polars Expression are True.
-
+    bool
     """
     return _has_duplicate_of_value(x, x.max())
 
 
-def has_duplicate_min(x: pl.Expr) -> pl.Expr:
-    """Check if a Polars Expression contains duplicate values equal to its minimum value.
-
-    This function checks whether the input Polars Expression `x` contains any duplicate values equal to its minimum value.
+def has_duplicate_min(x: TIME_SERIES_T) -> pl.Expr:
+    """Check if the time-series contains duplicate values equal to its minimum value.
 
     Parameters
     ----------
-    x : pl.Expr
-        The Polars Expression to be checked for duplicates.
+    x : pl.Expr | pl.Series
+        Input time-series.
 
     Returns
     -------
-    pl.Expr
-        A boolean Polars Expression indicating whether there are duplicate values in `x` equal to its minimum value.
-        Returns True if such duplicates exist, otherwise False.
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> data = pl.DataFrame({'A': [1, 2, 2, 3, 4, 4]})
-    >>> expr = has_duplicate_min(data['A'])
-    >>> print(expr)
-    True
-
-    Notes
-    -----
-    - This function first calculates the minimum value in the input Polars Expression `x` using the `min` method.
-    - It then checks for duplicates of that minimum value using the `_has_duplicate_of_value` function.
-    - The result is a boolean expression, where True indicates the presence of such duplicates and False indicates none.
-
-    See Also
-    --------
-    _has_duplicate_of_value : Check for duplicate values equal to a specified value in a Polars Expression.
-    pl.Expr.min : Calculate the minimum value in a Polars Expression.
-    pl.Expr.is_duplicated : Check for duplicate values in a Polars Expression.
-    pl.Expr.any : Check if any elements in a boolean Polars Expression are True.
-
+    bool
     """
     return _has_duplicate_of_value(x, x.min())
 
 
-def benfords_correlation(x: pl.Series) -> float:
-    """
-    Returns the correlation between the first digit distribution of the input time series and the Newcomb-Benford's Law
-    distribution [1][2].
+def benfords_correlation(x: TIME_SERIES_T) -> float:
+    """Returns the correlation between the first digit distribution of the input time series and the Newcomb-Benford's Law distribution [1][2].
 
     Parameters
     ----------
-    x : pl.Series
-        The time series to calculate the feature of.
+    x : pl.Expr | pl.Series
+        Input time-series.
 
     Returns
     -------
@@ -586,6 +433,7 @@ def benfords_correlation(x: pl.Series) -> float:
     [4] Newcomb, S. (1881). Note on the frequency of use of the different digits in natural numbers. American Journal of
         mathematics.
     """
+    # TODO: Can be sped up using df.select(pl.col("value").cast(pl.Utf8).str.slice(0,1).cast(pl.UInt8))
     X = (x / (10 ** x.abs().log10().floor())).abs().floor()
     df_corr = pl.DataFrame(
         [
@@ -597,45 +445,20 @@ def benfords_correlation(x: pl.Series) -> float:
 
 
 def _get_length_sequences_where(x: pl.Series) -> pl.Series:
-    """
-    Calculates the length of all sub-sequences where the series x is either True or 1.
+    """Calculates the length of all sub-sequences where the series x is either True or 1.
 
     Parameters
     ----------
     x : pl.Series
-        A pl.Series containing only 1, True, 0 and False values.
+        A series containing only 1, True, 0 and False values.
 
     Returns
     -------
     pl.Series
-        A pl.Series with the length of all sub-sequences where the series is either True or False. If no ones or Trues
-        contained, the list [0] is returned.
-
-    Examples
-    --------
-    >>> x = pl.Series([0,1,0,0,1,1,1,0,0,1,0,1,1])
-    >>> _get_length_sequences_where(x)
-    >>> shape: (4,)
-        Series: 'count' [u32]
-        [
-            2
-            1
-            1
-            3
-        ]
-
-    >>> x = pl.Series([0,True,0,0,True,True,True,0,0,True,0,True,True])
-    >>> _get_length_sequences_where(x)
-    >>> shape: (4,)
-        Series: 'count' [u32]
-        [
-            1
-            2
-            1
-            3
-        ]
+        A series with the length of all sub-sequences where the series is either True or False.
+        If no ones or Trues contained, the list [0] is returned.
     """
-    X = (
+    lengths = (
         x.alias("orig")
         .to_frame()
         .with_columns(shift=pl.col("orig").shift(periods=1))
@@ -643,29 +466,26 @@ def _get_length_sequences_where(x: pl.Series) -> pl.Series:
         .filter(pl.col("orig") == 1)
         .group_by(pl.col("mask"), maintain_order=True)
         .count()
-    )["count"]
-    return X
+        .get_column("count")
+    )
+    return lengths
 
 
 def longest_strike_below_mean(x: pl.Series) -> float:
-    """
-    Returns the length of the longest consecutive subsequence in x that is smaller than the mean of x.
+    """Returns the length of the longest consecutive subsequence in x that is smaller than the mean of x.
 
     Parameters
     ----------
     x : pl.Series
-        The time series to calculate the feature of.
+        Input time-series.
 
     Returns
     -------
     float
-        The value of this feature.
     """
-    if not x.is_empty():
-        X = _get_length_sequences_where(x.cast(pl.Float64) < x.mean())
-    else:
-        return 0
-    return X.max() if X.len() > 0 else 0
+    lengths = _get_length_sequences_where(x.cast(pl.Float64) < x.mean())
+    strike = lengths.max() if lengths.len() > 0 else 0
+    return strike
 
 
 def longest_strike_above_mean(x: pl.Series) -> float:
@@ -675,38 +495,15 @@ def longest_strike_above_mean(x: pl.Series) -> float:
     Parameters
     ----------
     x : pl.Series
-        The time series to calculate the feature of.
+        Input time-series.
 
     Returns
     -------
     float
-        The value of this feature.
-
-    Examples
-    --------
-    >>> x = pl.Series([1, 2, 3, 4, 5, 6, 7, 8, 9])
-    >>> longest_strike_above_mean(x)
-    5.0
-
-    >>> x = pl.Series([5, 4, 3, 2, 1])
-    >>> longest_strike_above_mean(x)
-    0.0
-
-    >>> x = pl.Series([1, 2, 3, 4, 5, 4, 3, 2, 1])
-    >>> longest_strike_above_mean(x)
-    5.0
-
-    Notes
-    -----
-    A consecutive subsequence is a sequence of consecutive elements in the time series. The function calculates the mean
-    of the time series and then finds the longest consecutive subsequence that is greater than the mean. If there is no
-    such subsequence, the function returns 0.
     """
-    if not x.is_empty():
-        X = _get_length_sequences_where(x.cast(pl.Float64) > x.mean())
-    else:
-        return 0
-    return X.max() if X.len() > 0 else 0
+    lengths = _get_length_sequences_where(x.cast(pl.Float64) > x.mean())
+    strike = lengths.max() if lengths.len() > 0 else 0
+    return strike
 
 
 def mean_n_absolute_max(x: pl.Series, n_maxima: int) -> float:
@@ -716,7 +513,7 @@ def mean_n_absolute_max(x: pl.Series, n_maxima: int) -> float:
     Parameters
     ----------
     x : pl.Series
-        The time series to calculate the feature of.
+        Input time-series.
     n_maxima : int
         The number of maxima to consider.
 
@@ -747,17 +544,15 @@ def percent_reocurring_points(x: pl.Series) -> float:
     Parameters
     ----------
     x : pl.Series
-        The time series to calculate the feature of.
+        Input time-series.
 
     Returns
     -------
     float
         The value of this feature.
     """
-    if x.is_empty():
-        raise ValueError("The serie is empty.")
-    X = x.value_counts().filter(pl.col("counts") > 1).sum()
-    return X[0, "counts"] / x.len()
+    counts = x.value_counts().filter(pl.col("counts") > 1).sum()
+    return counts.item(0, "counts") / x.len()
 
 
 def percent_recoccuring_values(x: pl.Series) -> float:
@@ -774,17 +569,15 @@ def percent_recoccuring_values(x: pl.Series) -> float:
     Parameters
     ----------
     x : pl.Series
-        The time series to calculate the feature of.
+        Input time-series.
 
     Returns
     -------
     float
         The value of this feature.
     """
-    if x.is_empty():
-        raise ValueError("The serie is empty.")
-    X = x.value_counts().filter(pl.col("counts") > 1)
-    return X.shape[0] / x.n_unique()
+    counts = x.value_counts().filter(pl.col("counts") > 1)
+    return counts.shape[0] / x.n_unique()
 
 
 def sum_reocurring_points(x: pl.Series) -> float:
@@ -799,15 +592,17 @@ def sum_reocurring_points(x: pl.Series) -> float:
     Parameters
     ----------
     x : pl.Series
-        The time series to calculate the feature of.
+        Input time-series.
 
     Returns
     -------
     float
         The value of this feature.
     """
-    X = x.value_counts().filter(pl.col("counts") > 1)
-    return X[:, 0].dot(X[:, 1])
+    counts = x.value_counts().filter(pl.col("counts") > 1)
+    return counts.get_column(counts.columns[0]).dot(
+        counts.get_column(counts.columns[0])
+    )
 
 
 def sum_reocurring_values(x: pl.Series) -> float:
@@ -823,7 +618,7 @@ def sum_reocurring_values(x: pl.Series) -> float:
     Parameters
     ----------
     x : pl.Series
-        The time series to calculate the feature of.
+        Input time-series.
 
     Returns
     -------
@@ -831,7 +626,7 @@ def sum_reocurring_values(x: pl.Series) -> float:
         The value of this feature.
     """
     X = x.value_counts().filter(pl.col("counts") > 1).sum()
-    return X[0, 0]
+    return X.item()
 
 
 def mean_second_derivative_central(x: pl.Series) -> float:
@@ -857,8 +652,8 @@ def mean_second_derivative_central(x: pl.Series) -> float:
     return (x[-1] - x[-2] - x[1] + x[0]) / (2 * (len(x) - 2))
 
 
-def symmetry_looking(x: pl.Series, r: float) -> pl.DataFrame:
-    """Check if the distribution of x *looks symmetric*.
+def symmetry_looking(x: pl.Series, r: float) -> bool:
+    """Check if the distribution of x looks symmetric.
 
     A distribution is considered symmetric if:
 
@@ -869,13 +664,13 @@ def symmetry_looking(x: pl.Series, r: float) -> pl.DataFrame:
     Parameters
     ----------
     x : polars.Series
-        The time series to calculate the feature of.
+        Input time-series.
     r : float
         Multiplier on distance between max and min.
 
     Returns
     -------
-    bool : True if symmetric.
+    bool
     """
     mean_median_difference = abs(x.mean() - x.median())
     max_min_difference = x.max() - x.min()
@@ -904,14 +699,13 @@ def time_reversal_asymmetry_statistic(x: pl.Series, lag: int) -> float:
     Parameters
     ----------
     x : pl.Series
-        The time series to calculate the feature of.
+        Input time-series.
     lag : int
         The lag that should be used in the calculation of the feature.
 
     Returns
     -------
     float
-        The value of the calculated feature.
 
     References
     ----------
