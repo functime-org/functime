@@ -22,11 +22,13 @@ def binned_entropy(x: pl.Series, max_bins: int = None) -> float:
     """
     # Can't calculate entropy of if there are null values
     if x.is_null().any():
-        return pl.literal(None)
+        return pl.lit(None)
 
-    hist_df = x.hist(max_bins)
+    hist_df = x.hist(bin_count=max_bins)
     
-    return hist_df.select( (pl.col('x_count') / x.len()).entropy() )[0]
+    return hist_df.select( (pl.col('^.*_count$') / x.len())).filter(
+        pl.col('^.*_count$') > 0
+    ).to_series().entropy()
     
 
 # Not implemented, as we decided to avoid FFT features for now
@@ -65,8 +67,8 @@ def _estimate_friedrich_coefficients(x, m, r):
     df = pl.DataFrame({"signal": x[:-1], "delta": np.diff(x)})
     try:
         #df["quantiles"] = pd.qcut(df.signal, r)
-        df = df.with_column(pl.col('signal').qcut(r).alias('quantiles'))
-    except (ValueError, IndexError):
+        df = df.with_columns(pl.col('signal').qcut(r).alias('quantiles'))
+    except (ValueError, IndexError, pl.exceptions.DuplicateError):
         return [np.NaN] * (m + 1)
 
     result = df.groupby("quantiles").agg([
@@ -130,8 +132,9 @@ def friedrich_coefficients(x: pl.Series, params: list) -> pl.Series:
         try:
             res["coeff_{}__m_{}__r_{}".format(coeff, m, r)] = calculated[m][r][coeff]
         except IndexError:
-            res["coeff_{}__m_{}__r_{}".format(coeff, m, r)] = pl.literal(None)
+            res["coeff_{}__m_{}__r_{}".format(coeff, m, r)] = pl.lit(None)
     return pl.Series([(key, value) for key, value in res.items()])
+
 
 def lempel_ziv_complexity(x: pl.Series, num_bins: int) -> float:
     """
@@ -153,7 +156,7 @@ def lempel_ziv_complexity(x: pl.Series, num_bins: int) -> float:
     Ref: https://github.com/Naereen/Lempel-Ziv_Complexity/blob/master/src/lempel_ziv_complexity.py
 
     """
-    bins = pl.Series('seq', np.linspace(np.min(x), np.max(x), num_bins + 1)[1:].tolist())
+    bins = pl.Series('seq', np.linspace(x.min(), x.max(), num_bins + 1)[1:].tolist())
     sequence = bins.search_sorted(x, side="left")
 
     sub_strings = set()
@@ -171,6 +174,7 @@ def lempel_ziv_complexity(x: pl.Series, num_bins: int) -> float:
             ind += inc
             inc = 1
     return len(sub_strings) / n
+
 
 def max_langevin_fixed_point(x: pl.Series, r: int, m: int) -> float:
     """
@@ -209,7 +213,8 @@ def max_langevin_fixed_point(x: pl.Series, r: int, m: int) -> float:
 
     return max_fixed_point
 
-def partial_autocorr(x: pl.Series, param: dict) -> pl.Series:
+
+def partial_autocorrelation(x: pl.Series, lags: dict) -> pl.Series:
     """
     Documentation and code adapted from TSFresh (https://github.com/blue-yonder/tsfresh)
 
@@ -241,13 +246,13 @@ def partial_autocorr(x: pl.Series, param: dict) -> pl.Series:
 
     :param x: the time series to calculate the feature of
     :type x: polars.Series
-    :param param: contains dictionaries {"lag": val} with int val indicating the lag to be returned
+    :param lags: contains dictionaries {"lag": val} with int val indicating the lag to be returned
     :type param: list
     :return: the value of this feature
     :return type: float
     """
     # Check the difference between demanded lags by param and possible lags to calculate (depends on len(x))
-    max_demanded_lag = max([lag["lag"] for lag in param])
+    max_demanded_lag = max([lag["lag"] for lag in lags])
     n = x.len()
 
     # Check if list is too short to make calculations
@@ -266,4 +271,4 @@ def partial_autocorr(x: pl.Series, param: dict) -> pl.Series:
         else:
             pacf_coeffs = [np.nan] * (max_demanded_lag + 1)
 
-    return pl.Series([("lag_{}".format(lag["lag"]), pacf_coeffs[lag["lag"]]) for lag in param])
+    return pl.Series([("lag_{}".format(lag["lag"]), pacf_coeffs[lag["lag"]]) for lag in lags])
