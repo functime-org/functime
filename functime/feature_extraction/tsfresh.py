@@ -553,3 +553,373 @@ def has_duplicate_min(x: pl.Expr) -> pl.Expr:
 
     """
     return _has_duplicate_of_value(x, x.min())
+
+
+def benfords_correlation(x: pl.Series) -> float:
+    """
+    Returns the correlation between the first digit distribution of the input time series and the Newcomb-Benford's Law
+    distribution [1][2].
+
+    Parameters
+    ----------
+    x : pl.Series
+        The time series to calculate the feature of.
+
+    Returns
+    -------
+    float
+        The value of this feature.
+
+    Notes
+    -----
+    The Newcomb-Benford distribution for d that is the leading digit of the number {1, 2, 3, 4, 5, 6, 7, 8, 9} is given by:
+
+    .. math::
+
+        P(d) = \\log_{10}\\left(1 + \\frac{1}{d}\\right)
+
+    References
+    ----------
+    [1] Hill, T. P. (1995). A Statistical Derivation of the Significant-Digit Law. Statistical Science.
+    [2] Hill, T. P. (1995). The significant-digit phenomenon. The American Mathematical Monthly.
+    [3] Benford, F. (1938). The law of anomalous numbers. Proceedings of the American philosophical society.
+    [4] Newcomb, S. (1881). Note on the frequency of use of the different digits in natural numbers. American Journal of
+        mathematics.
+    """
+    X = (x / (10 ** x.abs().log10().floor())).abs().floor()
+    df_corr = pl.DataFrame(
+        [
+            [X.eq(i).mean() for i in pl.int_range(1, 10, eager=True)],
+            (1 + 1 / pl.int_range(1, 10, eager=True)).log10(),
+        ]
+    ).corr()
+    return df_corr[0, 1]
+
+
+def _get_length_sequences_where(x: pl.Series) -> pl.Series:
+    """
+    Calculates the length of all sub-sequences where the series x is either True or 1.
+
+    Parameters
+    ----------
+    x : pl.Series
+        A pl.Series containing only 1, True, 0 and False values.
+
+    Returns
+    -------
+    pl.Series
+        A pl.Series with the length of all sub-sequences where the series is either True or False. If no ones or Trues
+        contained, the list [0] is returned.
+
+    Examples
+    --------
+    >>> x = pl.Series([0,1,0,0,1,1,1,0,0,1,0,1,1])
+    >>> _get_length_sequences_where(x)
+    >>> shape: (4,)
+        Series: 'count' [u32]
+        [
+            2
+            1
+            1
+            3
+        ]
+
+    >>> x = pl.Series([0,True,0,0,True,True,True,0,0,True,0,True,True])
+    >>> _get_length_sequences_where(x)
+    >>> shape: (4,)
+        Series: 'count' [u32]
+        [
+            1
+            2
+            1
+            3
+        ]
+    """
+    X = (
+        x.alias("orig")
+        .to_frame()
+        .with_columns(shift=pl.col("orig").shift(periods=1))
+        .with_columns(mask=pl.col("orig").ne(pl.col("shift")).fill_null(0).cumsum())
+        .filter(pl.col("orig") == 1)
+        .group_by(pl.col("mask"), maintain_order=True)
+        .count()
+    )["count"]
+    return X
+
+
+def longest_strike_below_mean(x: pl.Series) -> float:
+    """
+    Returns the length of the longest consecutive subsequence in x that is smaller than the mean of x.
+
+    Parameters
+    ----------
+    x : pl.Series
+        The time series to calculate the feature of.
+
+    Returns
+    -------
+    float
+        The value of this feature.
+    """
+    if not x.is_empty():
+        X = _get_length_sequences_where(x.cast(pl.Float64) < x.mean())
+    else:
+        return 0
+    return X.max() if X.len() > 0 else 0
+
+
+def longest_strike_above_mean(x: pl.Series) -> float:
+    """
+    Returns the length of the longest consecutive subsequence in x that is greater than the mean of x.
+
+    Parameters
+    ----------
+    x : pl.Series
+        The time series to calculate the feature of.
+
+    Returns
+    -------
+    float
+        The value of this feature.
+
+    Examples
+    --------
+    >>> x = pl.Series([1, 2, 3, 4, 5, 6, 7, 8, 9])
+    >>> longest_strike_above_mean(x)
+    5.0
+
+    >>> x = pl.Series([5, 4, 3, 2, 1])
+    >>> longest_strike_above_mean(x)
+    0.0
+
+    >>> x = pl.Series([1, 2, 3, 4, 5, 4, 3, 2, 1])
+    >>> longest_strike_above_mean(x)
+    5.0
+
+    Notes
+    -----
+    A consecutive subsequence is a sequence of consecutive elements in the time series. The function calculates the mean
+    of the time series and then finds the longest consecutive subsequence that is greater than the mean. If there is no
+    such subsequence, the function returns 0.
+    """
+    if not x.is_empty():
+        X = _get_length_sequences_where(x.cast(pl.Float64) > x.mean())
+    else:
+        return 0
+    return X.max() if X.len() > 0 else 0
+
+
+def mean_n_absolute_max(x: pl.Series, n_maxima: int) -> float:
+    """
+    Calculates the arithmetic mean of the n absolute maximum values of the time series.
+
+    Parameters
+    ----------
+    x : pl.Series
+        The time series to calculate the feature of.
+    n_maxima : int
+        The number of maxima to consider.
+
+    Returns
+    -------
+    float
+        The value of this feature.
+    """
+    if n_maxima <= 0:
+        raise ValueError("The number of maxima should be > 0.")
+    return (
+        x.abs().sort(descending=True)[:n_maxima].mean() if x.len() > n_maxima else None
+    )
+
+
+def percent_reocurring_points(x: pl.Series) -> float:
+    """
+    Returns the percentage of non-unique data points in the time series. Non-unique data points are those that occur
+    more than once in the time series.
+
+    The percentage is calculated as follows:
+
+        # of data points occurring more than once / # of all data points
+
+    This means the ratio is normalized to the number of data points in the time series, in contrast to the
+    `percent_recoccuring_values` function.
+
+    Parameters
+    ----------
+    x : pl.Series
+        The time series to calculate the feature of.
+
+    Returns
+    -------
+    float
+        The value of this feature.
+    """
+    if x.is_empty():
+        raise ValueError("The serie is empty.")
+    X = x.value_counts().filter(pl.col("counts") > 1).sum()
+    return X[0, "counts"] / x.len()
+
+
+def percent_recoccuring_values(x: pl.Series) -> float:
+    """
+    Returns the percentage of values that are present in the time series more than once.
+
+    The percentage is calculated as follows:
+
+        len(different values occurring more than once) / len(different values)
+
+    This means the percentage is normalized to the number of unique values in the time series, in contrast to the
+    `percent_reocurring_points` function.
+
+    Parameters
+    ----------
+    x : pl.Series
+        The time series to calculate the feature of.
+
+    Returns
+    -------
+    float
+        The value of this feature.
+    """
+    if x.is_empty():
+        raise ValueError("The serie is empty.")
+    X = x.value_counts().filter(pl.col("counts") > 1)
+    return X.shape[0] / x.n_unique()
+
+
+def sum_reocurring_points(x: pl.Series) -> float:
+    """
+    Returns the sum of all data points that are present in the time series more than once.
+
+    For example, `sum_reocurring_points(pl.Series([2, 2, 2, 2, 1]))` returns 8, as 2 is a reoccurring value, so all 2's
+    are summed up.
+
+    This is in contrast to the `sum_reocurring_values` function, where each reoccuring value is only counted once.
+
+    Parameters
+    ----------
+    x : pl.Series
+        The time series to calculate the feature of.
+
+    Returns
+    -------
+    float
+        The value of this feature.
+    """
+    X = x.value_counts().filter(pl.col("counts") > 1)
+    return X[:, 0].dot(X[:, 1])
+
+
+def sum_reocurring_values(x: pl.Series) -> float:
+    """
+    Returns the sum of all values that are present in the time series more than once.
+
+    For example, `sum_reocurring_values(pl.Series([2, 2, 2, 2, 1]))` returns 2, as 2 is a reoccurring value, so it is
+    summed up with all other reoccuring values (there is none), so the result is 2.
+
+    This is in contrast to the `sum_reocurring_points` function, where each reoccuring value is only counted as often
+    as it is present in the data.
+
+    Parameters
+    ----------
+    x : pl.Series
+        The time series to calculate the feature of.
+
+    Returns
+    -------
+    float
+        The value of this feature.
+    """
+    X = x.value_counts().filter(pl.col("counts") > 1).sum()
+    return X[0, 0]
+
+
+def mean_second_derivative_central(x: pl.Series) -> float:
+    """
+    Returns the mean value of a central approximation of the second derivative.
+
+    .. math::
+
+    \\frac{1}{2(n-2)} \\sum_{i=1}^{n-1} 0.5 (x_{i+2} - 2 x_{i+1} + x_i)
+
+    where n is the length of the time series x
+
+    Parameters
+    ----------
+    x : pl.Series
+        A time series to calculate the feature of.
+
+    Returns
+    -------
+    float
+        The value of the central approximation of the second derivative of x.
+    """
+    return (x[-1] - x[-2] - x[1] + x[0]) / (2 * (len(x) - 2))
+
+
+def symmetry_looking(x: pl.Series, r: float) -> pl.DataFrame:
+    """Check if the distribution of x *looks symmetric*.
+
+    A distribution is considered symmetric if:
+
+    .. math::
+
+    | mean(X)-median(X) | < r * (max(X)-min(X))
+
+    Parameters
+    ----------
+    x : polars.Series
+        The time series to calculate the feature of.
+    r : float
+        Multiplier on distance between max and min.
+
+    Returns
+    -------
+    bool : True if symmetric.
+    """
+    mean_median_difference = abs(x.mean() - x.median())
+    max_min_difference = x.max() - x.min()
+    return mean_median_difference < r["r"] * max_min_difference
+
+
+def time_reversal_asymmetry_statistic(x: pl.Series, lag: int) -> float:
+    """
+    Returns the time reversal asymmetry statistic.
+
+    This function calculates the value of:
+
+    .. math::
+
+        \\frac{1}{n-2lag} \\sum_{i=1}^{n-2lag} x_{i + 2 \\cdot lag}^2 \\cdot x_{i + lag} - x_{i + lag} \\cdot  x_{i}^2
+
+    which is
+
+    .. math::
+
+        \\mathbb{E}[L^2(X)^2 \\cdot L(X) - L(X) \\cdot X^2]
+
+    where :math:`\\mathbb{E}` is the mean and :math:`L` is the lag operator. It was proposed in [1] as a
+    promising feature to extract from time series.
+
+    Parameters
+    ----------
+    x : pl.Series
+        The time series to calculate the feature of.
+    lag : int
+        The lag that should be used in the calculation of the feature.
+
+    Returns
+    -------
+    float
+        The value of the calculated feature.
+
+    References
+    ----------
+    [1] Fulcher, B.D., Jones, N.S. (2014). Highly comparative feature-based time-series classification.
+        Knowledge and Data Engineering, IEEE Transactions on 26, 3026–3037.
+    """
+    n = len(x)
+    one_lag = x.shift(-lag)
+    two_lag = x.shift(-2 * lag)
+    result = (two_lag * two_lag * one_lag - one_lag * x * x).head(n - 2 * lag).mean()
+    return result
