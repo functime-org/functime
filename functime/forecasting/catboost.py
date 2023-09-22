@@ -51,11 +51,7 @@ def _catboost(weight_transform: Optional[Callable] = None, **kwargs):
 
 
 class catboost(Forecaster):
-    """Autoregressive Catboost forecaster.
-
-    Reference:
-    https://catboost.ai/en/docs/concepts/python-reference_catboostregressor
-    """
+    """Autoregressive Catboost forecaster."""
 
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         y_new = y.pipe(

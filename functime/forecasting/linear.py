@@ -88,11 +88,7 @@ def _elastic_net_cv(**kwargs):
 
 
 class linear_model(Forecaster):
-    """Autoregressive linear forecaster.
-
-    Reference:
-    https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html
-    """
+    """Autoregressive linear forecaster."""
 
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         kwargs = self.kwargs
@@ -118,11 +114,7 @@ class linear_model(Forecaster):
 
 
 class lasso(Forecaster):
-    """Autoregressive LASSO forecaster.
-
-    Reference:
-    https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html#sklearn.linear_model.Lasso
-    """
+    """Autoregressive LASSO forecaster."""
 
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         regress = _lasso(**self.kwargs)
@@ -137,11 +129,7 @@ class lasso(Forecaster):
 
 
 class ridge(Forecaster):
-    """Autoregressive Ridge forecaster.
-
-    Reference:
-    https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html#sklearn.linear_model.Ridge
-    """
+    """Autoregressive Ridge forecaster."""
 
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         regress = _ridge(**self.kwargs)
@@ -156,11 +144,7 @@ class ridge(Forecaster):
 
 
 class elastic_net(Forecaster):
-    """Autoregressive ElasticNet forecaster.
-
-    Reference:
-    https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ElasticNet.html#sklearn.linear_model.ElasticNet
-    """
+    """Autoregressive ElasticNet forecaster."""
 
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         regress = _elastic_net(**self.kwargs)
@@ -175,11 +159,7 @@ class elastic_net(Forecaster):
 
 
 class lasso_cv(Forecaster):
-    """Autoregressive LassoCV forecaster.
-
-    Reference:
-    https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html#sklearn.linear_model.LassoCV
-    """
+    """Autoregressive LassoCV forecaster."""
 
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         regress = _lasso_cv(**self.kwargs)
@@ -194,11 +174,7 @@ class lasso_cv(Forecaster):
 
 
 class ridge_cv(Forecaster):
-    """Autoregressive RidgeCV forecaster.
-
-    Reference:
-    https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html#sklearn.linear_model.RidgeCV
-    """
+    """Autoregressive RidgeCV forecaster."""
 
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         regress = _ridge_cv(**self.kwargs)
@@ -213,11 +189,7 @@ class ridge_cv(Forecaster):
 
 
 class elastic_net_cv(Forecaster):
-    """Autoregressive ElasticNetCV forecaster.
-
-    Reference:
-    https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ElasticNet.html#sklearn.linear_model.ElasticNetCV
-    """
+    """Autoregressive ElasticNetCV forecaster."""
 
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         regress = _elastic_net_cv(**self.kwargs)

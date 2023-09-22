@@ -11,11 +11,7 @@ from functime.forecasting._ar import fit_autoreg
 
 
 class ANNRegressor:
-    """Approximate-nearest neighbors regressor built on Lance.
-
-    Reference:
-    https://lancedb.github.io/lance/api/python/lance.html#module-lance.dataset
-    """
+    """Approximate-nearest neighbors regressor built on Lance."""
 
     def __init__(
         self,

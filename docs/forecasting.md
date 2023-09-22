@@ -2,37 +2,7 @@
 
 ## API Usage
 
-All individual forecasters (e.g. `lasso` / `xgboost`) have the same API. Use `**kwargs` to pass custom hyperparameters into the underlying regressor (e.g. sklearn's `LinearRegression` regressor in functime's `linear_model` forecaster). Forecasters with automated hyperparameter tuning (e.g. `auto_lasso` and `auto_xgboost`) follow a similar API design. View [API reference](/ref/forecasting/) for details.
-## Supported Forecasters
-
-`functime` currently supports the following autoregressive global forecasters.
-
-!!! info "Forecasters"
-
-    - `ann`
-    - `catboost`
-    - `censored_model`
-    - `elastic_net_cv`
-    - `elastic_net`
-    - `flaml_lightgbm`
-    - `knn`
-    - `lasso_cv`
-    - `lasso`
-    - `lightgbm`
-    - `linear_model`
-    - `ridge_cv`
-    - `ridge`
-    - `xgboost`
-    - `zero_inflated_model`
-
-!!! info "Automated Forecasters"
-
-    - `auto_elastic_net`
-    - `auto_knn`
-    - `auto_lasso`
-    - `auto_lightgbm`
-    - `auto_linear_model`
-    - `auto_ridge`
+All individual forecasters (e.g. `lasso` / `xgboost`) have the same API. Use `**kwargs` to pass custom hyperparameters into the underlying regressor (e.g. sklearn's `LinearRegression` regressor in functime's `linear_model` forecaster). Forecasters with automated hyperparameter tuning (e.g. `auto_lasso` and `auto_xgboost`) follow a similar API design. View [API reference](/ref/forecasting/) for details and supported global forecasters.
 
 `functime` also has the following benchmark models implemented as pure Polars queries.
 
