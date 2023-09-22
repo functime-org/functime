@@ -95,7 +95,6 @@ def approximate_entropies(
     Returns
     -------
     list of float
-        The list of approximate entropies for each filtering level.
     """
     sigma = x.std()
     rs = [sigma * r for r in filtering_levels]
@@ -346,6 +345,7 @@ def change_quantiles(
 
     Returns
     -------
+    list of float
     """
     x = x.diff()
     if is_abs:
@@ -410,7 +410,6 @@ def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> float:
     Returns
     -------
     float
-        The percentage of values in `x` that are greater than or equal to `t`.
     """
     return x.filter(x >= threshold).count().truediv(x.count()).mul(100)
 
@@ -426,7 +425,6 @@ def count_above_mean(x: TIME_SERIES_T) -> int:
     Returns
     -------
     int
-        The count of values in `x` that are above the mean.
     """
     return x.filter(x > x.mean()).count()
 
@@ -444,7 +442,6 @@ def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> float:
     Returns
     -------
     float
-        The percentage of values in `x` that are less than or equal to `t`.
     """
     return x.filter(x <= threshold).count().truediv(x.count()).mul(100)
 
@@ -460,7 +457,6 @@ def count_below_mean(x: pl.Series) -> int:
     Returns
     -------
     int
-        The count of values in `x` that are below the mean.
     """
     return x.filter(x < x.mean()).count()
 
@@ -533,6 +529,7 @@ def first_location_of_maximum(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
+    float
     """
     return x.arg_max() / x.len()
 
@@ -546,18 +543,52 @@ def first_location_of_minimum(x: TIME_SERIES_T) -> float:
     ----------
     x : pl.Expr | pl.Series
         Input time-series.
+
+    Returns
+    -------
+    float
     """
     return x.arg_min() / x.len()
 
 
-def fourier_entropy(x: pl.Series, n_bins: int = 10):
+def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
+    """
+    Calculate the Fourier entropy of a time series.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+    n_bins : int, optional
+        The number of bins to use for the entropy calculation. Default is 10.
+
+    Returns
+    -------
+    float
+    """
     _, pxx = welch(x, nperseg=min(x.len(), 256))
     return binned_entropy(pxx / bn.nanmax(pxx), n_bins)
 
 
 def friedrich_coefficients(
-    x: pl.Series, polynomial_order: int = 3, n_quantiles: int = 30
+    x: TIME_SERIES_T, polynomial_order: int = 3, n_quantiles: int = 30
 ) -> List[float]:
+    """
+    Calculate the Friedrich coefficients of a time series.
+
+    Parameters
+    ----------
+    x : TIME_SERIES_T
+        The time series to calculate the Friedrich coefficients of.
+    polynomial_order : int, optional
+        The order of the polynomial to fit to the quantile means. Default is 3.
+    n_quantiles : int, optional
+        The number of quantiles to use for the calculation. Default is 30.
+
+    Returns
+    -------
+    list of float
+    """
     X = (
         x.alias("signal")
         .to_frame()
@@ -592,8 +623,6 @@ def has_duplicate(x: TIME_SERIES_T) -> bool:
     Returns
     -------
     bool
-        A boolean indicating whether there are duplicate values in `x`.
-        Returns True if duplicates exist, otherwise False.
     """
     return x.is_duplicated().any()
 
@@ -645,7 +674,7 @@ def has_duplicate_min(x: TIME_SERIES_T) -> pl.Expr:
     return _has_duplicate_of_value(x, x.min())
 
 
-def index_mass_quantile(x: TIME_SERIES_T, q: float):
+def index_mass_quantile(x: TIME_SERIES_T, q: float) -> float:
     """
     Calculates the relative index i of time series x where q% of the mass of x lies left of i.
     For example for q = 50% this feature calculator will return the mass center of the time series.
@@ -659,8 +688,7 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float):
 
     Returns
     -------
-    pandas.Series
-        The different feature values.
+    float
     """
     x_abs = x.abs()
     x_sum = x.sum()
@@ -704,6 +732,10 @@ def last_location_of_maximum(x: TIME_SERIES_T) -> float:
     ----------
     x : pl.Expr | pl.Series
         Input time-series.
+
+    Returns
+    -------
+    float
     """
     return (x.len() - x.reverse().arg_max()) / x.len()
 
@@ -839,6 +871,7 @@ def mean_abs_change(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
+    float
     """
     return x.diff(null_behavior="drop").abs().mean()
 
@@ -854,6 +887,7 @@ def mean_change(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
+    float
     """
     return x.diff(null_behavior="drop").mean()
 
@@ -896,7 +930,6 @@ def mean_second_derivative_central(x: pl.Series) -> float:
     Returns
     -------
     float
-        The value of the central approximation of the second derivative of x.
     """
     return (x[-1] - x[-2] - x[1] + x[0]) / (2 * (len(x) - 2))
 
@@ -917,6 +950,7 @@ def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> float:
 
     Returns
     -------
+    float
     """
     return (
         x.gt(crossing_value).cast(pl.Int8).diff(null_behavior="drop").abs().eq(1).sum()
