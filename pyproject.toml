@@ -66,6 +66,7 @@ test = [
     "pytest",
     "scikit-learn-intelex",
     "statsmodels",
+    "tsfresh",
 ]
 doc = ["mkdocs", "mkdocs-material", "mkdocstrings-python", "mkdocs-jupyter"]
 

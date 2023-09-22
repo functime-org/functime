@@ -1,4 +1,4 @@
-from itertools import combinations
+from itertools import product
 from typing import List, Mapping, Sequence, Union
 
 import bottleneck as bn
@@ -61,7 +61,7 @@ def absolute_sum_of_changes(x: TIME_SERIES_T) -> float:
 def _phis(x: pl.Expr, m: int, N: int, rs: List[float]) -> List[float]:
     n = N - m + 1
     x_runs = [x.slice(i, m) for i in range(n)]
-    max_dists = [(x_i - x_j).max() for x_i, x_j in combinations(x_runs, x_runs)]
+    max_dists = [(x_i - x_j).max() for x_i, x_j in product(x_runs, x_runs)]
     phis = []
     for r in rs:
         r_comparisons = [d.le(r) for d in max_dists]
@@ -75,7 +75,7 @@ def _phis(x: pl.Expr, m: int, N: int, rs: List[float]) -> List[float]:
 
 def approximate_entropies(
     x: TIME_SERIES_T,
-    filtering_levels: float,
+    filtering_levels: List[float],
     run_length: int = 2,
 ) -> List[float]:
     """
@@ -102,31 +102,6 @@ def approximate_entropies(
     phis_m_plus_1 = _phis(x, m=run_length + 1, N=N, rs=rs)
     entropies = [phis_m[i] - phis_m_plus_1[i] for i in range(len(phis_m))]
     return entropies
-
-
-def autoregressive_coefficients(x: pl.Series, n_lags: int) -> List[float]:
-    """
-    Computes coefficients for an AR(`n_lags`) process.
-
-    Parameters
-    ----------
-    x : pl.Expr | pl.Series
-        Input time-series.
-    n_lags : int
-        The number of lags in the autoregressive process.
-
-    Returns
-    -------
-    list of float
-    """
-    X = np.vstack(
-        [
-            np.asarray([x.shift(i).slice(n_lags) for i in range(1, n_lags + 1)]),
-            np.ones(x.len() - n_lags),
-        ]
-    ).T
-    y = np.asarray(x.slice(n_lags))
-    return lstsq(X, y, rcond=None)[0]
 
 
 def augmented_dickey_fuller(x: pl.Series, n_lags: int) -> float:
@@ -201,13 +176,39 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> float:
     if n_lags == 0:
         return pl.lit(1.0)
 
-    return (
+    ac = (
         x.shift(periods=-n_lags)
         .drop_nulls()
         .sub(x.mean())
         .dot(x.shift(periods=n_lags).drop_nulls().sub(x.mean()))
         .truediv((x.count() - n_lags).mul(x.var(ddof=0)))
     )
+    return ac
+
+
+def autoregressive_coefficients(x: pl.Series, n_lags: int) -> List[float]:
+    """
+    Computes coefficients for an AR(`n_lags`) process.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+    n_lags : int
+        The number of lags in the autoregressive process.
+
+    Returns
+    -------
+    list of float
+    """
+    X = np.vstack(
+        [
+            np.asarray([x.shift(i).slice(n_lags) for i in range(1, n_lags + 1)]),
+            np.ones(x.len() - n_lags),
+        ]
+    ).T
+    y = np.asarray(x.slice(n_lags))
+    return lstsq(X, y, rcond=None)[0]
 
 
 def benford_correlation(x: TIME_SERIES_T) -> float:
@@ -272,7 +273,7 @@ def binned_entropy(x: pl.Series, bin_count: int = 10) -> float:
     return (probs * probs.log()).sum().mul(-1)
 
 
-def c3(x: TIME_SERIES_T, lag: int) -> float:
+def c3(x: TIME_SERIES_T, n_lags: int) -> float:
     """Measure of non-linearity in the time series using c3 statistics.
 
     This function calculates the value of
@@ -295,7 +296,7 @@ def c3(x: TIME_SERIES_T, lag: int) -> float:
     ----------
     x : pl.Expr | pl.Series
         Input time-series.
-    lag : int
+    n_lags : int
         The lag that should be used in the calculation of the feature.
 
     Returns
@@ -308,11 +309,11 @@ def c3(x: TIME_SERIES_T, lag: int) -> float:
 
     """
     n = x.len()
-    k = n - 2 * lag
+    k = n - 2 * n_lags
     measure = (
         pl.sum_horizontal(
             [
-                x.list.get(i + 2 * lag) * x.list.get(i + lag) * x.list.get(i)
+                x.list.get(i + 2 * n_lags) * x.list.get(i + n_lags) * x.list.get(i)
                 for i in range(k)
             ]
         )
@@ -386,17 +387,19 @@ def cid_ce(x: pl.Expr, normalize: bool = False) -> pl.Expr:
         CID: an efficient complexity-invariant distance for time series.
         Data Mining and Knowledge Discovery 28.3 (2014): 634-669.
     """
+    if normalize:
+        x = (x - x.mean()) / x.std()
     return ((x - x.shift(-1)) ** 2).sum() ** (1 / 2)
 
 
-def count_above(x: TIME_SERIES_T, t: float) -> float:
+def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> float:
     """Calculate the percentage of values above or equal to a threshold.
 
     Parameters
     ----------
     x : pl.Expr | pl.Series
         Input time-series.
-    t : float
+    threshold : float
         The threshold value for comparison.
 
     Returns
@@ -404,7 +407,7 @@ def count_above(x: TIME_SERIES_T, t: float) -> float:
     float
         The percentage of values in `x` that are greater than or equal to `t`.
     """
-    return x.filter(x >= t).count().truediv(x.count()).mul(100)
+    return x.filter(x >= threshold).count().truediv(x.count()).mul(100)
 
 
 def count_above_mean(x: TIME_SERIES_T) -> int:
@@ -423,14 +426,14 @@ def count_above_mean(x: TIME_SERIES_T) -> int:
     return x.filter(x > x.mean()).count()
 
 
-def count_below(x: TIME_SERIES_T, t: float) -> float:
+def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> float:
     """Calculate the percentage of values below or equal to a threshold.
 
     Parameters
     ----------
     x : pl.Expr | pl.Series
         Input time-series.
-    t : float
+    threshold : float
         The threshold value for comparison.
 
     Returns
@@ -438,10 +441,10 @@ def count_below(x: TIME_SERIES_T, t: float) -> float:
     float
         The percentage of values in `x` that are less than or equal to `t`.
     """
-    return x.filter(x <= t).count().truediv(x.count()).mul(100)
+    return x.filter(x <= threshold).count().truediv(x.count()).mul(100)
 
 
-def count_below_mean(x: pl.Expr) -> int:
+def count_below_mean(x: pl.Series) -> int:
     """Count the number of values that are below the mean.
 
     Parameters
@@ -482,11 +485,12 @@ def cwt_coefficients(
         convolution[i] = np.convolve(x.to_numpy(zero_copy_only=True), wavelet_x)
     coeffs = []
     for coeff_idx in range(min(n_coefficients, convolution.shape[1])):
-        for width in widths:
-            coeffs.append(convolution[widths.index(width), coeff_idx])
+        for _width in widths:
+            coeffs.append(convolution[widths.index(), coeff_idx])
     return coeffs
 
 
+# We calculate all 1,2,3,...,n_chunk indexed statistics at once
 def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> List[float]:
     """
     Calculates sum of squares over the whole series for `n_chunks` equally segmented parts of the time-series.
@@ -541,18 +545,20 @@ def first_location_of_minimum(x: TIME_SERIES_T) -> float:
     return x.arg_min() / x.len()
 
 
-def fourier_entropy(x: pl.Series, n_bins: int):
+def fourier_entropy(x: pl.Series, n_bins: int = 10):
     _, pxx = welch(x, nperseg=min(x.len(), 256))
     return binned_entropy(pxx / bn.nanmax(pxx), n_bins)
 
 
-def friedrich_coefficients(x: pl.Series, m: int = 3, r: int = 30):
+def friedrich_coefficients(
+    x: pl.Series, polynomial_order: int = 3, n_quantiles: int = 30
+) -> List[float]:
     X = (
         x.alias("signal")
         .to_frame()
         .with_columns(
             delta=x.diff().alias("delta"),
-            quantile=x.qcut(q=r, labels=[str(i) for i in range(r)]),
+            quantile=x.qcut(q=n_quantiles, labels=[str(i) for i in range(n_quantiles)]),
         )
         .lazy()
     )
@@ -565,7 +571,7 @@ def friedrich_coefficients(x: pl.Series, m: int = 3, r: int = 30):
     coeffs = np.polyfit(
         X_means.get_column("signal").to_numpy(zero_copy_only=True),
         X_means.get_column("delta").to_numpy(zero_copy_only=True),
-        deg=m,
+        deg=polynomial_order,
     )
     return coeffs
 
@@ -635,6 +641,22 @@ def has_duplicate_min(x: TIME_SERIES_T) -> pl.Expr:
 
 
 def index_mass_quantile(x: TIME_SERIES_T, q: float):
+    """
+    Calculates the relative index i of time series x where q% of the mass of x lies left of i.
+    For example for q = 50% this feature calculator will return the mass center of the time series.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+    q : float
+        The quantile.
+
+    Returns
+    -------
+    pandas.Series
+        The different feature values.
+    """
     x_abs = x.abs()
     x_sum = x.sum()
     n = x.len()
@@ -642,10 +664,30 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float):
     return ((mass_center >= q) + 1).arg_max() / n
 
 
-def large_standard_deviation(x: TIME_SERIES_T, r: float):
+def large_standard_deviation(x: TIME_SERIES_T, ratio: float = 0.25) -> bool:
+    """Checks if the time-series has a large standard deviation.
+
+    True if:
+    .. math::
+
+        std(x) > r * (max(X)-min(X))
+
+    As a heuristic, the standard deviation should be a forth of the range of the values.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+    ratio : float
+        The ratio of the interval to compare with.
+
+    Returns
+    -------
+    bool
+    """
     x_std = x.std()
     x_interval = x.max() - x.min()
-    return x_std > (r * x_interval)
+    return x_std > (ratio * x_interval)
 
 
 def last_location_of_maximum(x: TIME_SERIES_T) -> float:
@@ -674,7 +716,20 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> float:
     return (x.len() - x.reverse().arg_min()) / x.len()
 
 
-def lempel_ziv_complexity(x: pl.Series, n_bins: int):
+def lempel_ziv_complexity(x: pl.Series, n_bins: int) -> List[float]:
+    """Calculate a complexity estimate based on the Lempel-Ziv compression algorithm.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+    n_bins : int
+        An integer specifying the number of bins to use for discretizing the time series.
+
+    Returns
+    -------
+    list of float
+    """
     complexities = []
     seq = x.search_sorted(
         element=np.linspace(x.min(), x.max(), n_bins + 1)[1:], side="left"
@@ -856,34 +911,37 @@ def mean_second_derivative_central(x: pl.Series) -> float:
     return (x[-1] - x[-2] - x[1] + x[0]) / (2 * (len(x) - 2))
 
 
-def number_crossing_m(x: TIME_SERIES_T, m: float) -> float:
+def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> float:
     """
-    Calculates the number of crossings of x on m. A crossing is defined as two sequential values where the first value
-    is lower than m and the next is greater, or vice-versa. If you set m to zero, you will get the number of zero
-    crossings.
+    Calculates the number of crossings of x on m, where m is the crossing value.
+
+    A crossing is defined as two sequential values where the first value is lower than m and the next is greater, or vice-versa.
+    If you set m to zero, you will get the number of zero crossings.
 
     Parameters
     ----------
     x : pl.Expr | pl.Series
         A single time-series.
-    m : float
-        The crossing value.
+    crossing_value : float
+        The crossing value. Defaults to 0.0.
 
     Returns
     -------
     """
-    return x.gt(m).cast(pl.Int8).diff(null_behavior="drop").abs().eq(1).sum()
+    return (
+        x.gt(crossing_value).cast(pl.Int8).diff(null_behavior="drop").abs().eq(1).sum()
+    )
 
 
-def number_cwt_peaks(x: TIME_SERIES_T, m: float) -> float:
+def number_cwt_peaks(x: TIME_SERIES_T, max_width: int = 5) -> float:
     return NotImplemented
 
 
-def number_peaks(x: TIME_SERIES_T, m: float) -> float:
+def number_peaks(x: TIME_SERIES_T, support: int = 10) -> float:
     return NotImplemented
 
 
-def partial_autocorrelation(x: TIME_SERIES_T, m: float) -> float:
+def partial_autocorrelation(x: TIME_SERIES_T, n_lags: int) -> float:
     return NotImplemented
 
 
@@ -942,15 +1000,11 @@ def permutation_entropy(x: TIME_SERIES_T, tau: float, n_dims: int) -> float:
     return NotImplemented
 
 
-def query_similarity_count(x: TIME_SERIES_T):
+def range_count(x: TIME_SERIES_T, lower: float, upper: float):
     return NotImplemented
 
 
-def range_count(x: TIME_SERIES_T):
-    return NotImplemented
-
-
-def ratio_beyond_r_sigma(x: TIME_SERIES_T, r: float):
+def ratio_beyond_r_sigma(x: TIME_SERIES_T, ratio: float = 0.25):
     return NotImplemented
 
 
@@ -1022,20 +1076,20 @@ def sum_reocurring_values(x: pl.Series) -> float:
     return X.item()
 
 
-def symmetry_looking(x: pl.Series, r: float) -> bool:
+def symmetry_looking(x: pl.Series, ratio: float = 0.25) -> bool:
     """Check if the distribution of x looks symmetric.
 
     A distribution is considered symmetric if:
 
     .. math::
 
-    | mean(X)-median(X) | < r * (max(X)-min(X))
+    | mean(X)-median(X) | < ratio * (max(X)-min(X))
 
     Parameters
     ----------
     x : polars.Series
         Input time-series.
-    r : float
+    ratio : float
         Multiplier on distance between max and min.
 
     Returns
@@ -1044,10 +1098,10 @@ def symmetry_looking(x: pl.Series, r: float) -> bool:
     """
     mean_median_difference = abs(x.mean() - x.median())
     max_min_difference = x.max() - x.min()
-    return mean_median_difference < r["r"] * max_min_difference
+    return mean_median_difference < ratio * max_min_difference
 
 
-def time_reversal_asymmetry_statistic(x: pl.Series, lag: int) -> float:
+def time_reversal_asymmetry_statistic(x: pl.Series, n_lags: int) -> float:
     """
     Returns the time reversal asymmetry statistic.
 
@@ -1070,7 +1124,7 @@ def time_reversal_asymmetry_statistic(x: pl.Series, lag: int) -> float:
     ----------
     x : pl.Series
         Input time-series.
-    lag : int
+    n_lags : int
         The lag that should be used in the calculation of the feature.
 
     Returns
@@ -1083,29 +1137,10 @@ def time_reversal_asymmetry_statistic(x: pl.Series, lag: int) -> float:
         Knowledge and Data Engineering, IEEE Transactions on 26, 3026–3037.
     """
     n = len(x)
-    one_lag = x.shift(-lag)
-    two_lag = x.shift(-2 * lag)
-    result = (two_lag * two_lag * one_lag - one_lag * x * x).head(n - 2 * lag).mean()
+    one_lag = x.shift(-n_lags)
+    two_lag = x.shift(-2 * n_lags)
+    result = (two_lag * two_lag * one_lag - one_lag * x * x).head(n - 2 * n_lags).mean()
     return result
-
-
-def variance_greater_than_standard_deviation(x: TIME_SERIES_T) -> bool:
-    """
-    Is variance higher than the standard deviation?
-
-    Boolean variable denoting if the variance of x is greater than its standard deviation. Is equal to variance of x
-    being larger than 1
-
-    Parameters
-    ----------
-    x : pl.Expr | pl.Series
-        Input time-series.
-
-    Returns
-    -------
-    """
-    y = x.var(ddof=0)
-    return y > y.sqrt()
 
 
 def variation_coefficient(x: TIME_SERIES_T) -> float:
