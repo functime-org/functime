@@ -1,3 +1,4 @@
+import math
 from itertools import product
 from typing import List, Mapping, Sequence, Union
 
@@ -6,6 +7,7 @@ import numpy as np
 import polars as pl
 from numpy.linalg import lstsq
 from scipy.signal import ricker, welch
+from scipy.spatial import KDTree
 
 TIME_SERIES_T = Union[pl.Series, pl.Expr]
 
@@ -925,7 +927,7 @@ def number_cwt_peaks(x: TIME_SERIES_T, max_width: int = 5) -> float:
     return NotImplemented
 
 
-def number_peaks(x: TIME_SERIES_T, support: int = 10) -> float:
+def number_peaks(x: TIME_SERIES_T, support: int = 1) -> int:
     return NotImplemented
 
 
@@ -982,29 +984,196 @@ def percent_recoccuring_values(x: TIME_SERIES_T) -> float:
     return count.filter(count > 1).len() / x.n_unique()
 
 
-def permutation_entropy(x: TIME_SERIES_T, tau: float, n_dims: int) -> float:
-    return NotImplemented
+def permutation_entropy(
+    x: TIME_SERIES_T,
+    tau: int = 1,
+    n_dims: int = 3,
+    base: float = math.e,
+    normalize: bool = False,
+) -> float:
+    """
+    Computes permutation entropy.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+    tau : int
+        The embedding time delay which controls the number of time periods between elements
+        of each of the new column vectors.
+    n_dims : int, > 1
+        The embedding dimension which controls the length of each of the new column vectors
+    base : float
+        The base for log in the entropy computation
+    normalize : bool
+        Whether to normalize in the entropy computation
+
+    Returns
+    -------
+    float
+    """
+    # This is kind of slow rn when tau > 1
+    max_shift = -n_dims + 1
+    out = (
+        (
+            pl.concat_list(
+                x, *(x.shift(-i) for i in range(1, n_dims))
+            )  # create list columns
+            .take_every(tau)  # take every tau
+            .filter(
+                x.shift(max_shift).take_every(tau).is_not_null()
+            )  # This is a filter because length of df is unknown, might slow down perf
+            .list.eval(
+                pl.element().rank(method="ordinal")
+            )  # for each inner list, do an argsort
+            .value_counts()  # groupby and count, but returns a struct
+            .struct.field("counts")  # extract the field named "counts"
+            / x.shift(max_shift)
+            .take_every(tau)
+            .is_not_null()
+            .sum()  # get probabilities
+        )
+        .entropy(base=base, normalize=normalize)
+        .suffix("_permutation_entropy")
+    )
+    return out
 
 
-def range_count(x: TIME_SERIES_T, lower: float, upper: float):
-    return NotImplemented
+def range_count(x: TIME_SERIES_T, lower: float, upper: float) -> int:
+    """
+    Computes values of input expression that is between lower (inclusive) and upper (exclusive).
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+    lower : float
+        The lower bound, inclusive
+    upper : float
+        The upper bound, exclusive
+
+    Returns
+    -------
+    int
+    """
+    if upper < lower:
+        raise ValueError("Upper must be greater than lower.")
+    return x.is_between(lower_bound=lower, upper_bound=upper, closed="left").sum()
 
 
-def ratio_beyond_r_sigma(x: TIME_SERIES_T, ratio: float = 0.25):
-    return NotImplemented
+def ratio_beyond_r_sigma(x: TIME_SERIES_T, ratio: float = 0.25) -> float:
+    """
+    Returns the ratio of values in the series that is beyond r*std from mean on both sides.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+    ratio : float
+        The scaling factor for std
+
+    Returns
+    -------
+    float
+    """
+    expr = (
+        x.is_between(
+            x.mean() - pl.lit(ratio) * x.std(),
+            x.mean() + pl.lit(ratio) * x.std(),
+            closed="both",
+        )
+        .is_not()  # check for deprecation
+        .sum()
+        / pl.count()
+    )
+    return expr
 
 
 # Originally named `ratio_value_number_to_time_series_length` in tsfresh
-def ratio_n_unique_to_length(x: pl.Expr):
+def ratio_n_unique_to_length(x: TIME_SERIES_T) -> float:
+    """
+    Calculate the ratio of the number of unique values to the length of the time-series.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+
+    Returns
+    -------
+    float
+    """
     return x.n_unique() / x.len()
 
 
 def root_mean_square(x: TIME_SERIES_T) -> float:
+    """Calculate the root mean square.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+
+    Returns
+    -------
+    float
+    """
     return (x**2).mean().sqrt()
 
 
-def sample_entropy(x: TIME_SERIES_T) -> float:
-    return NotImplemented
+def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
+    cname = x.name
+    n_rows = x.len() - m + 1
+    df = (
+        x.to_frame()
+        .select(
+            pl.col(cname),
+            *(pl.col(cname).shift(-i).suffix(str(i)) for i in range(1, m))
+        )
+        .slice(0, n_rows)
+    )
+    return df.to_numpy()
+
+
+def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> float:
+    """
+    Calculate the sample entropy of a time series.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        The input time series.
+    ratio : float, optional
+        The tolerance parameter. Default is 0.2.
+
+    Returns
+    -------
+    float
+    """
+    # This is significantly faster than tsfresh
+    threshold = ratio * x.std(ddof=0)
+    m = 2
+    mat = _into_sequential_chunks(x, m)
+    tree = KDTree(mat)
+    b = (
+        np.sum(
+            tree.query_ball_point(
+                mat, r=threshold, p=np.inf, workers=-1, return_length=True
+            )
+        )
+        - mat.shape[0]
+    )
+    mat = _into_sequential_chunks(x, m + 1)  #
+    tree = KDTree(mat)
+    a = (
+        np.sum(
+            tree.query_ball_point(
+                mat, r=threshold, p=np.inf, workers=-1, return_length=True
+            )
+        )
+        - mat.shape[0]
+    )
+    return np.log(b / a)  # -ln(a/b) = ln(b/a)
 
 
 def spkt_welch_density(x: TIME_SERIES_T, n_cofficients: int) -> float:
@@ -1124,6 +1293,17 @@ def time_reversal_asymmetry_statistic(x: pl.Series, n_lags: int) -> float:
 
 
 def variation_coefficient(x: TIME_SERIES_T) -> float:
+    """Calculate the coefficient of variation (CV).
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+
+    Returns
+    -------
+    float
+    """
     return x.var() / x.mean()
 
 
