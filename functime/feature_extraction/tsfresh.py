@@ -210,18 +210,17 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> float:
     )
 
 
-def benford_correlation(x: pl.Expr)-> pl.Expr:
+def benford_correlation(x: TIME_SERIES_T) -> float:
     """Returns the correlation between the first digit distribution of the input time series and the Newcomb-Benford's Law distribution [1][2].
 
     Parameters
     ----------
-    x : pl.Expr
+    x : pl.Expr | pl.Series
         Input time-series.
 
     Returns
     -------
-    pl.Expr
-        The value of this feature.
+    float
 
     Notes
     -----
@@ -240,9 +239,18 @@ def benford_correlation(x: pl.Expr)-> pl.Expr:
         mathematics.
     """
     x = x.cast(pl.Utf8).str.lstrip("-0.")
-    x = x.filter(x!="").str.slice(0,1).cast(pl.UInt8).append(pl.int_range(1,10,eager=False)).sort().value_counts()
+    x = (
+        x.filter(x != "")
+        .str.slice(0, 1)
+        .cast(pl.UInt8)
+        .append(pl.int_range(1, 10, eager=False))
+        .sort()
+        .value_counts()
+    )
     counts = x.struct[1] - 1
-    return pl.corr(counts/counts.sum(), (1+1/pl.int_range(1, 10, eager=False)).log10())
+    return pl.corr(
+        counts / counts.sum(), (1 + 1 / pl.int_range(1, 10, eager=False)).log10()
+    )
 
 
 def binned_entropy(x: pl.Series, bin_count: int = 10) -> float:
@@ -713,7 +721,7 @@ def linear_trend(x: TIME_SERIES_T) -> Mapping[str, float]:
     return {"slope": beta, "intercept": alpha, "rss": rss}
 
 
-def _get_length_sequences_where(x: pl.Expr)-> pl.Expr:
+def _get_length_sequences_where(x: pl.Expr) -> pl.Expr:
     """Calculates the length of all sub-sequences where the series x is either True or 1.
 
     Parameters
@@ -732,35 +740,35 @@ def _get_length_sequences_where(x: pl.Expr)-> pl.Expr:
     return count
 
 
-def longest_strike_above_mean(x: pl.Expr)-> pl.Expr:
+def longest_strike_above_mean(x: TIME_SERIES_T) -> int:
     """
     Returns the length of the longest consecutive subsequence in x that is greater than the mean of x.
 
     Parameters
     ----------
-    x : pl.Expr
+    x : pl.Expr | pl.Series
         Input time-series.
 
     Returns
     -------
-    pl.Expr
+    int
     """
-    return _get_length_sequences_where((x > x.mean())).max().fill_null(0)
+    return _get_length_sequences_where(x > x.mean()).max().fill_null(0)
 
 
-def longest_strike_below_mean(x: pl.Expr)-> pl.Expr:
+def longest_strike_below_mean(x: TIME_SERIES_T) -> int:
     """Returns the length of the longest consecutive subsequence in x that is smaller than the mean of x.
 
     Parameters
     ----------
-    x : pl.Expr
+    x : pl.Expr | pl.Series
         Input time-series.
 
     Returns
     -------
-    pl.Expr
+    int
     """
-    return _get_length_sequences_where((x < x.mean())).max().fill_null(0)
+    return _get_length_sequences_where(x < x.mean()).max().fill_null(0)
 
 
 def mean_abs_change(x: TIME_SERIES_T) -> float:
@@ -793,21 +801,20 @@ def mean_change(x: TIME_SERIES_T) -> float:
     return x.diff(null_behavior="drop").mean()
 
 
-def mean_n_absolute_max(x: pl.Expr, n_maxima: int) -> pl.Expr:
+def mean_n_absolute_max(x: TIME_SERIES_T, n_maxima: int) -> float:
     """
     Calculates the arithmetic mean of the n absolute maximum values of the time series.
 
     Parameters
     ----------
-    x : pl.Expr
+    x : pl.Expr | pl.Series
         Input time-series.
     n_maxima : int
         The number of maxima to consider.
 
     Returns
     -------
-    pl.Expr
-        The value of this feature.
+    float
     """
     if n_maxima <= 0:
         raise ValueError("The number of maxima should be > 0.")
@@ -868,7 +875,7 @@ def partial_autocorrelation(x: TIME_SERIES_T, m: float) -> float:
     return NotImplemented
 
 
-def percent_reocurring_points(x: pl.Expr)-> pl.Expr:
+def percent_reocurring_points(x: TIME_SERIES_T) -> float:
     """
     Returns the percentage of non-unique data points in the time series. Non-unique data points are those that occur
     more than once in the time series.
@@ -882,19 +889,18 @@ def percent_reocurring_points(x: pl.Expr)-> pl.Expr:
 
     Parameters
     ----------
-    x : pl.Expr
+    x : pl.Expr | pl.Series
         Input time-series.
 
     Returns
     -------
-    pl.Expr
-        The value of this feature.
+    float
     """
     count = x.unique_counts()
     return count.filter(count > 1).sum() / x.len()
 
 
-def percent_recoccuring_values(x: pl.Expr)-> pl.Expr:
+def percent_recoccuring_values(x: TIME_SERIES_T) -> float:
     """
     Returns the percentage of values that are present in the time series more than once.
 
@@ -907,13 +913,12 @@ def percent_recoccuring_values(x: pl.Expr)-> pl.Expr:
 
     Parameters
     ----------
-    x : pl.Expr
+    x : pl.Expr | pl.Series
         Input time-series.
 
     Returns
     -------
-    pl.Expr
-        The value of this feature.
+    float
     """
     count = x.unique_counts()
     return count.filter(count > 1).len() / x.n_unique()
@@ -953,7 +958,7 @@ def spkt_welch_density(x: TIME_SERIES_T, n_cofficients: int) -> float:
 
 
 # Originally named: `sum_of_reoccurring_data_points`
-def sum_reocurring_points(x: pl.Expr)-> pl.Expr:
+def sum_reocurring_points(x: TIME_SERIES_T) -> float:
     """
     Returns the sum of all data points that are present in the time series more than once.
 
@@ -964,19 +969,18 @@ def sum_reocurring_points(x: pl.Expr)-> pl.Expr:
 
     Parameters
     ----------
-    x : pl.Expr
+    x : pl.Expr | pl.Series
         Input time-series.
 
     Returns
     -------
-    pl.Expr
-        The value of this feature.
+    float
     """
     return x.filter(x.is_unique().not_()).sum().cast(pl.Float64)
 
 
 # Originally named: `sum_of_reoccurring_values`
-def sum_reocurring_values(x: pl.Expr)-> pl.Expr:
+def sum_reocurring_values(x: TIME_SERIES_T) -> float:
     """
     Returns the sum of all values that are present in the time series more than once.
 
@@ -988,13 +992,12 @@ def sum_reocurring_values(x: pl.Expr)-> pl.Expr:
 
     Parameters
     ----------
-    x : pl.Expr
+    x : pl.Expr | pl.Series
         Input time-series.
 
     Returns
     -------
-    pl.Expr
-        The value of this feature.
+    float
     """
     return x.filter(x.is_unique().not_()).unique().sum().cast(pl.Float64)
 
