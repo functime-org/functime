@@ -4,6 +4,7 @@ import pytest
 from polars.testing import assert_frame_equal
 
 from functime.feature_extraction.tsfresh import (
+    _get_length_sequences_where,
     benford_correlation,
     longest_strike_above_mean,
     longest_strike_below_mean,
@@ -22,132 +23,292 @@ np.random.seed(42)
 
 def test_benford_correlation():
     # Nan, division by 0
-    X_uniform = pl.Series([1, 2, 3, 4, 5, 6, 7, 8, 9])
+    X_uniform = pl.DataFrame({
+        "a": [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    })
+    X_uniform_lazy = pl.LazyFrame({
+        "a": [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    })
     # Random serie
-    X_random = pl.Series([26.24, 3.03, -2.92, 3.5, -0.07, 0.35, 0.10, 0.51, -0.43])
+    X_random = pl.DataFrame({
+        "a": [26.24, 3.03, -2.92, 3.5, -0.07, 0.35, 0.10, 0.51, -0.43]
+    })
+    X_random_lazy = pl.LazyFrame({
+        "a": [26.24, 3.03, -2.92, 3.5, -0.07, 0.35, 0.10, 0.51, -0.43]
+    })
     # Fibo, distribution same as benford law
-    X_fibo = [0, 1]
+    l_fibo = [0, 1]
     for i in range(2, 50):
-        X_fibo.append(X_fibo[i - 1] + X_fibo[i - 2])
+        l_fibo.append(l_fibo[i - 1] + l_fibo[i - 2])
+    
+    X_fibo = pl.DataFrame({
+        "a": l_fibo
+    })
 
-    assert np.isnan(benford_correlation(X_uniform))
-    assert benford_correlation(X_random) == 0.39753280229716703
-    assert benford_correlation(pl.Series(X_fibo)) == 0.9959632739083689
+    X_fibo_lazy = pl.LazyFrame({
+        "a": l_fibo
+    })
+    assert_frame_equal(
+        X_uniform.select(
+            benford_correlation(pl.col("a"))
+        ),
+        pl.DataFrame({"counts": [1.3891e-16]})
+    )
+    assert_frame_equal(
+        X_uniform_lazy.select(
+            benford_correlation(pl.col("a"))
+        ).collect(),
+        pl.DataFrame({"counts": [1.3891e-16]})
+    )
+    assert_frame_equal(
+        X_random.select(
+            benford_correlation(pl.col("a"))
+        ),
+        pl.DataFrame({"counts": [0.39753280229716703]})
+    )
+    assert_frame_equal(
+        X_random_lazy.select(
+            benford_correlation(pl.col("a"))
+        ).collect(),
+        pl.DataFrame({"counts": [0.39753280229716703]})
+    )
+    assert_frame_equal(
+        X_fibo.select(
+            benford_correlation(pl.col("a"))
+        ),
+        pl.DataFrame({"counts": [0.9959632739083689]})
+    )
+    assert_frame_equal(
+        X_fibo_lazy.select(
+            benford_correlation(pl.col("a"))
+        ).collect(),
+        pl.DataFrame({"counts": [0.9959632739083689]})
+    )
 
+@pytest.mark.parametrize("S, res", [
+    (
+        [0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1],
+        [1, 3, 1, 2]
+    ),
+    (
+        [0, True, 0, 0, True, True, True, 0, 0, True, 0, True, True],
+        [1, 3, 1, 2]
+    ),
+    (
+        [0, True, 0, 0, 1, True, 1, 0, 0, True, 0, 1, True],
+        [1, 3, 1, 2]
+    )
+])
+def test__get_length_sequences_where(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            _get_length_sequences_where(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("lengths", res, dtype=pl.Int32))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            _get_length_sequences_where(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("lengths", res, dtype=pl.Int32))
+    )
 
-@pytest.mark.parametrize(
-    "S, res",
-    [
-        ([1, 2, 1, 1, 1, 2, 2, 2], 3),
-        ([1, 2, 3, 4, 5, 6], 3),
-        ([1, 2, 3, 4, 5], 2),
-        ([1, 2, 1], 1),
-        ([1, 1, 1], 0),
-        ([], 0),
-    ],
-)
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 1, 1, 2, 2, 2], [3]),
+    ([1, 2, 3, 4, 5, 6], [3]),
+    ([1, 2, 3, 4, 5], [2]),
+    ([1, 2, 1], [1]),
+    ([1, 1, 1], [0]),
+    ([], [0])
+])
 def test_longest_strike_below_mean(S, res):
-    assert longest_strike_below_mean(pl.Series(S)) == res
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            longest_strike_below_mean(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            longest_strike_below_mean(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
+    )
 
 
-@pytest.mark.parametrize(
-    "S, res",
-    [
-        ([1, 2, 1, 2, 1, 2, 2, 1], 2),
-        ([1, 2, 3, 4, 5, 6], 3),
-        ([1, 2, 3, 4, 5], 2),
-        ([1, 2, 1], 1),
-        ([1, 1, 1], 0),
-        ([], 0),
-    ],
-)
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1, 2, 2, 1], [2]),
+    ([1, 2, 3, 4, 5, 6], [3]),
+    ([1, 2, 3, 4, 5], [2]),
+    ([1, 2, 1], [1]),
+    ([1, 1, 1], [0]),
+    ([], [0])
+])
 def test_longest_strike_above_mean(S, res):
-    assert longest_strike_above_mean(pl.Series(S)) == res
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            longest_strike_above_mean(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            longest_strike_above_mean(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
+    )
 
-
-@pytest.mark.parametrize(
-    "S, n_max, res",
-    [
-        ([], 1, None),
-        ([12, 3], 10, None),
-        ([-1, -5, 4, 10], 3, 6.333333333333333),
-        ([0, -5, -9], 2, 7.000000),
-        ([0, 0, 0], 1, 0),
-    ],
-)
+@pytest.mark.parametrize("S, n_max, res", [
+    ([], 1, [None]),
+    ([12, 3], 10, [7.5]),
+    ([-1, -5, 4, 10], 3, [6.333333]),
+    ([0, -5, -9], 2, [7.0]),
+    ([0, 0, 0], 1, [0.0])
+])
 def test_mean_n_absolute_max(S, n_max, res):
-    assert mean_n_absolute_max(x=pl.Series(S), n_maxima=n_max) == res
-
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            mean_n_absolute_max(pl.col("a"), n_maxima=n_max)
+        ),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            mean_n_absolute_max(pl.col("a"), n_maxima=n_max)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+    )
 
 def test_mean_n_absolute_max_value_error():
     with pytest.raises(ValueError):
-        mean_n_absolute_max(x=pl.Series([12, 3]), n_maxima=0)
+        mean_n_absolute_max(
+            x = pl.Series([12, 3]),
+            n_maxima = 0
+        )
     with pytest.raises(ValueError):
-        mean_n_absolute_max(x=pl.Series([12, 3]), n_maxima=-1)
+        mean_n_absolute_max(
+            x = pl.Series([12, 3]),
+            n_maxima = -1
+        )
 
 
-@pytest.mark.parametrize(
-    "S, res",
-    [
-        ([1, 1, 2, 3, 4], 0.4),
-        ([1, 1.5, 2, 3], 0),
-        ([1], 0),
-        ([1.111, -2.45, 1.111, 2.45], 0.5),
-    ],
-)
+@pytest.mark.parametrize("S, res", [
+    ([1, 1, 2, 3, 4], [0.4]),
+    ([1, 1.5, 2, 3], [0]),
+    ([1], [0]),
+    ([1.111, -2.45, 1.111, 2.45], [0.5]),
+    ([], [np.nan])
+])
 def test_percent_reocurring_points(S, res):
-    assert percent_reocurring_points(pl.Series(S)) == res
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            percent_reocurring_points(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            percent_reocurring_points(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+    )
 
 
-def test_percent_reocurring_points_value_error():
-    with pytest.raises(ValueError):
-        percent_reocurring_points(pl.Series([]))
-
-
-@pytest.mark.parametrize(
-    "S, res",
-    [
-        ([1, 1, 2, 3, 4], 0.25),
-        ([1, 1.5, 2, 3], 0),
-        ([1], 0),
-        ([1.111, -2.45, 1.111, 2.45], 1.0 / 3.0),
-    ],
-)
+@pytest.mark.parametrize("S, res", [
+    ([1, 1, 2, 3, 4], [0.25]),
+    ([1, 1.5, 2, 3], [0]),
+    ([1], [0]),
+    ([1.111, -2.45, 1.111, 2.45], [1.0 / 3.0])
+])
 def test_percent_recoccuring_values(S, res):
-    assert percent_recoccuring_values(pl.Series(S)) == res
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            percent_recoccuring_values(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            percent_recoccuring_values(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+    )
 
 
-def test_percent_recoccuring_values_value_error():
-    with pytest.raises(ValueError):
-        percent_recoccuring_values(pl.Series([]))
-
-
-@pytest.mark.parametrize(
-    "S, res",
-    [
-        ([1, 1, 2, 3, 4, 4], 10),
-        ([1, 1.5, 2, 3], 0),
-        ([1], 0),
-        ([1.111, -2.45, 1.111, 2.45], 2.222),
-        ([], 0),
-    ],
-)
+@pytest.mark.parametrize("S, res", [
+    ([1, 1, 2, 3, 4, 4], [10]),
+    ([1, 1.5, 2, 3], [0]),
+    ([1], [0]),
+    ([1.111, -2.45, 1.111, 2.45], [2.222]),
+    ([], [0])
+])
 def test_sum_reocurring_points(S, res):
-    assert sum_reocurring_points(pl.Series(S)) == res
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            sum_reocurring_points(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            sum_reocurring_points(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+    )
 
 
-@pytest.mark.parametrize(
-    "S, res",
-    [
-        ([1, 1, 2, 3, 4, 4], 5),
-        ([1, 1.5, 2, 3], 0),
-        ([1], 0),
-        ([1.111, -2.45, 1.111, 2.45], 1.111),
-        ([], 0),
-    ],
-)
+@pytest.mark.parametrize("S, res", [
+    ([1, 1, 2, 3, 4, 4], [5]),
+    ([1, 1.5, 2, 3], [0]),
+    ([1], [0]),
+    ([1.111, -2.45, 1.111, 2.45], [1.111]),
+    ([], [0])
+])
 def test_sum_reocurring_values(S, res):
-    assert sum_reocurring_values(pl.Series(S)) == res
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            sum_reocurring_values(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            sum_reocurring_values(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+    )
 
 
 def generate_ar1():
