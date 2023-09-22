@@ -258,7 +258,6 @@ def rank_point_forecasts(
 def rank_residuals(
     y_resids: pl.DataFrame,
     sort_by: RESIDUALS_SORT_BY = "abs_bias",
-    alpha: float = 0.05,
     descending: bool = False,
 ) -> pl.DataFrame:
     """Sorts point forecasts in `y_pred` across entities / time-series by score.
@@ -271,10 +270,6 @@ def rank_residuals(
         Method to sort residuals by: `bias`, `abs_bias` (absolute bias),
         `normality` (via skew and kurtosis tests), or `autocorr` (Ljung-box test for lag = 1).
         Defaults to `abs_bias`.
-    max_lags : int
-        Number of lags to test.
-    alpha : float
-        To compute (1.0 - alpha) confidence interval.
     descending : bool
         Sort in descending order. Defaults to False.
 

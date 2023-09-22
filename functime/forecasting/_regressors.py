@@ -150,10 +150,7 @@ class CensoredRegressor:
 
 
 class FLAMLRegressor:
-    """FLAML AutoML regressor.
-
-    API reference: https://microsoft.github.io/FLAML/docs/reference/automl/automl/#automl-objects
-    """
+    """FLAML AutoML regressor."""
 
     def __init__(
         self,

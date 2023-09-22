@@ -176,6 +176,8 @@ class AutoForecaster(Forecaster):
 
 
 class auto_lightgbm(AutoForecaster):
+    """LightGBM forecaster with automated lags and hyperparamters selection."""
+
     DEFAULT_TREE_DEPTH = 8
 
     @property
@@ -215,6 +217,8 @@ class auto_lightgbm(AutoForecaster):
 
 
 class auto_knn(AutoForecaster):
+    """KNN forecaster with automated lags and hyperparamters selection."""
+
     @property
     def forecaster(self):
         return knn
@@ -229,12 +233,16 @@ class auto_knn(AutoForecaster):
 
 
 class auto_linear_model(AutoForecaster):
+    """Autoregressive linear forecaster with automated lags selection."""
+
     @property
     def forecaster(self):
         return linear_model
 
 
 class auto_lasso(AutoForecaster):
+    """LASSO forecaster with automated lags and hyperparameters selection."""
+
     @property
     def forecaster(self):
         return lasso
@@ -252,6 +260,8 @@ class auto_lasso(AutoForecaster):
 
 
 class auto_ridge(AutoForecaster):
+    """Ridge forecaster with automated lags and hyperparameters selection."""
+
     @property
     def forecaster(self):
         return ridge
@@ -269,6 +279,8 @@ class auto_ridge(AutoForecaster):
 
 
 class auto_elastic_net(AutoForecaster):
+    """ElasticNet forecaster with automated lags and hyperparameters selection."""
+
     @property
     def forecaster(self):
         return elastic_net

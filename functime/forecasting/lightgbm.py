@@ -97,11 +97,7 @@ def _flaml_lightgbm(**kwargs):
 
 
 class lightgbm(Forecaster):
-    """Autoregressive LightGBM forecaster.
-
-    Reference:
-    https://lightgbm.readthedocs.io/en/latest/pythonapi/lightgbm.LGBMRegressor.html
-    """
+    """Autoregressive LightGBM forecaster."""
 
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         y_new = y.pipe(
@@ -119,11 +115,7 @@ class lightgbm(Forecaster):
 
 
 class flaml_lightgbm(Forecaster):
-    """Autoregressive FLAML LightGBM forecaster with automated lags and hyperparameter tuning.
-
-    Reference:
-    https://microsoft.github.io/FLAML/docs/Examples/AutoML-for-LightGBM/
-    """
+    """Autoregressive FLAML LightGBM forecaster with automated lags and hyperparameter tuning."""
 
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
         y_new = y.pipe(
