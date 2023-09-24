@@ -1017,6 +1017,44 @@ def percent_recoccuring_values(x: TIME_SERIES_T) -> float:
     count = x.unique_counts()
     return count.filter(count > 1).len() / x.n_unique()
 
+def number_peaks(x: pl.Expr, n: int):
+    """
+    Calculates the number of peaks of at least support n in the time series x. A peak of support n is defined as a
+    subsequence of x where a value occurs, which is bigger than its n neighbours to the left and to the right.
+
+    Hence in the sequence
+
+    x = [3, 0, 0, 4, 0, 0, 13]
+
+    4 is a peak of support 1 and 2 because in the subsequences
+
+    [0, 4, 0]
+    [0, 0, 4, 0, 0]
+
+    4 is still the highest value. Here, 4 is not a peak of support 3 because 13 is the 3th neighbour to the right of 4
+    and its bigger than 4.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+
+    n : int
+        Support of the peak
+    Returns
+    -------
+    float
+    """
+    res = None
+    for i in range(1, n+1):
+        left_neighbor = x.shift(-i)
+        right_neighbor = x.shift(i)
+        if res is None:
+            res = ((x > left_neighbor) & (x > right_neighbor)).fill_null(False)
+        else:
+            res &= ((x > left_neighbor) & (x > right_neighbor)).fill_null(False)
+    return res.sum()
+
 
 def permutation_entropy(
     x: TIME_SERIES_T,
