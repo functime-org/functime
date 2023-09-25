@@ -211,9 +211,12 @@ def autoregressive_coefficients(x: pl.Series, n_lags: int) -> List[float]:
     y = np.asarray(x.slice(n_lags))
     return lstsq(X, y, rcond=None)[0]
 
-
-def benford_correlation(x: TIME_SERIES_T) -> float:
-    """Returns the correlation between the first digit distribution of the input time series and the Newcomb-Benford's Law distribution [1][2].
+_BENFORD_DIST_SERIES = (1 + 1 / pl.int_range(1, 10, eager=True)).log10()
+def benford_correlation(x: pl.Expr) -> pl.Expr:
+    """
+    Returns the correlation between the first digit distribution of the input time series and 
+    the Newcomb-Benford's Law distribution [1][2]. This is faster version than benford_correlation2,
+    but may have some precision issues for extremely rare values.
 
     Parameters
     ----------
@@ -222,7 +225,7 @@ def benford_correlation(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
-    float
+    An expression for benford_correlation representing a float
 
     Notes
     -----
@@ -240,9 +243,55 @@ def benford_correlation(x: TIME_SERIES_T) -> float:
     [4] Newcomb, S. (1881). Note on the frequency of use of the different digits in natural numbers. American Journal of
         mathematics.
     """
-    x = x.cast(pl.Utf8).str.lstrip("-0.")
+    counts = (
+        # This part can be simplified once the log10(1000) precision issue is resolved.
+        pl.when(x.abs() == 1000).then(
+            pl.lit(1)
+        ).otherwise(
+            (x.abs()/(pl.lit(10).pow((x.abs().log10()).floor())))
+        ).drop_nans()
+        .drop_nulls()
+        .cast(pl.UInt8)
+        .append(pl.int_range(1, 10, eager=False))
+        .sort()
+        .value_counts()
+        .struct.field("counts") - pl.lit(1)
+    )
+    return pl.corr(counts, pl.lit(_BENFORD_DIST_SERIES))
+
+def benford_correlation_2(x: TIME_SERIES_T) -> pl.Expr:
+    """
+    Returns the correlation between the first digit distribution of the input time series and 
+    the Newcomb-Benford's Law distribution [1][2].
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+
+    Returns
+    -------
+    An expression for benford_correlation representing a float
+
+    Notes
+    -----
+    The Newcomb-Benford distribution for d that is the leading digit of the number {1, 2, 3, 4, 5, 6, 7, 8, 9} is given by:
+
+    .. math::
+
+        P(d) = \\log_{10}\\left(1 + \\frac{1}{d}\\right)
+
+    References
+    ----------
+    [1] Hill, T. P. (1995). A Statistical Derivation of the Significant-Digit Law. Statistical Science.
+    [2] Hill, T. P. (1995). The significant-digit phenomenon. The American Mathematical Monthly.
+    [3] Benford, F. (1938). The law of anomalous numbers. Proceedings of the American philosophical society.
+    [4] Newcomb, S. (1881). Note on the frequency of use of the different digits in natural numbers. American Journal of
+        mathematics.
+    """
     x = (
-        x.filter(x != "")
+        x.cast(pl.Utf8).str.lstrip("-0.")
+        .filter(x != "")
         .str.slice(0, 1)
         .cast(pl.UInt8)
         .append(pl.int_range(1, 10, eager=False))
@@ -251,11 +300,11 @@ def benford_correlation(x: TIME_SERIES_T) -> float:
     )
     counts = x.struct[1] - 1
     return pl.corr(
-        counts / counts.sum(), (1 + 1 / pl.int_range(1, 10, eager=False)).log10()
+        counts, pl.lit(_BENFORD_DIST_SERIES)
     )
 
 
-def binned_entropy(x: pl.Series, bin_count: int = 10) -> float:
+def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> float:
     """
     Calculates the entropy of a binned histogram for a given time series.
 
@@ -268,16 +317,21 @@ def binned_entropy(x: pl.Series, bin_count: int = 10) -> float:
 
     Returns
     -------
-    float
+    A float or an expression representing a float
     """
-    histogram = x.hist(bin_count=bin_count)
-    counts = histogram.get_column(histogram.columns[-1])
-    probs = counts / x.len()
-    probs = pl.when(probs == 0.0).then(pl.lit(1.0)).otherwise(probs)
-    return (probs * probs.log()).sum().mul(-1)
+    if isinstance(x, pl.Series):
+        hist, _ = np.histogram(x, bins=bin_count)
+        probs = hist/len(x)
+        probs[probs == 0] = 1.0
+        return -np.sum(probs * np.log(probs))
+    else:
+        step_size = 1/bin_count
+        breaks = np.linspace(step_size, stop = 1 - step_size, num = bin_count - 1)
+        scaled_x = (x - x.min()) / (x.max() - x.min()) # This step slows down the calculation
+        # Left closed because we want to micmic NumPy's histogram's behavior
+        return scaled_x.cut(breaks, left_closed=True).value_counts().struct.field("counts").entropy().suffix("_binned_entropy")
 
-
-def c3(x: TIME_SERIES_T, n_lags: int) -> float:
+def c3(x: TIME_SERIES_T, n_lags: int) -> pl.Expr:
     """Measure of non-linearity in the time series using c3 statistics.
 
     This function calculates the value of
@@ -305,7 +359,7 @@ def c3(x: TIME_SERIES_T, n_lags: int) -> float:
 
     Returns
     -------
-    float
+    An expression representing a float
 
     References
     ----------
@@ -313,24 +367,26 @@ def c3(x: TIME_SERIES_T, n_lags: int) -> float:
 
     """
     twice_lag = 2 * n_lags
+    # Would potentially be faster if there is a pl.product_horizontal()
     return (x * x.shift(n_lags) * x.shift(twice_lag)).sum() / (
         x.count() - pl.lit(twice_lag)
     )
 
 
 def change_quantiles(
-    x: TIME_SERIES_T, ql: float, qh: float, is_abs: bool
-) -> List[float]:
-    """First fixes a corridor given by the quantiles ql and qh of the distribution of x.
+    x: TIME_SERIES_T, q_low: float, q_high: float, is_abs: bool
+) -> pl.Expr:
+    """
+    First fixes a corridor given by the quantiles ql and qh of the distribution of x.
     Then calculates the average, absolute value of consecutive changes of the series x inside this corridor.
 
     Parameters
     ----------
     x : pl.Expr | pl.Series
         A single time-series.
-    ql : float
+    q_low : float
         The lower quantile of the corridor. Must be less than `qh`.
-    qh : float
+    q_high : float
         The upper quantile of the corridor. Must be greater than `ql`.
     is_abs : bool
         If True, takes absolute difference.
@@ -339,21 +395,21 @@ def change_quantiles(
     -------
     list of float
     """
-    x = x.diff()
-    if is_abs:
-        x = x.abs()
-    x = x.filter(
-        x.is_between(
-            x.quantile(ql, interpolation="linear"),
-            x.quantile(qh, interpolation="linear"),
-        ).and_(
-            x.is_between(
-                x.quantile(ql, interpolation="linear"),
-                x.quantile(qh, interpolation="linear"),
-            ).shift_and_fill(fill_value=False, periods=1)
+    if q_high <= q_low:
+        return pl.lit(0.)
+
+    # Use linear to conform to NumPy
+    y = x.is_between(x.quantile(q_low, interpolation="linear"), x.quantile(q_high, interpolation="linear"))
+    expr = x.filter(
+        pl.all_horizontal(
+            y
+            , y.shift_and_fill(False, period=-1)
         )
-    )
-    return x
+    ).diff()
+    if is_abs:
+        expr = expr.abs()
+
+    return expr.implode()
 
 
 def cid_ce(x: pl.Expr, normalize: bool = False) -> pl.Expr:
@@ -403,7 +459,8 @@ def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> float:
     -------
     float
     """
-    return x.filter(x >= threshold).count().truediv(x.count()).mul(100)
+    # x.filter(x >= threshold).count().truediv(x.count()).mul(100)
+    return (x >= threshold).sum().truediv(x.count()).mul(100)
 
 
 def count_above_mean(x: TIME_SERIES_T) -> int:
@@ -418,7 +475,7 @@ def count_above_mean(x: TIME_SERIES_T) -> int:
     -------
     int
     """
-    return x.filter(x > x.mean()).count()
+    return (x > x.mean()).sum()
 
 
 def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> float:
@@ -435,7 +492,8 @@ def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> float:
     -------
     float
     """
-    return x.filter(x <= threshold).count().truediv(x.count()).mul(100)
+    # x.filter(x <= threshold).count().truediv(x.count()).mul(100)
+    return (x <= threshold).sum().truediv(x.count()).mul(100)
 
 
 def count_below_mean(x: pl.Series) -> int:
@@ -450,7 +508,8 @@ def count_below_mean(x: pl.Series) -> int:
     -------
     int
     """
-    return x.filter(x < x.mean()).count()
+    # x.filter(x < x.mean()).count()
+    return (x < x.mean()).sum()
 
 
 def cwt_coefficients(
@@ -499,14 +558,27 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> List[float]:
     -------
     list of float
     """
+    if isinstance(x, pl.Series):
+        n = len(x)
+        full_energy = (x**2).sum()
+        chunk_size = n // n_chunks
+        ratios = [
+            x.slice(i, chunk_size).pow(2).sum() / full_energy
+            for i in range(0, n, chunk_size)
+        ] # List comprehension in Python is faster than explicit for loops
+        return ratios
+    else:
+        # Slow
+        segments = pl.int_range(pl.lit(0), pl.count()).floordiv(pl.count().floordiv(n_chunks)).alias("segment")
+        sum_over_segment = pl.struct(
+            segments
+            , x.pow(2).sum().over(segments).alias("segment_energy")
+        ).unique().sort() # This is slow
+        total_energy = sum_over_segment.struct.field("segment_energy").sum()
 
-    full_energy = (x**2).sum().alias("full_energy")
-    n = x.len()
-    chunk_size = n // n_chunks
-    ratios = []
-    for i in pl.int_range(0, n, chunk_size):
-        ratios.append((x.slice(i, chunk_size)) ** 2.0).sum().div(full_energy)
-    return ratios
+        return (
+            (sum_over_segment.struct.field("segment_energy") / total_energy).implode().alias("segment_energy_ratio")
+        )
 
 
 def first_location_of_maximum(x: TIME_SERIES_T) -> float:
@@ -901,7 +973,7 @@ def mean_n_absolute_max(x: TIME_SERIES_T, n_maxima: int) -> float:
     """
     if n_maxima <= 0:
         raise ValueError("The number of maxima should be > 0.")
-    return x.abs().sort(descending=True).head(n_maxima).mean().cast(pl.Float64)
+    return x.abs().top_k(n_maxima).mean().cast(pl.Float64)
 
 
 def mean_second_derivative_central(x: pl.Series) -> float:
@@ -1110,7 +1182,7 @@ def ratio_beyond_r_sigma(x: TIME_SERIES_T, ratio: float = 0.25) -> float:
         )
         .is_not()  # check for deprecation
         .sum()
-        / pl.count()
+        / x.count()
     )
     return expr
 
@@ -1148,19 +1220,19 @@ def root_mean_square(x: TIME_SERIES_T) -> float:
 
 
 def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
-    cname = x.name
+    name = x.name
     n_rows = x.len() - m + 1
     df = (
         x.to_frame()
         .select(
-            pl.col(cname),
-            *(pl.col(cname).shift(-i).suffix(str(i)) for i in range(1, m))
+            pl.col(name),
+            *(pl.col(name).shift(-i).suffix(str(i)) for i in range(1, m))
         )
         .slice(0, n_rows)
     )
     return df.to_numpy()
 
-
+# Only works on series
 def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> float:
     """
     Calculate the sample entropy of a time series.
@@ -1200,7 +1272,6 @@ def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> float:
         - mat.shape[0]
     )
     return np.log(b / a)  # -ln(a/b) = ln(b/a)
-
 
 def spkt_welch_density(x: TIME_SERIES_T, n_cofficients: int) -> float:
     return NotImplemented
@@ -1275,7 +1346,6 @@ def symmetry_looking(x: pl.Series, ratio: float = 0.25) -> bool:
     max_min_difference = x.max() - x.min()
     return mean_median_difference < ratio * max_min_difference
 
-
 def time_reversal_asymmetry_statistic(x: pl.Series, n_lags: int) -> float:
     """
     Returns the time reversal asymmetry statistic.
@@ -1330,7 +1400,15 @@ def variation_coefficient(x: TIME_SERIES_T) -> float:
     -------
     float
     """
-    return x.var() / x.mean()
+    return x.std() / x.mean()
+
+def harmonic_mean(x: pl.Expr) -> pl.Expr:
+    '''
+    Returns the harmonic mean of the expression
+    '''
+    return (
+        x.count() / (pl.lit(1.0) / x).sum()
+    )
 
 
 # FFT Features
