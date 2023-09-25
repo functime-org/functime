@@ -212,54 +212,8 @@ def autoregressive_coefficients(x: pl.Series, n_lags: int) -> List[float]:
     return lstsq(X, y, rcond=None)[0]
 
 _BENFORD_DIST_SERIES = (1 + 1 / pl.int_range(1, 10, eager=True)).log10()
-def benford_correlation(x: pl.Expr) -> pl.Expr:
-    """
-    Returns the correlation between the first digit distribution of the input time series and 
-    the Newcomb-Benford's Law distribution [1][2]. This is faster version than benford_correlation2,
-    but may have some precision issues for extremely rare values.
 
-    Parameters
-    ----------
-    x : pl.Expr | pl.Series
-        Input time-series.
-
-    Returns
-    -------
-    An expression for benford_correlation representing a float
-
-    Notes
-    -----
-    The Newcomb-Benford distribution for d that is the leading digit of the number {1, 2, 3, 4, 5, 6, 7, 8, 9} is given by:
-
-    .. math::
-
-        P(d) = \\log_{10}\\left(1 + \\frac{1}{d}\\right)
-
-    References
-    ----------
-    [1] Hill, T. P. (1995). A Statistical Derivation of the Significant-Digit Law. Statistical Science.
-    [2] Hill, T. P. (1995). The significant-digit phenomenon. The American Mathematical Monthly.
-    [3] Benford, F. (1938). The law of anomalous numbers. Proceedings of the American philosophical society.
-    [4] Newcomb, S. (1881). Note on the frequency of use of the different digits in natural numbers. American Journal of
-        mathematics.
-    """
-    counts = (
-        # This part can be simplified once the log10(1000) precision issue is resolved.
-        pl.when(x.abs() == 1000).then(
-            pl.lit(1)
-        ).otherwise(
-            (x.abs()/(pl.lit(10).pow((x.abs().log10()).floor())))
-        ).drop_nans()
-        .drop_nulls()
-        .cast(pl.UInt8)
-        .append(pl.int_range(1, 10, eager=False))
-        .sort()
-        .value_counts()
-        .struct.field("counts") - pl.lit(1)
-    )
-    return pl.corr(counts, pl.lit(_BENFORD_DIST_SERIES))
-
-def benford_correlation_2(x: TIME_SERIES_T) -> pl.Expr:
+def benford_correlation(x: TIME_SERIES_T) -> pl.Expr:
     """
     Returns the correlation between the first digit distribution of the input time series and 
     the Newcomb-Benford's Law distribution [1][2].
@@ -302,6 +256,53 @@ def benford_correlation_2(x: TIME_SERIES_T) -> pl.Expr:
     return pl.corr(
         counts, pl.lit(_BENFORD_DIST_SERIES)
     )
+
+def benford_correlation2(x: pl.Expr) -> pl.Expr:
+    """
+    Returns the correlation between the first digit distribution of the input time series and 
+    the Newcomb-Benford's Law distribution [1][2]. This version may hit some float point precision
+    issues for some rare numbers.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+
+    Returns
+    -------
+    An expression for benford_correlation representing a float
+
+    Notes
+    -----
+    The Newcomb-Benford distribution for d that is the leading digit of the number {1, 2, 3, 4, 5, 6, 7, 8, 9} is given by:
+
+    .. math::
+
+        P(d) = \\log_{10}\\left(1 + \\frac{1}{d}\\right)
+
+    References
+    ----------
+    [1] Hill, T. P. (1995). A Statistical Derivation of the Significant-Digit Law. Statistical Science.
+    [2] Hill, T. P. (1995). The significant-digit phenomenon. The American Mathematical Monthly.
+    [3] Benford, F. (1938). The law of anomalous numbers. Proceedings of the American philosophical society.
+    [4] Newcomb, S. (1881). Note on the frequency of use of the different digits in natural numbers. American Journal of
+        mathematics.
+    """
+    counts = (
+        # This part can be simplified once the log10(1000) precision issue is resolved.
+        pl.when(x.abs() == 1000).then(
+            pl.lit(1)
+        ).otherwise(
+            (x.abs()/(pl.lit(10).pow((x.abs().log10()).floor())))
+        ).drop_nans()
+        .drop_nulls()
+        .cast(pl.UInt8)
+        .append(pl.int_range(1, 10, eager=False))
+        .sort()
+        .value_counts()
+        .struct.field("counts") - pl.lit(1)
+    )
+    return pl.corr(counts, pl.lit(_BENFORD_DIST_SERIES))
 
 
 def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> float:
