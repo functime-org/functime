@@ -10,9 +10,12 @@ from scipy.signal import ricker, welch
 from scipy.spatial import KDTree
 
 TIME_SERIES_T = Union[pl.Series, pl.Expr]
+FLOAT_EXPR = Union[pl.Expr, float]
+INT_EXPR = Union[pl.Expr, int]
+LIST_EXPR = Union[pl.Expr, list]
+BOOL_EXPR = Union[pl.Expr, bool]
 
-
-def absolute_energy(x: TIME_SERIES_T) -> float:
+def absolute_energy(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Compute the absolute energy of a time series.
 
@@ -23,12 +26,12 @@ def absolute_energy(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     return x.dot(x)
 
 
-def absolute_maximum(x: TIME_SERIES_T) -> float:
+def absolute_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Compute the absolute maximum of a time series.
 
@@ -39,12 +42,12 @@ def absolute_maximum(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     return x.abs().max()
 
 
-def absolute_sum_of_changes(x: TIME_SERIES_T) -> float:
+def absolute_sum_of_changes(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Compute the absolute sum of changes of a time series.
 
@@ -149,7 +152,7 @@ def augmented_dickey_fuller(x: pl.Series, n_lags: int) -> float:
     return coeffs[0] / stderrs[0]
 
 
-def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> float:
+def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     """Calculate the autocorrelation for a specified lag.
 
     The autocorrelation measures the linear dependence between a time-series and a lagged version of itself.
@@ -163,7 +166,7 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> float:
 
     Returns
     -------
-    float | None
+    float | None | Expr
         Autocorrelation at the given lag. Returns None, if lag is less than 0.
 
     Notes
@@ -213,7 +216,7 @@ def autoregressive_coefficients(x: pl.Series, n_lags: int) -> List[float]:
 
 _BENFORD_DIST_SERIES = (1 + 1 / pl.int_range(1, 10, eager=True)).log10()
 
-def benford_correlation(x: TIME_SERIES_T) -> pl.Expr:
+def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the correlation between the first digit distribution of the input time series and 
     the Newcomb-Benford's Law distribution [1][2].
@@ -225,7 +228,7 @@ def benford_correlation(x: TIME_SERIES_T) -> pl.Expr:
 
     Returns
     -------
-    An expression for benford_correlation representing a float
+    float | Expr
 
     Notes
     -----
@@ -243,19 +246,31 @@ def benford_correlation(x: TIME_SERIES_T) -> pl.Expr:
     [4] Newcomb, S. (1881). Note on the frequency of use of the different digits in natural numbers. American Journal of
         mathematics.
     """
-    x = (
-        x.cast(pl.Utf8).str.lstrip("-0.")
-        .filter(x != "")
-        .str.slice(0, 1)
-        .cast(pl.UInt8)
-        .append(pl.int_range(1, 10, eager=False))
-        .sort()
-        .value_counts()
-    )
-    counts = x.struct[1] - 1
-    return pl.corr(
-        counts, pl.lit(_BENFORD_DIST_SERIES)
-    )
+    if isinstance(x, pl.Series):
+        counts = (x.cast(pl.Utf8).str.lstrip("-0.")
+            .filter(x != "")
+            .str.slice(0, 1)
+            .cast(pl.UInt8)
+            .append(pl.int_range(1, 10, eager=False))
+            .sort()
+            .value_counts()
+            .get_column("counts") - pl.lit(1.)
+        )
+        return np.corrcoef(counts, _BENFORD_DIST_SERIES)
+    else:
+        counts = (
+            x.cast(pl.Utf8).str.lstrip("-0.")
+            .filter(x != "")
+            .str.slice(0, 1)
+            .cast(pl.UInt8)
+            .append(pl.int_range(1, 10, eager=False))
+            .sort()
+            .value_counts()
+            .struct.field("counts") - pl.lit(1)
+        )
+        return pl.corr(
+            counts, pl.lit(_BENFORD_DIST_SERIES)
+        )
 
 def benford_correlation2(x: pl.Expr) -> pl.Expr:
     """
@@ -305,7 +320,7 @@ def benford_correlation2(x: pl.Expr) -> pl.Expr:
     return pl.corr(counts, pl.lit(_BENFORD_DIST_SERIES))
 
 
-def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> float:
+def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> FLOAT_EXPR:
     """
     Calculates the entropy of a binned histogram for a given time series.
 
@@ -318,7 +333,7 @@ def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> float:
 
     Returns
     -------
-    A float or an expression representing a float
+    float | Expr
     """
     if isinstance(x, pl.Series):
         hist, _ = np.histogram(x, bins=bin_count)
@@ -332,7 +347,7 @@ def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> float:
         # Left closed because we want to micmic NumPy's histogram's behavior
         return scaled_x.cut(breaks, left_closed=True).value_counts().struct.field("counts").entropy().suffix("_binned_entropy")
 
-def c3(x: TIME_SERIES_T, n_lags: int) -> pl.Expr:
+def c3(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     """Measure of non-linearity in the time series using c3 statistics.
 
     This function calculates the value of
@@ -360,7 +375,7 @@ def c3(x: TIME_SERIES_T, n_lags: int) -> pl.Expr:
 
     Returns
     -------
-    An expression representing a float
+    float | Expr
 
     References
     ----------
@@ -376,7 +391,7 @@ def c3(x: TIME_SERIES_T, n_lags: int) -> pl.Expr:
 
 def change_quantiles(
     x: TIME_SERIES_T, q_low: float, q_high: float, is_abs: bool
-) -> pl.Expr:
+) -> LIST_EXPR:
     """
     First fixes a corridor given by the quantiles ql and qh of the distribution of x.
     Then calculates the average, absolute value of consecutive changes of the series x inside this corridor.
@@ -394,10 +409,10 @@ def change_quantiles(
 
     Returns
     -------
-    list of float
+    list of float | Expr
     """
     if q_high <= q_low:
-        return pl.lit(0.)
+        return 0.
 
     # Use linear to conform to NumPy
     y = x.is_between(x.quantile(q_low, interpolation="linear"), x.quantile(q_high, interpolation="linear"))
@@ -413,7 +428,7 @@ def change_quantiles(
     return expr.implode()
 
 
-def cid_ce(x: pl.Expr, normalize: bool = False) -> pl.Expr:
+def cid_ce(x: TIME_SERIES_T, normalize: bool = False) -> FLOAT_EXPR:
     """Computes estimate of time-series complexity[^1].
 
     A more complex time series has more peaks and valleys.
@@ -443,10 +458,10 @@ def cid_ce(x: pl.Expr, normalize: bool = False) -> pl.Expr:
     """
     if normalize:
         x = (x - x.mean()) / x.std()
-    return ((x - x.shift(-1)) ** 2).sum() ** (1 / 2)
+    return ((x - x.shift(-1)) ** 2).sum() ** (0.5)
 
 
-def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> float:
+def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
     """Calculate the percentage of values above or equal to a threshold.
 
     Parameters
@@ -458,13 +473,13 @@ def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     # x.filter(x >= threshold).count().truediv(x.count()).mul(100)
     return (x >= threshold).sum().truediv(x.count()).mul(100)
 
 
-def count_above_mean(x: TIME_SERIES_T) -> int:
+def count_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """Count the number of values that are above the mean.
 
     Parameters
@@ -474,12 +489,12 @@ def count_above_mean(x: TIME_SERIES_T) -> int:
 
     Returns
     -------
-    int
+    int | Expr
     """
     return (x > x.mean()).sum()
 
 
-def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> float:
+def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
     """Calculate the percentage of values below or equal to a threshold.
 
     Parameters
@@ -491,13 +506,13 @@ def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     # x.filter(x <= threshold).count().truediv(x.count()).mul(100)
     return (x <= threshold).sum().truediv(x.count()).mul(100)
 
 
-def count_below_mean(x: pl.Series) -> int:
+def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """Count the number of values that are below the mean.
 
     Parameters
@@ -507,7 +522,7 @@ def count_below_mean(x: pl.Series) -> int:
 
     Returns
     -------
-    int
+    int | Expr
     """
     # x.filter(x < x.mean()).count()
     return (x < x.mean()).sum()
@@ -542,9 +557,8 @@ def cwt_coefficients(
             coeffs.append(convolution[widths.index(), coeff_idx])
     return coeffs
 
-
 # We calculate all 1,2,3,...,n_chunk indexed statistics at once
-def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> List[float]:
+def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     """
     Calculates sum of squares over the whole series for `n_chunks` equally segmented parts of the time-series.
 
@@ -557,7 +571,7 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> List[float]:
 
     Returns
     -------
-    list of float
+    list of float | Expr
     """
     if isinstance(x, pl.Series):
         n = len(x)
@@ -582,7 +596,7 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> List[float]:
         )
 
 
-def first_location_of_maximum(x: TIME_SERIES_T) -> float:
+def first_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the first location of the maximum value of x.
     The position is calculated relatively to the length of x.
@@ -594,12 +608,12 @@ def first_location_of_maximum(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     return x.arg_max() / x.len()
 
 
-def first_location_of_minimum(x: TIME_SERIES_T) -> float:
+def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the first location of the minimum value of x.
     The position is calculated relatively to the length of x.
@@ -611,7 +625,7 @@ def first_location_of_minimum(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     return x.arg_min() / x.len()
 
@@ -631,6 +645,9 @@ def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
     -------
     float
     """
+    if not isinstance(x, pl.Series):
+        return NotImplemented
+    
     _, pxx = welch(x, nperseg=min(x.len(), 256))
     return binned_entropy(pxx / bn.nanmax(pxx), n_bins)
 
@@ -677,7 +694,7 @@ def friedrich_coefficients(
     return coeffs
 
 
-def has_duplicate(x: TIME_SERIES_T) -> bool:
+def has_duplicate(x: TIME_SERIES_T) -> BOOL_EXPR:
     """Check if the time-series contains any duplicate values.
 
     Parameters
@@ -687,19 +704,19 @@ def has_duplicate(x: TIME_SERIES_T) -> bool:
 
     Returns
     -------
-    bool
+    bool | Expr
     """
     return x.is_duplicated().any()
 
 
-def _has_duplicate_of_value(x: TIME_SERIES_T, t: float) -> bool:
+def _has_duplicate_of_value(x: TIME_SERIES_T, t: FLOAT_EXPR) -> BOOL_EXPR:
     """Check if a value exists as a duplicate.
 
     Parameters
     ----------
     x : pl.Expr | pl.Series
         Input time-series.
-    t : float
+    t : float | Expr
         The value to check for duplicates of.
 
     Returns
@@ -709,7 +726,7 @@ def _has_duplicate_of_value(x: TIME_SERIES_T, t: float) -> bool:
     return x.filter(x == t).is_duplicated().any()
 
 
-def has_duplicate_max(x: TIME_SERIES_T) -> bool:
+def has_duplicate_max(x: TIME_SERIES_T) -> BOOL_EXPR:
     """Check if the time-series contains any duplicate values equal to its maximum value.
 
     Parameters
@@ -719,12 +736,12 @@ def has_duplicate_max(x: TIME_SERIES_T) -> bool:
 
     Returns
     -------
-    bool
+    bool | Expr
     """
     return _has_duplicate_of_value(x, x.max())
 
 
-def has_duplicate_min(x: TIME_SERIES_T) -> pl.Expr:
+def has_duplicate_min(x: TIME_SERIES_T) -> BOOL_EXPR:
     """Check if the time-series contains duplicate values equal to its minimum value.
 
     Parameters
@@ -734,12 +751,12 @@ def has_duplicate_min(x: TIME_SERIES_T) -> pl.Expr:
 
     Returns
     -------
-    bool
+    bool | Expr
     """
     return _has_duplicate_of_value(x, x.min())
 
 
-def index_mass_quantile(x: TIME_SERIES_T, q: float) -> float:
+def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     """
     Calculates the relative index i of time series x where q% of the mass of x lies left of i.
     For example for q = 50% this feature calculator will return the mass center of the time series.
@@ -753,7 +770,7 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     x_abs = x.abs()
     x_sum = x.sum()
@@ -762,7 +779,7 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> float:
     return ((mass_center >= q) + 1).arg_max() / n
 
 
-def large_standard_deviation(x: TIME_SERIES_T, ratio: float = 0.25) -> bool:
+def large_standard_deviation(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
     """Checks if the time-series has a large standard deviation.
 
     True if:
@@ -781,14 +798,14 @@ def large_standard_deviation(x: TIME_SERIES_T, ratio: float = 0.25) -> bool:
 
     Returns
     -------
-    bool
+    bool | Expr
     """
     x_std = x.std()
     x_interval = x.max() - x.min()
     return x_std > (ratio * x_interval)
 
 
-def last_location_of_maximum(x: TIME_SERIES_T) -> float:
+def last_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the last location of the maximum value of x.
     The position is calculated relatively to the length of x.
@@ -800,12 +817,12 @@ def last_location_of_maximum(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     return (x.len() - x.reverse().arg_max()) / x.len()
 
 
-def last_location_of_minimum(x: TIME_SERIES_T) -> float:
+def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the last location of the minimum value of x.
     The position is calculated relatively to the length of x.
@@ -814,6 +831,10 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> float:
     ----------
     x : pl.Expr | pl.Series
         Input time-series.
+
+    Returns
+    -------
+    float | Expr
     """
     return (x.len() - x.reverse().arg_min()) / x.len()
 
@@ -864,18 +885,24 @@ def linear_trend(x: TIME_SERIES_T) -> Mapping[str, float]:
 
     Returns
     -------
-    dict
-        A dictionary containing OLS results.
+    Mapping | Expr
     """
     x_range = pl.int_range(1, x.len() + 1)
     beta = pl.cov(x, x_range) / x.var()
     alpha = x.mean() - beta * x_range.mean()
     resid = x - beta * x_range + alpha
     rss = resid.pow(2).sum()
-    return {"slope": beta, "intercept": alpha, "rss": rss}
+    if isinstance(x, pl.Series):
+        return {"slope": beta, "intercept": alpha, "rss": rss}
+    else:
+        return pl.Struct(
+            beta.alias("slope"),
+            alpha.alias("intercept"),
+            rss.alias("rss")
+        )
 
 
-def _get_length_sequences_where(x: pl.Expr) -> pl.Expr:
+def _get_length_sequences_where(x: TIME_SERIES_T) -> LIST_EXPR:
     """Calculates the length of all sub-sequences where the series x is either True or 1.
 
     Parameters
@@ -889,12 +916,11 @@ def _get_length_sequences_where(x: pl.Expr) -> pl.Expr:
         A series with the length of all sub-sequences where the series is either True or False.
         If no ones or Trues contained, the list [0] is returned.
     """
-    x = x.cast(pl.Int8).rle()
-    count = x.filter(x.struct[1] == 1).struct[0]
-    return count
+    y = x.cast(pl.Int8).rle()
+    return y.filter(x.struct[1] == 1).struct[0]
 
 
-def longest_strike_above_mean(x: TIME_SERIES_T) -> int:
+def longest_strike_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     Returns the length of the longest consecutive subsequence in x that is greater than the mean of x.
 
@@ -905,12 +931,12 @@ def longest_strike_above_mean(x: TIME_SERIES_T) -> int:
 
     Returns
     -------
-    int
+    int | Expr
     """
     return _get_length_sequences_where(x > x.mean()).max().fill_null(0)
 
 
-def longest_strike_below_mean(x: TIME_SERIES_T) -> int:
+def longest_strike_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """Returns the length of the longest consecutive subsequence in x that is smaller than the mean of x.
 
     Parameters
@@ -920,12 +946,12 @@ def longest_strike_below_mean(x: TIME_SERIES_T) -> int:
 
     Returns
     -------
-    int
+    int | Expr
     """
     return _get_length_sequences_where(x < x.mean()).max().fill_null(0)
 
 
-def mean_abs_change(x: TIME_SERIES_T) -> float:
+def mean_abs_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Compute mean absolute change.
 
@@ -936,12 +962,12 @@ def mean_abs_change(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     return x.diff(null_behavior="drop").abs().mean()
 
 
-def mean_change(x: TIME_SERIES_T) -> float:
+def mean_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Compute mean change.
 
@@ -952,12 +978,12 @@ def mean_change(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     return x.diff(null_behavior="drop").mean()
 
 
-def mean_n_absolute_max(x: TIME_SERIES_T, n_maxima: int) -> float:
+def mean_n_absolute_max(x: TIME_SERIES_T, n_maxima: int) -> FLOAT_EXPR:
     """
     Calculates the arithmetic mean of the n absolute maximum values of the time series.
 
@@ -970,7 +996,7 @@ def mean_n_absolute_max(x: TIME_SERIES_T, n_maxima: int) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     if n_maxima <= 0:
         raise ValueError("The number of maxima should be > 0.")
@@ -999,7 +1025,7 @@ def mean_second_derivative_central(x: pl.Series) -> float:
     return (x[-1] - x[-2] - x[1] + x[0]) / (2 * (len(x) - 2))
 
 
-def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> float:
+def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> FLOAT_EXPR:
     """
     Calculates the number of crossings of x on m, where m is the crossing value.
 
@@ -1015,7 +1041,7 @@ def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     return (
         x.gt(crossing_value).cast(pl.Int8).diff(null_behavior="drop").abs().eq(1).sum()
@@ -1059,7 +1085,7 @@ def percent_reocurring_points(x: TIME_SERIES_T) -> float:
     return count.filter(count > 1).sum() / x.len()
 
 
-def percent_recoccuring_values(x: TIME_SERIES_T) -> float:
+def percent_recoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the percentage of values that are present in the time series more than once.
 
@@ -1077,10 +1103,10 @@ def percent_recoccuring_values(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     count = x.unique_counts()
-    return count.filter(count > 1).len() / x.n_unique()
+    return (count > 1).sum() / count.len()
 
 
 def permutation_entropy(
@@ -1089,7 +1115,7 @@ def permutation_entropy(
     n_dims: int = 3,
     base: float = math.e,
     normalize: bool = False,
-) -> float:
+) -> FLOAT_EXPR:
     """
     Computes permutation entropy.
 
@@ -1109,36 +1135,40 @@ def permutation_entropy(
 
     Returns
     -------
-    float
+    An expression that represents a float
     """
     # This is kind of slow rn when tau > 1
     max_shift = -n_dims + 1
-    out = (
-        (
-            pl.concat_list(
-                x, *(x.shift(-i) for i in range(1, n_dims))
-            )  # create list columns
-            .take_every(tau)  # take every tau
-            .filter(
-                x.shift(max_shift).take_every(tau).is_not_null()
-            )  # This is a filter because length of df is unknown, might slow down perf
-            .list.eval(
-                pl.element().rank(method="ordinal")
-            )  # for each inner list, do an argsort
-            .value_counts()  # groupby and count, but returns a struct
-            .struct.field("counts")  # extract the field named "counts"
-            / x.shift(max_shift)
-            .take_every(tau)
-            .is_not_null()
-            .sum()  # get probabilities
+
+    if isinstance(x, pl.Series):
+        return NotImplemented
+    else:
+        out = (
+            (
+                pl.concat_list(
+                    x, *(x.shift(-i) for i in range(1, n_dims))
+                )  # create list columns
+                .take_every(tau)  # take every tau
+                .filter(
+                    x.shift(max_shift).take_every(tau).is_not_null()
+                )  # This is a filter because length of df is unknown, might slow down perf
+                .list.eval(
+                    pl.element().rank(method="ordinal")
+                )  # for each inner list, do an argsort
+                .value_counts()  # groupby and count, but returns a struct
+                .struct.field("counts")  # extract the field named "counts"
+                / x.shift(max_shift)
+                .take_every(tau)
+                .is_not_null()
+                .sum()  # get probabilities
+            )
+            .entropy(base=base, normalize=normalize)
+            .suffix("_permutation_entropy")
         )
-        .entropy(base=base, normalize=normalize)
-        .suffix("_permutation_entropy")
-    )
     return out
 
 
-def range_count(x: TIME_SERIES_T, lower: float, upper: float) -> int:
+def range_count(x: TIME_SERIES_T, lower: float, upper: float) -> INT_EXPR:
     """
     Computes values of input expression that is between lower (inclusive) and upper (exclusive).
 
@@ -1153,14 +1183,14 @@ def range_count(x: TIME_SERIES_T, lower: float, upper: float) -> int:
 
     Returns
     -------
-    int
+    int | Expr
     """
     if upper < lower:
         raise ValueError("Upper must be greater than lower.")
     return x.is_between(lower_bound=lower, upper_bound=upper, closed="left").sum()
 
 
-def ratio_beyond_r_sigma(x: TIME_SERIES_T, ratio: float = 0.25) -> float:
+def ratio_beyond_r_sigma(x: TIME_SERIES_T, ratio: float = 0.25) -> FLOAT_EXPR:
     """
     Returns the ratio of values in the series that is beyond r*std from mean on both sides.
 
@@ -1173,7 +1203,7 @@ def ratio_beyond_r_sigma(x: TIME_SERIES_T, ratio: float = 0.25) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     expr = (
         x.is_between(
@@ -1189,7 +1219,7 @@ def ratio_beyond_r_sigma(x: TIME_SERIES_T, ratio: float = 0.25) -> float:
 
 
 # Originally named `ratio_value_number_to_time_series_length` in tsfresh
-def ratio_n_unique_to_length(x: TIME_SERIES_T) -> float:
+def ratio_n_unique_to_length(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Calculate the ratio of the number of unique values to the length of the time-series.
 
@@ -1200,12 +1230,12 @@ def ratio_n_unique_to_length(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     return x.n_unique() / x.len()
 
 
-def root_mean_square(x: TIME_SERIES_T) -> float:
+def root_mean_square(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """Calculate the root mean square.
 
     Parameters
@@ -1215,7 +1245,7 @@ def root_mean_square(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     return (x**2).mean().sqrt()
 
@@ -1250,6 +1280,9 @@ def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> float:
     float
     """
     # This is significantly faster than tsfresh
+    if not isinstance(x, pl.Series):
+        return NotImplemented
+
     threshold = ratio * x.std(ddof=0)
     m = 2
     mat = _into_sequential_chunks(x, m)
@@ -1279,7 +1312,7 @@ def spkt_welch_density(x: TIME_SERIES_T, n_cofficients: int) -> float:
 
 
 # Originally named: `sum_of_reoccurring_data_points`
-def sum_reocurring_points(x: TIME_SERIES_T) -> float:
+def sum_reocurring_points(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the sum of all data points that are present in the time series more than once.
 
@@ -1295,13 +1328,12 @@ def sum_reocurring_points(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
-    return x.filter(x.is_unique().not_()).sum().cast(pl.Float64)
-
+    return x.filter(~x.is_unique()).sum().cast(pl.Float64)
 
 # Originally named: `sum_of_reoccurring_values`
-def sum_reocurring_values(x: TIME_SERIES_T) -> float:
+def sum_reocurring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the sum of all values that are present in the time series more than once.
 
@@ -1318,12 +1350,12 @@ def sum_reocurring_values(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
-    return x.filter(x.is_unique().not_()).unique().sum().cast(pl.Float64)
+    return x.filter(~x.is_unique()).unique().sum().cast(pl.Float64)
 
 
-def symmetry_looking(x: pl.Series, ratio: float = 0.25) -> bool:
+def symmetry_looking(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
     """Check if the distribution of x looks symmetric.
 
     A distribution is considered symmetric if:
@@ -1341,13 +1373,13 @@ def symmetry_looking(x: pl.Series, ratio: float = 0.25) -> bool:
 
     Returns
     -------
-    bool
+    bool | Expr
     """
-    mean_median_difference = abs(x.mean() - x.median())
+    mean_median_difference = (x.mean() - x.median()).abs()
     max_min_difference = x.max() - x.min()
     return mean_median_difference < ratio * max_min_difference
 
-def time_reversal_asymmetry_statistic(x: pl.Series, n_lags: int) -> float:
+def time_reversal_asymmetry_statistic(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     """
     Returns the time reversal asymmetry statistic.
 
@@ -1375,21 +1407,19 @@ def time_reversal_asymmetry_statistic(x: pl.Series, n_lags: int) -> float:
 
     Returns
     -------
-    float
+    float | Expr
 
     References
     ----------
     [1] Fulcher, B.D., Jones, N.S. (2014). Highly comparative feature-based time-series classification.
         Knowledge and Data Engineering, IEEE Transactions on 26, 3026–3037.
     """
-    n = len(x)
     one_lag = x.shift(-n_lags)
     two_lag = x.shift(-2 * n_lags)
-    result = (two_lag * two_lag * one_lag - one_lag * x * x).head(n - 2 * n_lags).mean()
+    result = (one_lag * (two_lag.pow(2) - x.pow(2))).head(x.count() - 2 * n_lags).mean()
     return result
 
-
-def variation_coefficient(x: TIME_SERIES_T) -> float:
+def variation_coefficient(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """Calculate the coefficient of variation (CV).
 
     Parameters
@@ -1399,18 +1429,15 @@ def variation_coefficient(x: TIME_SERIES_T) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     return x.std() / x.mean()
 
-def harmonic_mean(x: pl.Expr) -> pl.Expr:
+def harmonic_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
     '''
     Returns the harmonic mean of the expression
     '''
-    return (
-        x.count() / (pl.lit(1.0) / x).sum()
-    )
-
+    return x.count() / (pl.lit(1.0) / x).sum()
 
 # FFT Features
 
