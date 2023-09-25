@@ -14,6 +14,7 @@ from functime.feature_extraction.tsfresh import (
     percent_reocurring_points,
     sum_reocurring_points,
     sum_reocurring_values,
+    number_peaks,
     symmetry_looking,
     time_reversal_asymmetry_statistic,
 )
@@ -308,6 +309,32 @@ def test_sum_reocurring_values(S, res):
             sum_reocurring_values(pl.col("a"))
         ).collect(),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+    )
+
+
+
+@pytest.mark.parametrize("S, n, res", [
+    ([0, 5, 2, 3, 0, 1, 2, 3, 4, 5, 4, 3, 2, 1], 1, [3]),
+    ([0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 4, 3, 2, 1], 2, [2]),
+    ([0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 4, 3, 2, 1], 3, [2]),
+    ([0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 4, 3, 2, 1], 4, [1])
+])
+def test_number_peaks(S, n, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            number_peaks(pl.col("a"), n=n)
+        ),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            number_peaks(pl.col("a"), n=n)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32))
     )
 
 
