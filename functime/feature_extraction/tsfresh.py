@@ -312,18 +312,10 @@ def c3(x: TIME_SERIES_T, n_lags: int) -> float:
     [1] Schreiber, T. and Schmitz, A. (1997). Discrimination power of measures for nonlinearity in a time series. PHYSICAL REVIEW E, VOLUME 55, NUMBER 5.
 
     """
-    n = x.len()
-    k = n - 2 * n_lags
-    measure = (
-        pl.sum_horizontal(
-            [
-                x.list.get(i + 2 * n_lags) * x.list.get(i + n_lags) * x.list.get(i)
-                for i in range(k)
-            ]
-        )
-        / k
+    twice_lag = 2 * n_lags
+    return (x * x.shift(n_lags) * x.shift(twice_lag)).sum() / (
+        x.count() - pl.lit(twice_lag)
     )
-    return measure
 
 
 def change_quantiles(
