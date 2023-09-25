@@ -15,6 +15,7 @@ INT_EXPR = Union[pl.Expr, int]
 LIST_EXPR = Union[pl.Expr, list]
 BOOL_EXPR = Union[pl.Expr, bool]
 
+
 def absolute_energy(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Compute the absolute energy of a time series.
@@ -214,11 +215,13 @@ def autoregressive_coefficients(x: pl.Series, n_lags: int) -> List[float]:
     y = np.asarray(x.slice(n_lags))
     return lstsq(X, y, rcond=None)[0]
 
+
 _BENFORD_DIST_SERIES = (1 + 1 / pl.int_range(1, 10, eager=True)).log10()
+
 
 def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
-    Returns the correlation between the first digit distribution of the input time series and 
+    Returns the correlation between the first digit distribution of the input time series and
     the Newcomb-Benford's Law distribution [1][2].
 
     Parameters
@@ -247,34 +250,28 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
         mathematics.
     """
     if isinstance(x, pl.Series):
-        counts = (x.cast(pl.Utf8).str.lstrip("-0.")
-            .filter(x != "")
-            .str.slice(0, 1)
-            .cast(pl.UInt8)
-            .append(pl.int_range(1, 10, eager=False))
-            .sort()
-            .value_counts()
-            .get_column("counts") - pl.lit(1.)
+        counts = x.cast(pl.Utf8).str.lstrip("-0.").filter(x != "").str.slice(0, 1).cast(
+            pl.UInt8
+        ).append(pl.int_range(1, 10, eager=False)).sort().value_counts().get_column(
+            "counts"
+        ) - pl.lit(
+            1.0
         )
         return np.corrcoef(counts, _BENFORD_DIST_SERIES)
     else:
-        counts = (
-            x.cast(pl.Utf8).str.lstrip("-0.")
-            .filter(x != "")
-            .str.slice(0, 1)
-            .cast(pl.UInt8)
-            .append(pl.int_range(1, 10, eager=False))
-            .sort()
-            .value_counts()
-            .struct.field("counts") - pl.lit(1)
+        counts = x.cast(pl.Utf8).str.lstrip("-0.").filter(x != "").str.slice(0, 1).cast(
+            pl.UInt8
+        ).append(pl.int_range(1, 10, eager=False)).sort().value_counts().struct.field(
+            "counts"
+        ) - pl.lit(
+            1
         )
-        return pl.corr(
-            counts, pl.lit(_BENFORD_DIST_SERIES)
-        )
+        return pl.corr(counts, pl.lit(_BENFORD_DIST_SERIES))
+
 
 def benford_correlation2(x: pl.Expr) -> pl.Expr:
     """
-    Returns the correlation between the first digit distribution of the input time series and 
+    Returns the correlation between the first digit distribution of the input time series and
     the Newcomb-Benford's Law distribution [1][2]. This version may hit some float point precision
     issues for some rare numbers.
 
@@ -305,17 +302,17 @@ def benford_correlation2(x: pl.Expr) -> pl.Expr:
     """
     counts = (
         # This part can be simplified once the log10(1000) precision issue is resolved.
-        pl.when(x.abs() == 1000).then(
-            pl.lit(1)
-        ).otherwise(
-            (x.abs()/(pl.lit(10).pow((x.abs().log10()).floor())))
-        ).drop_nans()
+        pl.when(x.abs() == 1000)
+        .then(pl.lit(1))
+        .otherwise(x.abs() / (pl.lit(10).pow((x.abs().log10()).floor())))
+        .drop_nans()
         .drop_nulls()
         .cast(pl.UInt8)
         .append(pl.int_range(1, 10, eager=False))
         .sort()
         .value_counts()
-        .struct.field("counts") - pl.lit(1)
+        .struct.field("counts")
+        - pl.lit(1)
     )
     return pl.corr(counts, pl.lit(_BENFORD_DIST_SERIES))
 
@@ -337,15 +334,24 @@ def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> FLOAT_EXPR:
     """
     if isinstance(x, pl.Series):
         hist, _ = np.histogram(x, bins=bin_count)
-        probs = hist/len(x)
+        probs = hist / len(x)
         probs[probs == 0] = 1.0
         return -np.sum(probs * np.log(probs))
     else:
-        step_size = 1/bin_count
-        breaks = np.linspace(step_size, stop = 1 - step_size, num = bin_count - 1)
-        scaled_x = (x - x.min()) / (x.max() - x.min()) # This step slows down the calculation
+        step_size = 1 / bin_count
+        breaks = np.linspace(step_size, stop=1 - step_size, num=bin_count - 1)
+        scaled_x = (x - x.min()) / (
+            x.max() - x.min()
+        )  # This step slows down the calculation
         # Left closed because we want to micmic NumPy's histogram's behavior
-        return scaled_x.cut(breaks, left_closed=True).value_counts().struct.field("counts").entropy().suffix("_binned_entropy")
+        return (
+            scaled_x.cut(breaks, left_closed=True)
+            .value_counts()
+            .struct.field("counts")
+            .entropy()
+            .suffix("_binned_entropy")
+        )
+
 
 def c3(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     """Measure of non-linearity in the time series using c3 statistics.
@@ -412,16 +418,14 @@ def change_quantiles(
     list of float | Expr
     """
     if q_high <= q_low:
-        return 0.
+        return 0.0
 
     # Use linear to conform to NumPy
-    y = x.is_between(x.quantile(q_low, interpolation="linear"), x.quantile(q_high, interpolation="linear"))
-    expr = x.filter(
-        pl.all_horizontal(
-            y
-            , y.shift_and_fill(False, period=-1)
-        )
-    ).diff()
+    y = x.is_between(
+        x.quantile(q_low, interpolation="linear"),
+        x.quantile(q_high, interpolation="linear"),
+    )
+    expr = x.filter(pl.all_horizontal(y, y.shift_and_fill(False, period=-1))).diff()
     if is_abs:
         expr = expr.abs()
 
@@ -557,6 +561,7 @@ def cwt_coefficients(
             coeffs.append(convolution[widths.index(), coeff_idx])
     return coeffs
 
+
 # We calculate all 1,2,3,...,n_chunk indexed statistics at once
 def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     """
@@ -580,19 +585,26 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
         ratios = [
             x.slice(i, chunk_size).pow(2).sum() / full_energy
             for i in range(0, n, chunk_size)
-        ] # List comprehension in Python is faster than explicit for loops
+        ]  # List comprehension in Python is faster than explicit for loops
         return ratios
     else:
         # Slow
-        segments = pl.int_range(pl.lit(0), pl.count()).floordiv(pl.count().floordiv(n_chunks)).alias("segment")
-        sum_over_segment = pl.struct(
-            segments
-            , x.pow(2).sum().over(segments).alias("segment_energy")
-        ).unique().sort() # This is slow
+        segments = (
+            pl.int_range(pl.lit(0), pl.count())
+            .floordiv(pl.count().floordiv(n_chunks))
+            .alias("segment")
+        )
+        sum_over_segment = (
+            pl.struct(segments, x.pow(2).sum().over(segments).alias("segment_energy"))
+            .unique()
+            .sort()
+        )  # This is slow
         total_energy = sum_over_segment.struct.field("segment_energy").sum()
 
         return (
-            (sum_over_segment.struct.field("segment_energy") / total_energy).implode().alias("segment_energy_ratio")
+            (sum_over_segment.struct.field("segment_energy") / total_energy)
+            .implode()
+            .alias("segment_energy_ratio")
         )
 
 
@@ -647,7 +659,7 @@ def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
     """
     if not isinstance(x, pl.Series):
         return NotImplemented
-    
+
     _, pxx = welch(x, nperseg=min(x.len(), 256))
     return binned_entropy(pxx / bn.nanmax(pxx), n_bins)
 
@@ -896,9 +908,7 @@ def linear_trend(x: TIME_SERIES_T) -> Mapping[str, float]:
         return {"slope": beta, "intercept": alpha, "rss": rss}
     else:
         return pl.Struct(
-            beta.alias("slope"),
-            alpha.alias("intercept"),
-            rss.alias("rss")
+            beta.alias("slope"), alpha.alias("intercept"), rss.alias("rss")
         )
 
 
@@ -1256,12 +1266,12 @@ def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
     df = (
         x.to_frame()
         .select(
-            pl.col(name),
-            *(pl.col(name).shift(-i).suffix(str(i)) for i in range(1, m))
+            pl.col(name), *(pl.col(name).shift(-i).suffix(str(i)) for i in range(1, m))
         )
         .slice(0, n_rows)
     )
     return df.to_numpy()
+
 
 # Only works on series
 def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> float:
@@ -1307,6 +1317,7 @@ def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> float:
     )
     return np.log(b / a)  # -ln(a/b) = ln(b/a)
 
+
 def spkt_welch_density(x: TIME_SERIES_T, n_cofficients: int) -> float:
     return NotImplemented
 
@@ -1331,6 +1342,7 @@ def sum_reocurring_points(x: TIME_SERIES_T) -> FLOAT_EXPR:
     float | Expr
     """
     return x.filter(~x.is_unique()).sum().cast(pl.Float64)
+
 
 # Originally named: `sum_of_reoccurring_values`
 def sum_reocurring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1379,6 +1391,7 @@ def symmetry_looking(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
     max_min_difference = x.max() - x.min()
     return mean_median_difference < ratio * max_min_difference
 
+
 def time_reversal_asymmetry_statistic(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     """
     Returns the time reversal asymmetry statistic.
@@ -1419,6 +1432,7 @@ def time_reversal_asymmetry_statistic(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EX
     result = (one_lag * (two_lag.pow(2) - x.pow(2))).head(x.count() - 2 * n_lags).mean()
     return result
 
+
 def variation_coefficient(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """Calculate the coefficient of variation (CV).
 
@@ -1433,11 +1447,13 @@ def variation_coefficient(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     return x.std() / x.mean()
 
+
 def harmonic_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
-    '''
+    """
     Returns the harmonic mean of the expression
-    '''
+    """
     return x.count() / (pl.lit(1.0) / x).sum()
+
 
 # FFT Features
 
