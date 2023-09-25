@@ -205,7 +205,7 @@ from functime.forecasting import naive, snaive
 
 y_pred_naive = naive(freq="1mo")(y=y_train, fh=12)
 # sp = seasonal periods (length of one seasonal cycle)
-y_pred_snaive = naive(freq="1mo", sp=12)(y=y_train, fh=12)
+y_pred_snaive = snaive(freq="1mo", sp=12)(y=y_train, fh=12)
 ```
 
 ## Exogenous Regressors
