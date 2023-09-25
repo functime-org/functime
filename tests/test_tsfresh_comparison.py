@@ -66,6 +66,7 @@ from functime.feature_extraction.tsfresh import (  # fft_coefficients,
 
 @pytest.fixture
 def ts(pl_y):
+    pl_y = pl_y.collect()
     return pl_y.get_column(pl_y.columns[-1]).rename("y")
 
 
