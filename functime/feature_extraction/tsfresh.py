@@ -6,7 +6,7 @@ import bottleneck as bn
 import numpy as np
 import polars as pl
 from numpy.linalg import lstsq
-from scipy.signal import ricker, welch
+from scipy.signal import ricker, welch, find_peaks_cwt
 from scipy.spatial import KDTree
 
 TIME_SERIES_T = Union[pl.Series, pl.Expr]
@@ -949,8 +949,35 @@ def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> float:
     )
 
 
-def number_cwt_peaks(x: TIME_SERIES_T, max_width: int = 5) -> float:
-    return NotImplemented
+def number_cwt_peaks(x: pl.Series, max_width: int = 5) -> float:
+    """
+    Number of different peaks in x.
+
+    To estimamte the numbers of peaks, x is smoothed by a ricker wavelet for widths ranging from 1 to n. This feature
+    calculator returns the number of peaks that occur at enough width scales and with sufficiently high
+    Signal-to-Noise-Ratio (SNR)
+
+    Parameters
+    ----------
+    x : pl.Series
+        A single time-series.
+
+    max_width : int 
+        maximum width to consider
+
+
+    Returns
+    -------
+    float
+    """
+    return len(
+        find_peaks_cwt(
+            vector=x.to_numpy(zero_copy_only=True),
+            widths=np.array(list(range(1, max_width + 1))),
+            wavelet=ricker
+        )
+    )
+
 
 
 def number_peaks(x: TIME_SERIES_T, support: int = 1) -> int:
@@ -1008,6 +1035,44 @@ def percent_recoccuring_values(x: TIME_SERIES_T) -> float:
     """
     count = x.unique_counts()
     return count.filter(count > 1).len() / x.n_unique()
+
+def number_peaks(x: TIME_SERIES_T, support: int) -> int:
+    """
+    Calculates the number of peaks of at least support n in the time series x. A peak of support n is defined as a
+    subsequence of x where a value occurs, which is bigger than its n neighbours to the left and to the right.
+
+    Hence in the sequence
+
+    x = [3, 0, 0, 4, 0, 0, 13]
+
+    4 is a peak of support 1 and 2 because in the subsequences
+
+    [0, 4, 0]
+    [0, 0, 4, 0, 0]
+
+    4 is still the highest value. Here, 4 is not a peak of support 3 because 13 is the 3th neighbour to the right of 4
+    and its bigger than 4.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+
+    support : int
+        Support of the peak
+    Returns
+    -------
+    float
+    """
+    res = None
+    for i in range(1, support +1):
+        left_neighbor = x.shift(-i)
+        right_neighbor = x.shift(i)
+        if res is None:
+            res = ((x > left_neighbor) & (x > right_neighbor)).fill_null(False)
+        else:
+            res &= ((x > left_neighbor) & (x > right_neighbor)).fill_null(False)
+    return res.sum()
 
 
 def permutation_entropy(
