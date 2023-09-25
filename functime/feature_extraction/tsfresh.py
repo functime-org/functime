@@ -1044,7 +1044,7 @@ def percent_recoccuring_values(x: TIME_SERIES_T) -> float:
     count = x.unique_counts()
     return count.filter(count > 1).len() / x.n_unique()
 
-def number_peaks(x: pl.Expr, n: int):
+def number_peaks(x: TIME_SERIES_T, support: int) -> int:
     """
     Calculates the number of peaks of at least support n in the time series x. A peak of support n is defined as a
     subsequence of x where a value occurs, which is bigger than its n neighbours to the left and to the right.
@@ -1066,14 +1066,14 @@ def number_peaks(x: pl.Expr, n: int):
     x : pl.Expr | pl.Series
         Input time-series.
 
-    n : int
+    support : int
         Support of the peak
     Returns
     -------
     float
     """
     res = None
-    for i in range(1, n+1):
+    for i in range(1, support +1):
         left_neighbor = x.shift(-i)
         right_neighbor = x.shift(i)
         if res is None:
