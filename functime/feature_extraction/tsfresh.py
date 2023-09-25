@@ -6,7 +6,7 @@ import bottleneck as bn
 import numpy as np
 import polars as pl
 from numpy.linalg import lstsq
-from scipy.signal import ricker, welch
+from scipy.signal import ricker, welch, find_peaks_cwt
 from scipy.spatial import KDTree
 
 TIME_SERIES_T = Union[pl.Series, pl.Expr]
@@ -957,8 +957,35 @@ def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> float:
     )
 
 
-def number_cwt_peaks(x: TIME_SERIES_T, max_width: int = 5) -> float:
-    return NotImplemented
+def number_cwt_peaks(x: pl.Series, max_width: int = 5) -> float:
+    """
+    Number of different peaks in x.
+
+    To estimamte the numbers of peaks, x is smoothed by a ricker wavelet for widths ranging from 1 to n. This feature
+    calculator returns the number of peaks that occur at enough width scales and with sufficiently high
+    Signal-to-Noise-Ratio (SNR)
+
+    Parameters
+    ----------
+    x : pl.Series
+        A single time-series.
+
+    max_width : int 
+        maximum width to consider
+
+
+    Returns
+    -------
+    float
+    """
+    return len(
+        find_peaks_cwt(
+            vector=x.to_numpy(zero_copy_only=True),
+            widths=np.array(list(range(1, max_width + 1))),
+            wavelet=ricker
+        )
+    )
+
 
 
 def number_peaks(x: TIME_SERIES_T, support: int = 1) -> int:
