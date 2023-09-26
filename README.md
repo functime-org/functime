@@ -37,6 +37,17 @@ Install `functime` via the [pip](https://pypi.org/project/functime) package mana
 pip install functime
 ```
 
+`functime` comes with extra options. For example, to install `functime` with large-language model (LLM) and lightgbm features:
+
+```bash
+pip install "functime[llm,lgb]"
+```
+
+- `cat`: To use `catboost` forecaster
+- `xgb`: To use `xgboost` forecaster
+- `lgb`: To use `lightgbm` forecaster
+- `llm`: To use the LLM-powered forecast analyst
+
 ### Forecasting
 
 ```python
