@@ -25,19 +25,20 @@ try:
     from .automl import auto_lightgbm
     from .lightgbm import flaml_lightgbm, lightgbm
 except ImportError:
-    auto_lightgbm = ImportError
-    flaml_lightgbm = ImportError
-    lightgbm = ImportError
+    msg = "Missing lightgbm extras: `pip install functime[lgb]`"
+    auto_lightgbm = ImportError(msg)
+    flaml_lightgbm = ImportError(msg)
+    lightgbm = ImportError(msg)
 
 try:
     from .catboost import catboost
 except ImportError:
-    catboost = ImportError
+    catboost = ImportError("Missing catboost extras: `pip install functime[cat]`")
 
 try:
     from .xgboost import xgboost
 except ImportError:
-    xgboost = ImportError
+    xgboost = ImportError("Missing xgboost extras: `pip install functime[xgb]`")
 
 
 __all__ = [
