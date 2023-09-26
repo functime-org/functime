@@ -12,7 +12,7 @@ pip install functime
 `functime` comes with extra options. For example, to install `functime` with large-language model (LLM) and lightgbm features:
 
 ```bash
-pip install "functime[llm,lightgbm]"
+pip install "functime[llm,lgb]"
 ```
 
 - `cat`: To use `catboost` forecaster
