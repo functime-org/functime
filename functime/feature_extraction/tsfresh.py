@@ -580,32 +580,26 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     """
     if isinstance(x, pl.Series):
         n = len(x)
-        full_energy = (x**2).sum()
-        chunk_size = n // n_chunks
-        ratios = [
-            x.slice(i, chunk_size).pow(2).sum() / full_energy
+        chunk_size = len(x) // n_chunks
+        y = x.pow(2) # Vectorize better by squaring entire series at once, not for each chunk
+        energy = np.array([
+            y.slice(i, chunk_size).sum()
             for i in range(0, n, chunk_size)
-        ]  # List comprehension in Python is faster than explicit for loops
-        return ratios
+        ])
+        full_energy = np.sum(energy) # delay full energy computation until the end. Sum up partial sums
+        ratio:np.ndarray = energy / full_energy
+        return ratio.tolist()
     else:
-        # Slow
+        to_mod = pl.count().floordiv(n_chunks)
         segments = (
-            pl.int_range(pl.lit(0), pl.count())
-            .floordiv(pl.count().floordiv(n_chunks))
-            .alias("segment")
+            pl.lit(0).append(
+                pl.col("a").pow(2).cumsum().filter(
+                    (pl.int_range(0, pl.count()).mod(to_mod) == to_mod-1)
+                    | (pl.int_range(0, pl.count()) == pl.count() - 1)
+                )
+            ).diff(null_behavior="drop")
         )
-        sum_over_segment = (
-            pl.struct(segments, x.pow(2).sum().over(segments).alias("segment_energy"))
-            .unique()
-            .sort()
-        )  # This is slow
-        total_energy = sum_over_segment.struct.field("segment_energy").sum()
-
-        return (
-            (sum_over_segment.struct.field("segment_energy") / total_energy)
-            .implode()
-            .alias("segment_energy_ratio")
-        )
+        return (segments / segments.sum()).implode().suffix("_energy_ratio")
 
 
 def first_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
