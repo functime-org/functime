@@ -240,7 +240,21 @@ def rank_point_forecasts(
     y_pred : pl.DataFrame
         Panel DataFrame of point forecasts.
     sort_by : str
-        Metric name.
+        Method to sort forecasts by:\n
+        - mean
+        - median
+        - std
+        - cv (coefficient of variation / volatility)
+        - mae (mean absolute error)
+        - mape (mean absolute percentage error)
+        - mase (mean absolute scaled error)
+        - mse (mean squared error)
+        - rmse (root mean squared error)
+        - rmsse (root mean scaled squared error)
+        - smape (symmetric mean absolute percentage error)
+        - smape_original
+        - overforecast
+        - underforecast
     descending : bool
         Sort in descending order. Defaults to False.
 
