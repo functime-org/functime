@@ -6,7 +6,7 @@ import bottleneck as bn
 import numpy as np
 import polars as pl
 from numpy.linalg import lstsq
-from scipy.signal import ricker, welch, find_peaks_cwt
+from scipy.signal import find_peaks_cwt, ricker, welch
 from scipy.spatial import KDTree
 
 TIME_SERIES_T = Union[pl.Series, pl.Expr]
@@ -154,7 +154,8 @@ def augmented_dickey_fuller(x: pl.Series, n_lags: int) -> float:
 
 
 def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
-    """Calculate the autocorrelation for a specified lag.
+    """
+    Calculate the autocorrelation for a specified lag.
 
     The autocorrelation measures the linear dependence between a time-series and a lagged version of itself.
 
@@ -354,7 +355,8 @@ def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> FLOAT_EXPR:
 
 
 def c3(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
-    """Measure of non-linearity in the time series using c3 statistics.
+    """
+    Measure of non-linearity in the time series using c3 statistics.
 
     This function calculates the value of
 
@@ -433,7 +435,8 @@ def change_quantiles(
 
 
 def cid_ce(x: TIME_SERIES_T, normalize: bool = False) -> FLOAT_EXPR:
-    """Computes estimate of time-series complexity[^1].
+    """
+    Computes estimate of time-series complexity[^1].
 
     A more complex time series has more peaks and valleys.
     This feature is calculated by:
@@ -466,7 +469,8 @@ def cid_ce(x: TIME_SERIES_T, normalize: bool = False) -> FLOAT_EXPR:
 
 
 def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
-    """Calculate the percentage of values above or equal to a threshold.
+    """
+    Calculate the percentage of values above or equal to a threshold.
 
     Parameters
     ----------
@@ -484,7 +488,8 @@ def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
 
 
 def count_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
-    """Count the number of values that are above the mean.
+    """
+    Count the number of values that are above the mean.
 
     Parameters
     ----------
@@ -499,7 +504,8 @@ def count_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
 
 
 def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
-    """Calculate the percentage of values below or equal to a threshold.
+    """
+    Calculate the percentage of values below or equal to a threshold.
 
     Parameters
     ----------
@@ -517,7 +523,8 @@ def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
 
 
 def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
-    """Count the number of values that are below the mean.
+    """
+    Count the number of values that are below the mean.
 
     Parameters
     ----------
@@ -535,7 +542,8 @@ def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
 def cwt_coefficients(
     x: pl.Series, widths: Sequence[int] = (2, 5, 10, 20), n_coefficients: int = 14
 ) -> List[float]:
-    """Calculates a Continuous wavelet transform for the Ricker wavelet.
+    """
+    Calculates a Continuous wavelet transform for the Ricker wavelet.
 
     Parameters
     ----------
@@ -581,23 +589,31 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     if isinstance(x, pl.Series):
         n = len(x)
         chunk_size = len(x) // n_chunks
-        y = x.pow(2) # Vectorize better by squaring entire series at once, not for each chunk
-        energy = np.array([
-            y.slice(i, chunk_size).sum()
-            for i in range(0, n, chunk_size)
-        ])
-        full_energy = np.sum(energy) # delay full energy computation until the end. Sum up partial sums
-        ratio:np.ndarray = energy / full_energy
+        y = x.pow(
+            2
+        )  # Vectorize better by squaring entire series at once, not for each chunk
+        energy = np.array(
+            [y.slice(i, chunk_size).sum() for i in range(0, n, chunk_size)]
+        )
+        full_energy = np.sum(
+            energy
+        )  # delay full energy computation until the end. Sum up partial sums
+        ratio: np.ndarray = energy / full_energy
         return ratio.tolist()
     else:
         to_mod = pl.count().floordiv(n_chunks)
         segments = (
-            pl.lit(0).append(
-                pl.col("a").pow(2).cumsum().filter(
-                    (pl.int_range(0, pl.count()).mod(to_mod) == to_mod-1)
+            pl.lit(0)
+            .append(
+                pl.col("a")
+                .pow(2)
+                .cumsum()
+                .filter(
+                    (pl.int_range(0, pl.count()).mod(to_mod) == to_mod - 1)
                     | (pl.int_range(0, pl.count()) == pl.count() - 1)
                 )
-            ).diff(null_behavior="drop")
+            )
+            .diff(null_behavior="drop")
         )
         return (segments / segments.sum()).implode().suffix("_energy_ratio")
 
@@ -701,7 +717,8 @@ def friedrich_coefficients(
 
 
 def has_duplicate(x: TIME_SERIES_T) -> BOOL_EXPR:
-    """Check if the time-series contains any duplicate values.
+    """
+    Check if the time-series contains any duplicate values.
 
     Parameters
     ----------
@@ -716,7 +733,8 @@ def has_duplicate(x: TIME_SERIES_T) -> BOOL_EXPR:
 
 
 def _has_duplicate_of_value(x: TIME_SERIES_T, t: FLOAT_EXPR) -> BOOL_EXPR:
-    """Check if a value exists as a duplicate.
+    """
+    Check if a value exists as a duplicate.
 
     Parameters
     ----------
@@ -733,7 +751,8 @@ def _has_duplicate_of_value(x: TIME_SERIES_T, t: FLOAT_EXPR) -> BOOL_EXPR:
 
 
 def has_duplicate_max(x: TIME_SERIES_T) -> BOOL_EXPR:
-    """Check if the time-series contains any duplicate values equal to its maximum value.
+    """
+    Check if the time-series contains any duplicate values equal to its maximum value.
 
     Parameters
     ----------
@@ -748,7 +767,8 @@ def has_duplicate_max(x: TIME_SERIES_T) -> BOOL_EXPR:
 
 
 def has_duplicate_min(x: TIME_SERIES_T) -> BOOL_EXPR:
-    """Check if the time-series contains duplicate values equal to its minimum value.
+    """
+    Check if the time-series contains duplicate values equal to its minimum value.
 
     Parameters
     ----------
@@ -786,7 +806,8 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
 
 
 def large_standard_deviation(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
-    """Checks if the time-series has a large standard deviation.
+    """
+    Checks if the time-series has a large standard deviation.
 
     True if:
     .. math::
@@ -846,7 +867,8 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
 
 
 def lempel_ziv_complexity(x: pl.Series, n_bins: int) -> List[float]:
-    """Calculate a complexity estimate based on the Lempel-Ziv compression algorithm.
+    """
+    Calculate a complexity estimate based on the Lempel-Ziv compression algorithm.
 
     Parameters
     ----------
@@ -907,7 +929,8 @@ def linear_trend(x: TIME_SERIES_T) -> Mapping[str, float]:
 
 
 def _get_length_sequences_where(x: TIME_SERIES_T) -> LIST_EXPR:
-    """Calculates the length of all sub-sequences where the series x is either True or 1.
+    """
+    Calculates the length of all sub-sequences where the series x is either True or 1.
 
     Parameters
     ----------
@@ -941,7 +964,8 @@ def longest_strike_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
 
 
 def longest_strike_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
-    """Returns the length of the longest consecutive subsequence in x that is smaller than the mean of x.
+    """
+    Returns the length of the longest consecutive subsequence in x that is smaller than the mean of x.
 
     Parameters
     ----------
@@ -1065,7 +1089,7 @@ def number_cwt_peaks(x: pl.Series, max_width: int = 5) -> float:
     x : pl.Series
         A single time-series.
 
-    max_width : int 
+    max_width : int
         maximum width to consider
 
 
@@ -1077,14 +1101,9 @@ def number_cwt_peaks(x: pl.Series, max_width: int = 5) -> float:
         find_peaks_cwt(
             vector=x.to_numpy(zero_copy_only=True),
             widths=np.array(list(range(1, max_width + 1))),
-            wavelet=ricker
+            wavelet=ricker,
         )
     )
-
-
-
-def number_peaks(x: TIME_SERIES_T, support: int = 1) -> int:
-    return NotImplemented
 
 
 def partial_autocorrelation(x: TIME_SERIES_T, n_lags: int) -> float:
@@ -1139,6 +1158,7 @@ def percent_recoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     count = x.unique_counts()
     return (count > 1).sum() / count.len()
 
+
 def number_peaks(x: TIME_SERIES_T, support: int) -> int:
     """
     Calculates the number of peaks of at least support n in the time series x. A peak of support n is defined as a
@@ -1168,7 +1188,7 @@ def number_peaks(x: TIME_SERIES_T, support: int) -> int:
     float
     """
     res = None
-    for i in range(1, support +1):
+    for i in range(1, support + 1):
         left_neighbor = x.shift(-i)
         right_neighbor = x.shift(i)
         if res is None:
@@ -1305,7 +1325,8 @@ def ratio_n_unique_to_length(x: TIME_SERIES_T) -> FLOAT_EXPR:
 
 
 def root_mean_square(x: TIME_SERIES_T) -> FLOAT_EXPR:
-    """Calculate the root mean square.
+    """
+    Calculate the root mean square.
 
     Parameters
     ----------
@@ -1427,7 +1448,8 @@ def sum_reocurring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
 
 
 def symmetry_looking(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
-    """Check if the distribution of x looks symmetric.
+    """
+    Check if the distribution of x looks symmetric.
 
     A distribution is considered symmetric if:
 
@@ -1493,7 +1515,8 @@ def time_reversal_asymmetry_statistic(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EX
 
 
 def variation_coefficient(x: TIME_SERIES_T) -> FLOAT_EXPR:
-    """Calculate the coefficient of variation (CV).
+    """
+    Calculate the coefficient of variation (CV).
 
     Parameters
     ----------
@@ -1518,7 +1541,8 @@ def harmonic_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
 
 
 def fft_coefficients(x: TIME_SERIES_T) -> Mapping[str, List[float]]:
-    """Calculates Fourier coefficients and phase angles of the the 1-D discrete Fourier Transform.
+    """
+    Calculates Fourier coefficients and phase angles of the the 1-D discrete Fourier Transform.
 
     This function uses the `rustfft` Rust crate via pyo3-polars.
     """
