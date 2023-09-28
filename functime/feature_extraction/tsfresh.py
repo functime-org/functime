@@ -6,7 +6,7 @@ import bottleneck as bn
 import numpy as np
 import polars as pl
 from numpy.linalg import lstsq
-from scipy.signal import ricker, welch, find_peaks_cwt
+from scipy.signal import find_peaks_cwt, ricker, welch
 from scipy.spatial import KDTree
 
 TIME_SERIES_T = Union[pl.Series, pl.Expr]
@@ -581,23 +581,31 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     if isinstance(x, pl.Series):
         n = len(x)
         chunk_size = len(x) // n_chunks
-        y = x.pow(2) # Vectorize better by squaring entire series at once, not for each chunk
-        energy = np.array([
-            y.slice(i, chunk_size).sum()
-            for i in range(0, n, chunk_size)
-        ])
-        full_energy = np.sum(energy) # delay full energy computation until the end. Sum up partial sums
-        ratio:np.ndarray = energy / full_energy
+        y = x.pow(
+            2
+        )  # Vectorize better by squaring entire series at once, not for each chunk
+        energy = np.array(
+            [y.slice(i, chunk_size).sum() for i in range(0, n, chunk_size)]
+        )
+        full_energy = np.sum(
+            energy
+        )  # delay full energy computation until the end. Sum up partial sums
+        ratio: np.ndarray = energy / full_energy
         return ratio.tolist()
     else:
         to_mod = pl.count().floordiv(n_chunks)
         segments = (
-            pl.lit(0).append(
-                pl.col("a").pow(2).cumsum().filter(
-                    (pl.int_range(0, pl.count()).mod(to_mod) == to_mod-1)
+            pl.lit(0)
+            .append(
+                pl.col("a")
+                .pow(2)
+                .cumsum()
+                .filter(
+                    (pl.int_range(0, pl.count()).mod(to_mod) == to_mod - 1)
                     | (pl.int_range(0, pl.count()) == pl.count() - 1)
                 )
-            ).diff(null_behavior="drop")
+            )
+            .diff(null_behavior="drop")
         )
         return (segments / segments.sum()).implode().suffix("_energy_ratio")
 
@@ -1056,7 +1064,7 @@ def number_cwt_peaks(x: pl.Series, max_width: int = 5) -> float:
     """
     Number of different peaks in x.
 
-    To estimamte the numbers of peaks, x is smoothed by a ricker wavelet for widths ranging from 1 to n. This feature
+    To estimate the numbers of peaks, x is smoothed by a ricker wavelet for widths ranging from 1 to n. This feature
     calculator returns the number of peaks that occur at enough width scales and with sufficiently high
     Signal-to-Noise-Ratio (SNR)
 
@@ -1065,7 +1073,7 @@ def number_cwt_peaks(x: pl.Series, max_width: int = 5) -> float:
     x : pl.Series
         A single time-series.
 
-    max_width : int 
+    max_width : int
         maximum width to consider
 
 
@@ -1077,14 +1085,9 @@ def number_cwt_peaks(x: pl.Series, max_width: int = 5) -> float:
         find_peaks_cwt(
             vector=x.to_numpy(zero_copy_only=True),
             widths=np.array(list(range(1, max_width + 1))),
-            wavelet=ricker
+            wavelet=ricker,
         )
     )
-
-
-
-def number_peaks(x: TIME_SERIES_T, support: int = 1) -> int:
-    return NotImplemented
 
 
 def partial_autocorrelation(x: TIME_SERIES_T, n_lags: int) -> float:
@@ -1101,7 +1104,7 @@ def percent_reocurring_points(x: TIME_SERIES_T) -> float:
         # of data points occurring more than once / # of all data points
 
     This means the ratio is normalized to the number of data points in the time series, in contrast to the
-    `percent_recoccuring_values` function.
+    `percent_reoccuring_values` function.
 
     Parameters
     ----------
@@ -1116,7 +1119,7 @@ def percent_reocurring_points(x: TIME_SERIES_T) -> float:
     return count.filter(count > 1).sum() / x.len()
 
 
-def percent_recoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
+def percent_reoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the percentage of values that are present in the time series more than once.
 
@@ -1138,6 +1141,7 @@ def percent_recoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     count = x.unique_counts()
     return (count > 1).sum() / count.len()
+
 
 def number_peaks(x: TIME_SERIES_T, support: int) -> int:
     """
@@ -1168,7 +1172,7 @@ def number_peaks(x: TIME_SERIES_T, support: int) -> int:
     float
     """
     res = None
-    for i in range(1, support +1):
+    for i in range(1, support + 1):
         left_neighbor = x.shift(-i)
         right_neighbor = x.shift(i)
         if res is None:
