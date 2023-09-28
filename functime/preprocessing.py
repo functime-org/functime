@@ -721,11 +721,13 @@ def yeojohnson(brack: tuple = (-2, 2)):
 
 
 @transformer
-def detrend(method: Literal["linear", "mean"] = "linear"):
+def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
     """Removes mean or linear trend from numeric columns in a panel DataFrame.
 
     Parameters
     ----------
+    freq : str
+        Offset alias supported by Polars.
     method : str
         If `mean`, subtracts mean from each time-series.
         If `linear`, subtracts line of best-fit (via OLS) from each time-series.
@@ -735,7 +737,7 @@ def detrend(method: Literal["linear", "mean"] = "linear"):
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
         if method == "linear":
-            x = pl.col(time_col).to_physical()
+            x = pl.col(time_col).arg_sort()
             betas = [
                 (pl.cov(col, x) / x.var()).over(entity_col).alias(f"{col}__beta")
                 for col in X.columns[2:]
@@ -748,10 +750,17 @@ def detrend(method: Literal["linear", "mean"] = "linear"):
                 for col in X.columns[2:]
             ]
             residuals = [
-                pl.col(col) - pl.col(f"{col}__alpha") - pl.col(f"{col}__beta") * x
+                (
+                    pl.col(col) - pl.col(f"{col}__alpha") - pl.col(f"{col}__beta") * x
+                ).alias(col)
                 for col in X.columns[2:]
             ]
-            X_new = X.with_columns(betas).with_columns(alphas).with_columns(residuals)
+            X_new = (
+                X.with_columns(betas)
+                .with_columns(alphas)
+                .with_columns(residuals)
+                .cache()
+            )
             artifacts = {
                 "_beta": X_new.select([entity_col, cs.ends_with("__beta")])
                 .unique()
@@ -760,8 +769,11 @@ def detrend(method: Literal["linear", "mean"] = "linear"):
                 .unique()
                 .collect(streaming=True),
                 "X_new": X_new.select(X.columns),
+                "_firsts": X_new.group_by(entity_col)
+                .agg(pl.col(time_col).first().alias("first"))
+                .collect(streaming=True),
             }
-        if method == "mean":
+        elif method == "mean":
             _mean = X.group_by(entity_col).agg(
                 pl.col(X.columns[2:]).mean().suffix("__mean")
             )
@@ -770,6 +782,10 @@ def detrend(method: Literal["linear", "mean"] = "linear"):
             )
             _mean, X_new = pl.collect_all([_mean, X_new])
             artifacts = {"_mean": _mean, "X_new": X_new.lazy()}
+        else:
+            raise ValueError(
+                f"Method `{method}` not recognized. Expected `linear` or `mean`."
+            )
         return artifacts
 
     def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
@@ -777,18 +793,45 @@ def detrend(method: Literal["linear", "mean"] = "linear"):
         if method == "linear":
             _beta = state.artifacts["_beta"]
             _alpha = state.artifacts["_alpha"]
+            firsts = state.artifacts["_firsts"]
+            if freq.endswith("i"):
+                offset_expr = (
+                    pl.int_ranges(
+                        start=pl.col("first"), end=pl.col("last"), step=int(freq[:-1])
+                    )
+                    .len()
+                    .alias("offset")
+                )
+            else:
+                offset_expr = (
+                    pl.date_ranges(
+                        start=pl.col("first"), end=pl.col("last"), interval=freq
+                    )
+                    .len()
+                    .alias("offset")
+                )
+            x = pl.col(time_col).arg_sort() + pl.col("offset")
+            offsets = (
+                X.group_by(entity_col)
+                .agg(pl.col(time_col).last().alias("last"))
+                .join(firsts.lazy(), on=entity_col)
+                .with_columns(offset_expr)
+                .collect(streaming=True)
+            )
             X_new = (
-                X.join(_beta.lazy(), on=entity_col, how="left")
+                X.join(offsets.lazy(), on=entity_col, how="left")
+                .join(_beta.lazy(), on=entity_col, how="left")
                 .join(_alpha.lazy(), on=entity_col, how="left")
                 .with_columns(
                     [
                         pl.col(col)
                         + pl.col(f"{col}__alpha")
-                        + pl.col(f"{col}__beta") * pl.col(time_col).to_physical()
+                        + pl.col(f"{col}__beta") * x
                         for col in X.columns[2:]
                     ]
                 )
                 .select(X.columns)
+                .lazy()
             )
         else:
             X_new = (
