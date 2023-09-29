@@ -1,6 +1,6 @@
 import math
 from itertools import product
-from typing import List, Mapping, Sequence, Union
+from typing import List, Mapping, Sequence, Union, Optional
 
 import bottleneck as bn
 import numpy as np
@@ -8,6 +8,7 @@ import polars as pl
 from numpy.linalg import lstsq
 from scipy.signal import find_peaks_cwt, ricker, welch
 from scipy.spatial import KDTree
+from polars.type_aliases import ClosedInterval
 
 TIME_SERIES_T = Union[pl.Series, pl.Expr]
 FLOAT_EXPR = Union[pl.Expr, float]
@@ -567,18 +568,18 @@ def cwt_coefficients(
     return coeffs
 
 
-def _energy_ratio_series(x, n_chunks):
-    n = len(x)
-    chunk_size = len(x) // n_chunks
-    y = x.pow(
-        2
-    )  # Vectorize better by squaring entire series at once, not for each chunk
-    energy = np.array([y.slice(i, chunk_size).sum() for i in range(0, n, chunk_size)])
-    full_energy = np.sum(
-        energy
-    )  # delay full energy computation until the end. Sum up partial sums
-    ratio: np.ndarray = energy / full_energy
-    return ratio.tolist()
+# def _energy_ratio_series(x, n_chunks):
+#     n = len(x)
+#     chunk_size = len(x) // n_chunks
+#     y = x.pow(
+#         2
+#     )  # Vectorize better by squaring entire series at once, not for each chunk
+#     energy = np.array([y.slice(i, chunk_size).sum() for i in range(0, n, chunk_size)])
+#     full_energy = np.sum(
+#         energy
+#     )  # delay full energy computation until the end. Sum up partial sums
+#     ratio: np.ndarray = energy / full_energy
+#     return ratio.tolist()
 
 
 # We calculate all 1,2,3,...,n_chunk indexed statistics at once
@@ -598,22 +599,11 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     list of float | Expr
     """
     if isinstance(x, pl.Series):
-        return _energy_ratio_series(x, n_chunks)
-    to_mod = pl.count().floordiv(n_chunks)
-    segments = (
-        pl.lit(0)
-        .append(
-            pl.col("a")
-            .pow(2)
-            .cumsum()
-            .filter(
-                (pl.int_range(0, pl.count()).mod(to_mod) == to_mod - 1)
-                | (pl.int_range(0, pl.count()) == pl.count() - 1)
-            )
-        )
-        .diff(null_behavior="drop")
-    )
-    return (segments / segments.sum()).implode().suffix("_energy_ratio")
+        seg_sum = x.pow(2).reshape((n_chunks, -1)).list.sum()
+        return (seg_sum / seg_sum.sum()).to_list()
+    else:
+        temp = x.pow(2).reshape((n_chunks, -1)).list.sum()
+        return (temp/temp.sum()).implode().suffix("_energy_ratio")
 
 
 def first_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1154,7 +1144,7 @@ def percent_reoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     return (count > 1).sum() / count.len()
 
 
-def number_peaks(x: TIME_SERIES_T, support: int) -> int:
+def number_peaks(x: TIME_SERIES_T, support: int) -> INT_EXPR:
     """
     Calculates the number of peaks of at least support n in the time series x. A peak of support n is defined as a
     subsequence of x where a value occurs, which is bigger than its n neighbours to the left and to the right.
@@ -1175,30 +1165,30 @@ def number_peaks(x: TIME_SERIES_T, support: int) -> int:
     ----------
     x : pl.Expr | pl.Series
         Input time-series.
-
     support : int
         Support of the peak
+
     Returns
     -------
-    float
+    int | Expr
     """
-    res = None
-    for i in range(1, support + 1):
-        left_neighbor = x.shift(-i)
-        right_neighbor = x.shift(i)
-        if res is None:
-            res = ((x > left_neighbor) & (x > right_neighbor)).fill_null(False)
-        else:
-            res &= ((x > left_neighbor) & (x > right_neighbor)).fill_null(False)
-    return res.sum()
-
+    if isinstance(x, pl.Series):
+        # Cheating by calling lazy... Series may or may not have a better implementation.
+        frame = x.to_frame()
+        return frame.select(number_peaks(pl.col(x.name), support)).item(0,0)
+    else:
+        return (
+            pl.all_horizontal(
+                ((x > x.shift(-i)) & (x > x.shift(i))).fill_null(False)
+                for i in range(1, support+1)
+            ).sum()
+        )
 
 def permutation_entropy(
     x: TIME_SERIES_T,
     tau: int = 1,
     n_dims: int = 3,
     base: float = math.e,
-    normalize: bool = False,
 ) -> FLOAT_EXPR:
     """
     Computes permutation entropy.
@@ -1214,18 +1204,19 @@ def permutation_entropy(
         The embedding dimension which controls the length of each of the new column vectors
     base : float
         The base for log in the entropy computation
-    normalize : bool
-        Whether to normalize in the entropy computation
 
     Returns
     -------
-    An expression that represents a float
+    float | Expr
     """
     # This is kind of slow rn when tau > 1
     max_shift = -n_dims + 1
-
     if isinstance(x, pl.Series):
-        return NotImplemented
+        # Complete this implementation by cheating (using exprs) for now.
+        # There might be short cuts if we use eager. So improve this later.
+        frame = x.to_frame()
+        expr = permutation_entropy(pl.col(x.name), tau=tau, n_dims=n_dims)
+        return frame.select(expr).item(0,0)
     else:
         out = (
             (
@@ -1241,18 +1232,13 @@ def permutation_entropy(
                 )  # for each inner list, do an argsort
                 .value_counts()  # groupby and count, but returns a struct
                 .struct.field("counts")  # extract the field named "counts"
-                / x.shift(max_shift)
-                .take_every(tau)
-                .is_not_null()
-                .sum()  # get probabilities
             )
-            .entropy(base=base, normalize=normalize)
+            .entropy(base=base, normalize=True)
             .suffix("_permutation_entropy")
         )
-    return out
+        return out
 
-
-def range_count(x: TIME_SERIES_T, lower: float, upper: float) -> INT_EXPR:
+def range_count(x: TIME_SERIES_T, lower: float, upper: float, closed:ClosedInterval="left") -> INT_EXPR:
     """
     Computes values of input expression that is between lower (inclusive) and upper (exclusive).
 
@@ -1271,7 +1257,7 @@ def range_count(x: TIME_SERIES_T, lower: float, upper: float) -> INT_EXPR:
     """
     if upper < lower:
         raise ValueError("Upper must be greater than lower.")
-    return x.is_between(lower_bound=lower, upper_bound=upper, closed="left").sum()
+    return x.is_between(lower_bound=lower, upper_bound=upper, closed=closed).sum()
 
 
 def ratio_beyond_r_sigma(x: TIME_SERIES_T, ratio: float = 0.25) -> FLOAT_EXPR:
@@ -1331,7 +1317,9 @@ def root_mean_square(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x**2).mean().sqrt()
+    # This will be a little bit faster because x.count() is commonly used
+    # and we have a high chance of hitting CSE
+    return (x.dot(x) / x.count()).sqrt()
 
 
 def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
@@ -1348,7 +1336,7 @@ def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
 
 
 # Only works on series
-def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> float:
+def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> FLOAT_EXPR:
     """
     Calculate the sample entropy of a time series.
 
@@ -1361,7 +1349,7 @@ def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> float:
 
     Returns
     -------
-    float
+    float | Expr
     """
     # This is significantly faster than tsfresh
     if not isinstance(x, pl.Series):
@@ -1391,10 +1379,28 @@ def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> float:
     )
     return np.log(b / a)  # -ln(a/b) = ln(b/a)
 
+# Need to improve the input arguments depending on use cases.
+def spkt_welch_density(x: TIME_SERIES_T, n_coeffs: Optional[int] = None) -> LIST_EXPR:
+    '''
+    This estimates the cross power spectral density of the time series x at different frequencies.
 
-def spkt_welch_density(x: TIME_SERIES_T, n_cofficients: int) -> float:
-    return NotImplemented
-
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        The input time series.
+    n_coeffs : Optional[int]
+        The number of coefficients you want to take. If none, will take all, which will be a list
+        as long as the input time series.
+    '''
+    if isinstance(x, pl.Series):
+        if n_coeffs is None:
+            last_idx = len(x)
+        else:
+            last_idx = n_coeffs
+        _, pxx = welch(x, nperseg=min(len(x), 256))
+        return pxx[: last_idx]
+    else:
+        return NotImplemented
 
 # Originally named: `sum_of_reoccurring_data_points`
 def sum_reocurring_points(x: TIME_SERIES_T) -> FLOAT_EXPR:
