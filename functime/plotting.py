@@ -23,6 +23,65 @@ def _remove_legend_duplicates(fig: go.Figure) -> go.Figure:
     return fig
 
 
+def plot_panel(
+    y: pl.DataFrame, n_cols: int = 2, last_n: int = DEFAULT_LAST_N, **kwargs
+):
+    """Given panel DataFrames of observed values `y`,
+    returns subplots for each individual entity / time-series.
+
+    Note: if you have over 10 entities / time-series, we recommend using
+    the `rank_` functions in `functime.evaluation` then `df.head()` before plotting.
+
+    Parameters
+    ----------
+    y : pl.DataFrame
+        Panel DataFrame of observed values.
+    n_cols : int
+        Number of columns to arrange subplots.
+        Defaults to 2.
+    last_n : int
+        Plot `last_n` most recent values in `y` and `y_pred`.
+        Defaults to 64.
+
+    Returns
+    -------
+    figure : plotly.graph_objects.Figure
+        Plotly subplots.
+    """
+
+    # Get most recent observations
+    entity_col, time_col, target_col = y.columns
+    y = y.group_by(entity_col).tail(last_n)
+
+    # Organize subplots
+    n_series = y.get_column(entity_col).n_unique()
+    n_rows = int(np.ceil(n_series / n_cols))
+    row_idx = np.repeat(range(n_rows), n_cols)
+    entity_ids = sorted(y.get_column(entity_col).unique())
+    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entity_ids)
+
+    for i, entity_id in enumerate(entity_ids):
+        ts = y.filter(pl.col(entity_col) == entity_id)
+        row = row_idx[i] + 1
+        col = i % n_cols + 1
+        # Plot actual
+        fig.add_trace(
+            go.Scatter(
+                x=ts.get_column(time_col),
+                y=ts.get_column(target_col),
+                name="Time-series",
+                legendgroup="Time-series",
+                line=dict(color=COLOR_PALETTE["forecast"]),
+            ),
+            row=row,
+            col=col,
+        )
+
+    fig.update_layout(**kwargs)
+    fig = _remove_legend_duplicates(fig)
+    return fig
+
+
 def plot_forecasts(
     y_true: pl.DataFrame,
     y_pred: pl.DataFrame,
