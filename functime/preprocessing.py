@@ -601,7 +601,9 @@ def boxcox(method: str = "mle"):
         # Step 1. Compute optimal lambdas
         lmbds = gb.agg(
             PL_NUMERIC_COLS(entity_col, time_col)
-            .apply(lambda x: boxcox_normmax(x, method=method, optimizer=optimizer))
+            .map_elements(
+                lambda x: boxcox_normmax(x, method=method, optimizer=optimizer)
+            )
             .cast(pl.Float64())
             .suffix("__lmbd")
         )
@@ -663,7 +665,7 @@ def yeojohnson(brack: tuple = (-2, 2)):
         # Step 1. Compute optimal lambdas
         lmbds = gb.agg(
             PL_NUMERIC_COLS(entity_col, time_col)
-            .apply(lambda x: yeojohnson_normmax(x, brack))
+            .map_elements(lambda x: yeojohnson_normmax(x, brack))
             .cast(pl.Float64())
             .suffix("__lmbd")
         )
@@ -851,10 +853,16 @@ def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
 
 
 @transformer
-def deseasonalize_fourier(
-    sp: int, K: int, robust: bool = False, parallelize: bool = False
-):
+def deseasonalize_fourier(sp: int, K: int, robust: bool = False):
     """Removes seasonality via residualized regression with Fourier terms.
+
+    Parameters
+    ----------
+    sp: int
+        Seasonal period.
+    K : int
+        Maximum order(s) of Fourier terms.
+        Must be less than `sp`.
 
     Note: part of this transformer uses sklearn under-the-hood: it is not pure Polars and lazy.
     """
@@ -863,11 +871,6 @@ def deseasonalize_fourier(
         regressor_cls = LinearRegression
     else:
         regressor_cls = TheilSenRegressor
-
-    if parallelize:
-        apply_strategy = "threading"
-    else:
-        apply_strategy = "thread_local"
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
 
@@ -902,13 +905,20 @@ def deseasonalize_fourier(
             how="left",
         )
         fourier_cols = list(set(X_with_features.columns) - set(X.columns))
+        return_dtype = pl.Struct(
+            [
+                pl.Field(name=target_col, dtype=pl.List(pl.Float64)),
+                pl.Field(name="seasonal", dtype=pl.List(pl.Float64)),
+                pl.Field(name="regressor", dtype=pl.Binary),
+            ]
+        )
         X_new = (
             X_with_features.group_by(entity_col)
             .agg(
                 [
                     time_col,
                     pl.struct([target_col, *fourier_cols])
-                    .apply(_deseasonalize, strategy=apply_strategy)
+                    .map_elements(_deseasonalize, return_dtype=return_dtype)
                     .alias("result"),
                     pl.col(X.columns[3:]),
                 ]
@@ -974,7 +984,7 @@ def deseasonalize_fourier(
                             pl.concat_list(fourier_cols).alias("fourier"),
                             "regressor",
                         ]
-                    ).apply(_reseasonalize, strategy=apply_strategy),
+                    ).map_elements(_reseasonalize, return_dtype=pl.List(pl.Float64)),
                 ]
             )
             .explode(pl.all().exclude(entity_col))
