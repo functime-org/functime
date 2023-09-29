@@ -45,7 +45,7 @@ def fruits_panel_data(fruits_example):
 
 
 def pd_gb_transform(df: pd.DataFrame, model):
-    return df.group_by("series_id").apply(lambda s: model.fit_transform(s))
+    return df.groupby("series_id").apply(lambda s: model.fit_transform(s))
 
 
 @pytest.mark.benchmark

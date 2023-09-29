@@ -60,14 +60,14 @@ def test_acf(commodities_dataset):
         y_train.group_by(entity_col, maintain_order=True)
         .agg(
             pl.col(target_col)
-            .apply(
+            .map_elements(
                 lambda s: sm_acf(s, nlags=MAX_LAGS, adjusted=True, alpha=0.05)[
                     0
                 ].tolist()
             )
             .alias("acf"),
             pl.col(target_col)
-            .apply(
+            .map_elements(
                 lambda s: sm_acf(s, nlags=MAX_LAGS, adjusted=True, alpha=0.05)[
                     1
                 ].tolist()
@@ -112,7 +112,7 @@ def test_ljung_box(commodities_dataset):
     sm_ljungbox = partial(sm.stats.acorr_ljungbox, lags=MAX_LAGS)
     sm_lb_values = y_train.group_by(entity_col, maintain_order=True).agg(
         pl.col(target_col)
-        .apply(lambda s: sm_ljungbox(s).loc[:, "lb_stat"].to_numpy().tolist())
+        .map_elements(lambda s: sm_ljungbox(s).loc[:, "lb_stat"].to_numpy().tolist())
         .alias("qstats"),
     )
     print(acf_result.sort(entity_col))

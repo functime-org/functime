@@ -171,7 +171,7 @@ def normality_test(X: pl.DataFrame) -> pl.DataFrame:
     entity_col, _, target_col = X.columns[:3]
     results = X.group_by(entity_col).agg(
         pl.col(target_col)
-        .apply(lambda s: normaltest(s.to_numpy())[0])
+        .map_elements(lambda s: normaltest(s.to_numpy())[0])
         .alias("normal_test")
     )
     return results
