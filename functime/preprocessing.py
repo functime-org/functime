@@ -1,13 +1,17 @@
-from typing import List, Mapping, Optional, Union
+from typing import Any, List, Mapping, Optional, Union
 
+import cloudpickle
+import numpy as np
 import polars as pl
 import polars.selectors as cs
 from scipy import optimize
 from scipy.stats import boxcox_normmax, yeojohnson_normmax
+from sklearn.linear_model import LinearRegression, TheilSenRegressor
 from typing_extensions import Literal
 
 from functime.base import transformer
 from functime.base.model import ModelState
+from functime.feature_extraction import add_fourier_terms
 from functime.offsets import _strip_freq_alias
 
 
@@ -842,5 +846,139 @@ def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
                 .select(X.columns)
             )
         return X_new
+
+    return transform, invert
+
+
+@transformer
+def deseasonalize_fourier(
+    sp: int, K: int, robust: bool = False, parallelize: bool = False
+):
+    """Removes seasonality via residualized regression with Fourier terms.
+
+    Note: part of this transformer uses sklearn under-the-hood: it is not pure Polars and lazy.
+    """
+
+    if robust:
+        regressor_cls = LinearRegression
+    else:
+        regressor_cls = TheilSenRegressor
+
+    if parallelize:
+        apply_strategy = "threading"
+    else:
+        apply_strategy = "thread_local"
+
+    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+
+        X = X.collect()  # Not lazy
+        if X.shape[1] > 3:
+            raise ValueError(
+                "Got `X` with more than 3 columns."
+                " Expected `x` with maximum 3 columns: entity column,"
+                " time column, target column."
+            )
+
+        def _deseasonalize(inputs: pl.Series):
+            # Coerce inputs
+            X_y = inputs.struct.unnest()
+            y = X_y.get_column(target_col).to_numpy()
+            X = X_y.select(pl.all().exclude(target_col)).to_numpy()
+            # Fit-predict
+            regressor = regressor_cls().fit(y=y, X=X)
+            # Subtract prediction from y
+            y_pred = regressor.predict(X=X)
+            y_new = y - y_pred
+            return {
+                target_col: y_new.tolist(),
+                "seasonal": y_pred.tolist(),
+                "regressor": cloudpickle.dumps(regressor),
+            }
+
+        entity_col, time_col, target_col = X.columns[:3]
+        X_with_features = X.join(
+            X.pipe(add_fourier_terms(sp=sp, K=K)).collect(),
+            on=[entity_col, time_col],
+            how="left",
+        )
+        fourier_cols = list(set(X_with_features.columns) - set(X.columns))
+        X_new = (
+            X_with_features.group_by(entity_col)
+            .agg(
+                [
+                    time_col,
+                    pl.struct([target_col, *fourier_cols])
+                    .apply(_deseasonalize, strategy=apply_strategy)
+                    .alias("result"),
+                    pl.col(X.columns[3:]),
+                ]
+            )
+            .select([time_col, entity_col, pl.col("result")])
+            .unnest("result")
+        )
+        artifacts = {
+            "X_new": X_new.select([entity_col, time_col, target_col])
+            .explode([time_col, target_col])
+            .lazy(),
+            "X_seasonal": X_new.select(
+                [entity_col, time_col, pl.col("seasonal").alias(target_col)]
+            )
+            .explode([time_col, target_col])
+            .lazy(),
+            "regressors": X_new.select([entity_col, "regressor"]),
+            "fourier_cols": fourier_cols,
+        }
+        return artifacts
+
+    def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
+
+        X = X.collect()
+        entity_col, time_col, target_col = X.columns[:3]
+
+        if X.shape[1] > 3:
+            raise ValueError(
+                "Got `X` with more than 3 columns."
+                "Expected `x` with maximum 3 columns: entity column, time column, target column."
+            )
+
+        regressors = state.artifacts["regressors"]
+        fourier_cols = state.artifacts["fourier_cols"]
+
+        def _reseasonalize(inputs: Mapping[str, Any]):
+            # Coerce inputs
+            regressor = cloudpickle.loads(inputs["regressor"])
+            y = inputs[target_col]
+            X = np.array(inputs["fourier"]).reshape((len(y), len(fourier_cols)))
+            # Predict
+            y_pred = regressor.predict(X=X)
+            # Add prediction to y
+            y_new = np.array(y) + y_pred
+            return y_new.tolist()
+
+        X_with_features = X.join(
+            X.pipe(add_fourier_terms(sp=sp, K=K)).collect(),
+            on=[entity_col, time_col],
+            how="left",
+        )
+        y_new = (
+            X_with_features.group_by(entity_col)
+            .agg([time_col, target_col, *fourier_cols])
+            .join(regressors, on=entity_col, how="left")
+            .select(
+                [
+                    entity_col,
+                    time_col,
+                    pl.struct(
+                        [
+                            target_col,
+                            pl.concat_list(fourier_cols).alias("fourier"),
+                            "regressor",
+                        ]
+                    ).apply(_reseasonalize, strategy=apply_strategy),
+                ]
+            )
+            .explode(pl.all().exclude(entity_col))
+        )
+        return y_new.lazy()
 
     return transform, invert
