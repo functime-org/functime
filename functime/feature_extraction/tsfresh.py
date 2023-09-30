@@ -64,7 +64,6 @@ def absolute_sum_of_changes(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     return x.diff(n=1, null_behavior="drop").abs().sum()
 
-
 def _phis(x: pl.Expr, m: int, N: int, rs: List[float]) -> List[float]:
     n = N - m + 1
     x_runs = [x.slice(i, m) for i in range(n)]
@@ -103,7 +102,7 @@ def approximate_entropies(
     """
     sigma = x.std()
     rs = [sigma * r for r in filtering_levels]
-    N = x.len()
+    N = x.count()
     phis_m = _phis(x, m=run_length, N=N, rs=rs)
     phis_m_plus_1 = _phis(x, m=run_length + 1, N=N, rs=rs)
     return [phis_m[i] - phis_m_plus_1[i] for i in range(len(phis_m))]
@@ -249,25 +248,26 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
     [4] Newcomb, S. (1881). Note on the frequency of use of the different digits in natural numbers. American Journal of
         mathematics.
     """
+    y = x.cast(pl.Utf8).str.strip_chars_start("-0.")
     if isinstance(x, pl.Series):
-        counts = x.cast(pl.Utf8).str.lstrip("-0.").filter(x != "").str.slice(0, 1).cast(
-            pl.UInt8
-        ).append(pl.int_range(1, 10, eager=False)).sort().value_counts().get_column(
-            "counts"
-        ) - pl.lit(
-            1.0
+        counts = (
+            y.filter(y != "").str.slice(0, 1).cast(
+                pl.UInt8
+            ).append(pl.int_range(1, 10, eager=True, dtype=pl.UInt8))
+            .value_counts()
+            .sort(by=x.name)
+            .get_column("counts")
         )
-        return np.corrcoef(counts, _BENFORD_DIST_SERIES)
+        return np.corrcoef(counts, _BENFORD_DIST_SERIES)[0,1]
     else:
-        counts = x.cast(pl.Utf8).str.lstrip("-0.").filter(x != "").str.slice(0, 1).cast(
+        counts = y.filter(y != "").str.slice(0, 1).cast(
             pl.UInt8
-        ).append(pl.int_range(1, 10, eager=False)).sort().value_counts().struct.field(
+        ).append(pl.int_range(1, 10, eager=False)).value_counts().sort().struct.field(
             "counts"
         ) - pl.lit(
-            1
+            1, dtype = pl.UInt32
         )
         return pl.corr(counts, pl.lit(_BENFORD_DIST_SERIES))
-
 
 def benford_correlation2(x: pl.Expr) -> pl.Expr:
     """
@@ -309,8 +309,8 @@ def benford_correlation2(x: pl.Expr) -> pl.Expr:
         .drop_nulls()
         .cast(pl.UInt8)
         .append(pl.int_range(1, 10, eager=False))
-        .sort()
         .value_counts()
+        .sort()
         .struct.field("counts")
         - pl.lit(1)
     )
@@ -338,18 +338,12 @@ def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> FLOAT_EXPR:
         probs[probs == 0] = 1.0
         return -np.sum(probs * np.log(probs))
     else:
-        step_size = 1 / bin_count
-        breaks = np.linspace(step_size, stop=1 - step_size, num=bin_count - 1)
-        scaled_x = (x - x.min()) / (
-            x.max() - x.min()
-        )  # This step slows down the calculation
-        # Left closed because we want to micmic NumPy's histogram's behavior
         return (
-            scaled_x.cut(breaks, left_closed=True)
-            .value_counts()
+            (x - x.min()).floordiv(pl.lit(1e-12) + (x.max() - x.min())/pl.lit(bin_count))
+            .drop_nulls().value_counts()
+            .sort()
             .struct.field("counts")
-            .entropy()
-            .suffix("_binned_entropy")
+            .entropy().suffix("_binned_entropy")
         )
 
 
@@ -620,7 +614,7 @@ def first_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.arg_max() / x.len()
+    return x.arg_max() / x.count()
 
 
 def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -637,7 +631,7 @@ def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.arg_min() / x.len()
+    return x.arg_min() / x.count()
 
 
 def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
@@ -787,7 +781,7 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     """
     x_abs = x.abs()
     x_sum = x.sum()
-    n = x.len()
+    n = x.count()
     mass_center = x_abs.cumsum() / x_sum
     return ((mass_center >= q) + 1).arg_max() / n
 
@@ -833,7 +827,7 @@ def last_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x.len() - x.reverse().arg_max()) / x.len()
+    return (x.count() - x.reverse().arg_max()) / x.count()
 
 
 def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -850,7 +844,7 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x.len() - x.reverse().arg_min()) / x.len()
+    return (x.count() - x.reverse().arg_min()) / x.count()
 
 
 def lempel_ziv_complexity(x: pl.Series, n_bins: int) -> List[float]:
@@ -900,7 +894,7 @@ def linear_trend(x: TIME_SERIES_T) -> Mapping[str, float]:
     -------
     Mapping | Expr
     """
-    x_range = pl.int_range(1, x.len() + 1)
+    x_range = pl.int_range(1, x.count() + 1)
     beta = pl.cov(x, x_range) / x.var()
     alpha = x.mean() - beta * x_range.mean()
     resid = x - beta * x_range + alpha
@@ -1117,7 +1111,7 @@ def percent_reocurring_points(x: TIME_SERIES_T) -> float:
     float
     """
     count = x.unique_counts()
-    return count.filter(count > 1).sum() / x.len()
+    return count.filter(count > 1).sum() / x.count()
 
 
 def percent_reoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1141,7 +1135,7 @@ def percent_reoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     float | Expr
     """
     count = x.unique_counts()
-    return (count > 1).sum() / count.len()
+    return (count > 1).sum() / count.count()
 
 
 def number_peaks(x: TIME_SERIES_T, support: int) -> INT_EXPR:
@@ -1218,25 +1212,21 @@ def permutation_entropy(
         expr = permutation_entropy(pl.col(x.name), tau=tau, n_dims=n_dims)
         return frame.select(expr).item(0,0)
     else:
-        out = (
-            (
+        return (
+            (   # create list columns
                 pl.concat_list(
-                    x, *(x.shift(-i) for i in range(1, n_dims))
-                )  # create list columns
-                .take_every(tau)  # take every tau
-                .filter(
+                    x.take_every(tau), *(x.shift(-i).take_every(tau) for i in range(1, n_dims))
+                ).filter(
                     x.shift(max_shift).take_every(tau).is_not_null()
-                )  # This is a filter because length of df is unknown, might slow down perf
-                .list.eval(
-                    pl.element().rank(method="ordinal")
+                ).list.eval(
+                    pl.element().arg_sort()
                 )  # for each inner list, do an argsort
                 .value_counts()  # groupby and count, but returns a struct
                 .struct.field("counts")  # extract the field named "counts"
             )
-            .entropy(base=base, normalize=True)
-            .suffix("_permutation_entropy")
+            .entropy(normalize=True)
+            .suffix("_permutation_entropy2")
         )
-        return out
 
 def range_count(x: TIME_SERIES_T, lower: float, upper: float, closed:ClosedInterval="left") -> INT_EXPR:
     """
@@ -1301,7 +1291,7 @@ def ratio_n_unique_to_length(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.n_unique() / x.len()
+    return x.n_unique() / x.count()
 
 
 def root_mean_square(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1317,14 +1307,12 @@ def root_mean_square(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    # This will be a little bit faster because x.count() is commonly used
-    # and we have a high chance of hitting CSE
-    return (x.dot(x) / x.count()).sqrt()
+    return x.pow(2).mean().sqrt()
 
 
 def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
     name = x.name
-    n_rows = x.len() - m + 1
+    n_rows = len(x) - m + 1
     df = (
         x.to_frame()
         .select(
