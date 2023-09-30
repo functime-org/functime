@@ -112,4 +112,25 @@ def all_benchmarks(params: list[tuple])-> list:
             pass
     return res
 
+
+
+res = all_benchmarks(params = _FUNC_PARAMS_BENCH[:32])
+
+fig = make_subplots(rows=8, cols=4, subplot_titles=['Plot {}'.format(i + 1) for i in range(8)])
+
+# Iterate through the DataFrames and add traces to the subplots
+for i, d in enumerate(res):
+    df = d["bench"]
+    row = i // 4 + 1
+    col = i % 4 + 1
+    
+    # Add traces for each column in the DataFrame
+    for column in df.columns[1:]:
+        trace = go.Scatter(x=df['n'], y=df[column], mode='lines', name=column)
+        fig.add_trace(trace, row=row, col=col)
+
+# Update layout and show the plot
+fig.update_layout(title_text='Subplots of 32 DataFrames', showlegend=True)
+fig.show()
+
 # out.save("perf.png")
