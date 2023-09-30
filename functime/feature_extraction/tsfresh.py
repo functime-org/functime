@@ -249,13 +249,18 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
     [4] Newcomb, S. (1881). Note on the frequency of use of the different digits in natural numbers. American Journal of
         mathematics.
     """
+    y = x.cast(pl.Utf8).str.strip_chars_start("-0.")
     if isinstance(x, pl.Series):
-        frame = x.to_frame().select(
-            benford_correlation(pl.col(x.name))
+        counts = (
+            y.filter(y != "").str.slice(0, 1).cast(
+                pl.UInt8
+            ).append(pl.int_range(1, 10, eager=True, dtype=pl.UInt8))
+            .value_counts()
+            .sort(by=x.name)
+            .get_column("counts")
         )
-        return frame.item(0,0)
+        return np.corrcoef(counts, _BENFORD_DIST_SERIES)[0,1]
     else:
-        y = x.cast(pl.Utf8).str.lstrip("-0.")
         counts = y.filter(y != "").str.slice(0, 1).cast(
             pl.UInt8
         ).append(pl.int_range(1, 10, eager=False)).value_counts().sort().struct.field(
