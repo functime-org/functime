@@ -10,7 +10,7 @@ _FUNC_PARAMS_BENCH  = [
     (func_feat.absolute_energy, ts_feat.abs_energy, {}, {}),
     (func_feat.absolute_maximum, ts_feat.absolute_maximum, {}, {}),
     (func_feat.absolute_sum_of_changes, ts_feat.absolute_sum_of_changes, {}, {}),
-    (func_feat.approximate_entropies, ts_feat.approximate_entropy, {"run_length": 2, "filtering_levels": 0.5}, {"m": 2, "r": 0.5}),
+    # (func_feat.approximate_entropies, ts_feat.approximate_entropy, {"run_length": 2, "filtering_levels": [0.5]}, {"m": 2, "r": 0.5}),
     # (func_feat.augmented_dickey_fuller, ts_feat.augmented_dickey_fuller, "param")
     (func_feat.autocorrelation, ts_feat.autocorrelation, {"n_lags": 4}, {"lag": 4}),
     # (func_feat.autoregressive_coefficients, ts_feat.ar_coefficient, "param"),
@@ -78,7 +78,7 @@ def benchmark(functime_feat: Callable, tsfresh_feat: Callable, functime_params: 
         setup = lambda n: slice_dataframe(DF_PANDAS, DF_PL_EAGER, DF_PL_LAZY, n),
         kernels = [
             lambda x, _y, _z: tsfresh_feat(x["value"], **tsfresh_params),
-            lambda _x, y, _z: y.select(functime_feat(pl.col("value"), **functime_params)) ,
+            lambda _x, y, _z: y.select(functime_feat(pl.col("value"), **functime_params)),
             lambda _x, _y, z: z.select(functime_feat(pl.col("value"), **functime_params)).collect()
         ],
         n_range = [2**k for k in range(24)],

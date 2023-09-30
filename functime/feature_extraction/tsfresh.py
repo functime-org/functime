@@ -426,7 +426,7 @@ def change_quantiles(
         x.quantile(q_low, interpolation="linear"),
         x.quantile(q_high, interpolation="linear"),
     )
-    expr = x.filter(pl.all_horizontal(y, y.shift_and_fill(False, period=-1))).diff()
+    expr = x.filter(pl.all_horizontal(y, y.shift_and_fill(False, periods=-1))).diff()
     if is_abs:
         expr = expr.abs()
 
