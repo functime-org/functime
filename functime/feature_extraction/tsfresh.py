@@ -103,7 +103,7 @@ def approximate_entropies(
     """
     sigma = x.std()
     rs = [sigma * r for r in filtering_levels]
-    N = x.len()
+    N = x.count()
     phis_m = _phis(x, m=run_length, N=N, rs=rs)
     phis_m_plus_1 = _phis(x, m=run_length + 1, N=N, rs=rs)
     return [phis_m[i] - phis_m_plus_1[i] for i in range(len(phis_m))]
@@ -249,7 +249,7 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
     [4] Newcomb, S. (1881). Note on the frequency of use of the different digits in natural numbers. American Journal of
         mathematics.
     """
-    y = x.cast(pl.Utf8).str.strip_chars_start("-0.")
+    y = x.abs().cast(pl.Utf8).str.strip_chars_start("0.")
     if isinstance(x, pl.Series):
         counts = (
             y.filter(y != "").str.slice(0, 1).cast(
@@ -339,18 +339,12 @@ def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> FLOAT_EXPR:
         probs[probs == 0] = 1.0
         return -np.sum(probs * np.log(probs))
     else:
-        step_size = 1 / bin_count
-        breaks = np.linspace(step_size, stop=1 - step_size, num=bin_count - 1)
-        scaled_x = (x - x.min()) / (
-            x.max() - x.min()
-        )  # This step slows down the calculation
-        # Left closed because we want to micmic NumPy's histogram's behavior
         return (
-            scaled_x.cut(breaks, left_closed=True)
-            .value_counts()
+            (x - x.min()).floordiv(pl.lit(1e-12) + (x.max() - x.min())/pl.lit(bin_count))
+            .drop_nulls().value_counts()
+            .sort()
             .struct.field("counts")
-            .entropy()
-            .suffix("_binned_entropy")
+            .entropy().suffix("_binned_entropy")
         )
 
 
@@ -621,7 +615,7 @@ def first_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.arg_max() / x.len()
+    return x.arg_max() / x.count()
 
 
 def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -638,7 +632,7 @@ def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.arg_min() / x.len()
+    return x.arg_min() / x.count()
 
 
 def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
@@ -788,7 +782,7 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     """
     x_abs = x.abs()
     x_sum = x.sum()
-    n = x.len()
+    n = x.count()
     mass_center = x_abs.cumsum() / x_sum
     return ((mass_center >= q) + 1).arg_max() / n
 
@@ -834,7 +828,7 @@ def last_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x.len() - x.reverse().arg_max()) / x.len()
+    return (x.count() - x.reverse().arg_max()) / x.count()
 
 
 def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -851,7 +845,7 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x.len() - x.reverse().arg_min()) / x.len()
+    return (x.count() - x.reverse().arg_min()) / x.count()
 
 
 def lempel_ziv_complexity(x: pl.Series, n_bins: int) -> List[float]:
@@ -901,7 +895,7 @@ def linear_trend(x: TIME_SERIES_T) -> Mapping[str, float]:
     -------
     Mapping | Expr
     """
-    x_range = pl.int_range(1, x.len() + 1)
+    x_range = pl.int_range(1, x.count() + 1)
     beta = pl.cov(x, x_range) / x.var()
     alpha = x.mean() - beta * x_range.mean()
     resid = x - beta * x_range + alpha
@@ -1118,7 +1112,7 @@ def percent_reocurring_points(x: TIME_SERIES_T) -> float:
     float
     """
     count = x.unique_counts()
-    return count.filter(count > 1).sum() / x.len()
+    return count.filter(count > 1).sum() / x.count()
 
 
 def percent_reoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1142,7 +1136,7 @@ def percent_reoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     float | Expr
     """
     count = x.unique_counts()
-    return (count > 1).sum() / count.len()
+    return (count > 1).sum() / count.count()
 
 
 def number_peaks(x: TIME_SERIES_T, support: int) -> INT_EXPR:
@@ -1298,7 +1292,7 @@ def ratio_n_unique_to_length(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.n_unique() / x.len()
+    return x.n_unique() / x.count()
 
 
 def root_mean_square(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1314,14 +1308,12 @@ def root_mean_square(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    # This will be a little bit faster because x.count() is commonly used
-    # and we have a high chance of hitting CSE
-    return (x.dot(x) / x.count()).sqrt()
+    return x.pow(2).mean().sqrt()
 
 
 def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
     name = x.name
-    n_rows = x.len() - m + 1
+    n_rows = len(x) - m + 1
     df = (
         x.to_frame()
         .select(
