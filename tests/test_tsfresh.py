@@ -10,7 +10,7 @@ from functime.feature_extraction.tsfresh import (
     longest_strike_below_mean,
     mean_n_absolute_max,
     mean_second_derivative_central,
-    percent_recoccuring_values,
+    percent_reoccuring_values,
     percent_reocurring_points,
     sum_reocurring_points,
     sum_reocurring_values,
@@ -246,7 +246,7 @@ def test_percent_recoccuring_values(S, res):
         pl.DataFrame(
             {"a": S}
         ).select(
-            percent_recoccuring_values(pl.col("a"))
+            percent_reoccuring_values(pl.col("a"))
         ),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
     )
@@ -254,7 +254,7 @@ def test_percent_recoccuring_values(S, res):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            percent_recoccuring_values(pl.col("a"))
+            percent_reoccuring_values(pl.col("a"))
         ).collect(),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
     )

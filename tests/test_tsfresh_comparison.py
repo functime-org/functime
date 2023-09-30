@@ -48,7 +48,7 @@ from functime.feature_extraction.tsfresh import (  # fft_coefficients,
     number_cwt_peaks,
     number_peaks,
     partial_autocorrelation,
-    percent_recoccuring_values,
+    percent_reoccuring_values,
     percent_reocurring_points,
     permutation_entropy,
     range_count,
@@ -387,8 +387,8 @@ def test_percent_recoccuring_values(ts, ts_lazy, pd_ts):
 
 def test_percent_reocurring_points(ts, ts_lazy, pd_ts):
     expected = tsfresh.percentage_of_reoccurring_values_to_all_values(pd_ts)
-    assert percent_recoccuring_values(ts) == expected
-    assert ts_lazy(percent_recoccuring_values) == expected
+    assert percent_reoccuring_values(ts) == expected
+    assert ts_lazy(percent_reoccuring_values) == expected
 
 
 def test_permutation_entropy(ts, ts_lazy, pd_ts):
