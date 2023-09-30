@@ -250,24 +250,20 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
         mathematics.
     """
     if isinstance(x, pl.Series):
-        counts = x.cast(pl.Utf8).str.lstrip("-0.").filter(x != "").str.slice(0, 1).cast(
-            pl.UInt8
-        ).append(pl.int_range(1, 10, eager=False)).sort().value_counts().get_column(
-            "counts"
-        ) - pl.lit(
-            1.0
+        frame = x.to_frame().select(
+            benford_correlation(pl.col(x.name))
         )
-        return np.corrcoef(counts, _BENFORD_DIST_SERIES)
+        return frame.item(0,0)
     else:
-        counts = x.cast(pl.Utf8).str.lstrip("-0.").filter(x != "").str.slice(0, 1).cast(
+        y = x.cast(pl.Utf8).str.lstrip("-0.")
+        counts = y.filter(y != "").str.slice(0, 1).cast(
             pl.UInt8
-        ).append(pl.int_range(1, 10, eager=False)).sort().value_counts().struct.field(
+        ).append(pl.int_range(1, 10, eager=False)).value_counts().sort().struct.field(
             "counts"
         ) - pl.lit(
-            1
+            1, dtype = pl.UInt32
         )
         return pl.corr(counts, pl.lit(_BENFORD_DIST_SERIES))
-
 
 def benford_correlation2(x: pl.Expr) -> pl.Expr:
     """
@@ -309,8 +305,8 @@ def benford_correlation2(x: pl.Expr) -> pl.Expr:
         .drop_nulls()
         .cast(pl.UInt8)
         .append(pl.int_range(1, 10, eager=False))
-        .sort()
         .value_counts()
+        .sort()
         .struct.field("counts")
         - pl.lit(1)
     )
@@ -1218,25 +1214,21 @@ def permutation_entropy(
         expr = permutation_entropy(pl.col(x.name), tau=tau, n_dims=n_dims)
         return frame.select(expr).item(0,0)
     else:
-        out = (
-            (
+        return (
+            (   # create list columns
                 pl.concat_list(
-                    x, *(x.shift(-i) for i in range(1, n_dims))
-                )  # create list columns
-                .take_every(tau)  # take every tau
-                .filter(
+                    x.take_every(tau), *(x.shift(-i).take_every(tau) for i in range(1, n_dims))
+                ).filter(
                     x.shift(max_shift).take_every(tau).is_not_null()
-                )  # This is a filter because length of df is unknown, might slow down perf
-                .list.eval(
-                    pl.element().rank(method="ordinal")
+                ).list.eval(
+                    pl.element().arg_sort()
                 )  # for each inner list, do an argsort
                 .value_counts()  # groupby and count, but returns a struct
                 .struct.field("counts")  # extract the field named "counts"
             )
-            .entropy(base=base, normalize=True)
-            .suffix("_permutation_entropy")
+            .entropy(normalize=True)
+            .suffix("_permutation_entropy2")
         )
-        return out
 
 def range_count(x: TIME_SERIES_T, lower: float, upper: float, closed:ClosedInterval="left") -> INT_EXPR:
     """
