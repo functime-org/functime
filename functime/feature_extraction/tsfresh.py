@@ -64,7 +64,6 @@ def absolute_sum_of_changes(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     return x.diff(n=1, null_behavior="drop").abs().sum()
 
-
 def _phis(x: pl.Expr, m: int, N: int, rs: List[float]) -> List[float]:
     n = N - m + 1
     x_runs = [x.slice(i, m) for i in range(n)]
@@ -249,7 +248,7 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
     [4] Newcomb, S. (1881). Note on the frequency of use of the different digits in natural numbers. American Journal of
         mathematics.
     """
-    y = x.abs().cast(pl.Utf8).str.strip_chars_start("0.")
+    y = x.cast(pl.Utf8).str.strip_chars_start("-0.")
     if isinstance(x, pl.Series):
         counts = (
             y.filter(y != "").str.slice(0, 1).cast(
