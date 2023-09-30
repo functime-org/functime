@@ -113,7 +113,6 @@ def all_benchmarks(params: list[tuple])-> list:
     return res
 
 
-
 res = all_benchmarks(params = _FUNC_PARAMS_BENCH[:32])
 
 fig = make_subplots(rows=8, cols=4, subplot_titles=['Plot {}'.format(i + 1) for i in range(8)])
