@@ -4,6 +4,8 @@ import polars as pl
 import pandas as pd
 from functime.feature_extraction import tsfresh as func_feat
 from tsfresh.feature_extraction import feature_calculators as ts_feat
+import plotly.graph_objs as go
+from plotly.subplots import make_subplots
 
 # list (functime_function, tsfresh_function, params)
 _FUNC_PARAMS_BENCH  = [
@@ -90,21 +92,24 @@ def benchmark(functime_feat: Callable, tsfresh_feat: Callable, functime_params: 
 def all_benchmarks(params: list[tuple])-> list:
     res = []
     for x in params:
-        bench = benchmark(
-            functime_feat = x[0],
-            tsfresh_feat = x[1],
-            functime_params = x[2],
-            tsfresh_params = x[3]
-        )
-        res.append({
-            "function": x[0],
-            "bench": pl.DataFrame({
-                "n": bench.n_range,
-                "tsfresh": bench.timings_s[0],
-                "eager": bench.timings_s[1],
-                "lazy": bench.timings_s[2]                       
+        try:
+            bench = benchmark(
+                functime_feat = x[0],
+                tsfresh_feat = x[1],
+                functime_params = x[2],
+                tsfresh_params = x[3]
+            )
+            res.append({
+                "function": x[0],
+                "bench": pl.DataFrame({
+                    "n": bench.n_range,
+                    "tsfresh": bench.timings_s[0],
+                    "eager": bench.timings_s[1],
+                    "lazy": bench.timings_s[2]                       
+                })
             })
-        })
+        except:
+            pass
     return res
 
 # out.save("perf.png")
