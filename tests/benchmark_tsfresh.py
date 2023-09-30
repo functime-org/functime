@@ -83,7 +83,7 @@ def benchmark(functime_feat: Callable, tsfresh_feat: Callable, functime_params: 
             lambda _x, y, _z: y.select(functime_feat(pl.col("value"), **functime_params)),
             lambda _x, _y, z: z.select(functime_feat(pl.col("value"), **functime_params)).collect()
         ],
-        n_range = [2**k for k in range(24)],
+        n_range = [2**k for k in range(4, 24, 2)],
         labels=["tsfresh", "eager", "lazy"],
     )
     return benchmark
