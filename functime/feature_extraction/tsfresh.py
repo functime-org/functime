@@ -1054,7 +1054,7 @@ def mean_second_derivative_central(x: pl.Series) -> float:
     -------
     float
     """
-    return (x[-1] - x[-2] - x[1] + x[0]) / (2 * (len(x) - 2))
+    return (x.tail(2).diff(null_behavior="drop") - x.head(2).diff(null_behavior="drop")) / (2*(x.len()- 2))
 
 
 def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> FLOAT_EXPR:
