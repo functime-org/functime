@@ -1343,9 +1343,9 @@ def root_mean_square(x: TIME_SERIES_T) -> FLOAT_EXPR:
     float | Expr
     """
     if isinstance(x, pl.Series):
-        return np.sqrt(np.dot(x,x))
+        return np.sqrt(np.dot(x,x) / len(x))
     else:
-        return x.dot(x).sqrt()
+        return (x.dot(x)/x.count()).sqrt()
 
 def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
     name = x.name
