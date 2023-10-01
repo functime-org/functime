@@ -62,7 +62,7 @@ def absolute_sum_of_changes(x: TIME_SERIES_T) -> FLOAT_EXPR:
 
     Returns
     -------
-    float
+    float | Expr
     """
     return x.diff(n=1, null_behavior="drop").abs().sum()
 
@@ -195,7 +195,7 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
 
     Returns
     -------
-    float | None | Expr
+    float | Expr
         Autocorrelation at the given lag. Returns None, if lag is less than 0.
 
     Notes
@@ -204,10 +204,9 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     - If `lag` is 0, the autocorrelation is always 1.0, as it represents the correlation of the timeseries with itself.
     """
     if n_lags < 0:
-        return None
-
-    if n_lags == 0:
-        return pl.lit(1.0)
+        raise ValueError("Input `n_lags` must be >= 0")
+    elif n_lags == 0:
+        return 1.0
 
     return (
         x.shift(periods=-n_lags)
@@ -284,6 +283,9 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
             ).append(pl.int_range(1, 10, eager=True, dtype=pl.UInt8))
             .value_counts()
             .sort(by=x.name)
+            .with_columns(
+                pl.col("counts") - pl.lit(1)
+            )
             .get_column("counts")
         )
         return np.corrcoef(counts, _BENFORD_DIST_SERIES)[0,1]
@@ -368,8 +370,8 @@ def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> FLOAT_EXPR:
     else:
         return (
             (x - x.min()).floordiv(pl.lit(1e-12) + (x.max() - x.min())/pl.lit(bin_count))
-            .drop_nulls().value_counts()
-            .sort()
+            .drop_nulls()
+            .value_counts()
             .struct.field("counts")
             .entropy().suffix("_binned_entropy")
         )
@@ -414,7 +416,7 @@ def c3(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     twice_lag = 2 * n_lags
     # Would potentially be faster if there is a pl.product_horizontal()
     return (x * x.shift(n_lags) * x.shift(twice_lag)).sum() / (
-        x.len() - pl.lit(twice_lag)
+        x.len() - twice_lag
     )
 
 
@@ -476,7 +478,7 @@ def cid_ce(x: TIME_SERIES_T, normalize: bool = False) -> FLOAT_EXPR:
 
     Returns
     -------
-    float
+    float | Expr
 
     References
     ----------
@@ -485,8 +487,10 @@ def cid_ce(x: TIME_SERIES_T, normalize: bool = False) -> FLOAT_EXPR:
         Data Mining and Knowledge Discovery 28.3 (2014): 634-669.
     """
     if normalize:
-        x = (x - x.mean()) / x.std()
-    return ((x - x.shift(-1)) ** 2).sum() ** (0.5)
+        y = (x - x.mean()) / x.std()
+    else:
+        y = x
+    return (y.diff().pow(2)).sum().sqrt()
 
 
 def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
@@ -521,7 +525,6 @@ def count_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     int | Expr
     """
     return (x > x.mean()).sum()
-
 
 def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
     """
