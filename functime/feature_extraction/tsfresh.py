@@ -66,21 +66,51 @@ def absolute_sum_of_changes(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     return x.diff(n=1, null_behavior="drop").abs().sum()
 
-# def _phis(x: pl.Expr, m: int, N: int, rs: List[float]) -> List[float]:
-#     n = N - m + 1
-#     x_runs = [x.slice(i, m) for i in range(n)]
-#     max_dists = [(x_i - x_j).max() for x_i, x_j in product(x_runs, x_runs)]
-#     phis = []
-#     for r in rs:
-#         r_comparisons = [d.le(r) for d in max_dists]
-#         counts = [
-#             (pl.sum_horizontal(r_comparisons[i : i + n]) / n).log()
-#             for i in range(0, n**2, n)
-#         ]
-#         phis.append((1 / n) * pl.sum_horizontal(counts))
-#     return phis
+def _phis(x: pl.Expr, m: int, N: int, rs: List[float]) -> List[float]:
+    n = N - m + 1
+    x_runs = [x.slice(i, m) for i in range(n)]
+    max_dists = [(x_i - x_j).max() for x_i, x_j in product(x_runs, x_runs)]
+    phis = []
+    for r in rs:
+        r_comparisons = [d.le(r) for d in max_dists]
+        counts = [
+            (pl.sum_horizontal(r_comparisons[i : i + n]) / n).log()
+            for i in range(0, n**2, n)
+        ]
+        phis.append((1 / n) * pl.sum_horizontal(counts))
+    return phis
 
-def approximate_entropy(
+
+def approximate_entropies(
+    x: TIME_SERIES_T,
+    filtering_levels: List[float],
+    run_length: int = 2,
+) -> List[float]:
+    """
+    Approximate sample entropies of a time series given multiple filtering levels.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+    run_length : int, optional
+        Length of compared run of data.
+    filtering_levels : list of float, optional
+        Filtering levels, must be positive
+
+    Returns
+    -------
+    list of float
+    """
+    sigma = x.std()
+    rs = [sigma * r for r in filtering_levels]
+    N = x.count()
+    phis_m = _phis(x, m=run_length, N=N, rs=rs)
+    phis_m_plus_1 = _phis(x, m=run_length + 1, N=N, rs=rs)
+    return [phis_m[i] - phis_m_plus_1[i] for i in range(len(phis_m))]
+
+
+def approximate_entropy2(
     x: TIME_SERIES_T,
     run_length: int,
     filtering_level: float,
@@ -110,6 +140,7 @@ def approximate_entropy(
     ---------
     https://en.wikipedia.org/wiki/Approximate_entropy
     """
+
     if filtering_level <= 0:
         raise ValueError("Filter level must be positive.")
 
@@ -147,8 +178,7 @@ def approximate_entropy(
         return NotImplemented
 
 # An alias
-ApEn = approximate_entropy
-
+ApEn = approximate_entropy2
 
 def augmented_dickey_fuller(x: pl.Series, n_lags: int) -> float:
     """
@@ -653,7 +683,7 @@ def first_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.arg_max() / x.len()
+    return x.arg_max() / x.count()
 
 
 def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -670,7 +700,7 @@ def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.arg_min() / x.len()
+    return x.arg_min() / x.count()
 
 
 def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
@@ -820,7 +850,7 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     """
     x_abs = x.abs()
     x_sum = x.sum()
-    n = x.len()
+    n = x.count()
     mass_center = x_abs.cumsum() / x_sum
     return ((mass_center >= q) + 1).arg_max() / n
 
@@ -866,7 +896,7 @@ def last_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x.len() - x.reverse().arg_max()) / x.len()
+    return (x.count() - x.reverse().arg_max()) / x.count()
 
 
 def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -883,7 +913,7 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x.len() - x.reverse().arg_min()) / x.len()
+    return (x.count() - x.reverse().arg_min()) / x.count()
 
 
 def lempel_ziv_complexity(x: pl.Series, n_bins: int) -> List[float]:
@@ -933,7 +963,7 @@ def linear_trend(x: TIME_SERIES_T) -> Mapping[str, float]:
     -------
     Mapping | Expr
     """
-    x_range = pl.int_range(1, x.len() + 1)
+    x_range = pl.int_range(1, x.count() + 1)
     beta = pl.cov(x, x_range) / x.var()
     alpha = x.mean() - beta * x_range.mean()
     resid = x - beta * x_range + alpha
@@ -1150,7 +1180,7 @@ def percent_reocurring_points(x: TIME_SERIES_T) -> float:
     float
     """
     count = x.unique_counts()
-    return count.filter(count > 1).sum() / x.len()
+    return count.filter(count > 1).sum() / x.count()
 
 
 def percent_reoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1174,7 +1204,7 @@ def percent_reoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     float | Expr
     """
     count = x.unique_counts()
-    return (count > 1).sum() / count.len()
+    return (count > 1).sum() / count.count()
 
 
 def number_peaks(x: TIME_SERIES_T, support: int) -> INT_EXPR:
@@ -1330,7 +1360,7 @@ def ratio_n_unique_to_length(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.n_unique() / x.len()
+    return x.n_unique() / x.count()
 
 
 def root_mean_square(x: TIME_SERIES_T) -> FLOAT_EXPR:
