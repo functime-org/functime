@@ -5,16 +5,18 @@ from typing import List, Mapping, Sequence, Union, Optional
 import bottleneck as bn
 import numpy as np
 import polars as pl
+import scipy.linalg as slq
 from numpy.linalg import lstsq
 from scipy.signal import find_peaks_cwt, ricker, welch
 from scipy.spatial import KDTree
 from polars.type_aliases import ClosedInterval
 
 TIME_SERIES_T = Union[pl.Series, pl.Expr]
-FLOAT_EXPR = Union[pl.Expr, float]
-INT_EXPR = Union[pl.Expr, int]
-LIST_EXPR = Union[pl.Expr, list]
-BOOL_EXPR = Union[pl.Expr, bool]
+FLOAT_EXPR = Union[float, pl.Expr]
+INT_EXPR = Union[int, pl.Expr]
+LIST_EXPR = Union[list, pl.Expr]
+BOOL_EXPR = Union[bool, pl.Expr]
+MAP_EXPR = Union[Mapping[str, float], pl.Expr]
 
 
 def absolute_energy(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -136,7 +138,7 @@ def approximate_entropy(
 # An alias
 ApEn = approximate_entropy
 
-def augmented_dickey_fuller(x: pl.Series, n_lags: int) -> float:
+def augmented_dickey_fuller(x: TIME_SERIES_T, n_lags: int) -> float:
     """
     Calculates the Augmented Dickey-Fuller (ADF) test statistic.
 
@@ -161,23 +163,25 @@ def augmented_dickey_fuller(x: pl.Series, n_lags: int) -> float:
     1. Dickey, D. A., & Fuller, W. A. (1979). Distribution of the estimators for autoregressive time series with a unit root. Journal of the American statistical association, 74(366a), 427-431.
     2. MacKinnon, J. G. (1996). Numerical distribution functions for unit root and cointegration tests. Journal of applied econometrics, 11(6), 601-618.
     """
-
-    x_diff = x.diff()
-    k = x_diff.len()
-    X = np.vstack(
-        [
-            x.slice(n_lags),
-            np.asarray([x_diff.shift(i).slice(n_lags) for i in range(1, n_lags + 1)]),
-            np.ones(k - n_lags),
-        ]
-    ).T
-    y = x_diff.slice(n_lags).to_numpy(zero_copy_only=True)
-    coeffs, resids, _, _ = lstsq(X, y, rcond=None)
-    mse = bn.nansum(resids**2) / (k - X.shape[1])
-    x_arr = np.asarray(x).T, np.asarray(x)
-    cov = mse * np.linalg.inv(np.dot(x_arr.T, x))
-    stderrs = np.sqrt(np.diag(cov))
-    return coeffs[0] / stderrs[0]
+    if isinstance(x, pl.Series):
+        x_diff = x.diff()
+        k = x_diff.len()
+        X = np.vstack(
+            [
+                x.slice(n_lags),
+                np.asarray([x_diff.shift(i).slice(n_lags) for i in range(1, n_lags + 1)]),
+                np.ones(k - n_lags),
+            ]
+        ).T
+        y = x_diff.slice(n_lags).to_numpy(zero_copy_only=True)
+        coeffs, resids, _, _ = lstsq(X, y, rcond=None)
+        mse = bn.nansum(resids**2) / (k - X.shape[1])
+        x_arr = np.asarray(x).T, np.asarray(x)
+        cov = mse * np.linalg.inv(np.dot(x_arr.T, x))
+        stderrs = np.sqrt(np.diag(cov))
+        return coeffs[0] / stderrs[0]
+    else:
+        return NotImplemented
 
 
 def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
@@ -217,7 +221,7 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     )
 
 
-def autoregressive_coefficients(x: pl.Series, n_lags: int) -> List[float]:
+def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
     """
     Computes coefficients for an AR(`n_lags`) process.
 
@@ -232,14 +236,24 @@ def autoregressive_coefficients(x: pl.Series, n_lags: int) -> List[float]:
     -------
     list of float
     """
-    X = np.vstack(
-        [
-            np.asarray([x.shift(i).slice(n_lags) for i in range(1, n_lags + 1)]),
-            np.ones(x.len() - n_lags),
-        ]
-    ).T
-    y = np.asarray(x.slice(n_lags))
-    return lstsq(X, y, rcond=None)[0]
+    if isinstance(x, pl.Series):
+        tail = len(x) - n_lags
+        data_x = x.to_frame().select(
+            *(pl.col(x.name).shift(i).tail(tail).alias(str(i)) for i in range(1, n_lags + 1)),
+            pl.lit(1)
+        ) # This matrix generation is faster than v-stack.
+        y = x.tail(tail).to_numpy()
+        return slq.lstsq(data_x, y, overwrite_a=True, overwrite_b=True, cond=None)[0]
+        # If we use NumPy's lstsq, it doesn't work well with the format of the matrix generated 
+        # like above. The original approach, np.vstack then transpose, seems to generate a matrix 
+        # which works like magic with NumPy's lstsq. However, if we use SciPy's lstsq, 
+        # both data_x like above, and the original matrix perform the same, and SciPy is just a few ms 
+        # slower than NumPy. We get about 10% speed gain from the matrix generation using the approach
+        # above. So overall the above is faster.
+        # But why does the og NumPy's lstsq work so well with NumPy's vstack + transposed matrix?
+        # I suspect the `transpose` provides better cache hit rate.
+    else:
+        return NotImplemented
 
 
 _BENFORD_DIST_SERIES = (1 + 1 / pl.int_range(1, 10, eager=True)).log10()
@@ -373,7 +387,7 @@ def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> FLOAT_EXPR:
             .drop_nulls()
             .value_counts()
             .struct.field("counts")
-            .entropy().suffix("_binned_entropy")
+            .entropy()
         )
 
 
@@ -595,22 +609,6 @@ def cwt_coefficients(
         coeffs.extend(convolution[widths.index(), coeff_idx] for _ in widths)
     return coeffs
 
-
-# def _energy_ratio_series(x, n_chunks):
-#     n = len(x)
-#     chunk_size = len(x) // n_chunks
-#     y = x.pow(
-#         2
-#     )  # Vectorize better by squaring entire series at once, not for each chunk
-#     energy = np.array([y.slice(i, chunk_size).sum() for i in range(0, n, chunk_size)])
-#     full_energy = np.sum(
-#         energy
-#     )  # delay full energy computation until the end. Sum up partial sums
-#     ratio: np.ndarray = energy / full_energy
-#     return ratio.tolist()
-
-
-# We calculate all 1,2,3,...,n_chunk indexed statistics at once
 def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     """
     Calculates sum of squares over the whole series for `n_chunks` equally segmented parts of the time-series.
@@ -626,11 +624,12 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     -------
     list of float | Expr
     """
+    # Unlike Tsfresh,
+    # We calculate all 1,2,3,...,n_chunk at once
+    seg_sum = x.pow(2).reshape((n_chunks, -1)).list.sum()
     if isinstance(x, pl.Series):
-        seg_sum = x.pow(2).reshape((n_chunks, -1)).list.sum()
         return (seg_sum / seg_sum.sum()).to_list()
     else:
-        seg_sum = x.pow(2).reshape((n_chunks, -1)).list.sum()
         return (seg_sum/seg_sum.sum()).implode().suffix("_energy_ratio")
 
 
@@ -648,7 +647,7 @@ def first_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.arg_max() / x.len()
+    return (x == x.max()).arg_true().first() / x.len()
 
 
 def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -665,7 +664,7 @@ def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.arg_min() / x.len()
+    return (x == x.min()).arg_true().first() / x.len()
 
 
 def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
@@ -861,7 +860,7 @@ def last_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x.len() - x.reverse().arg_max()) / x.len()
+    return (x == x.max()).arg_true().last() / x.len()
 
 
 def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -878,7 +877,7 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x.len() - x.reverse().arg_min()) / x.len()
+    return (x == x.min()).arg_true().last() / x.len()
 
 
 def lempel_ziv_complexity(x: pl.Series, n_bins: int) -> List[float]:
@@ -915,7 +914,7 @@ def lempel_ziv_complexity(x: pl.Series, n_bins: int) -> List[float]:
     return complexities
 
 
-def linear_trend(x: TIME_SERIES_T) -> Mapping[str, float]:
+def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
     """
     Compute the slope, intercept, and RSS of the linear trend.
 
@@ -926,19 +925,21 @@ def linear_trend(x: TIME_SERIES_T) -> Mapping[str, float]:
 
     Returns
     -------
-    Mapping | Expr
+    Mapping[str, float] | Expr
     """
-    x_range = pl.int_range(1, x.len() + 1)
-    beta = pl.cov(x, x_range) / x.var()
-    alpha = x.mean() - beta * x_range.mean()
-    resid = x - beta * x_range + alpha
     if isinstance(x, pl.Series):
-        rss = np.dot(resid, resid)
-        return {"slope": beta, "intercept": alpha, "rss": rss}
+        x_range = np.arange(start=1, stop=x.len()+1)
+        beta = np.cov(x, x_range)[0,1] / x.var()
+        alpha = x.mean() - beta * x_range.mean()
+        resid = x - beta * x_range + alpha
+        return {"slope": beta, "intercept": alpha, "rss": np.dot(resid, resid)}
     else:
-        rss = resid.dot(resid)
-        return pl.Struct(
-            beta.alias("slope"), alpha.alias("intercept"), rss.alias("rss")
+        x_range = pl.int_range(1, x.len() + 1)
+        beta = pl.cov(x, x_range) / x.var()
+        alpha = x.mean() - beta * x_range.mean()
+        resid = x - beta * x_range + alpha
+        return pl.struct(
+            beta.alias("slope"), alpha.alias("intercept"), resid.dot(resid).alias("rss")
         )
 
 
@@ -1557,10 +1558,36 @@ def variation_coefficient(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     return x.std() / x.mean()
 
+def var_gt_std(x: TIME_SERIES_T, ddof:int=1) -> BOOL_EXPR:
+    '''
+    Is the variance >= std? In other words, is var >= 1?
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+    ddof : int
+        Delta Degrees of Freedom used when computing var/std.
+
+    Returns
+    -------
+    bool | Expr
+    '''
+    return x.var(ddof=ddof) >= 1
+
 
 def harmonic_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the harmonic mean of the expression
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+
+    Returns
+    -------
+    float | Expr
     """
     return x.len() / (pl.lit(1.0) / x).sum()
 
