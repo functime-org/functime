@@ -66,51 +66,7 @@ def absolute_sum_of_changes(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     return x.diff(n=1, null_behavior="drop").abs().sum()
 
-def _phis(x: pl.Expr, m: int, N: int, rs: List[float]) -> List[float]:
-    n = N - m + 1
-    x_runs = [x.slice(i, m) for i in range(n)]
-    max_dists = [(x_i - x_j).max() for x_i, x_j in product(x_runs, x_runs)]
-    phis = []
-    for r in rs:
-        r_comparisons = [d.le(r) for d in max_dists]
-        counts = [
-            (pl.sum_horizontal(r_comparisons[i : i + n]) / n).log()
-            for i in range(0, n**2, n)
-        ]
-        phis.append((1 / n) * pl.sum_horizontal(counts))
-    return phis
-
-
-def approximate_entropies(
-    x: TIME_SERIES_T,
-    filtering_levels: List[float],
-    run_length: int = 2,
-) -> List[float]:
-    """
-    Approximate sample entropies of a time series given multiple filtering levels.
-
-    Parameters
-    ----------
-    x : pl.Expr | pl.Series
-        Input time-series.
-    run_length : int, optional
-        Length of compared run of data.
-    filtering_levels : list of float, optional
-        Filtering levels, must be positive
-
-    Returns
-    -------
-    list of float
-    """
-    sigma = x.std()
-    rs = [sigma * r for r in filtering_levels]
-    N = x.count()
-    phis_m = _phis(x, m=run_length, N=N, rs=rs)
-    phis_m_plus_1 = _phis(x, m=run_length + 1, N=N, rs=rs)
-    return [phis_m[i] - phis_m_plus_1[i] for i in range(len(phis_m))]
-
-
-def approximate_entropy2(
+def approximate_entropy(
     x: TIME_SERIES_T,
     run_length: int,
     filtering_level: float,
@@ -178,7 +134,7 @@ def approximate_entropy2(
         return NotImplemented
 
 # An alias
-ApEn = approximate_entropy2
+ApEn = approximate_entropy
 
 def augmented_dickey_fuller(x: pl.Series, n_lags: int) -> float:
     """
