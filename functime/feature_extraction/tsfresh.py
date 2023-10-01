@@ -490,7 +490,13 @@ def cid_ce(x: TIME_SERIES_T, normalize: bool = False) -> FLOAT_EXPR:
         y = (x - x.mean()) / x.std()
     else:
         y = x
-    return (y.diff().pow(2)).sum().sqrt()
+
+    if isinstance(x, pl.Series):
+        diff = np.diff(x)
+        return np.sqrt(np.dot(diff, diff))
+    else:
+        z = y - y.shift(-1)
+        return (z.dot(z)).sqrt()
 
 
 def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
@@ -624,8 +630,8 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
         seg_sum = x.pow(2).reshape((n_chunks, -1)).list.sum()
         return (seg_sum / seg_sum.sum()).to_list()
     else:
-        temp = x.pow(2).reshape((n_chunks, -1)).list.sum()
-        return (temp/temp.sum()).implode().suffix("_energy_ratio")
+        seg_sum = x.pow(2).reshape((n_chunks, -1)).list.sum()
+        return (seg_sum/seg_sum.sum()).implode().suffix("_energy_ratio")
 
 
 def first_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -642,7 +648,7 @@ def first_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.arg_max() / x.count()
+    return x.arg_max() / x.len()
 
 
 def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -659,7 +665,7 @@ def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.arg_min() / x.count()
+    return x.arg_min() / x.len()
 
 
 def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
@@ -809,7 +815,7 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     """
     x_abs = x.abs()
     x_sum = x.sum()
-    n = x.count()
+    n = x.len()
     mass_center = x_abs.cumsum() / x_sum
     return ((mass_center >= q) + 1).arg_max() / n
 
@@ -855,7 +861,7 @@ def last_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x.count() - x.reverse().arg_max()) / x.count()
+    return (x.len() - x.reverse().arg_max()) / x.len()
 
 
 def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -872,7 +878,7 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x.count() - x.reverse().arg_min()) / x.count()
+    return (x.len() - x.reverse().arg_min()) / x.len()
 
 
 def lempel_ziv_complexity(x: pl.Series, n_bins: int) -> List[float]:
@@ -922,14 +928,15 @@ def linear_trend(x: TIME_SERIES_T) -> Mapping[str, float]:
     -------
     Mapping | Expr
     """
-    x_range = pl.int_range(1, x.count() + 1)
+    x_range = pl.int_range(1, x.len() + 1)
     beta = pl.cov(x, x_range) / x.var()
     alpha = x.mean() - beta * x_range.mean()
     resid = x - beta * x_range + alpha
-    rss = resid.pow(2).sum()
     if isinstance(x, pl.Series):
+        rss = np.dot(resid, resid)
         return {"slope": beta, "intercept": alpha, "rss": rss}
     else:
+        rss = resid.dot(resid)
         return pl.Struct(
             beta.alias("slope"), alpha.alias("intercept"), rss.alias("rss")
         )
@@ -1139,7 +1146,7 @@ def percent_reocurring_points(x: TIME_SERIES_T) -> float:
     float
     """
     count = x.unique_counts()
-    return count.filter(count > 1).sum() / x.count()
+    return count.filter(count > 1).sum() / x.len()
 
 
 def percent_reoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1163,7 +1170,7 @@ def percent_reoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     float | Expr
     """
     count = x.unique_counts()
-    return (count > 1).sum() / count.count()
+    return (count > 1).sum() / count.len()
 
 
 def number_peaks(x: TIME_SERIES_T, support: int) -> INT_EXPR:
@@ -1319,7 +1326,7 @@ def ratio_n_unique_to_length(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.n_unique() / x.count()
+    return x.n_unique() / x.len()
 
 
 def root_mean_square(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1335,8 +1342,10 @@ def root_mean_square(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.pow(2).mean().sqrt()
-
+    if isinstance(x, pl.Series):
+        return np.sqrt(np.dot(x,x))
+    else:
+        return x.dot(x).sqrt()
 
 def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
     name = x.name
