@@ -76,7 +76,7 @@ def approximate_entropy(
 ) -> float:
     """
     Approximate sample entropies of a time series given multiple filtering levels. 
-    Currently only implemented with pl.Series.
+    This only works for Series input right now.
 
     Parameters
     ----------
@@ -140,7 +140,8 @@ ApEn = approximate_entropy
 
 def augmented_dickey_fuller(x: TIME_SERIES_T, n_lags: int) -> float:
     """
-    Calculates the Augmented Dickey-Fuller (ADF) test statistic.
+    Calculates the Augmented Dickey-Fuller (ADF) test statistic. This only works for 
+    Series input right now.
 
     Parameters
     ----------
@@ -223,7 +224,8 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
 
 def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
     """
-    Computes coefficients for an AR(`n_lags`) process.
+    Computes coefficients for an AR(`n_lags`) process. This only works for Series input 
+    right now.
 
     Parameters
     ----------
@@ -669,7 +671,8 @@ def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
 
 def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
     """
-    Calculate the Fourier entropy of a time series.
+    Calculate the Fourier entropy of a time series. This only works for Series input 
+    right now.
 
     Parameters
     ----------
@@ -1364,7 +1367,8 @@ def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
 # Only works on series
 def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> FLOAT_EXPR:
     """
-    Calculate the sample entropy of a time series.
+    Calculate the sample entropy of a time series. This only works for Series 
+    input right now.
 
     Parameters
     ----------
@@ -1409,6 +1413,7 @@ def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> FLOAT_EXPR:
 def spkt_welch_density(x: TIME_SERIES_T, n_coeffs: Optional[int] = None) -> LIST_EXPR:
     '''
     This estimates the cross power spectral density of the time series x at different frequencies.
+    This only works for Series input right now.
 
     Parameters
     ----------
