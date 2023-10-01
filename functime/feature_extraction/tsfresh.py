@@ -46,8 +46,10 @@ def absolute_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.abs().max()
-
+    if isinstance(x, pl.Series):
+        return np.max(np.abs([x.min(), x.max()]))
+    else:
+        return pl.max_horizontal(x.min().abs(), x.max().abs())
 
 def absolute_sum_of_changes(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
@@ -64,48 +66,88 @@ def absolute_sum_of_changes(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     return x.diff(n=1, null_behavior="drop").abs().sum()
 
-def _phis(x: pl.Expr, m: int, N: int, rs: List[float]) -> List[float]:
-    n = N - m + 1
-    x_runs = [x.slice(i, m) for i in range(n)]
-    max_dists = [(x_i - x_j).max() for x_i, x_j in product(x_runs, x_runs)]
-    phis = []
-    for r in rs:
-        r_comparisons = [d.le(r) for d in max_dists]
-        counts = [
-            (pl.sum_horizontal(r_comparisons[i : i + n]) / n).log()
-            for i in range(0, n**2, n)
-        ]
-        phis.append((1 / n) * pl.sum_horizontal(counts))
-    return phis
+# def _phis(x: pl.Expr, m: int, N: int, rs: List[float]) -> List[float]:
+#     n = N - m + 1
+#     x_runs = [x.slice(i, m) for i in range(n)]
+#     max_dists = [(x_i - x_j).max() for x_i, x_j in product(x_runs, x_runs)]
+#     phis = []
+#     for r in rs:
+#         r_comparisons = [d.le(r) for d in max_dists]
+#         counts = [
+#             (pl.sum_horizontal(r_comparisons[i : i + n]) / n).log()
+#             for i in range(0, n**2, n)
+#         ]
+#         phis.append((1 / n) * pl.sum_horizontal(counts))
+#     return phis
 
-
-def approximate_entropies(
+def approximate_entropy(
     x: TIME_SERIES_T,
-    filtering_levels: List[float],
-    run_length: int = 2,
-) -> List[float]:
+    run_length: int,
+    filtering_level: float,
+    scale_by_std: bool = True
+) -> float:
     """
-    Approximate sample entropies of a time series given multiple filtering levels.
+    Approximate sample entropies of a time series given multiple filtering levels. 
+    Currently only implemented with pl.Series.
 
     Parameters
     ----------
     x : pl.Expr | pl.Series
         Input time-series.
-    run_length : int, optional
-        Length of compared run of data.
-    filtering_levels : list of float, optional
-        Filtering levels, must be positive
+    run_length : int
+        Length of compared run of data. This is `m` in the wikipedia article.
+    filtering_level : float
+        Filtering level, must be positive. This is `r` in the wikipedia article.
+    scale_by_std : bool
+        Whether to scale filter level by std of data. In most applications, this is the default
+        behavior, but not in some other cases.
 
     Returns
     -------
-    list of float
+    float
+
+    Reference
+    ---------
+    https://en.wikipedia.org/wiki/Approximate_entropy
     """
-    sigma = x.std()
-    rs = [sigma * r for r in filtering_levels]
-    N = x.count()
-    phis_m = _phis(x, m=run_length, N=N, rs=rs)
-    phis_m_plus_1 = _phis(x, m=run_length + 1, N=N, rs=rs)
-    return [phis_m[i] - phis_m_plus_1[i] for i in range(len(phis_m))]
+    if filtering_level <= 0:
+        raise ValueError("Filter level must be positive.")
+
+    if scale_by_std:
+        r = filtering_level * x.std()
+    else:
+        r = filtering_level
+
+    if isinstance(x, pl.Series):
+        if len(x) < run_length + 1:
+            return 0
+
+        frame = x.to_frame()
+        # Shared between phi_m and phi_m+1
+        data = frame.with_columns(
+            pl.col(x.name).shift(-i).alias(str(i)) for i in range(1, run_length + 1)
+        ).to_numpy()
+
+        n1 = len(x) - run_length + 1
+        data_m = data[:n1, :run_length]
+        # Computes phi. Let's not make it into a separate function until we know this will be reused.
+        tree = KDTree(data_m, leafsize=50) # Can play with leafsize to fine tune perf
+        nb_in_radius:np.ndarray = tree.query_ball_point(data_m, r, p=np.inf, workers=-1, return_length=True)
+        phi_m = np.log(nb_in_radius/n1).sum() / n1
+
+        n2 = n1 - 1
+        data_mp1 = data[:n2, :]
+        # Compute phi
+        tree = KDTree(data_mp1, leafsize=50)
+        nb_in_radius:np.ndarray = tree.query_ball_point(data_mp1, r, p=np.inf, workers=-1, return_length=True)
+        phi_mp1 = np.log(nb_in_radius/n2).sum() / n2
+
+        return np.abs(phi_m - phi_mp1)
+    else:
+        return NotImplemented
+
+# An alias
+ApEn = approximate_entropy
 
 
 def augmented_dickey_fuller(x: pl.Series, n_lags: int) -> float:
@@ -186,7 +228,7 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
         .drop_nulls()
         .sub(x.mean())
         .dot(x.shift(periods=n_lags).drop_nulls().sub(x.mean()))
-        .truediv((x.count() - n_lags).mul(x.var(ddof=0)))
+        .truediv((x.len() - n_lags).mul(x.var(ddof=0)))
     )
 
 
@@ -386,7 +428,7 @@ def c3(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     twice_lag = 2 * n_lags
     # Would potentially be faster if there is a pl.product_horizontal()
     return (x * x.shift(n_lags) * x.shift(twice_lag)).sum() / (
-        x.count() - pl.lit(twice_lag)
+        x.len() - pl.lit(twice_lag)
     )
 
 
@@ -476,8 +518,7 @@ def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    # x.filter(x >= threshold).count().truediv(x.count()).mul(100)
-    return (x >= threshold).sum().truediv(x.count()).mul(100)
+    return (x >= threshold).sum().truediv(x.len()).mul(100)
 
 
 def count_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
@@ -511,8 +552,7 @@ def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    # x.filter(x <= threshold).count().truediv(x.count()).mul(100)
-    return (x <= threshold).sum().truediv(x.count()).mul(100)
+    return (x <= threshold).sum().truediv(x.len()).mul(100)
 
 
 def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
@@ -528,7 +568,6 @@ def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    # x.filter(x < x.mean()).count()
     return (x < x.mean()).sum()
 
 
@@ -614,7 +653,7 @@ def first_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.arg_max() / x.count()
+    return x.arg_max() / x.len()
 
 
 def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -631,7 +670,7 @@ def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.arg_min() / x.count()
+    return x.arg_min() / x.len()
 
 
 def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
@@ -781,7 +820,7 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     """
     x_abs = x.abs()
     x_sum = x.sum()
-    n = x.count()
+    n = x.len()
     mass_center = x_abs.cumsum() / x_sum
     return ((mass_center >= q) + 1).arg_max() / n
 
@@ -827,7 +866,7 @@ def last_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x.count() - x.reverse().arg_max()) / x.count()
+    return (x.len() - x.reverse().arg_max()) / x.len()
 
 
 def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -844,7 +883,7 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x.count() - x.reverse().arg_min()) / x.count()
+    return (x.len() - x.reverse().arg_min()) / x.len()
 
 
 def lempel_ziv_complexity(x: pl.Series, n_bins: int) -> List[float]:
@@ -894,7 +933,7 @@ def linear_trend(x: TIME_SERIES_T) -> Mapping[str, float]:
     -------
     Mapping | Expr
     """
-    x_range = pl.int_range(1, x.count() + 1)
+    x_range = pl.int_range(1, x.len() + 1)
     beta = pl.cov(x, x_range) / x.var()
     alpha = x.mean() - beta * x_range.mean()
     resid = x - beta * x_range + alpha
@@ -1111,7 +1150,7 @@ def percent_reocurring_points(x: TIME_SERIES_T) -> float:
     float
     """
     count = x.unique_counts()
-    return count.filter(count > 1).sum() / x.count()
+    return count.filter(count > 1).sum() / x.len()
 
 
 def percent_reoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1135,7 +1174,7 @@ def percent_reoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     float | Expr
     """
     count = x.unique_counts()
-    return (count > 1).sum() / count.count()
+    return (count > 1).sum() / count.len()
 
 
 def number_peaks(x: TIME_SERIES_T, support: int) -> INT_EXPR:
@@ -1273,7 +1312,7 @@ def ratio_beyond_r_sigma(x: TIME_SERIES_T, ratio: float = 0.25) -> FLOAT_EXPR:
         )
         .is_not()  # check for deprecation
         .sum()
-        / x.count()
+        / x.len()
     )
 
 
@@ -1291,7 +1330,7 @@ def ratio_n_unique_to_length(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.n_unique() / x.count()
+    return x.n_unique() / x.len()
 
 
 def root_mean_square(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1456,7 +1495,11 @@ def symmetry_looking(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
     -------
     bool | Expr
     """
-    mean_median_difference = (x.mean() - x.median()).abs()
+    if isinstance(x, pl.Series):
+        mean_median_difference = np.abs((x.mean() - x.median()))
+    else:
+        mean_median_difference = (x.mean() - x.median()).abs()
+
     max_min_difference = x.max() - x.min()
     return mean_median_difference < ratio * max_min_difference
 
@@ -1498,7 +1541,7 @@ def time_reversal_asymmetry_statistic(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EX
     """
     one_lag = x.shift(-n_lags)
     two_lag = x.shift(-2 * n_lags)
-    return (one_lag * (two_lag.pow(2) - x.pow(2))).head(x.count() - 2 * n_lags).mean()
+    return (one_lag * (two_lag.pow(2) - x.pow(2))).head(x.len() - 2 * n_lags).mean()
 
 
 def variation_coefficient(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1521,7 +1564,7 @@ def harmonic_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the harmonic mean of the expression
     """
-    return x.count() / (pl.lit(1.0) / x).sum()
+    return x.len() / (pl.lit(1.0) / x).sum()
 
 
 # FFT Features
