@@ -58,6 +58,7 @@ nav:
     - forecasting: ref/forecasting.md
     - preprocessing: ref/preprocessing.md
     - feature_extraction: ref/feature-extraction.md
+    - tsfresh: ref/tsfresh.md
     - cross_validation: ref/cross-validation.md
     - offsets: ref/offsets.md
     - metrics: ref/metrics.md
