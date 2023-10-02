@@ -1,7 +1,7 @@
 import numpy as np
 import polars as pl
 import pytest
-from polars.testing import assert_frame_equal
+from polars.testing import assert_frame_equal, assert_series_equal
 
 # percent_recoccuring_values,
 from functime.feature_extraction.tsfresh import (
@@ -423,14 +423,16 @@ def test_augmented_dickey_fuller(x, param, res):
 @pytest.mark.parametrize(
     "x, res",
     [
-        (pl.Series(range(10)), 0),
-        (pl.Series([1, 3, 5]), 0),
-        (pl.Series([1, 3, 7, -3]), -3),
+        (pl.Series(range(10)), pl.Series([0.0])),
+        (pl.Series([1, 3, 5]), pl.Series([0.0])),
+        (pl.Series([1, 3, 7, -3]), pl.Series([-3.0])),
     ],
 )
 def test_mean_second_derivative_central(x, res):
-    assert mean_second_derivative_central(x) == res
-
+    assert_series_equal(
+        mean_second_derivative_central(x),
+        res
+    )
 # This test needs to be rewritten..
 @pytest.mark.parametrize(
     "x, r, res",

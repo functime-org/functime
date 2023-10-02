@@ -962,7 +962,7 @@ def _get_length_sequences_where(x: TIME_SERIES_T) -> LIST_EXPR:
         If no ones or Trues contained, the list [0] is returned.
     """
     y = x.cast(pl.Int8).rle()
-    return y.filter(x.struct[1] == 1).struct[0]
+    return y.filter(y.struct.field("values") == 1).struct.field("lengths")
 
 
 def longest_strike_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
@@ -1049,7 +1049,7 @@ def mean_n_absolute_max(x: TIME_SERIES_T, n_maxima: int) -> FLOAT_EXPR:
     return x.abs().top_k(n_maxima).mean().cast(pl.Float64)
 
 
-def mean_second_derivative_central(x: pl.Series) -> float:
+def mean_second_derivative_central(x: pl.Series) -> pl.Series:
     """
     Returns the mean value of a central approximation of the second derivative.
 
@@ -1066,7 +1066,7 @@ def mean_second_derivative_central(x: pl.Series) -> float:
 
     Returns
     -------
-    float
+    pl.Series
     """
     return (x.tail(2).diff(null_behavior="drop") - x.head(2).diff(null_behavior="drop")) / (2*(x.len()- 2))
 
