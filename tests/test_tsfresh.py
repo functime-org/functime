@@ -1,8 +1,9 @@
 import numpy as np
 import polars as pl
 import pytest
-from polars.testing import assert_frame_equal
+from polars.testing import assert_frame_equal, assert_series_equal
 
+# percent_recoccuring_values,
 from functime.feature_extraction.tsfresh import (
     _get_length_sequences_where,
     benford_correlation,
@@ -10,13 +11,14 @@ from functime.feature_extraction.tsfresh import (
     longest_strike_below_mean,
     mean_n_absolute_max,
     mean_second_derivative_central,
-    percent_recoccuring_values,
     percent_reocurring_points,
     sum_reocurring_points,
     sum_reocurring_values,
     number_peaks,
     symmetry_looking,
     time_reversal_asymmetry_statistic,
+    approximate_entropy,
+    percent_reoccuring_values
 )
 
 np.random.seed(42)
@@ -53,13 +55,13 @@ def test_benford_correlation():
         X_uniform.select(
             benford_correlation(pl.col("a"))
         ),
-        pl.DataFrame({"counts": [1.3891e-16]})
+        pl.DataFrame({"counts": [np.nan]})
     )
     assert_frame_equal(
         X_uniform_lazy.select(
             benford_correlation(pl.col("a"))
         ).collect(),
-        pl.DataFrame({"counts": [1.3891e-16]})
+        pl.DataFrame({"counts": [np.nan]})
     )
     assert_frame_equal(
         X_random.select(
@@ -216,12 +218,12 @@ def test_mean_n_absolute_max_value_error():
     ([1.111, -2.45, 1.111, 2.45], [0.5]),
     ([], [np.nan])
 ])
-def test_percent_reocurring_points(S, res):
+def test_percent_reoccuring_values(S, res):
     assert_frame_equal(
         pl.DataFrame(
             {"a": S}
         ).select(
-            percent_reocurring_points(pl.col("a"))
+            percent_reoccuring_values(pl.col("a"))
         ),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
     )
@@ -229,7 +231,7 @@ def test_percent_reocurring_points(S, res):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            percent_reocurring_points(pl.col("a"))
+            percent_reoccuring_values(pl.col("a"))
         ).collect(),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
     )
@@ -241,12 +243,12 @@ def test_percent_reocurring_points(S, res):
     ([1], [0]),
     ([1.111, -2.45, 1.111, 2.45], [1.0 / 3.0])
 ])
-def test_percent_recoccuring_values(S, res):
+def test_percent_reoccuring_values(S, res):
     assert_frame_equal(
         pl.DataFrame(
             {"a": S}
         ).select(
-            percent_recoccuring_values(pl.col("a"))
+            percent_reoccuring_values(pl.col("a"))
         ),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
     )
@@ -254,7 +256,7 @@ def test_percent_recoccuring_values(S, res):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            percent_recoccuring_values(pl.col("a"))
+            percent_reoccuring_values(pl.col("a"))
         ).collect(),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
     )
@@ -312,6 +314,31 @@ def test_sum_reocurring_values(S, res):
     )
 
 
+@pytest.mark.parametrize("S, res", [
+    ([1, 1, 2, 3, 4], [0.4]),
+    ([1, 1.5, 2, 3], [0]),
+    ([1], [0]),
+    ([1.111, -2.45, 1.111, 2.45], [0.5]),
+    ([], [np.nan])
+])
+def test_percent_reocurring_points(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            percent_reocurring_points(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            percent_reocurring_points(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+    )
+
 
 @pytest.mark.parametrize("S, n, res", [
     ([0, 5, 2, 3, 0, 1, 2, 3, 4, 5, 4, 3, 2, 1], 1, [3]),
@@ -324,7 +351,7 @@ def test_number_peaks(S, n, res):
         pl.DataFrame(
             {"a": S}
         ).select(
-            number_peaks(pl.col("a"), n=n)
+            number_peaks(pl.col("a"), n).alias("a")
         ),
         pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32))
     )
@@ -332,7 +359,7 @@ def test_number_peaks(S, n, res):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            number_peaks(pl.col("a"), n=n)
+            number_peaks(pl.col("a"), n).alias("a")
         ).collect(),
         pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32))
     )
@@ -421,54 +448,58 @@ def test_augmented_dickey_fuller(x, param, res):
 @pytest.mark.parametrize(
     "x, res",
     [
-        (pl.Series(range(10)), 0),
-        (pl.Series([1, 3, 5]), 0),
-        (pl.Series([1, 3, 7, -3]), -3),
+        (pl.Series(range(10)), pl.Series([0.0])),
+        (pl.Series([1, 3, 5]), pl.Series([0.0])),
+        (pl.Series([1, 3, 7, -3]), pl.Series([-3.0])),
     ],
 )
 def test_mean_second_derivative_central(x, res):
-    assert mean_second_derivative_central(x) == res
-
-
+    assert_series_equal(
+        mean_second_derivative_central(x),
+        res
+    )
+# This test needs to be rewritten..
 @pytest.mark.parametrize(
-    "x, param, res",
+    "x, r, res",
     [
         (
             pl.Series([-1, -1, 1, 1]),
-            [dict(r=0.05), dict(r=0.75)],
-            pl.DataFrame(
-                [[0.05, 0.75], [True, True]],
-                schema=["r", "feature_value"],
-                orient="col",
-            ),
+            0.05,
+            True
         ),
         (
-            pl.Series([-1, -1, 1, 1]),
-            [dict(r=0)],
-            pl.DataFrame([[0], [False]], schema=["r", "feature_value"], orient="col"),
+            pl.Series([-2, -1, 0, 1, 1]),
+            0.05,
+            False
         ),
         (
-            pl.Series([-1, -1, -1, -1, 1]),
-            [dict(r=0.05)],
-            pl.DataFrame(
-                [[0.05], [False]], schema=["r", "feature_value"], orient="col"
-            ),
-        ),
-        (
-            pl.Series([-2, -2, -2, -1, -1, -1]),
-            [dict(r=0.05)],
-            pl.DataFrame([[0.05], [True]], schema=["r", "feature_value"], orient="col"),
-        ),
-        (
-            pl.Series([-0.9, -0.900001]),
-            [dict(r=0.05)],
-            pl.DataFrame([[0.05], [True]], schema=["r", "feature_value"], orient="col"),
+            pl.Series([-2, -1, 0, 1, 1]),
+            0.1,
+            True
         ),
     ],
 )
-def test_symmetry_looking(x, param, res):
-    assert_frame_equal(symmetry_looking(x, param), res)
+def test_symmetry_looking(x, r, res):
+    ans = symmetry_looking(x, r)
+    assert ans == res
 
+    df = x.to_frame()
+    assert_frame_equal(
+        df.select(
+            symmetry_looking(pl.col(x.name), ratio=r)
+        ),
+        pl.DataFrame({x.name:[res]})
+    )
+
+# The first test here is take from wikipedia
+@pytest.mark.parametrize(
+    "x, param, res", [
+        (pl.Series([85, 80, 89] * 17), {"m":2, "r":3, "scale":False}, 1.099654110658932e-05)
+    ]
+)
+def test_approximate_entropy(x, param, res):
+    ans = approximate_entropy(x, param["m"], param["r"], param["scale"])
+    assert ans == res
 
 @pytest.mark.parametrize(
     "x, lag, res", [(pl.Series([1] * 10), 0, 0), (pl.Series([1, 2, -3, 4]), 1, -10)]
