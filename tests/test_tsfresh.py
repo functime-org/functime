@@ -314,6 +314,31 @@ def test_sum_reocurring_values(S, res):
     )
 
 
+@pytest.mark.parametrize("S, res", [
+    ([1, 1, 2, 3, 4], [0.4]),
+    ([1, 1.5, 2, 3], [0]),
+    ([1], [0]),
+    ([1.111, -2.45, 1.111, 2.45], [0.5]),
+    ([], [np.nan])
+])
+def test_percent_reocurring_points(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            percent_reocurring_points(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            percent_reocurring_points(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+    )
+
 
 @pytest.mark.parametrize("S, n, res", [
     ([0, 5, 2, 3, 0, 1, 2, 3, 4, 5, 4, 3, 2, 1], 1, [3]),
