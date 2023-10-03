@@ -16,6 +16,7 @@ INT_EXPR = Union[int, pl.Expr]
 LIST_EXPR = Union[list, pl.Expr]
 BOOL_EXPR = Union[bool, pl.Expr]
 MAP_EXPR = Union[Mapping[str, float], pl.Expr]
+MAP_LIST_EXPR = Union[Mapping[str, List[float]], pl.Expr]
 
 
 def absolute_energy(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1284,8 +1285,8 @@ def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
 # Only works on series
 def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> FLOAT_EXPR:
     """
-    Calculate the sample entropy of a time series. This only works for Series
-    input right now.
+    Calculate the sample entropy of a time series.
+    This only works for Series input right now.
 
     Parameters
     ----------
@@ -1340,6 +1341,10 @@ def spkt_welch_density(x: TIME_SERIES_T, n_coeffs: Optional[int] = None) -> LIST
     n_coeffs : Optional[int]
         The number of coefficients you want to take. If none, will take all, which will be a list
         as long as the input time series.
+
+    Returns
+    -------
+    list of floats
     """
     if isinstance(x, pl.Series):
         if n_coeffs is None:
@@ -1382,8 +1387,7 @@ def sum_reocurring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     For example, `sum_reocurring_values(pl.Series([2, 2, 2, 2, 1]))` returns 2, as 2 is a reoccurring value, so it is
     summed up with all other reoccuring values (there is none), so the result is 2.
 
-    This is in contrast to the `sum_reocurring_points` function, where each reoccuring value is only counted as often
-    as it is present in the data.
+    This is in contrast to the `sum_reocurring_points` function, where each reoccuring value is only counted as often as it is present in the data.
 
     Parameters
     ----------
@@ -1496,10 +1500,31 @@ def harmonic_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
 # FFT Features
 
 
-def fft_coefficients(x: TIME_SERIES_T) -> Mapping[str, List[float]]:
+def fft_coefficients(x: TIME_SERIES_T) -> MAP_LIST_EXPR:
     """
     Calculates Fourier coefficients and phase angles of the the 1-D discrete Fourier Transform.
+    This only works for Series input right now.
 
-    This function uses the `rustfft` Rust crate via pyo3-polars.
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+    n_threads : int
+        Number of threads to use.
+        If None, uses all threads available. Defaults to None.
+
+    Returns
+    -------
+    dict of list of floats | Expr
     """
-    pass
+
+    fft = np.fft.rfft(x.to_numpy(zero_copy_only=True))
+    real = fft.real
+    imag = fft.imag
+    angle = np.arctan2(real, imag)
+    deg_angle = angle * 180 / np.pi
+    return {
+        "real": fft.real.tolist(),
+        "imag": fft.imag.tolist(),
+        "angle": deg_angle.tolist(),
+    }
