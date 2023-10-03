@@ -33,7 +33,6 @@ def absolute_energy(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     return x.dot(x)
 
-
 def absolute_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Compute the absolute maximum of a time series.
@@ -73,7 +72,7 @@ def approximate_entropy(
     x: TIME_SERIES_T, run_length: int, filtering_level: float, scale_by_std: bool = True
 ) -> float:
     """
-    Approximate sample entropies of a time series given multiple filtering levels.
+    Approximate sample entropies of a time series given the filtering level.
     This only works for Series input right now.
 
     Parameters
@@ -232,17 +231,10 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
                 for i in range(1, n_lags + 1)
             ),
             pl.lit(1)
-        )  # This matrix generation is faster than v-stack.
+        ).to_numpy()  # This matrix generation is faster than v-stack.
         y = x.tail(tail).to_numpy()
+        # Ok to overwrite because data_x and y are copies
         return slq.lstsq(data_x, y, overwrite_a=True, overwrite_b=True, cond=None)[0]
-        # If we use NumPy's lstsq, it doesn't work well with the format of the matrix generated
-        # like above. The original approach, np.vstack then transpose, seems to generate a matrix
-        # which works like magic with NumPy's lstsq. However, if we use SciPy's lstsq,
-        # both data_x like above, and the original matrix perform the same, and SciPy is just a few ms
-        # slower than NumPy. We get about 10% speed gain from the matrix generation using the approach
-        # above. So overall the above is faster.
-        # But why does the og NumPy's lstsq work so well with NumPy's vstack + transposed matrix?
-        # I suspect the `transpose` provides better cache hit rate.
     else:
         return NotImplemented
 
@@ -264,24 +256,25 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    y = x.cast(pl.Utf8).str.strip_chars_start("-0.")
+
     if isinstance(x, pl.Series):
         counts = (
-            y.filter(y != "")
+            x.cast(pl.Utf8).str.strip_chars_start("-0.")
+            .filter(x != 0)
             .str.slice(0, 1)
             .cast(pl.UInt8)
             .append(pl.int_range(1, 10, eager=True, dtype=pl.UInt8))
             .value_counts()
             .sort(by=x.name)
-            .with_columns(pl.col("counts") - pl.lit(1))
             .get_column("counts")
         )
-        return np.corrcoef(counts, _BENFORD_DIST_SERIES)[0, 1]
+        return np.corrcoef(counts - 1, _BENFORD_DIST_SERIES)[0, 1]
     else:
-        counts = y.filter(y != "").str.slice(0, 1).cast(pl.UInt8).append(
+        y = x.cast(pl.Utf8).str.strip_chars_start("-0.")
+        counts = y.filter(x != 0).str.slice(0, 1).cast(pl.UInt8).append(
             pl.int_range(1, 10, eager=False)
-        ).value_counts().sort().struct.field("counts") - pl.lit(1, dtype=pl.UInt32)
-        return pl.corr(counts, pl.lit(_BENFORD_DIST_SERIES))
+        ).value_counts().sort().struct.field("counts")
+        return pl.corr(counts -1, pl.lit(_BENFORD_DIST_SERIES))
 
 
 def benford_correlation2(x: pl.Expr) -> pl.Expr:
@@ -311,9 +304,8 @@ def benford_correlation2(x: pl.Expr) -> pl.Expr:
         .value_counts()
         .sort()
         .struct.field("counts")
-        - pl.lit(1)
     )
-    return pl.corr(counts, pl.lit(_BENFORD_DIST_SERIES))
+    return pl.corr(counts - 1, pl.lit(_BENFORD_DIST_SERIES))
 
 
 def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> FLOAT_EXPR:
@@ -379,9 +371,9 @@ def change_quantiles(
     x : pl.Expr | pl.Series
         A single time-series.
     q_low : float
-        The lower quantile of the corridor. Must be less than `qh`.
+        The lower quantile of the corridor. Must be less than `q_high`.
     q_high : float
-        The upper quantile of the corridor. Must be greater than `ql`.
+        The upper quantile of the corridor. Must be greater than `q_low`.
     is_abs : bool
         If True, takes absolute difference.
 
@@ -487,7 +479,6 @@ def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
     """
     return (x <= threshold).sum().truediv(x.len()).mul(100)
 
-
 def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     Count the number of values that are below the mean.
@@ -502,7 +493,6 @@ def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     int | Expr
     """
     return (x < x.mean()).sum()
-
 
 def cwt_coefficients(
     x: pl.Series, widths: Sequence[int] = (2, 5, 10, 20), n_coefficients: int = 14
@@ -670,25 +660,6 @@ def has_duplicate(x: TIME_SERIES_T) -> BOOL_EXPR:
     """
     return x.is_duplicated().any()
 
-
-def _has_duplicate_of_value(x: TIME_SERIES_T, t: FLOAT_EXPR) -> BOOL_EXPR:
-    """
-    Check if a value exists as a duplicate.
-
-    Parameters
-    ----------
-    x : pl.Expr | pl.Series
-        Input time-series.
-    t : float | Expr
-        The value to check for duplicates of.
-
-    Returns
-    -------
-    bool
-    """
-    return x.filter(x == t).is_duplicated().any()
-
-
 def has_duplicate_max(x: TIME_SERIES_T) -> BOOL_EXPR:
     """
     Check if the time-series contains any duplicate values equal to its maximum value.
@@ -702,8 +673,7 @@ def has_duplicate_max(x: TIME_SERIES_T) -> BOOL_EXPR:
     -------
     bool | Expr
     """
-    return _has_duplicate_of_value(x, x.max())
-
+    return (x == x.max()).sum() > 1
 
 def has_duplicate_min(x: TIME_SERIES_T) -> BOOL_EXPR:
     """
@@ -718,8 +688,7 @@ def has_duplicate_min(x: TIME_SERIES_T) -> BOOL_EXPR:
     -------
     bool | Expr
     """
-    return _has_duplicate_of_value(x, x.min())
-
+    return (x == x.min()).sum() > 1
 
 def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     """
@@ -764,7 +733,6 @@ def large_standard_deviation(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR
     x_std = x.std()
     x_interval = x.max() - x.min()
     return x_std > (ratio * x_interval)
-
 
 def last_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
@@ -862,30 +830,11 @@ def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
             beta.alias("slope"), alpha.alias("intercept"), resid.dot(resid).alias("rss")
         )
 
-
-def _get_length_sequences_where(x: TIME_SERIES_T) -> LIST_EXPR:
-    """
-    Calculates the length of all sub-sequences where the series x is either True or 1.
-
-    Parameters
-    ----------
-    x : pl.Expr
-        A series containing only 1, True, 0 and False values.
-
-    Returns
-    -------
-    pl.Expr
-        A series with the length of all sub-sequences where the series is either True or False.
-        If no ones or Trues contained, the list [0] is returned.
-    """
-    y = x.cast(pl.Int8).rle()
-    return y.filter(y.struct.field("values") == 1).struct.field("lengths")
-
-
 def longest_strike_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     Returns the length of the longest consecutive subsequence in x that is greater than the mean of x.
-
+    If all values in x are null, 0 will be returned.
+    
     Parameters
     ----------
     x : pl.Expr | pl.Series
@@ -895,12 +844,17 @@ def longest_strike_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    return _get_length_sequences_where(x > x.mean()).max().fill_null(0)
-
+    y = (x > x.mean()).cast(pl.UInt8).rle()
+    result = y.filter(y.struct.field("values")==1).struct.field("lengths").max()
+    if isinstance(x, pl.Series):
+        return 0 if result is None else result
+    else: # fill null only works with expression
+        return result.fill_null(0).cast(pl.UInt64)
 
 def longest_strike_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     Returns the length of the longest consecutive subsequence in x that is smaller than the mean of x.
+    If all values in x are null, 0 will be returned.
 
     Parameters
     ----------
@@ -911,8 +865,12 @@ def longest_strike_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    return _get_length_sequences_where(x < x.mean()).max().fill_null(0)
-
+    y = (x < x.mean()).cast(pl.UInt8).rle()
+    result = y.filter(y.struct.field("values")==1).struct.field("lengths").max()
+    if isinstance(x, pl.Series):
+        return 0 if result is None else result
+    else: # fill null only works with expression
+        return result.fill_null(0).cast(pl.UInt64)
 
 def mean_abs_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
@@ -929,7 +887,6 @@ def mean_abs_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     return x.diff(null_behavior="drop").abs().mean()
 
-
 def mean_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Compute mean change.
@@ -944,7 +901,6 @@ def mean_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     float | Expr
     """
     return x.diff(null_behavior="drop").mean()
-
 
 def mean_n_absolute_max(x: TIME_SERIES_T, n_maxima: int) -> FLOAT_EXPR:
     """
@@ -963,10 +919,9 @@ def mean_n_absolute_max(x: TIME_SERIES_T, n_maxima: int) -> FLOAT_EXPR:
     """
     if n_maxima <= 0:
         raise ValueError("The number of maxima should be > 0.")
-    return x.abs().top_k(n_maxima).mean().cast(pl.Float64)
+    return x.abs().top_k(n_maxima).mean()
 
-
-def mean_second_derivative_central(x: pl.Series) -> pl.Series:
+def mean_second_derivative_central(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the mean value of a central approximation of the second derivative.
 
@@ -1195,6 +1150,8 @@ def range_count(
         The lower bound, inclusive
     upper : float
         The upper bound, exclusive
+    closed : ClosedInterval
+        Whether or not the boundaries should be included/excluded
 
     Returns
     -------
