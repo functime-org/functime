@@ -45,6 +45,7 @@ features = (
     .collect()
 )
 ```
+
 ---
 
 ::: functime.feature_extraction.tsfresh
