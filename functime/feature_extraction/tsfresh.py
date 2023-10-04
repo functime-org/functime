@@ -207,7 +207,7 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
                     y.shift(periods=n_lags).drop_nulls() - y_mean
                 )
             )
-            / ((y.len()) * (y.var(ddof=0)))
+            / ((y.len() - n_lags) * (y.var(ddof=0)))
         )
 
     else:
