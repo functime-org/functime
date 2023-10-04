@@ -52,7 +52,7 @@ class FeatureLibrary:
         -------
         An expression of the output
         """
-        return f.autocorrelation(self._expr)
+        return f.autocorrelation(self._expr, n_lags)
 
     def benford_correlation(self) -> pl.Expr:
         """
