@@ -100,7 +100,7 @@ def all_benchmarks(params: list[tuple])-> list:
                 tsfresh_params = x[3]
             )
             res.append({
-                "function": x[0],
+                "function": x[0].__name__,
                 "bench": pl.DataFrame({
                     "n": bench.n_range,
                     "tsfresh": bench.timings_s[0],
@@ -113,9 +113,9 @@ def all_benchmarks(params: list[tuple])-> list:
     return res
 
 
-res = all_benchmarks(params = _FUNC_PARAMS_BENCH[:32])
+res = all_benchmarks(params = _FUNC_PARAMS_BENCH[:2])
 
-fig = make_subplots(rows=8, cols=1, subplot_titles=['feature {}'.format(i["function"].__name__) for i in res])
+fig = make_subplots(rows=8, cols=1, subplot_titles=['feature {}'.format(i["function"]) for i in res])
 
 # Iterate through the DataFrames and add traces to the subplots
 for i, d in enumerate(res[:16]):

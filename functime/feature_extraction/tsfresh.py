@@ -1,20 +1,22 @@
 import math
-from itertools import product
-from typing import List, Mapping, Sequence, Union, Optional
+from typing import List, Mapping, Optional, Sequence, Union
 
 import bottleneck as bn
 import numpy as np
 import polars as pl
+import scipy.linalg as slq
 from numpy.linalg import lstsq
+from polars.type_aliases import ClosedInterval
 from scipy.signal import find_peaks_cwt, ricker, welch
 from scipy.spatial import KDTree
-from polars.type_aliases import ClosedInterval
 
 TIME_SERIES_T = Union[pl.Series, pl.Expr]
-FLOAT_EXPR = Union[pl.Expr, float]
-INT_EXPR = Union[pl.Expr, int]
-LIST_EXPR = Union[pl.Expr, list]
-BOOL_EXPR = Union[pl.Expr, bool]
+FLOAT_EXPR = Union[float, pl.Expr]
+INT_EXPR = Union[int, pl.Expr]
+LIST_EXPR = Union[list, pl.Expr]
+BOOL_EXPR = Union[bool, pl.Expr]
+MAP_EXPR = Union[Mapping[str, float], pl.Expr]
+MAP_LIST_EXPR = Union[Mapping[str, List[float]], pl.Expr]
 
 
 def absolute_energy(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -46,7 +48,10 @@ def absolute_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.abs().max()
+    if isinstance(x, pl.Series):
+        return np.max(np.abs([x.min(), x.max()]))
+    else:
+        return pl.max_horizontal(x.min().abs(), x.max().abs())
 
 
 def absolute_sum_of_changes(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -60,58 +65,83 @@ def absolute_sum_of_changes(x: TIME_SERIES_T) -> FLOAT_EXPR:
 
     Returns
     -------
-    float
+    float | Expr
     """
     return x.diff(n=1, null_behavior="drop").abs().sum()
 
 
-def _phis(x: pl.Expr, m: int, N: int, rs: List[float]) -> List[float]:
-    n = N - m + 1
-    x_runs = [x.slice(i, m) for i in range(n)]
-    max_dists = [(x_i - x_j).max() for x_i, x_j in product(x_runs, x_runs)]
-    phis = []
-    for r in rs:
-        r_comparisons = [d.le(r) for d in max_dists]
-        counts = [
-            (pl.sum_horizontal(r_comparisons[i : i + n]) / n).log()
-            for i in range(0, n**2, n)
-        ]
-        phis.append((1 / n) * pl.sum_horizontal(counts))
-    return phis
-
-
-def approximate_entropies(
-    x: TIME_SERIES_T,
-    filtering_levels: List[float],
-    run_length: int = 2,
-) -> List[float]:
+def approximate_entropy(
+    x: TIME_SERIES_T, run_length: int, filtering_level: float, scale_by_std: bool = True
+) -> float:
     """
     Approximate sample entropies of a time series given multiple filtering levels.
+    This only works for Series input right now.
 
     Parameters
     ----------
     x : pl.Expr | pl.Series
         Input time-series.
-    run_length : int, optional
-        Length of compared run of data.
-    filtering_levels : list of float, optional
-        Filtering levels, must be positive
+    run_length : int
+        Length of compared run of data. This is `m` in the wikipedia article.
+    filtering_level : float
+        Filtering level, must be positive. This is `r` in the wikipedia article.
+    scale_by_std : bool
+        Whether to scale filter level by std of data. In most applications, this is the default
+        behavior, but not in some other cases.
 
     Returns
     -------
-    list of float
+    float
     """
-    sigma = x.std()
-    rs = [sigma * r for r in filtering_levels]
-    N = x.len()
-    phis_m = _phis(x, m=run_length, N=N, rs=rs)
-    phis_m_plus_1 = _phis(x, m=run_length + 1, N=N, rs=rs)
-    return [phis_m[i] - phis_m_plus_1[i] for i in range(len(phis_m))]
+
+    if filtering_level <= 0:
+        raise ValueError("Filter level must be positive.")
+
+    if scale_by_std:
+        r = filtering_level * x.std()
+    else:
+        r = filtering_level
+
+    if isinstance(x, pl.Series):
+        if len(x) < run_length + 1:
+            return 0
+
+        frame = x.to_frame()
+        # Shared between phi_m and phi_m+1
+        data = frame.with_columns(
+            pl.col(x.name).shift(-i).alias(str(i)) for i in range(1, run_length + 1)
+        ).to_numpy()
+
+        n1 = len(x) - run_length + 1
+        data_m = data[:n1, :run_length]
+        # Computes phi. Let's not make it into a separate function until we know this will be reused.
+        tree = KDTree(data_m, leafsize=50)  # Can play with leafsize to fine tune perf
+        nb_in_radius: np.ndarray = tree.query_ball_point(
+            data_m, r, p=np.inf, workers=-1, return_length=True
+        )
+        phi_m = np.log(nb_in_radius / n1).sum() / n1
+
+        n2 = n1 - 1
+        data_mp1 = data[:n2, :]
+        # Compute phi
+        tree = KDTree(data_mp1, leafsize=50)
+        nb_in_radius: np.ndarray = tree.query_ball_point(
+            data_mp1, r, p=np.inf, workers=-1, return_length=True
+        )
+        phi_mp1 = np.log(nb_in_radius / n2).sum() / n2
+
+        return np.abs(phi_m - phi_mp1)
+    else:
+        return NotImplemented
 
 
-def augmented_dickey_fuller(x: pl.Series, n_lags: int) -> float:
+# An alias
+ApEn = approximate_entropy
+
+
+def augmented_dickey_fuller(x: TIME_SERIES_T, n_lags: int) -> float:
     """
-    Calculates the Augmented Dickey-Fuller (ADF) test statistic.
+    Calculates the Augmented Dickey-Fuller (ADF) test statistic. This only works for Series input right now.
 
     Parameters
     ----------
@@ -123,34 +153,28 @@ def augmented_dickey_fuller(x: pl.Series, n_lags: int) -> float:
     Returns
     -------
     float
-
-    Notes
-    -----
-    The ADF test is a statistical test used to determine whether a time series is stationary or not.
-    A stationary time series has constant statistical properties over time, such as constant mean and variance.
-
-    References
-    ----------
-    1. Dickey, D. A., & Fuller, W. A. (1979). Distribution of the estimators for autoregressive time series with a unit root. Journal of the American statistical association, 74(366a), 427-431.
-    2. MacKinnon, J. G. (1996). Numerical distribution functions for unit root and cointegration tests. Journal of applied econometrics, 11(6), 601-618.
     """
-
-    x_diff = x.diff()
-    k = x_diff.len()
-    X = np.vstack(
-        [
-            x.slice(n_lags),
-            np.asarray([x_diff.shift(i).slice(n_lags) for i in range(1, n_lags + 1)]),
-            np.ones(k - n_lags),
-        ]
-    ).T
-    y = x_diff.slice(n_lags).to_numpy(zero_copy_only=True)
-    coeffs, resids, _, _ = lstsq(X, y, rcond=None)
-    mse = bn.nansum(resids**2) / (k - X.shape[1])
-    x_arr = np.asarray(x).T, np.asarray(x)
-    cov = mse * np.linalg.inv(np.dot(x_arr.T, x))
-    stderrs = np.sqrt(np.diag(cov))
-    return coeffs[0] / stderrs[0]
+    if isinstance(x, pl.Series):
+        x_diff = x.diff()
+        k = x_diff.len()
+        X = np.vstack(
+            [
+                x.slice(n_lags),
+                np.asarray(
+                    [x_diff.shift(i).slice(n_lags) for i in range(1, n_lags + 1)]
+                ),
+                np.ones(k - n_lags),
+            ]
+        ).T
+        y = x_diff.slice(n_lags).to_numpy(zero_copy_only=True)
+        coeffs, resids, _, _ = lstsq(X, y, rcond=None)
+        mse = bn.nansum(resids**2) / (k - X.shape[1])
+        x_arr = np.asarray(x).T, np.asarray(x)
+        cov = mse * np.linalg.inv(np.dot(x_arr.T, x))
+        stderrs = np.sqrt(np.diag(cov))
+        return coeffs[0] / stderrs[0]
+    else:
+        return NotImplemented
 
 
 def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
@@ -168,32 +192,27 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
 
     Returns
     -------
-    float | None | Expr
+    float | Expr
         Autocorrelation at the given lag. Returns None, if lag is less than 0.
-
-    Notes
-    -----
-    - This function calculates the autocorrelation using https://en.wikipedia.org/wiki/Autocorrelation#Estimation
-    - If `lag` is 0, the autocorrelation is always 1.0, as it represents the correlation of the timeseries with itself.
     """
     if n_lags < 0:
-        return None
-
-    if n_lags == 0:
-        return pl.lit(1.0)
+        raise ValueError("Input `n_lags` must be >= 0")
+    elif n_lags == 0:
+        return 1.0
 
     return (
         x.shift(periods=-n_lags)
         .drop_nulls()
         .sub(x.mean())
         .dot(x.shift(periods=n_lags).drop_nulls().sub(x.mean()))
-        .truediv((x.count() - n_lags).mul(x.var(ddof=0)))
+        .truediv((x.len() - n_lags).mul(x.var(ddof=0)))
     )
 
 
-def autoregressive_coefficients(x: pl.Series, n_lags: int) -> List[float]:
+def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
     """
-    Computes coefficients for an AR(`n_lags`) process.
+    Computes coefficients for an AR(`n_lags`) process. This only works for Series input
+    right now.
 
     Parameters
     ----------
@@ -206,14 +225,27 @@ def autoregressive_coefficients(x: pl.Series, n_lags: int) -> List[float]:
     -------
     list of float
     """
-    X = np.vstack(
-        [
-            np.asarray([x.shift(i).slice(n_lags) for i in range(1, n_lags + 1)]),
-            np.ones(x.len() - n_lags),
-        ]
-    ).T
-    y = np.asarray(x.slice(n_lags))
-    return lstsq(X, y, rcond=None)[0]
+    if isinstance(x, pl.Series):
+        tail = len(x) - n_lags
+        data_x = x.to_frame().select(
+            *(
+                pl.col(x.name).shift(i).tail(tail).alias(str(i))
+                for i in range(1, n_lags + 1)
+            ),
+            pl.lit(1)
+        )  # This matrix generation is faster than v-stack.
+        y = x.tail(tail).to_numpy()
+        return slq.lstsq(data_x, y, overwrite_a=True, overwrite_b=True, cond=None)[0]
+        # If we use NumPy's lstsq, it doesn't work well with the format of the matrix generated
+        # like above. The original approach, np.vstack then transpose, seems to generate a matrix
+        # which works like magic with NumPy's lstsq. However, if we use SciPy's lstsq,
+        # both data_x like above, and the original matrix perform the same, and SciPy is just a few ms
+        # slower than NumPy. We get about 10% speed gain from the matrix generation using the approach
+        # above. So overall the above is faster.
+        # But why does the og NumPy's lstsq work so well with NumPy's vstack + transposed matrix?
+        # I suspect the `transpose` provides better cache hit rate.
+    else:
+        return NotImplemented
 
 
 _BENFORD_DIST_SERIES = (1 + 1 / pl.int_range(1, 10, eager=True)).log10()
@@ -222,7 +254,7 @@ _BENFORD_DIST_SERIES = (1 + 1 / pl.int_range(1, 10, eager=True)).log10()
 def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the correlation between the first digit distribution of the input time series and
-    the Newcomb-Benford's Law distribution [1][2].
+    the Newcomb-Benford's Law distribution.
 
     Parameters
     ----------
@@ -232,47 +264,31 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
     Returns
     -------
     float | Expr
-
-    Notes
-    -----
-    The Newcomb-Benford distribution for d that is the leading digit of the number {1, 2, 3, 4, 5, 6, 7, 8, 9} is given by:
-
-    .. math::
-
-        P(d) = \\log_{10}\\left(1 + \\frac{1}{d}\\right)
-
-    References
-    ----------
-    [1] Hill, T. P. (1995). A Statistical Derivation of the Significant-Digit Law. Statistical Science.
-    [2] Hill, T. P. (1995). The significant-digit phenomenon. The American Mathematical Monthly.
-    [3] Benford, F. (1938). The law of anomalous numbers. Proceedings of the American philosophical society.
-    [4] Newcomb, S. (1881). Note on the frequency of use of the different digits in natural numbers. American Journal of
-        mathematics.
     """
+    y = x.cast(pl.Utf8).str.strip_chars_start("-0.")
     if isinstance(x, pl.Series):
-        counts = x.cast(pl.Utf8).str.lstrip("-0.").filter(x != "").str.slice(0, 1).cast(
-            pl.UInt8
-        ).append(pl.int_range(1, 10, eager=False)).sort().value_counts().get_column(
-            "counts"
-        ) - pl.lit(
-            1.0
+        counts = (
+            y.filter(y != "")
+            .str.slice(0, 1)
+            .cast(pl.UInt8)
+            .append(pl.int_range(1, 10, eager=True, dtype=pl.UInt8))
+            .value_counts()
+            .sort(by=x.name)
+            .with_columns(pl.col("counts") - pl.lit(1))
+            .get_column("counts")
         )
-        return np.corrcoef(counts, _BENFORD_DIST_SERIES)
+        return np.corrcoef(counts, _BENFORD_DIST_SERIES)[0, 1]
     else:
-        counts = x.cast(pl.Utf8).str.lstrip("-0.").filter(x != "").str.slice(0, 1).cast(
-            pl.UInt8
-        ).append(pl.int_range(1, 10, eager=False)).sort().value_counts().struct.field(
-            "counts"
-        ) - pl.lit(
-            1
-        )
+        counts = y.filter(y != "").str.slice(0, 1).cast(pl.UInt8).append(
+            pl.int_range(1, 10, eager=False)
+        ).value_counts().sort().struct.field("counts") - pl.lit(1, dtype=pl.UInt32)
         return pl.corr(counts, pl.lit(_BENFORD_DIST_SERIES))
 
 
 def benford_correlation2(x: pl.Expr) -> pl.Expr:
     """
     Returns the correlation between the first digit distribution of the input time series and
-    the Newcomb-Benford's Law distribution [1][2]. This version may hit some float point precision
+    the Newcomb-Benford's Law distribution. This version may hit some float point precision
     issues for some rare numbers.
 
     Parameters
@@ -283,22 +299,6 @@ def benford_correlation2(x: pl.Expr) -> pl.Expr:
     Returns
     -------
     An expression for benford_correlation representing a float
-
-    Notes
-    -----
-    The Newcomb-Benford distribution for d that is the leading digit of the number {1, 2, 3, 4, 5, 6, 7, 8, 9} is given by:
-
-    .. math::
-
-        P(d) = \\log_{10}\\left(1 + \\frac{1}{d}\\right)
-
-    References
-    ----------
-    [1] Hill, T. P. (1995). A Statistical Derivation of the Significant-Digit Law. Statistical Science.
-    [2] Hill, T. P. (1995). The significant-digit phenomenon. The American Mathematical Monthly.
-    [3] Benford, F. (1938). The law of anomalous numbers. Proceedings of the American philosophical society.
-    [4] Newcomb, S. (1881). Note on the frequency of use of the different digits in natural numbers. American Journal of
-        mathematics.
     """
     counts = (
         # This part can be simplified once the log10(1000) precision issue is resolved.
@@ -309,8 +309,8 @@ def benford_correlation2(x: pl.Expr) -> pl.Expr:
         .drop_nulls()
         .cast(pl.UInt8)
         .append(pl.int_range(1, 10, eager=False))
-        .sort()
         .value_counts()
+        .sort()
         .struct.field("counts")
         - pl.lit(1)
     )
@@ -338,40 +338,19 @@ def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> FLOAT_EXPR:
         probs[probs == 0] = 1.0
         return -np.sum(probs * np.log(probs))
     else:
-        step_size = 1 / bin_count
-        breaks = np.linspace(step_size, stop=1 - step_size, num=bin_count - 1)
-        scaled_x = (x - x.min()) / (
-            x.max() - x.min()
-        )  # This step slows down the calculation
-        # Left closed because we want to micmic NumPy's histogram's behavior
         return (
-            scaled_x.cut(breaks, left_closed=True)
+            (x - x.min())
+            .floordiv(pl.lit(1e-12) + (x.max() - x.min()) / pl.lit(bin_count))
+            .drop_nulls()
             .value_counts()
             .struct.field("counts")
             .entropy()
-            .suffix("_binned_entropy")
         )
 
 
 def c3(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     """
     Measure of non-linearity in the time series using c3 statistics.
-
-    This function calculates the value of
-
-    .. math::
-
-        \\frac{1}{n-2lag} \\sum_{i=1}^{n-2lag} x_{i + 2 \\cdot lag} \\cdot x_{i + lag} \\cdot x_{i}
-
-    which is
-
-    .. math::
-
-        \\mathbb{E}[L^2(X) \\cdot L(X) \\cdot X]
-
-    where :math:`\\mathbb{E}` is the mean and :math:`L` is the lag operator.
-    It was proposed in [^1] as a measure of non linearity in the time series.
-
 
     Parameters
     ----------
@@ -383,17 +362,10 @@ def c3(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     Returns
     -------
     float | Expr
-
-    References
-    ----------
-    [1] Schreiber, T. and Schmitz, A. (1997). Discrimination power of measures for nonlinearity in a time series. PHYSICAL REVIEW E, VOLUME 55, NUMBER 5.
-
     """
     twice_lag = 2 * n_lags
     # Would potentially be faster if there is a pl.product_horizontal()
-    return (x * x.shift(n_lags) * x.shift(twice_lag)).sum() / (
-        x.count() - pl.lit(twice_lag)
-    )
+    return (x * x.shift(n_lags) * x.shift(twice_lag)).sum() / (x.len() - twice_lag)
 
 
 def change_quantiles(
@@ -440,10 +412,6 @@ def cid_ce(x: TIME_SERIES_T, normalize: bool = False) -> FLOAT_EXPR:
     A more complex time series has more peaks and valleys.
     This feature is calculated by:
 
-    .. math::
-
-        \\sqrt{ \\sum_{i=1}^{n-1} ( x_{i} - x_{i-1})^2 }
-
     Parameters
     ----------
     x : pl.Expr | pl.Series
@@ -454,17 +422,19 @@ def cid_ce(x: TIME_SERIES_T, normalize: bool = False) -> FLOAT_EXPR:
 
     Returns
     -------
-    float
-
-    References
-    ----------
-    [1] Batista, Gustavo EAPA, et al (2014).
-        CID: an efficient complexity-invariant distance for time series.
-        Data Mining and Knowledge Discovery 28.3 (2014): 634-669.
+    float | Expr
     """
     if normalize:
-        x = (x - x.mean()) / x.std()
-    return ((x - x.shift(-1)) ** 2).sum() ** (0.5)
+        y = (x - x.mean()) / x.std()
+    else:
+        y = x
+
+    if isinstance(x, pl.Series):
+        diff = np.diff(x)
+        return np.sqrt(np.dot(diff, diff))
+    else:
+        z = y - y.shift(-1)
+        return (z.dot(z)).sqrt()
 
 
 def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
@@ -482,8 +452,7 @@ def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    # x.filter(x >= threshold).count().truediv(x.count()).mul(100)
-    return (x >= threshold).sum().truediv(x.count()).mul(100)
+    return (x >= threshold).sum().truediv(x.len()).mul(100)
 
 
 def count_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
@@ -517,8 +486,7 @@ def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    # x.filter(x <= threshold).count().truediv(x.count()).mul(100)
-    return (x <= threshold).sum().truediv(x.count()).mul(100)
+    return (x <= threshold).sum().truediv(x.len()).mul(100)
 
 
 def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
@@ -534,7 +502,6 @@ def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    # x.filter(x < x.mean()).count()
     return (x < x.mean()).sum()
 
 
@@ -568,21 +535,6 @@ def cwt_coefficients(
     return coeffs
 
 
-# def _energy_ratio_series(x, n_chunks):
-#     n = len(x)
-#     chunk_size = len(x) // n_chunks
-#     y = x.pow(
-#         2
-#     )  # Vectorize better by squaring entire series at once, not for each chunk
-#     energy = np.array([y.slice(i, chunk_size).sum() for i in range(0, n, chunk_size)])
-#     full_energy = np.sum(
-#         energy
-#     )  # delay full energy computation until the end. Sum up partial sums
-#     ratio: np.ndarray = energy / full_energy
-#     return ratio.tolist()
-
-
-# We calculate all 1,2,3,...,n_chunk indexed statistics at once
 def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     """
     Calculates sum of squares over the whole series for `n_chunks` equally segmented parts of the time-series.
@@ -598,12 +550,13 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     -------
     list of float | Expr
     """
+    # Unlike Tsfresh,
+    # We calculate all 1,2,3,...,n_chunk at once
+    seg_sum = x.pow(2).reshape((n_chunks, -1)).list.sum()
     if isinstance(x, pl.Series):
-        seg_sum = x.pow(2).reshape((n_chunks, -1)).list.sum()
         return (seg_sum / seg_sum.sum()).to_list()
     else:
-        temp = x.pow(2).reshape((n_chunks, -1)).list.sum()
-        return (temp/temp.sum()).implode().suffix("_energy_ratio")
+        return (seg_sum / seg_sum.sum()).implode().suffix("_energy_ratio")
 
 
 def first_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -620,7 +573,7 @@ def first_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.arg_max() / x.len()
+    return (x == x.max()).arg_true().first() / x.len()
 
 
 def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -637,12 +590,12 @@ def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.arg_min() / x.len()
+    return (x == x.min()).arg_true().first() / x.len()
 
 
 def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
     """
-    Calculate the Fourier entropy of a time series.
+    Calculate the Fourier entropy of a time series. This only works for Series input right now.
 
     Parameters
     ----------
@@ -794,12 +747,7 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
 
 def large_standard_deviation(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
     """
-    Checks if the time-series has a large standard deviation.
-
-    True if:
-    .. math::
-
-        std(x) > r * (max(X)-min(X))
+    Checks if the time-series has a large standard deviation: `std(x) > r * (max(X)-min(X))`.
 
     As a heuristic, the standard deviation should be a forth of the range of the values.
 
@@ -833,7 +781,7 @@ def last_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x.len() - x.reverse().arg_max()) / x.len()
+    return (x == x.max()).arg_true().last() / x.len()
 
 
 def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -850,7 +798,7 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x.len() - x.reverse().arg_min()) / x.len()
+    return (x == x.min()).arg_true().last() / x.len()
 
 
 def lempel_ziv_complexity(x: pl.Series, n_bins: int) -> List[float]:
@@ -887,7 +835,7 @@ def lempel_ziv_complexity(x: pl.Series, n_bins: int) -> List[float]:
     return complexities
 
 
-def linear_trend(x: TIME_SERIES_T) -> Mapping[str, float]:
+def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
     """
     Compute the slope, intercept, and RSS of the linear trend.
 
@@ -898,18 +846,21 @@ def linear_trend(x: TIME_SERIES_T) -> Mapping[str, float]:
 
     Returns
     -------
-    Mapping | Expr
+    Mapping[str, float] | Expr
     """
-    x_range = pl.int_range(1, x.len() + 1)
-    beta = pl.cov(x, x_range) / x.var()
-    alpha = x.mean() - beta * x_range.mean()
-    resid = x - beta * x_range + alpha
-    rss = resid.pow(2).sum()
     if isinstance(x, pl.Series):
-        return {"slope": beta, "intercept": alpha, "rss": rss}
+        x_range = np.arange(start=1, stop=x.len() + 1)
+        beta = np.cov(x, x_range)[0, 1] / x.var()
+        alpha = x.mean() - beta * x_range.mean()
+        resid = x - beta * x_range + alpha
+        return {"slope": beta, "intercept": alpha, "rss": np.dot(resid, resid)}
     else:
-        return pl.Struct(
-            beta.alias("slope"), alpha.alias("intercept"), rss.alias("rss")
+        x_range = pl.int_range(1, x.len() + 1)
+        beta = pl.cov(x, x_range) / x.var()
+        alpha = x.mean() - beta * x_range.mean()
+        resid = x - beta * x_range + alpha
+        return pl.struct(
+            beta.alias("slope"), alpha.alias("intercept"), resid.dot(resid).alias("rss")
         )
 
 
@@ -929,7 +880,7 @@ def _get_length_sequences_where(x: TIME_SERIES_T) -> LIST_EXPR:
         If no ones or Trues contained, the list [0] is returned.
     """
     y = x.cast(pl.Int8).rle()
-    return y.filter(x.struct[1] == 1).struct[0]
+    return y.filter(y.struct.field("values") == 1).struct.field("lengths")
 
 
 def longest_strike_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
@@ -1016,15 +967,9 @@ def mean_n_absolute_max(x: TIME_SERIES_T, n_maxima: int) -> FLOAT_EXPR:
     return x.abs().top_k(n_maxima).mean().cast(pl.Float64)
 
 
-def mean_second_derivative_central(x: pl.Series) -> float:
+def mean_second_derivative_central(x: pl.Series) -> pl.Series:
     """
     Returns the mean value of a central approximation of the second derivative.
-
-    .. math::
-
-    \\frac{1}{2(n-2)} \\sum_{i=1}^{n-1} 0.5 (x_{i+2} - 2 x_{i+1} + x_i)
-
-    where n is the length of the time series x
 
     Parameters
     ----------
@@ -1033,9 +978,11 @@ def mean_second_derivative_central(x: pl.Series) -> float:
 
     Returns
     -------
-    float
+    pl.Series
     """
-    return (x[-1] - x[-2] - x[1] + x[0]) / (2 * (len(x) - 2))
+    return (
+        x.tail(2).diff(null_behavior="drop") - x.head(2).diff(null_behavior="drop")
+    ) / (2 * (x.len() - 2))
 
 
 def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> FLOAT_EXPR:
@@ -1175,14 +1122,13 @@ def number_peaks(x: TIME_SERIES_T, support: int) -> INT_EXPR:
     if isinstance(x, pl.Series):
         # Cheating by calling lazy... Series may or may not have a better implementation.
         frame = x.to_frame()
-        return frame.select(number_peaks(pl.col(x.name), support)).item(0,0)
+        return frame.select(number_peaks(pl.col(x.name), support)).item(0, 0)
     else:
-        return (
-            pl.all_horizontal(
-                ((x > x.shift(-i)) & (x > x.shift(i))).fill_null(False)
-                for i in range(1, support+1)
-            ).sum()
-        )
+        return pl.all_horizontal(
+            ((x > x.shift(-i)) & (x > x.shift(i))).fill_null(False)
+            for i in range(1, support + 1)
+        ).sum()
+
 
 def permutation_entropy(
     x: TIME_SERIES_T,
@@ -1216,29 +1162,29 @@ def permutation_entropy(
         # There might be short cuts if we use eager. So improve this later.
         frame = x.to_frame()
         expr = permutation_entropy(pl.col(x.name), tau=tau, n_dims=n_dims)
-        return frame.select(expr).item(0,0)
+        return frame.select(expr).item(0, 0)
     else:
-        out = (
-            (
+        return (
+            (  # create list columns
                 pl.concat_list(
-                    x, *(x.shift(-i) for i in range(1, n_dims))
-                )  # create list columns
-                .take_every(tau)  # take every tau
-                .filter(
-                    x.shift(max_shift).take_every(tau).is_not_null()
-                )  # This is a filter because length of df is unknown, might slow down perf
+                    x.take_every(tau),
+                    *(x.shift(-i).take_every(tau) for i in range(1, n_dims))
+                )
+                .filter(x.shift(max_shift).take_every(tau).is_not_null())
                 .list.eval(
-                    pl.element().rank(method="ordinal")
+                    pl.element().arg_sort()
                 )  # for each inner list, do an argsort
                 .value_counts()  # groupby and count, but returns a struct
                 .struct.field("counts")  # extract the field named "counts"
             )
-            .entropy(base=base, normalize=True)
-            .suffix("_permutation_entropy")
+            .entropy(normalize=True)
+            .suffix("_permutation_entropy2")
         )
-        return out
 
-def range_count(x: TIME_SERIES_T, lower: float, upper: float, closed:ClosedInterval="left") -> INT_EXPR:
+
+def range_count(
+    x: TIME_SERIES_T, lower: float, upper: float, closed: ClosedInterval = "left"
+) -> INT_EXPR:
     """
     Computes values of input expression that is between lower (inclusive) and upper (exclusive).
 
@@ -1283,7 +1229,7 @@ def ratio_beyond_r_sigma(x: TIME_SERIES_T, ratio: float = 0.25) -> FLOAT_EXPR:
         )
         .is_not()  # check for deprecation
         .sum()
-        / x.count()
+        / x.len()
     )
 
 
@@ -1317,14 +1263,15 @@ def root_mean_square(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    # This will be a little bit faster because x.count() is commonly used
-    # and we have a high chance of hitting CSE
-    return (x.dot(x) / x.count()).sqrt()
+    if isinstance(x, pl.Series):
+        return np.sqrt(np.dot(x, x) / len(x))
+    else:
+        return (x.dot(x) / x.count()).sqrt()
 
 
 def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
     name = x.name
-    n_rows = x.len() - m + 1
+    n_rows = len(x) - m + 1
     df = (
         x.to_frame()
         .select(
@@ -1339,6 +1286,7 @@ def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
 def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> FLOAT_EXPR:
     """
     Calculate the sample entropy of a time series.
+    This only works for Series input right now.
 
     Parameters
     ----------
@@ -1379,10 +1327,12 @@ def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> FLOAT_EXPR:
     )
     return np.log(b / a)  # -ln(a/b) = ln(b/a)
 
+
 # Need to improve the input arguments depending on use cases.
 def spkt_welch_density(x: TIME_SERIES_T, n_coeffs: Optional[int] = None) -> LIST_EXPR:
-    '''
+    """
     This estimates the cross power spectral density of the time series x at different frequencies.
+    This only works for Series input right now.
 
     Parameters
     ----------
@@ -1391,16 +1341,21 @@ def spkt_welch_density(x: TIME_SERIES_T, n_coeffs: Optional[int] = None) -> LIST
     n_coeffs : Optional[int]
         The number of coefficients you want to take. If none, will take all, which will be a list
         as long as the input time series.
-    '''
+
+    Returns
+    -------
+    list of floats
+    """
     if isinstance(x, pl.Series):
         if n_coeffs is None:
             last_idx = len(x)
         else:
             last_idx = n_coeffs
         _, pxx = welch(x, nperseg=min(len(x), 256))
-        return pxx[: last_idx]
+        return pxx[:last_idx]
     else:
         return NotImplemented
+
 
 # Originally named: `sum_of_reoccurring_data_points`
 def sum_reocurring_points(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1432,8 +1387,7 @@ def sum_reocurring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     For example, `sum_reocurring_values(pl.Series([2, 2, 2, 2, 1]))` returns 2, as 2 is a reoccurring value, so it is
     summed up with all other reoccuring values (there is none), so the result is 2.
 
-    This is in contrast to the `sum_reocurring_points` function, where each reoccuring value is only counted as often
-    as it is present in the data.
+    This is in contrast to the `sum_reocurring_points` function, where each reoccuring value is only counted as often as it is present in the data.
 
     Parameters
     ----------
@@ -1451,11 +1405,7 @@ def symmetry_looking(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
     """
     Check if the distribution of x looks symmetric.
 
-    A distribution is considered symmetric if:
-
-    .. math::
-
-    | mean(X)-median(X) | < ratio * (max(X)-min(X))
+    A distribution is considered symmetric if: `| mean(X)-median(X) | < ratio * (max(X)-min(X))`
 
     Parameters
     ----------
@@ -1468,7 +1418,11 @@ def symmetry_looking(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
     -------
     bool | Expr
     """
-    mean_median_difference = (x.mean() - x.median()).abs()
+    if isinstance(x, pl.Series):
+        mean_median_difference = np.abs(x.mean() - x.median())
+    else:
+        mean_median_difference = (x.mean() - x.median()).abs()
+
     max_min_difference = x.max() - x.min()
     return mean_median_difference < ratio * max_min_difference
 
@@ -1476,21 +1430,6 @@ def symmetry_looking(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
 def time_reversal_asymmetry_statistic(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     """
     Returns the time reversal asymmetry statistic.
-
-    This function calculates the value of:
-
-    .. math::
-
-        \\frac{1}{n-2lag} \\sum_{i=1}^{n-2lag} x_{i + 2 \\cdot lag}^2 \\cdot x_{i + lag} - x_{i + lag} \\cdot  x_{i}^2
-
-    which is
-
-    .. math::
-
-        \\mathbb{E}[L^2(X)^2 \\cdot L(X) - L(X) \\cdot X^2]
-
-    where :math:`\\mathbb{E}` is the mean and :math:`L` is the lag operator. It was proposed in [1] as a
-    promising feature to extract from time series.
 
     Parameters
     ----------
@@ -1502,15 +1441,10 @@ def time_reversal_asymmetry_statistic(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EX
     Returns
     -------
     float | Expr
-
-    References
-    ----------
-    [1] Fulcher, B.D., Jones, N.S. (2014). Highly comparative feature-based time-series classification.
-        Knowledge and Data Engineering, IEEE Transactions on 26, 3026–3037.
     """
     one_lag = x.shift(-n_lags)
     two_lag = x.shift(-2 * n_lags)
-    return (one_lag * (two_lag.pow(2) - x.pow(2))).head(x.count() - 2 * n_lags).mean()
+    return (one_lag * (two_lag.pow(2) - x.pow(2))).head(x.len() - 2 * n_lags).mean()
 
 
 def variation_coefficient(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1529,20 +1463,68 @@ def variation_coefficient(x: TIME_SERIES_T) -> FLOAT_EXPR:
     return x.std() / x.mean()
 
 
+def var_gt_std(x: TIME_SERIES_T, ddof: int = 1) -> BOOL_EXPR:
+    """
+    Is the variance >= std? In other words, is var >= 1?
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+    ddof : int
+        Delta Degrees of Freedom used when computing var/std.
+
+    Returns
+    -------
+    bool | Expr
+    """
+    return x.var(ddof=ddof) >= 1
+
+
 def harmonic_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the harmonic mean of the expression
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+
+    Returns
+    -------
+    float | Expr
     """
-    return x.count() / (pl.lit(1.0) / x).sum()
+    return x.len() / (pl.lit(1.0) / x).sum()
 
 
 # FFT Features
 
 
-def fft_coefficients(x: TIME_SERIES_T) -> Mapping[str, List[float]]:
+def fft_coefficients(x: TIME_SERIES_T) -> MAP_LIST_EXPR:
     """
     Calculates Fourier coefficients and phase angles of the the 1-D discrete Fourier Transform.
+    This only works for Series input right now.
 
-    This function uses the `rustfft` Rust crate via pyo3-polars.
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+    n_threads : int
+        Number of threads to use.
+        If None, uses all threads available. Defaults to None.
+
+    Returns
+    -------
+    dict of list of floats | Expr
     """
-    pass
+
+    fft = np.fft.rfft(x.to_numpy(zero_copy_only=True))
+    real = fft.real
+    imag = fft.imag
+    angle = np.arctan2(real, imag)
+    deg_angle = angle * 180 / np.pi
+    return {
+        "real": fft.real.tolist(),
+        "imag": fft.imag.tolist(),
+        "angle": deg_angle.tolist(),
+    }
