@@ -639,7 +639,7 @@ class FeatureLibrary:
         -------
         An expression of the output
         """
-        return f.var_gt_std(self._expr)
+        return f.var_gt_std(self._expr, ddof)
 
     def harmonic_mean(self) -> pl.Expr:
         """
