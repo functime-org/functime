@@ -457,7 +457,7 @@ def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x >= threshold).sum().truediv(x.len()).mul(100)
+    return 100 * (x >= threshold).sum() / x.len()
 
 
 def count_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
@@ -491,7 +491,7 @@ def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x <= threshold).sum().truediv(x.len()).mul(100)
+    return 100 * (x <= threshold).sum() / x.len()
 
 def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
@@ -576,7 +576,7 @@ def first_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x == x.max()).arg_true().first() / x.len()
+    return x.arg_max() / x.len()
 
 
 def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -593,7 +593,7 @@ def first_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x == x.min()).arg_true().first() / x.len()
+    return x.arg_min() / x.len()
 
 
 def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
@@ -723,8 +723,8 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     x_abs = x.abs()
     x_sum = x.sum()
     n = x.len()
-    mass_center = x_abs.cumsum() / x_sum
-    return ((mass_center >= q) + 1).arg_max() / n
+    idx = (x_abs.cumsum() >= q * x_sum).arg_max()
+    return (idx + 1) / n
 
 
 def large_standard_deviation(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
@@ -762,7 +762,7 @@ def last_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x == x.max()).arg_true().last() / x.len()
+    return 1.0 - x.reverse().arg_max()/x.len()
 
 
 def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -779,7 +779,7 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return (x == x.min()).arg_true().last() / x.len()
+    return 1.0 - x.reverse().arg_min()/x.len()
 
 
 def lempel_ziv_complexity(x: pl.Series, n_bins: int) -> List[float]:
