@@ -198,27 +198,12 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     elif n_lags == 0:
         return 1.0
 
-    if isinstance(x, pl.Series):
-        y = x.drop_nulls()
-        y_mean = y.mean()
-        return (
-            (
-                (y.shift(periods=-n_lags).drop_nulls() - y_mean).dot(
-                    y.shift(periods=n_lags).drop_nulls() - y_mean
-                )
-            )
-            / ((y.len() - n_lags) * (y.var(ddof=0)))
-        )
-
-    else:
-        y = x.drop_nulls()
-        return (
-            y.shift(periods=-n_lags)
-            .drop_nulls()
-            .sub(y.mean())
-            .dot(y.shift(periods=n_lags).drop_nulls().sub(y.mean()))
-            .truediv((y.count() - n_lags).mul(y.var(ddof=0)))
-        )
+    mean = x.mean()
+    var = x.var(ddof=0)
+    range_ = x.len() - n_lags
+    y1 = x.slice(0, length=range_) - mean
+    y2 = x.slice(n_lags, length=None) - mean 
+    return y1.dot(y2) / (var * range_)
 
 
 def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
