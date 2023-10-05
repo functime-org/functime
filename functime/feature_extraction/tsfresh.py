@@ -197,7 +197,7 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
         raise ValueError("Input `n_lags` must be >= 0")
     elif n_lags == 0:
         return 1.0
-
+    
     mean = x.mean()
     var = x.var(ddof=0)
     range_ = x.len() - n_lags
