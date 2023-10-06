@@ -357,13 +357,14 @@ def c3(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     # Would potentially be faster if there is a pl.product_horizontal()
     return (x * x.shift(n_lags) * x.shift(twice_lag)).sum() / (x.len() - twice_lag)
 
-
 def change_quantiles(
     x: TIME_SERIES_T, q_low: float, q_high: float, is_abs: bool
 ) -> LIST_EXPR:
     """
     First fixes a corridor given by the quantiles ql and qh of the distribution of x.
-    Then calculates the average, absolute value of consecutive changes of the series x inside this corridor.
+    It will return a list of changes coming from consecutive values that both lie within
+    the quantile range. The user may optionally get abssolute value of the changes, and
+    compute stats from these changes. If q_low >= q_high, it will return null.
 
     Parameters
     ----------
@@ -380,19 +381,25 @@ def change_quantiles(
     -------
     list of float | Expr
     """
-    if q_high <= q_low:
-        return 0.0
+    if isinstance(x, pl.Series):
+        frame = x.to_frame()
+        return frame.select(change_quantiles(pl.col(x.name), q_low, q_high, is_abs)).item(0,0)
+    else:
+        if q_high <= q_low:
+            return None
 
-    # Use linear to conform to NumPy
-    y = x.is_between(
-        x.quantile(q_low, interpolation="linear"),
-        x.quantile(q_high, interpolation="linear"),
-    )
-    expr = x.filter(pl.all_horizontal(y, y.shift_and_fill(False, periods=-1))).diff()
-    if is_abs:
-        expr = expr.abs()
+        # Use linear to conform to NumPy
+        y = x.is_between(
+            x.quantile(q_low, "linear"),
+            x.quantile(q_high, "linear"),
+        )
+        # I tested again, pl.all_horizontal is slightly faster than 
+        # pl.all_horizontal(y, y.shift_and_fill(False, periods=1))
+        expr = x.diff().filter(pl.all_horizontal(y, y.shift_and_fill(False, periods=1)))
+        if is_abs:
+            expr = expr.abs()
 
-    return expr.implode()
+        return expr.implode()
 
 
 def cid_ce(x: TIME_SERIES_T, normalize: bool = False) -> FLOAT_EXPR:
