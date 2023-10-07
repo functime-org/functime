@@ -12,6 +12,7 @@ from scipy.spatial import KDTree
 
 TIME_SERIES_T = Union[pl.Series, pl.Expr]
 FLOAT_EXPR = Union[float, pl.Expr]
+FLOAT_INT_EXPR = Union[int, float, pl.Expr]
 INT_EXPR = Union[int, pl.Expr]
 LIST_EXPR = Union[list, pl.Expr]
 BOOL_EXPR = Union[bool, pl.Expr]
@@ -1316,7 +1317,7 @@ def spkt_welch_density(x: TIME_SERIES_T, n_coeffs: Optional[int] = None) -> LIST
 
 
 # Originally named: `sum_of_reoccurring_data_points`
-def sum_reocurring_points(x: TIME_SERIES_T) -> FLOAT_EXPR:
+def sum_reocurring_points(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Returns the sum of all data points that are present in the time series more than once.
 
