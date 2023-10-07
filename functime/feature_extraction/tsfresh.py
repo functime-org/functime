@@ -1420,7 +1420,7 @@ def variation_coefficient(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.std() / x.mean()
+    return x.std(ddof=0) / x.mean()
 
 
 def var_gt_std(x: TIME_SERIES_T, ddof: int = 1) -> BOOL_EXPR:
