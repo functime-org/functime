@@ -1189,7 +1189,7 @@ def ratio_beyond_r_sigma(x: TIME_SERIES_T, ratio: float = 0.25) -> FLOAT_EXPR:
             x.mean() + pl.lit(ratio) * x.std(),
             closed="both",
         )
-        .is_not()  # check for deprecation
+        .not_()  # check for deprecation
         .sum()
         / x.len()
     )
