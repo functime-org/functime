@@ -1334,7 +1334,7 @@ def sum_reocurring_points(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.filter(~x.is_unique()).sum().cast(pl.Float64)
+    return x.filter(~x.is_unique()).sum()
 
 
 # Originally named: `sum_of_reoccurring_values`
