@@ -1339,7 +1339,7 @@ def sum_reocurring_points(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
 
 
 # Originally named: `sum_of_reoccurring_values`
-def sum_reocurring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
+def sum_reocurring_values(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Returns the sum of all values that are present in the time series more than once.
 
@@ -1358,7 +1358,7 @@ def sum_reocurring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.filter(~x.is_unique()).unique().sum().cast(pl.Float64)
+    return x.filter(~x.is_unique()).unique().sum()
 
 
 def symmetry_looking(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
