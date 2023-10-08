@@ -20,7 +20,7 @@ MAP_EXPR = Union[Mapping[str, float], pl.Expr]
 MAP_LIST_EXPR = Union[Mapping[str, List[float]], pl.Expr]
 
 
-def absolute_energy(x: TIME_SERIES_T) -> FLOAT_EXPR:
+def absolute_energy(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Compute the absolute energy of a time series.
 
@@ -35,7 +35,7 @@ def absolute_energy(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     return x.dot(x)
 
-def absolute_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
+def absolute_maximum(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Compute the absolute maximum of a time series.
 
@@ -49,12 +49,12 @@ def absolute_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     float | Expr
     """
     if isinstance(x, pl.Series):
-        return np.max(np.abs([x.min(), x.max()]))
+        return x.abs().max()
     else:
         return pl.max_horizontal(x.min().abs(), x.max().abs())
 
 
-def absolute_sum_of_changes(x: TIME_SERIES_T) -> FLOAT_EXPR:
+def absolute_sum_of_changes(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Compute the absolute sum of changes of a time series.
 

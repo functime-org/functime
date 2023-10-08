@@ -5,6 +5,9 @@ from polars.testing import assert_frame_equal, assert_series_equal
 
 # percent_recoccuring_values,
 from functime.feature_extraction.tsfresh import (
+    absolute_energy,
+    absolute_maximum,
+    absolute_sum_of_changes,
     benford_correlation,
     longest_strike_above_mean,
     longest_strike_below_mean,
@@ -21,6 +24,83 @@ from functime.feature_extraction.tsfresh import (
 )
 
 np.random.seed(42)
+
+@pytest.mark.parametrize("S, res", [
+    ([-5, 0, 1], [3]),
+    ([0], [14]),
+    ([-1, 2, -3], [14]),
+    ([-1, 1.3], [2.6900000000000004]),
+    ([1], [1])
+])
+def test_abolute_energy(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            absolute_energy(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            absolute_energy(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert absolute_energy(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res", [
+    ([-5, 0, 1], [5]),
+    ([0], [0]),
+    ([-1.0, 2.0, -3.0], [3.0]),
+])
+def test_absolute_maximum(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            absolute_maximum(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("max", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            absolute_maximum(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("max", res))
+    )
+    assert absolute_maximum(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 1, 1, 1, 2, 1], [2]),
+    ([1.4, -1.3, 1.7, -1.2], [8.6]),
+    ([1], [0])
+])
+def test_absolute_sum_of_changes(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            absolute_sum_of_changes(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            absolute_sum_of_changes(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert absolute_sum_of_changes(pl.Series(S)) == res[0]
+
 
 
 def test_benford_correlation():
