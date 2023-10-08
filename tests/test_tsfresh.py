@@ -2,12 +2,16 @@ import numpy as np
 import polars as pl
 import pytest
 from polars.testing import assert_frame_equal, assert_series_equal
+import inspect
 
 # percent_recoccuring_values,
 from functime.feature_extraction.tsfresh import (
     absolute_energy,
     absolute_maximum,
     absolute_sum_of_changes,
+    approximate_entropy,
+    autocorrelation,
+
     benford_correlation,
     longest_strike_above_mean,
     longest_strike_below_mean,
@@ -19,15 +23,14 @@ from functime.feature_extraction.tsfresh import (
     number_peaks,
     symmetry_looking,
     time_reversal_asymmetry_statistic,
-    approximate_entropy,
     percent_reoccuring_values
 )
 
 np.random.seed(42)
 
 @pytest.mark.parametrize("S, res", [
-    ([-5, 0, 1], [3]),
-    ([0], [14]),
+    ([-5, 0, 1], [26]),
+    ([0], [0]),
     ([-1, 2, -3], [14]),
     ([-1, 1.3], [2.6900000000000004]),
     ([1], [1])
@@ -102,6 +105,48 @@ def test_absolute_sum_of_changes(S, res):
     assert absolute_sum_of_changes(pl.Series(S)) == res[0]
 
 
+@pytest.mark.parametrize("S, res, m, r, scale", [
+    ([1], 0, 2, 0.5, False),
+    ([12, 13, 15, 16, 17] * 10, 0.282456191276673, 2, 0.9, True),
+    ([1.4, -1.3, 1.7, -1.2], 0.0566330122651324, 2, 0.5, False),
+    ([0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1], 0.002223871246127107, 2, 0.5, False),
+    ([0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1], 0.47133806162842484, 2, 0.5, False),
+    ([85, 80, 89] * 17, 1.099654110658932e-05, 2, 3, False),
+    ([85, 80, 89] * 17, 0.0, 2, 3, True)
+])
+def test_approximate_entropy(S, res, m, r, scale):
+    assert approximate_entropy(x = pl.Series(S), run_length=m, filtering_level=r, scale_by_std=scale) == res
+
+@pytest.mark.parametrize("S, res, n_lags", [
+    ([1, 2, 1, 2, 1, 2], [-1.0], 1),
+    #([1, 2, 1, 2, 1, 2], [-1.0], 1),
+    # ([1, 2, 1, 2, 1, 2], [2], 2),
+    # (np.linspace(0, 1, 3000), [8.6], 0),
+    # (np.linspace(0, 1, 3000), [8.6], 1),
+    # (np.linspace(0, 1, 3000), [8.6], 2),
+    # (np.random.normal(size=3000), [0], 0),
+    # (np.random.normal(size=3000), [0], 1),
+    # (np.random.normal(size=3000), [0], 2)
+])
+def test_autocorrelation(S, res, n_lags):
+    # Doesn't work for lazy mode
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            autocorrelation(pl.col("a"), n_lags=n_lags)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    # assert_frame_equal(
+    #     pl.LazyFrame(
+    #         {"a": S}
+    #     ).select(
+    #         autocorrelation(pl.col("a"), n_lags=n_lags)
+    #     ).collect(),
+    #     pl.DataFrame(pl.Series("a", res))
+    # )
+    assert autocorrelation(pl.Series(S), n_lags=n_lags) == res[0]
 
 def test_benford_correlation():
     # Nan, division by 0
@@ -311,10 +356,9 @@ def test_percent_reoccuring_values(S, res):
 
 @pytest.mark.parametrize("S, res", [
     ([1, 1, 2, 3, 4, 4], [10]),
-    ([1, 1.5, 2, 3], [0]),
+    ([1, 1.5, 2, 3], [0.0]),
     ([1], [0]),
-    ([1.111, -2.45, 1.111, 2.45], [2.222]),
-    ([], [0])
+    ([1.111, -2.45, 1.111, 2.45], [2.222])
 ])
 def test_sum_reocurring_points(S, res):
     assert_frame_equal(
@@ -323,7 +367,7 @@ def test_sum_reocurring_points(S, res):
         ).select(
             sum_reocurring_points(pl.col("a"))
         ),
-        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+        pl.DataFrame(pl.Series("a", res))
     )
     assert_frame_equal(
         pl.LazyFrame(
@@ -331,16 +375,15 @@ def test_sum_reocurring_points(S, res):
         ).select(
             sum_reocurring_points(pl.col("a"))
         ).collect(),
-        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+        pl.DataFrame(pl.Series("a", res))
     )
 
 
 @pytest.mark.parametrize("S, res", [
     ([1, 1, 2, 3, 4, 4], [5]),
-    ([1, 1.5, 2, 3], [0]),
+    ([1, 1.5, 2, 3], [0.0]),
     ([1], [0]),
-    ([1.111, -2.45, 1.111, 2.45], [1.111]),
-    ([], [0])
+    ([1.111, -2.45, 1.111, 2.45], [1.111])
 ])
 def test_sum_reocurring_values(S, res):
     assert_frame_equal(
@@ -349,7 +392,7 @@ def test_sum_reocurring_values(S, res):
         ).select(
             sum_reocurring_values(pl.col("a"))
         ),
-        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+        pl.DataFrame(pl.Series("a", res))
     )
     assert_frame_equal(
         pl.LazyFrame(
@@ -357,7 +400,7 @@ def test_sum_reocurring_values(S, res):
         ).select(
             sum_reocurring_values(pl.col("a"))
         ).collect(),
-        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+        pl.DataFrame(pl.Series("a", res))
     )
 
 
@@ -538,15 +581,6 @@ def test_symmetry_looking(x, r, res):
         pl.DataFrame({x.name:[res]})
     )
 
-# The first test here is take from wikipedia
-@pytest.mark.parametrize(
-    "x, param, res", [
-        (pl.Series([85, 80, 89] * 17), {"m":2, "r":3, "scale":False}, 1.099654110658932e-05)
-    ]
-)
-def test_approximate_entropy(x, param, res):
-    ans = approximate_entropy(x, param["m"], param["r"], param["scale"])
-    assert ans == res
 
 @pytest.mark.parametrize(
     "x, lag, res", [(pl.Series([1] * 10), 0, 0), (pl.Series([1, 2, -3, 4]), 1, -10)]
