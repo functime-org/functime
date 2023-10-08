@@ -119,14 +119,10 @@ def test_approximate_entropy(S, res, m, r, scale):
 
 @pytest.mark.parametrize("S, res, n_lags", [
     ([1, 2, 1, 2, 1, 2], [-1.0], 1),
-    #([1, 2, 1, 2, 1, 2], [-1.0], 1),
-    # ([1, 2, 1, 2, 1, 2], [2], 2),
-    # (np.linspace(0, 1, 3000), [8.6], 0),
-    # (np.linspace(0, 1, 3000), [8.6], 1),
-    # (np.linspace(0, 1, 3000), [8.6], 2),
-    # (np.random.normal(size=3000), [0], 0),
-    # (np.random.normal(size=3000), [0], 1),
-    # (np.random.normal(size=3000), [0], 2)
+    ([1, 2, 1, 2, 1, 2], [1.0], 2),
+    ([1, 2, 1, 2, 1, 2], [1.0], 4),
+    ([0, 1, 2, 0, 1, 2], [-0.75], 2),
+    ([1, 2, 1, 2, 1, 2], [1.0], 0)
 ])
 def test_autocorrelation(S, res, n_lags):
     # Doesn't work for lazy mode
