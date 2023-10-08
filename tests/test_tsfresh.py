@@ -241,7 +241,7 @@ def test_sum_reocurring_points(S, res):
         pl.DataFrame(
             {"a": S}
         ).select(
-            sum_reocurring_points(pl.col("a"))
+            sum_reocurring_points(pl.col("a")).cast(pl.Float64)
         ),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
     )
@@ -249,7 +249,7 @@ def test_sum_reocurring_points(S, res):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            sum_reocurring_points(pl.col("a"))
+            sum_reocurring_points(pl.col("a")).cast(pl.Float64)
         ).collect(),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
     )
@@ -267,7 +267,7 @@ def test_sum_reocurring_values(S, res):
         pl.DataFrame(
             {"a": S}
         ).select(
-            sum_reocurring_values(pl.col("a"))
+            sum_reocurring_values(pl.col("a")).cast(pl.Float64)
         ),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
     )
@@ -275,7 +275,7 @@ def test_sum_reocurring_values(S, res):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            sum_reocurring_values(pl.col("a"))
+            sum_reocurring_values(pl.col("a")).cast(pl.Float64)
         ).collect(),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
     )
