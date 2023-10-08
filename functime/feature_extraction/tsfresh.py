@@ -354,8 +354,14 @@ def c3(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     float | Expr
     """
     twice_lag = 2 * n_lags
+    if isinstance(x, pl.Series):
+        if twice_lag >= x.len():
+            return np.nan
+        else:
+            return (x * x.shift(n_lags) * x.shift(twice_lag)).sum() / (x.len() - twice_lag)
+    else:
     # Would potentially be faster if there is a pl.product_horizontal()
-    return (x * x.shift(n_lags) * x.shift(twice_lag)).sum() / (x.len() - twice_lag)
+        return ((x.mul(x.shift(n_lags)).mul(x.shift(twice_lag))).sum()).truediv((x.len() - twice_lag))
 
 def change_quantiles(
     x: TIME_SERIES_T, q_low: float, q_high: float, is_abs: bool

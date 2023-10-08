@@ -11,8 +11,10 @@ from functime.feature_extraction.tsfresh import (
     absolute_sum_of_changes,
     approximate_entropy,
     autocorrelation,
-
+    autoregressive_coefficients,
+    binned_entropy,
     benford_correlation,
+    c3,
     longest_strike_above_mean,
     longest_strike_below_mean,
     mean_n_absolute_max,
@@ -143,6 +145,80 @@ def test_autocorrelation(S, res, n_lags):
     #     pl.DataFrame(pl.Series("a", res))
     # )
     assert autocorrelation(pl.Series(S), n_lags=n_lags) == res[0]
+
+@pytest.mark.parametrize("S, res, bin_count", [
+    ([10] * 100, [-0.0], 10),
+    ([10] * 10 + [1], [0.30463609734923813], 10),
+    (list(range(10)), [2.302585092994046], 100)
+])
+def test_binned_entropy(S, res, bin_count):
+    # Doesn't work for lazy mode
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            binned_entropy(pl.col("a"), bin_count=bin_count)
+        ),
+        pl.DataFrame(pl.Series("counts", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            binned_entropy(pl.col("a"), bin_count=bin_count)
+        ).collect(),
+        pl.DataFrame(pl.Series("counts", res))
+    )
+    assert binned_entropy(pl.Series(S), bin_count=bin_count) == res[0]
+
+@pytest.mark.parametrize("S, res, n_lags", [
+    ([1, 2, -3, 4], [-15.0], 1),
+    ([1]*10, [1.0], 1),
+    ([1]*10, [1.0], 2),
+    ([1]*10, [1.0], 3)
+])
+def test_c3(S, res, n_lags):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            c3(pl.col("a"), n_lags=n_lags)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            c3(pl.col("a"), n_lags=n_lags)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert c3(pl.Series(S), n_lags=n_lags) == res[0]
+
+@pytest.mark.parametrize("S, res, n_lags", [
+    ([1, 2, -3, 4], [np.nan], 2),
+    ([1, 2, -3, 4], [0.0], 3)
+])
+def test_c3_not_define(S, res, n_lags):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            c3(pl.col("a"), n_lags=n_lags)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            c3(pl.col("a"), n_lags=n_lags)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert np.isnan(c3(pl.Series(S), n_lags=n_lags))
+
 
 def test_benford_correlation():
     # Nan, division by 0
