@@ -17,7 +17,8 @@ from functime.feature_extraction.tsfresh import (
     symmetry_looking,
     time_reversal_asymmetry_statistic,
     approximate_entropy,
-    percent_reoccuring_values
+    percent_reoccuring_values,
+    lempel_ziv_complexity
 )
 
 np.random.seed(42)
@@ -473,3 +474,13 @@ def test_approximate_entropy(x, param, res):
 )
 def test_time_reversal_asymmetry_statistic(x, lag, res):
     assert time_reversal_asymmetry_statistic(x, lag) == res
+
+
+
+def test_lempel_ziv_complexity():
+    a = pl.Series([1,0,0,1,1,1,1,0,1,1,0,0,0,0,1,0])
+    assert lempel_ziv_complexity(a, value = 0) * len(a) == 8
+    a = pl.Series([1,0,0,1,1,1,1,0,1,1,0,0,0,0,1,0,0,0,0,0,1,0])
+    assert lempel_ziv_complexity(a, value = 0) * len(a) == 9
+    a = pl.Series([1,0,0,1,1,1,1,0,1,1,0,0,0,0,1,0,0,0,0,0,1,0,1,0])
+    assert lempel_ziv_complexity(a, value = 0) * len(a) == 10
