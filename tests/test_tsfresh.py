@@ -5,7 +5,6 @@ from polars.testing import assert_frame_equal, assert_series_equal
 
 # percent_recoccuring_values,
 from functime.feature_extraction.tsfresh import (
-    _get_length_sequences_where,
     benford_correlation,
     longest_strike_above_mean,
     longest_strike_below_mean,
@@ -89,38 +88,6 @@ def test_benford_correlation():
     )
 
 @pytest.mark.parametrize("S, res", [
-    (
-        [0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1],
-        [1, 3, 1, 2]
-    ),
-    (
-        [0, True, 0, 0, True, True, True, 0, 0, True, 0, True, True],
-        [1, 3, 1, 2]
-    ),
-    (
-        [0, True, 0, 0, 1, True, 1, 0, 0, True, 0, 1, True],
-        [1, 3, 1, 2]
-    )
-])
-def test__get_length_sequences_where(S, res):
-    assert_frame_equal(
-        pl.DataFrame(
-            {"a": S}
-        ).select(
-            _get_length_sequences_where(pl.col("a"))
-        ),
-        pl.DataFrame(pl.Series("lengths", res, dtype=pl.Int32))
-    )
-    assert_frame_equal(
-        pl.LazyFrame(
-            {"a": S}
-        ).select(
-            _get_length_sequences_where(pl.col("a"))
-        ).collect(),
-        pl.DataFrame(pl.Series("lengths", res, dtype=pl.Int32))
-    )
-
-@pytest.mark.parametrize("S, res", [
     ([1, 2, 1, 1, 1, 2, 2, 2], [3]),
     ([1, 2, 3, 4, 5, 6], [3]),
     ([1, 2, 3, 4, 5], [2]),
@@ -133,7 +100,7 @@ def test_longest_strike_below_mean(S, res):
         pl.DataFrame(
             {"a": S}
         ).select(
-            longest_strike_below_mean(pl.col("a"))
+            longest_strike_below_mean(pl.col("a")).alias("lengths")
         ),
         pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
     )
@@ -141,7 +108,7 @@ def test_longest_strike_below_mean(S, res):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            longest_strike_below_mean(pl.col("a"))
+            longest_strike_below_mean(pl.col("a")).alias("lengths")
         ).collect(),
         pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
     )
@@ -160,7 +127,7 @@ def test_longest_strike_above_mean(S, res):
         pl.DataFrame(
             {"a": S}
         ).select(
-            longest_strike_above_mean(pl.col("a"))
+            longest_strike_above_mean(pl.col("a")).alias("lengths")
         ),
         pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
     )
@@ -168,7 +135,7 @@ def test_longest_strike_above_mean(S, res):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            longest_strike_above_mean(pl.col("a"))
+            longest_strike_above_mean(pl.col("a")).alias("lengths")
         ).collect(),
         pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
     )
@@ -185,7 +152,7 @@ def test_mean_n_absolute_max(S, n_max, res):
         pl.DataFrame(
             {"a": S}
         ).select(
-            mean_n_absolute_max(pl.col("a"), n_maxima=n_max)
+            mean_n_absolute_max(pl.col("a"), n_maxima=n_max).cast(pl.Float64)
         ),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
     )
@@ -193,7 +160,7 @@ def test_mean_n_absolute_max(S, n_max, res):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            mean_n_absolute_max(pl.col("a"), n_maxima=n_max)
+            mean_n_absolute_max(pl.col("a"), n_maxima=n_max).cast(pl.Float64)
         ).collect(),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
     )
