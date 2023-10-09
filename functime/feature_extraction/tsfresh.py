@@ -788,38 +788,54 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     return 1.0 - x.reverse().arg_min()/x.len()
 
 
-def lempel_ziv_complexity(x: pl.Series, n_bins: int) -> List[float]:
+def lempel_ziv_complexity(x: TIME_SERIES_T, threshold: Union[float, pl.Expr]) -> FLOAT_EXPR:
     """
-    Calculate a complexity estimate based on the Lempel-Ziv compression algorithm.
+    Calculate a complexity estimate based on the Lempel-Ziv compression algorithm. The
+    implementation here is currently taken from Lilian Besson. See the reference section 
+    below. Instead of return the complexity value, we return a ratio w.r.t the length of
+    the input series.
 
     Parameters
     ----------
     x : pl.Expr | pl.Series
         Input time-series.
-    n_bins : int
-        An integer specifying the number of bins to use for discretizing the time series.
+    threshold: float | pl.Expr
+        Either a number, or an expression representing a comparable quantity. If x > value,
+        then it will be binarized as 1 and 0 otherwise. If x is eager, then value must also
+        be eager as well.
 
     Returns
     -------
-    list of float
+    float
+
+    Reference
+    ---------
+    https://github.com/Naereen/Lempel-Ziv_Complexity/tree/master
+    https://en.wikipedia.org/wiki/Lempel%E2%80%93Ziv_complexity
     """
-    complexities = []
-    seq = x.search_sorted(
-        element=np.linspace(x.min(), x.max(), n_bins + 1)[1:], side="left"
-    ).to_numpy()
-    sub_strs = set()
-    n = x.len()
-    ind, inc = 0, 1
-    while not ind + inc > n:
-        sub_str = seq[ind : ind + inc]
-        if sub_str in sub_strs:
-            inc += 1
-        else:
-            sub_strs.add(sub_str)
-            ind += inc
-            inc = 1
-        complexities.append(len(sub_str) / n)
-    return complexities
+    if isinstance(x, pl.Series):
+        if isinstance(threshold, pl.Expr):
+            raise ValueError("Input `value` must be a number when input x is a series.")
+
+        binary_seq = b"".join((x > threshold).cast(pl.Binary))
+        sub_strings = set()
+        n = len(binary_seq)
+        ind = 0
+        inc = 1
+        while True:
+            if ind + inc > len(binary_seq):
+                break
+            sub_str = binary_seq[ind : ind + inc]
+            if sub_str in sub_strings:
+                inc += 1
+            else:
+                sub_strings.add(sub_str)
+                ind += inc
+                inc = 1
+
+        return len(sub_strings) / n
+    else:
+        return NotImplemented
 
 
 def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
