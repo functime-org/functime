@@ -776,7 +776,7 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     return 1.0 - x.reverse().arg_min()/x.len()
 
 
-def lempel_ziv_complexity(x: TIME_SERIES_T, value:Union[float, pl.Expr]) -> FLOAT_EXPR:
+def lempel_ziv_complexity(x: TIME_SERIES_T, threshold:Union[float, pl.Expr]) -> FLOAT_EXPR:
     """
     Calculate a complexity estimate based on the Lempel-Ziv compression algorithm. The
     implementation here is currently taken from Lilian Besson. See the reference section 
