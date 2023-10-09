@@ -471,7 +471,11 @@ def count_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    return (x > x.mean()).sum()
+    if isinstance(x, pl.Series):
+        y = x.cast(pl.Float64)
+    else:
+        y = x
+    return (y > y.mean()).sum()
 
 
 def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
@@ -504,7 +508,11 @@ def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    return (x < x.mean()).sum()
+    if isinstance(x, pl.Series):
+        y = x.cast(pl.Float64)
+    else:
+        y = x
+    return (y < y.mean()).sum()
 
 def cwt_coefficients(
     x: pl.Series, widths: Sequence[int] = (2, 5, 10, 20), n_coefficients: int = 14

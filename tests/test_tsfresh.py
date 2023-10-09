@@ -17,6 +17,10 @@ from functime.feature_extraction.tsfresh import (
     c3,
     change_quantiles,
     cid_ce,
+    count_above,
+    count_above_mean,
+    count_below,
+    count_below_mean,
     longest_strike_above_mean,
     longest_strike_below_mean,
     mean_n_absolute_max,
@@ -295,6 +299,105 @@ def test_cid_ce_nan_case(S, res, normalize):
         pl.DataFrame(pl.Series("a", res))
     )
     np.isnan(cid_ce(pl.Series(S), normalize=normalize) == res[0])
+
+@pytest.mark.parametrize("S, res, threshold", [
+    ([0.1, 0.2, 0.3] * 3, [200 / 3], 0.2),
+    ([1] * 10, [100.0], 1.0),
+    (list(range(10)), [100.0], 0),
+    (list(range(10)), [50.0], 5)
+])
+def test_count_above(S, res, threshold):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            count_above(pl.col("a"), threshold=threshold)
+        ),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            count_above(pl.col("a"), threshold=threshold)
+        ).collect(),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert count_above(pl.Series(S), threshold=threshold) == res[0]
+
+@pytest.mark.parametrize("S, res, threshold", [
+    ([0.1, 0.2, 0.3] * 3, [200 / 3], 0.2),
+    ([1] * 10, [100.0], 1),
+    (list(range(10)), [60.0], 5),
+    (list(range(10)), [10.0], 0)
+])
+def test_count_below(S, res, threshold):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            count_below(pl.col("a"), threshold=threshold)
+        ),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            count_below(pl.col("a"), threshold=threshold)
+        ).collect(),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert count_below(pl.Series(S), threshold=threshold) == res[0]
+
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1, 2], [3]),
+    ([1, 1, 1, 1, 1, 2], [1]),
+    ([1, 1, 1, 1, 1], [0])
+])
+def test_count_above_mean(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            count_above_mean(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            count_above_mean(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32))
+    )
+    assert count_above_mean(pl.Series(S, dtype=pl.UInt32)) == res[0]
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1, 2], [3]),
+    ([1, 1, 1, 1, 1, 2], [5]),
+    ([1, 1, 1, 1, 1], [0])
+])
+def test_count_below_mean(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            count_below_mean(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            count_below_mean(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32))
+    )
+    assert count_below_mean(pl.Series(S, dtype=pl.UInt32)) == res[0]
 
 
 def test_benford_correlation():
