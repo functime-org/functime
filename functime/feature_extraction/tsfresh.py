@@ -805,7 +805,7 @@ def lempel_ziv_complexity(x: TIME_SERIES_T, value:Union[float, pl.Expr]) -> FLOA
         if isinstance(value, pl.Expr):
             raise ValueError("Input `value` must be a number when input x is a series.")
 
-        binary_seq = b"".join((x > value).cast(pl.Binary))
+        binary_seq = b"".join((x > threshold).cast(pl.Binary))
         sub_strings = set()
         n = len(binary_seq)
         ind = 0
