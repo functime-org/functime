@@ -787,7 +787,7 @@ def lempel_ziv_complexity(x: TIME_SERIES_T, value:Union[float, pl.Expr]) -> FLOA
     ----------
     x : pl.Expr | pl.Series
         Input time-series.
-    value : float | pl.Expr
+    threshold: float | pl.Expr
         Either a number, or an expression representing a comparable quantity. If x > value,
         then it will be binarized as 1 and 0 otherwise. If x is eager, then value must also
         be eager as well.
