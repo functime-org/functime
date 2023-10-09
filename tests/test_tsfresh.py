@@ -17,7 +17,8 @@ from functime.feature_extraction.tsfresh import (
     symmetry_looking,
     time_reversal_asymmetry_statistic,
     approximate_entropy,
-    percent_reoccuring_values
+    percent_reoccuring_values,
+    lempel_ziv_complexity
 )
 
 np.random.seed(42)
@@ -241,7 +242,7 @@ def test_sum_reocurring_points(S, res):
         pl.DataFrame(
             {"a": S}
         ).select(
-            sum_reocurring_points(pl.col("a"))
+            sum_reocurring_points(pl.col("a")).cast(pl.Float64)
         ),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
     )
@@ -249,7 +250,7 @@ def test_sum_reocurring_points(S, res):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            sum_reocurring_points(pl.col("a"))
+            sum_reocurring_points(pl.col("a")).cast(pl.Float64)
         ).collect(),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
     )
@@ -267,7 +268,7 @@ def test_sum_reocurring_values(S, res):
         pl.DataFrame(
             {"a": S}
         ).select(
-            sum_reocurring_values(pl.col("a"))
+            sum_reocurring_values(pl.col("a")).cast(pl.Float64)
         ),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
     )
@@ -275,7 +276,7 @@ def test_sum_reocurring_values(S, res):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            sum_reocurring_values(pl.col("a"))
+            sum_reocurring_values(pl.col("a")).cast(pl.Float64)
         ).collect(),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
     )
@@ -473,3 +474,13 @@ def test_approximate_entropy(x, param, res):
 )
 def test_time_reversal_asymmetry_statistic(x, lag, res):
     assert time_reversal_asymmetry_statistic(x, lag) == res
+
+
+
+def test_lempel_ziv_complexity():
+    a = pl.Series([1,0,0,1,1,1,1,0,1,1,0,0,0,0,1,0])
+    assert lempel_ziv_complexity(a, value = 0) * len(a) == 8
+    a = pl.Series([1,0,0,1,1,1,1,0,1,1,0,0,0,0,1,0,0,0,0,0,1,0])
+    assert lempel_ziv_complexity(a, value = 0) * len(a) == 9
+    a = pl.Series([1,0,0,1,1,1,1,0,1,1,0,0,0,0,1,0,0,0,0,0,1,0,1,0])
+    assert lempel_ziv_complexity(a, value = 0) * len(a) == 10
