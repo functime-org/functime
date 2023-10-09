@@ -15,6 +15,8 @@ from functime.feature_extraction.tsfresh import (
     binned_entropy,
     benford_correlation,
     c3,
+    change_quantiles,
+    cid_ce,
     longest_strike_above_mean,
     longest_strike_below_mean,
     mean_n_absolute_max,
@@ -218,6 +220,81 @@ def test_c3_not_define(S, res, n_lags):
         pl.DataFrame(pl.Series("a", res))
     )
     assert np.isnan(c3(pl.Series(S), n_lags=n_lags))
+
+@pytest.mark.parametrize("S, res, q_low, q_high, is_abs", [
+    ([0, 1, -9, 0, 0, 1, 0], [[1, 0, 1, 1]], 0.1, 0.9, True),
+    ([0, 1, -9, 0, 0, 1, 0], [[1, 0, 1, -1]], 0.1, 0.9, False),
+    (list(range(10)), [[1, 1, 1]], 0.25, 0.75, True)
+])
+def test_change_quantiles(S, res, q_low, q_high, is_abs):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            change_quantiles(pl.col("a"), q_low=q_low, q_high=q_high, is_abs=is_abs)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            change_quantiles(pl.col("a"), q_low=q_low, q_high=q_high, is_abs=is_abs)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_series_equal(
+        change_quantiles(pl.Series(S), q_low=q_low, q_high=q_high, is_abs=is_abs),
+        pl.Series(res[0])
+    )
+
+@pytest.mark.parametrize("S, res, normalize", [
+    ([1, 1, 1], [0.0], False),
+    ([0, 4], [2.0], True),
+    ([100, 104], [2.0], True),
+    ([-4.33, -1.33, 2.67], [5.0], False)
+])
+def test_cid_ce(S, res, normalize):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            cid_ce(pl.col("a"), normalize=normalize)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            cid_ce(pl.col("a"), normalize=normalize)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert cid_ce(pl.Series(S), normalize=normalize) == res[0]
+
+
+@pytest.mark.parametrize("S, res, normalize", [
+    ([1, 1, 1], [np.nan], True)
+])
+def test_cid_ce_nan_case(S, res, normalize):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            cid_ce(pl.col("a"), normalize=normalize)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            cid_ce(pl.col("a"), normalize=normalize)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    np.isnan(cid_ce(pl.Series(S), normalize=normalize) == res[0])
 
 
 def test_benford_correlation():

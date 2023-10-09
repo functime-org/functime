@@ -201,8 +201,8 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     mean = x.mean()
     var = x.var(ddof=0)
     range_ = x.len() - n_lags
-    y1 = x.slice(0, length=range_) - mean
-    y2 = x.slice(n_lags, length=None) - mean 
+    y1 = x - mean
+    y2 = x.shift(-n_lags) - mean
     return y1.dot(y2) / (var * range_)
 
 
@@ -428,13 +428,13 @@ def cid_ce(x: TIME_SERIES_T, normalize: bool = False) -> FLOAT_EXPR:
     float | Expr
     """
     if normalize:
-        y = (x - x.mean()) / x.std()
+        y = (x - x.mean()) / x.std(ddof=0)
     else:
         y = x
 
     if isinstance(x, pl.Series):
-        diff = np.diff(x)
-        return np.sqrt(np.dot(diff, diff))
+        diff = y - y.shift(periods=-1)
+        return pow((diff * diff).sum(), 0.5)
     else:
         z = y - y.shift(-1)
         return (z.dot(z)).sqrt()
