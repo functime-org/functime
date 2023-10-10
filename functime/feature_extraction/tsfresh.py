@@ -197,6 +197,8 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     """
     if n_lags < 0:
         raise ValueError("Input `n_lags` must be >= 0")
+    if n_lags == 0:
+        return 1.0
     
     mean = x.mean()
     var = x.var(ddof=0)
@@ -433,8 +435,8 @@ def cid_ce(x: TIME_SERIES_T, normalize: bool = False) -> FLOAT_EXPR:
         y = x
 
     if isinstance(x, pl.Series):
-        diff = y - y.shift(periods=-1)
-        return pow((diff * diff).sum(), 0.5)
+        diff = np.diff(y)
+        return np.sqrt(np.dot(diff, diff))
     else:
         z = y - y.shift(-1)
         return (z.dot(z)).sqrt()

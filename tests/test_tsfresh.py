@@ -131,11 +131,9 @@ def test_approximate_entropy(S, res, m, r, scale):
     ([1, 2, 1, 2, 1, 2], [-1.0], 1),
     ([1, 2, 1, 2, 1, 2], [1.0], 2),
     ([1, 2, 1, 2, 1, 2], [1.0], 4),
-    ([0, 1, 2, 0, 1, 2], [-0.75], 2),
-    ([1, 2, 1, 2, 1, 2], [1.0], 0)
+    ([0, 1, 2, 0, 1, 2], [-0.75], 2)
 ])
 def test_autocorrelation(S, res, n_lags):
-    # Doesn't work for lazy mode
     assert_frame_equal(
         pl.DataFrame(
             {"a": S}
@@ -144,15 +142,39 @@ def test_autocorrelation(S, res, n_lags):
         ),
         pl.DataFrame(pl.Series("a", res))
     )
-    # assert_frame_equal(
-    #     pl.LazyFrame(
-    #         {"a": S}
-    #     ).select(
-    #         autocorrelation(pl.col("a"), n_lags=n_lags)
-    #     ).collect(),
-    #     pl.DataFrame(pl.Series("a", res))
-    # )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            autocorrelation(pl.col("a"), n_lags=n_lags)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
     assert autocorrelation(pl.Series(S), n_lags=n_lags) == res[0]
+
+@pytest.mark.parametrize("S, res, n_lags", [
+    ([1, 2, 1, 2, 1, 2], [1.0], 0)
+])
+def test_autocorrelation_shortcut(S, res, n_lags):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            autocorrelation(pl.col("a"), n_lags=n_lags)
+        ),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            autocorrelation(pl.col("a"), n_lags=n_lags)
+        ).collect(),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert autocorrelation(pl.Series(S), n_lags=n_lags) == res[0]
+
+
 
 @pytest.mark.parametrize("S, res, bin_count", [
     ([10] * 100, [-0.0], 10),
