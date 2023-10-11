@@ -33,7 +33,7 @@ dependencies = [
     "kaleido==0.2.1",
     "numpy",
     "plotly",
-    "polars==0.19.6",
+    "polars==0.19.8",
     "pyarrow",
     "pylance",
     "pynndescent==0.5.8",

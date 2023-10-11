@@ -20,7 +20,7 @@ MAP_EXPR = Union[Mapping[str, float], pl.Expr]
 MAP_LIST_EXPR = Union[Mapping[str, List[float]], pl.Expr]
 
 
-def absolute_energy(x: TIME_SERIES_T) -> FLOAT_EXPR:
+def absolute_energy(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Compute the absolute energy of a time series.
 
@@ -35,7 +35,7 @@ def absolute_energy(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     return x.dot(x)
 
-def absolute_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
+def absolute_maximum(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Compute the absolute maximum of a time series.
 
@@ -49,12 +49,12 @@ def absolute_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     float | Expr
     """
     if isinstance(x, pl.Series):
-        return np.max(np.abs([x.min(), x.max()]))
+        return np.max(np.abs([np.min(x), np.max(x)]))
     else:
         return pl.max_horizontal(x.min().abs(), x.max().abs())
 
 
-def absolute_sum_of_changes(x: TIME_SERIES_T) -> FLOAT_EXPR:
+def absolute_sum_of_changes(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Compute the absolute sum of changes of a time series.
 
@@ -203,8 +203,8 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     mean = x.mean()
     var = x.var(ddof=0)
     range_ = x.len() - n_lags
-    y1 = x - mean
-    y2 = x.shift(-n_lags) - mean
+    y1 = x.slice(0, length=range_) - mean
+    y2 = x.slice(n_lags, length=None) - mean
     return y1.dot(y2) / (var * range_)
 
 
@@ -356,8 +356,14 @@ def c3(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     float | Expr
     """
     twice_lag = 2 * n_lags
+    if isinstance(x, pl.Series):
+        if twice_lag >= x.len():
+            return np.nan
+        else:
+            return (x * x.shift(n_lags) * x.shift(twice_lag)).sum() / (x.len() - twice_lag)
+    else:
     # Would potentially be faster if there is a pl.product_horizontal()
-    return (x * x.shift(n_lags) * x.shift(twice_lag)).sum() / (x.len() - twice_lag)
+        return ((x.mul(x.shift(n_lags)).mul(x.shift(twice_lag))).sum()).truediv((x.len() - twice_lag))
 
 def change_quantiles(
     x: TIME_SERIES_T, q_low: float, q_high: float, is_abs: bool
@@ -424,12 +430,12 @@ def cid_ce(x: TIME_SERIES_T, normalize: bool = False) -> FLOAT_EXPR:
     float | Expr
     """
     if normalize:
-        y = (x - x.mean()) / x.std()
+        y = (x - x.mean()) / x.std(ddof=0)
     else:
         y = x
 
     if isinstance(x, pl.Series):
-        diff = np.diff(x)
+        diff = np.diff(y)
         return np.sqrt(np.dot(diff, diff))
     else:
         z = y - y.shift(-1)
@@ -467,7 +473,11 @@ def count_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    return (x > x.mean()).sum()
+    if isinstance(x, pl.Series):
+        y = x.cast(pl.Float64)
+    else:
+        y = x
+    return (y > y.mean()).sum()
 
 
 def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
@@ -500,7 +510,11 @@ def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    return (x < x.mean()).sum()
+    if isinstance(x, pl.Series):
+        y = x.cast(pl.Float64)
+    else:
+        y = x
+    return (y < y.mean()).sum()
 
 def cwt_coefficients(
     x: pl.Series, widths: Sequence[int] = (2, 5, 10, 20), n_coefficients: int = 14
@@ -776,7 +790,7 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     return 1.0 - x.reverse().arg_min()/x.len()
 
 
-def lempel_ziv_complexity(x: TIME_SERIES_T, value:Union[float, pl.Expr]) -> FLOAT_EXPR:
+def lempel_ziv_complexity(x: TIME_SERIES_T, threshold: Union[float, pl.Expr]) -> FLOAT_EXPR:
     """
     Calculate a complexity estimate based on the Lempel-Ziv compression algorithm. The
     implementation here is currently taken from Lilian Besson. See the reference section 
@@ -787,7 +801,8 @@ def lempel_ziv_complexity(x: TIME_SERIES_T, value:Union[float, pl.Expr]) -> FLOA
     ----------
     x : pl.Expr | pl.Series
         Input time-series.
-    value : float | pl.Expr
+    threshold: float | pl.Expr
+
         Either a number, or an expression representing a comparable quantity. If x > value,
         then it will be binarized as 1 and 0 otherwise. If x is eager, then value must also
         be eager as well.
@@ -802,10 +817,11 @@ def lempel_ziv_complexity(x: TIME_SERIES_T, value:Union[float, pl.Expr]) -> FLOA
     https://en.wikipedia.org/wiki/Lempel%E2%80%93Ziv_complexity
     """
     if isinstance(x, pl.Series):
-        if isinstance(value, pl.Expr):
+        if isinstance(threshold, pl.Expr):
             raise ValueError("Input `value` must be a number when input x is a series.")
 
-        binary_seq = b"".join((x > value).cast(pl.Binary))
+        binary_seq = b"".join((x > threshold).cast(pl.Binary))
+
         sub_strings = set()
         n = len(binary_seq)
         ind = 0
