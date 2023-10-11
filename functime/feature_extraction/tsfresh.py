@@ -49,7 +49,7 @@ def absolute_maximum(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     float | Expr
     """
     if isinstance(x, pl.Series):
-        return np.max(np.abs([np.min(x), np.max(x)]))
+        return np.max(np.abs([x.min(), x.max()]))
     else:
         return pl.max_horizontal(x.min().abs(), x.max().abs())
 
@@ -567,7 +567,7 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     if isinstance(x, pl.Series):
         return (seg_sum / seg_sum.sum()).to_list()
     else:
-        return (seg_sum / seg_sum.sum()).implode().suffix("_energy_ratio")
+        return (seg_sum / seg_sum.sum()).implode()
 
 
 def first_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -884,7 +884,7 @@ def longest_strike_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    y = (x > x.mean()).cast(pl.UInt8).rle()
+    y = (x.cast(pl.Float64) > x.mean()).cast(pl.UInt8).rle()
     result = y.filter(y.struct.field("values")==1).struct.field("lengths").max()
     if isinstance(x, pl.Series):
         return 0 if result is None else result
@@ -905,7 +905,7 @@ def longest_strike_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    y = (x < x.mean()).cast(pl.UInt8).rle()
+    y = (x.cast(pl.Float64) < x.mean()).cast(pl.UInt8).rle()
     result = y.filter(y.struct.field("values")==1).struct.field("lengths").max()
     if isinstance(x, pl.Series):
         return 0 if result is None else result
@@ -1172,7 +1172,6 @@ def permutation_entropy(
                 .struct.field("counts")  # extract the field named "counts"
             )
             .entropy(normalize=True)
-            .suffix("_permutation_entropy2")
         )
 
 
