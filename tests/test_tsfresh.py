@@ -21,8 +21,8 @@ from functime.feature_extraction.tsfresh import (
     count_above_mean,
     count_below,
     count_below_mean,
-    longest_strike_above_mean,
-    longest_strike_below_mean,
+    longest_streak_above_mean,
+    longest_streak_below_mean,
     mean_n_absolute_max,
     mean_second_derivative_central,
     percent_reocurring_points,
@@ -496,12 +496,12 @@ def test_benford_correlation():
     ([1, 1, 1], [0]),
     ([], [0])
 ])
-def test_longest_strike_below_mean(S, res):
+def test_longest_streak_below_mean(S, res):
     assert_frame_equal(
         pl.DataFrame(
             {"a": S}
         ).select(
-            longest_strike_below_mean(pl.col("a")).alias("lengths")
+            longest_streak_below_mean(pl.col("a")).alias("lengths")
         ),
         pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
     )
@@ -509,7 +509,7 @@ def test_longest_strike_below_mean(S, res):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            longest_strike_below_mean(pl.col("a")).alias("lengths")
+            longest_streak_below_mean(pl.col("a")).alias("lengths")
         ).collect(),
         pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
     )
@@ -523,12 +523,12 @@ def test_longest_strike_below_mean(S, res):
     ([1, 1, 1], [0]),
     ([], [0])
 ])
-def test_longest_strike_above_mean(S, res):
+def test_longest_streak_above_mean(S, res):
     assert_frame_equal(
         pl.DataFrame(
             {"a": S}
         ).select(
-            longest_strike_above_mean(pl.col("a")).alias("lengths")
+            longest_streak_above_mean(pl.col("a")).alias("lengths")
         ),
         pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
     )
@@ -536,7 +536,7 @@ def test_longest_strike_above_mean(S, res):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            longest_strike_above_mean(pl.col("a")).alias("lengths")
+            longest_streak_above_mean(pl.col("a")).alias("lengths")
         ).collect(),
         pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
     )

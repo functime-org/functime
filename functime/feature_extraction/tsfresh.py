@@ -876,7 +876,7 @@ def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
             beta.alias("slope"), alpha.alias("intercept"), resid.dot(resid).alias("rss")
         )
 
-def longest_strike_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
+def longest_streak_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     Returns the length of the longest consecutive subsequence in x that is greater than the mean of x.
     If all values in x are null, 0 will be returned.
@@ -900,7 +900,7 @@ def longest_strike_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     else: # fill null only works with expression
         return result.fill_null(0).cast(pl.UInt64)
 
-def longest_strike_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
+def longest_streak_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     Returns the length of the longest consecutive subsequence in x that is smaller than the mean of x.
     If all values in x are null, 0 will be returned.
