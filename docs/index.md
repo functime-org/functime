@@ -16,25 +16,9 @@
 
 Check out this [guide](installation.md) to install functime. Requires Python 3.8+.
 
-## Forecasting
+## Supported Data Schemas
 
-Point and probablistic forecasts using machine learning.
-Includes utilities to support the full forecasting lifecycle:
-preprocessing, feature extraction, time-series cross-validation / splitters, backtesting, automated hyperparameter tuning, and scoring.
-
-- Every forecaster supports **exogenous features**
-- **Backtesting** with expanding window and sliding window splitters
-- **Automated lags and hyperparameter tuning** using [`FLAML`](https://github.com/microsoft/FLAML)
-- **Probablistic forecasts** via quantile regression and conformal prediction
-- **Forecast metrics** (e.g. MASE, SMAPE, CRPS) for scoring in parallel
-- Supports **recursive and direct** forecast strategies
-- **Censored model** for zero-inflated forecasts
-
-View the [full walkthrough](forecasting.md) on forecasting with `functime`.
-
-## Quick Examples
-
-!!! info "Input Data Schemas"
+!!! info "Panel Data"
 
     Forecasters, preprocessors, and splitters take a **panel dataset** where the first two columns represent entity (e.g. commodty name) and time (e.g. date). Subsequent columns represent observed values (e.g. price). The panel DataFrame **must be sorted by entity, time.**
 
@@ -56,6 +40,28 @@ View the [full walkthrough](forecasting.md) on forecasting with `functime`.
                      2023-02-01   3133.84
                      2023-03-01   2967.46
     ```
+
+!!! info "Time Series"
+
+    (COMING SOON) Feature extractors support both **panel** and **time-series** DataFrames.
+
+## Forecasting
+
+Point and probablistic forecasts using machine learning.
+Includes utilities to support the full forecasting lifecycle:
+preprocessing, feature extraction, time-series cross-validation / splitters, backtesting, automated hyperparameter tuning, and scoring.
+
+- Every forecaster supports **exogenous features**
+- **Backtesting** with expanding window and sliding window splitters
+- **Automated lags and hyperparameter tuning** using [`FLAML`](https://github.com/microsoft/FLAML)
+- **Probablistic forecasts** via quantile regression and conformal prediction
+- **Forecast metrics** (e.g. MASE, SMAPE, CRPS) for scoring in parallel
+- Supports **recursive and direct** forecast strategies
+- **Censored model** for zero-inflated forecasts
+
+View the [full walkthrough](forecasting.md) on forecasting with `functime`.
+
+## Quick Examples
 
 ### Forecasting
 
