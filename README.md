@@ -13,7 +13,7 @@
 </div>
 
 ---
-**functime** is a powerful [Python library]((https://pypi.org/project/functime/)) for production-ready global forecasting and time-series feature engineering.
+**functime** is a powerful [Python library](https://pypi.org/project/functime/) for production-ready global forecasting with large panel datasets and time-series feature engineering.
 
 **functime** also comes with time-series [preprocessing](https://docs.functime.ai/ref/preprocessing/) (box-cox, differencing etc), cross-validation [splitters](https://docs.functime.ai/ref/cross-validation/) (expanding and sliding window), and forecast [metrics](https://docs.functime.ai/ref/metrics/) (MASE, SMAPE etc). All optimized as [lazy Polars](https://pola-rs.github.io/polars-book/user-guide/lazy/using/) transforms.
 
