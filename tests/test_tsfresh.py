@@ -33,7 +33,14 @@ from functime.feature_extraction.tsfresh import (
     time_reversal_asymmetry_statistic,
     approximate_entropy,
     percent_reoccuring_values,
-    lempel_ziv_complexity
+    lempel_ziv_complexity,
+    range_over_mean,
+    range_change,
+    longest_winning_streak,
+    longest_streak_above,
+    longest_losing_streak,
+    longest_streak_below,
+    max_abs_change,
 )
 
 np.random.seed(42)
@@ -865,7 +872,6 @@ def test_time_reversal_asymmetry_statistic(x, lag, res):
     assert time_reversal_asymmetry_statistic(x, lag) == res
 
 
-
 def test_lempel_ziv_complexity():
     a = pl.Series([1,0,0,1,1,1,1,0,1,1,0,0,0,0,1,0])
     assert lempel_ziv_complexity(a, threshold = 0) * len(a) == 8
@@ -873,4 +879,118 @@ def test_lempel_ziv_complexity():
     assert lempel_ziv_complexity(a, threshold = 0) * len(a) == 9
     a = pl.Series([1,0,0,1,1,1,1,0,1,1,0,0,0,0,1,0,0,0,0,0,1,0,1,0])
     assert lempel_ziv_complexity(a, threshold = 0) * len(a) == 10
+
+
+@pytest.mark.parametrize("S, res", [
+    (list(range(100)), 99),
+    ([0, 0 , 0, 0, -1, 2, -3, 1], 3),
+    (list(range(100, 0, -1)), 0)
+])
+def test_longest_streak_above(S, res):
+
+    x = pl.Series(S)
+    assert longest_streak_above(x, threshold=0) == res
+    df = x.to_frame()
+    assert_frame_equal(
+        df.select(
+            longest_streak_above(pl.col(x.name), threshold=0).alias(x.name).cast(pl.Int64)
+        ),
+        pl.DataFrame({x.name:[res]})
+    )
+
+    assert_frame_equal(
+        df.lazy().select(
+            longest_streak_above(pl.col(x.name), threshold=0).alias(x.name).cast(pl.Int64)
+        ).collect(),
+        pl.DataFrame({x.name:[res]})
+    )
+
+@pytest.mark.parametrize("S, res", [
+    (list(range(100)), 0),
+    ([0, 0, 0, 0, -1, 2, -3, 1], 4),
+    (list(range(100, 0, -1)), 99)
+])
+def test_longest_streak_below(S, res):
+
+    x = pl.Series(S)
+    assert longest_streak_below(x, threshold=0) == res
+    df = x.to_frame()
+    assert_frame_equal(
+        df.select(
+            longest_streak_below(pl.col(x.name), threshold=0).alias(x.name).cast(pl.Int64)
+        ),
+        pl.DataFrame({x.name:[res]})
+    )
+
+    assert_frame_equal(
+        df.lazy().select(
+            longest_streak_below(pl.col(x.name), threshold=0).alias(x.name).cast(pl.Int64)
+        ).collect(),
+        pl.DataFrame({x.name:[res]})
+    )
+
+@pytest.mark.parametrize("S, res", [
+    (list(range(100)), 1),
+    ([0, -100, 1,2,3,4,5,6,7,8,9], 101),
+    ([-50, -100, 200, 3, 9, 12], 300)
+])
+def test_max_abs_change(S, res):
+
+    x = pl.Series(S)
+    assert max_abs_change(x) == res
+    df = x.to_frame()
+    assert_frame_equal(
+        df.select(
+            max_abs_change(pl.col(x.name)).alias(x.name)
+        ),
+        pl.DataFrame({x.name:[res]})
+    )
+    assert_frame_equal(
+        df.lazy().select(
+            max_abs_change(pl.col(x.name)).alias(x.name)
+        ).collect(),
+        pl.DataFrame({x.name:[res]})
+    )
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 1, 1, 1, 1], 0.),
+    ([1, 2, 3, 4, 5, 6, 7], 1.5),
+    ([1], 0.),
+    ([0.1, 0.2, 0.8, 0.9], 1.6)
+])
+def test_range_over_mean_and_range(S, res):
+
+    # The tests here are non-exhaustive, but is good enough
+    x = pl.Series(S)
+    assert range_over_mean(x) == res
+    range_ = (np.max(S) - np.min(S))
+    range_chg_pct = range_ / np.min(S)
+    assert range_change(x, percentage=False) == range_
+    assert range_change(x, percentage=True) == range_chg_pct
+    df = x.to_frame()
+    assert_frame_equal(
+        df.select(
+            range_change(pl.col(x.name), percentage=False)
+        ),
+        pl.DataFrame({x.name:[range_]})
+    )
+    assert_frame_equal(
+        df.select(
+            range_over_mean(pl.col(x.name))
+        ),
+        pl.DataFrame({x.name:[res]})
+    )
+    assert_frame_equal(
+        df.lazy().select(
+            range_change(pl.col(x.name), percentage=True)
+        ).collect(),
+        pl.DataFrame({x.name:[range_chg_pct]})
+    )
+    assert_frame_equal(
+        df.lazy().select(
+            range_over_mean(pl.col(x.name))
+        ).collect(),
+        pl.DataFrame({x.name:[res]})
+    )
+
 
