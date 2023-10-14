@@ -20,6 +20,8 @@ from functime.feature_extraction.tsfresh import (
     has_duplicate_max,
     has_duplicate_min,
     index_mass_quantile,
+    last_location_of_maximum,
+    last_location_of_minimum,
     c3,
     change_quantiles,
     cid_ce,
@@ -586,6 +588,57 @@ def test_index_mass_quantile(S, res, q):
         pl.DataFrame(pl.Series("a", res))
     )
     assert index_mass_quantile(pl.Series(S), q) == res[0]
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1], [1.0]),
+    ([1, 2, 1, 2, 2], [0.6]),
+    ([2.7, 1.05, 1.2, 1.068, 2.3], [0.4]),
+    ([2, 1, 1, 1, 2], [0.8])
+])
+def test_last_location_of_minimum(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            last_location_of_minimum(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            last_location_of_minimum(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert last_location_of_minimum(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1], [0.8]),
+    ([1, 2, 1, 1, 2], [1.0]),
+    ([2.7, 1.05, 1.2, 1.068, 2.3], [0.19999999999999996]),
+    ([2, 1, 1, 1, 1], [0.19999999999999996])
+])
+def test_last_location_of_maximum(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            last_location_of_maximum(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            last_location_of_maximum(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert last_location_of_maximum(pl.Series(S)) == res[0]
 
 def test_benford_correlation():
     # Nan, division by 0
