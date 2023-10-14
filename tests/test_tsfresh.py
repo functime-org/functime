@@ -14,6 +14,12 @@ from functime.feature_extraction.tsfresh import (
     autoregressive_coefficients,
     binned_entropy,
     benford_correlation,
+    first_location_of_maximum,
+    first_location_of_minimum,
+    has_duplicate,
+    has_duplicate_max,
+    has_duplicate_min,
+    index_mass_quantile,
     c3,
     change_quantiles,
     cid_ce,
@@ -21,7 +27,6 @@ from functime.feature_extraction.tsfresh import (
     count_above_mean,
     count_below,
     count_below_mean,
-    energy_ratios,
     longest_streak_above_mean,
     longest_streak_below_mean,
     mean_n_absolute_max,
@@ -32,6 +37,7 @@ from functime.feature_extraction.tsfresh import (
     number_peaks,
     symmetry_looking,
     time_reversal_asymmetry_statistic,
+    approximate_entropy,
     percent_reoccuring_values,
     lempel_ziv_complexity,
     range_over_mean,
@@ -430,17 +436,18 @@ def test_count_below_mean(S, res):
     )
     assert count_below_mean(pl.Series(S, dtype=pl.UInt32)) == res[0]
 
-@pytest.mark.parametrize("S, res, n_chunks", [
-    (range(90), [[0.004247483941162932, 0.03155273784863892, 0.08710480614315903, 0.1709036888247233, 0.2829493858933317, 0.42324189734898415]], 6),
-    (10*[1], [[0.4, 0.4, 0.2]], 3),
-    (8*[1], [[0.375, 0.375, 0.25]], 3)
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1], [0.2]),
+    ([1.5, 2.6, 1.8, 2.1, 1.0], [0.2]),
+    ([2, 1, 1, 1, 1], [0.0]),
+    ([1, 1, 1, 1, 1], [0.0])
 ])
-def test_energy_ratios(S, res, n_chunks):
+def test_first_location_of_maximum(S, res):
     assert_frame_equal(
         pl.DataFrame(
             {"a": S}
         ).select(
-            energy_ratios(pl.col("a"), n_chunks=n_chunks)
+            first_location_of_maximum(pl.col("a"))
         ),
         pl.DataFrame(pl.Series("a", res))
     )
@@ -448,23 +455,24 @@ def test_energy_ratios(S, res, n_chunks):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            energy_ratios(pl.col("a"), n_chunks=n_chunks)
+            first_location_of_maximum(pl.col("a"))
         ).collect(),
         pl.DataFrame(pl.Series("a", res))
     )
-    assert energy_ratios(pl.Series(S), n_chunks=n_chunks) == res[0]
+    assert first_location_of_maximum(pl.Series(S)) == res[0]
 
-@pytest.mark.parametrize("S, res, n_chunks", [
-    (8*[0], [[np.nan, np.nan, np.nan]], 3),
-    (10*[0], [[np.nan, np.nan, np.nan]], 3),
-    (9*[0], [[np.nan, np.nan, np.nan]], 3)
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1], [0.0]),
+    ([2, 1, 1, 1, 2], [0.2]),
+    ([2.7, 1.05, 1.2, 1.068, 2.3], [0.2]),
+    ([1, 1, 1, 1, 1], [0.0])
 ])
-def test_energy_ratios_nan_cases(S, res, n_chunks):
+def test_first_location_of_minimum(S, res):
     assert_frame_equal(
         pl.DataFrame(
             {"a": S}
         ).select(
-            energy_ratios(pl.col("a"), n_chunks=n_chunks)
+            first_location_of_minimum(pl.col("a"))
         ),
         pl.DataFrame(pl.Series("a", res))
     )
@@ -472,12 +480,112 @@ def test_energy_ratios_nan_cases(S, res, n_chunks):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            energy_ratios(pl.col("a"), n_chunks=n_chunks)
+            first_location_of_minimum(pl.col("a"))
         ).collect(),
         pl.DataFrame(pl.Series("a", res))
     )
-    np.isnan(energy_ratios(pl.Series(S), n_chunks=n_chunks) == res[0])
+    assert first_location_of_minimum(pl.Series(S)) == res[0]
 
+
+@pytest.mark.parametrize("S, res", [
+    ([2.1, 0, 0, 2.1, 1.1], [True]),
+    ([2.1, 0, 4, 2, 1.1], [False])
+])
+def test_has_duplicate(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            has_duplicate(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            has_duplicate(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert has_duplicate(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res", [
+    ([-2.1, 0, 0, -2.1, 1.1], [True]),
+    ([2.1, 0, -1, 2, 1.1], [False]),
+    ([1, 1, 1, 1], [True]),
+    ([0], [False])
+])
+def test_has_duplicate_min(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            has_duplicate_min(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            has_duplicate_min(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert has_duplicate_min(pl.Series(S)) == res[0]
+
+@pytest.mark.parametrize("S, res", [
+    ([2.1, 0, 0, 2.1, 1.1], [True]),
+    ([2.1, 0, 0, 2, 1.1], [False]),
+    ([1, 1, 1, 1], [True]),
+    ([0], [False])
+])
+def test_has_duplicate_max(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            has_duplicate_max(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            has_duplicate_max(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert has_duplicate_max(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res, q", [
+    ([1] * 101, [0.504950495049505], 0.5),
+    ([0, 1, 1, 0, 0, 1, 0, 0], [0.25], 0.3),
+    ([0, 1, 1, 0, 0, 1, 0, 0], [0.375], 0.6),
+    ([0, 1, 1, 0, 0, 1, 0, 0], [0.75], 0.9)
+])
+def test_index_mass_quantile(S, res, q):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            index_mass_quantile(pl.col("a"), q)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            index_mass_quantile(pl.col("a"), q)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert index_mass_quantile(pl.Series(S), q) == res[0]
 
 def test_benford_correlation():
     # Nan, division by 0

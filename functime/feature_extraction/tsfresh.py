@@ -741,10 +741,14 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    x_abs = x.abs()
-    x_sum = x.sum()
+    if isinstance(x, pl.Series):
+        y = x.cast(pl.Float64)
+    else:
+        y = x
+    y_abs = y.abs()
+    y_sum = y.sum()
     n = x.len()
-    idx = (x_abs.cumsum() >= q * x_sum).arg_max()
+    idx = (y_abs.cumsum() >= q*y_sum).arg_max()
     return (idx + 1) / n
 
 
