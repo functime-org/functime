@@ -24,8 +24,11 @@ def _remove_legend_duplicates(fig: go.Figure) -> go.Figure:
 
 
 def plot_panel(
-    y: pl.DataFrame, n_cols: int = 2, last_n: int = DEFAULT_LAST_N, **kwargs
-):
+    y: pl.DataFrame | pl.LazyFrame,
+    n_cols: int = 2,
+    last_n: int = DEFAULT_LAST_N,
+    **kwargs,
+) -> go.Figure:
     """Given panel DataFrames of observed values `y`,
     returns subplots for each individual entity / time-series.
 
@@ -50,8 +53,12 @@ def plot_panel(
     """
 
     # Get most recent observations
-    entity_col, time_col, target_col = y.columns
-    y = y.group_by(entity_col).tail(last_n)
+    entity_col, time_col, target_col = y.columns[:2]
+
+    if isinstance(y, pl.DataFrame):
+        y = y.group_by(entity_col).tail(last_n)
+    elif isinstance(y, pl.LazyFrame):
+        y = y.group_by(entity_col).tail(last_n).collect()
 
     # Organize subplots
     n_series = y.get_column(entity_col).n_unique()
