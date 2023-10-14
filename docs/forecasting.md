@@ -85,7 +85,7 @@ scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
     from functime.preprocessing import boxcox, impute
 
     # Use df.pipe to chain operations together
-    X_new: pl.LazyFrame = (
+    X_splits: pl.LazyFrame = (
         X.pipe(boxcox(method="mle"))
         .pipe(impute(method="linear"))
     )
