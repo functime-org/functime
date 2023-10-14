@@ -21,6 +21,7 @@ from functime.feature_extraction.tsfresh import (
     count_above_mean,
     count_below,
     count_below_mean,
+    energy_ratios,
     longest_strike_above_mean,
     longest_strike_below_mean,
     mean_n_absolute_max,
@@ -31,7 +32,6 @@ from functime.feature_extraction.tsfresh import (
     number_peaks,
     symmetry_looking,
     time_reversal_asymmetry_statistic,
-    approximate_entropy,
     percent_reoccuring_values,
     lempel_ziv_complexity
 )
@@ -423,6 +423,29 @@ def test_count_below_mean(S, res):
     )
     assert count_below_mean(pl.Series(S, dtype=pl.UInt32)) == res[0]
 
+@pytest.mark.parametrize("S, res, n_chunks", [
+    ([i for i in range(90)], [3], 6),
+    ([1, 1, 1, 1, 1, 2], [5]),
+    ([1, 1, 1, 1, 1], [0])
+])
+def test_energy_ratios(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            count_below_mean(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            count_below_mean(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32))
+    )
+    assert count_below_mean(pl.Series(S, dtype=pl.UInt32)) == res[0]
 
 def test_benford_correlation():
     # Nan, division by 0
