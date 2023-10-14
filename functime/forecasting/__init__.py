@@ -8,7 +8,6 @@ from .automl import (
 from .censored import censored_model, zero_inflated_model
 from .elite import elite
 from .knn import knn
-from .lance import ann
 from .linear import (
     elastic_net,
     elastic_net_cv,
@@ -20,6 +19,12 @@ from .linear import (
 )
 from .naive import naive
 from .snaive import snaive
+
+try:
+    from .lance import ann
+except ImportError:
+    msg = "Missing ann extras: `pip install functime[ann]`
+    ann = ImportError(msg)
 
 try:
     from .automl import auto_lightgbm
