@@ -574,19 +574,12 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
         return (seg_sum / seg_sum.sum()).to_list()
     else:
         r = x.count().mod(n_chunks)
-        y = (
-            pl.when(r.ne(pl.lit(0)))
-            .then(
-                x.pow(2).append(
-                    pl.repeat(0, n=(pl.lit(n_chunks) - r))
-                )
-            )
-            .otherwise(x.pow(2).append(
-                    pl.repeat(None, n=(pl.lit(n_chunks) - r))
-                )
-            )
+        y = x.pow(2).append(
+            pl.repeat(0, n = pl.when(r == 0).then(0).otherwise(
+                pl.lit(n_chunks) - r
+            ))
         )
-        seg_sum = y.drop_nulls().reshape((n_chunks, -1)).list.sum()
+        seg_sum = y.reshape((n_chunks, -1)).list.sum()
         return (seg_sum / seg_sum.sum()).implode()
 
 
