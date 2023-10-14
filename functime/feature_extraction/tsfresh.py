@@ -565,12 +565,23 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     # Unlike Tsfresh,
     # We calculate all 1,2,3,...,n_chunk at once
     if isinstance(x, pl.Series):
-        y = x.pow(2).extend_constant(0, n_chunks - (x.len() % n_chunks))
+        r = x.len() % n_chunks
+        if r != 0:
+            y = x.pow(2).extend_constant(0, n_chunks - r)
+        else:
+            y = x.pow(2)
         seg_sum = y.reshape((n_chunks, y.len()//n_chunks)).list.sum()
         return (seg_sum / seg_sum.sum()).to_list()
     else:
-        y = x.pow(2).append(
-            pl.lit(0).repeat_by(pl.lit(n_chunks) - x.count().mod(n_chunks))
+        r = x.count().mod(n_chunks)
+        y = (
+            pl.when(r.ne(pl.lit(0)))
+            .then(
+                x.pow(2).append(
+                    pl.repeat(0, n=(pl.lit(n_chunks) - r))
+                ).reshape((n_chunks, -1)).list.sum()
+            )
+            .otherwise(x.pow(2).reshape((n_chunks, -1)).list.sum())
         )
         seg_sum = y.reshape((n_chunks, -1)).list.sum()
         return (seg_sum / seg_sum.sum()).implode()

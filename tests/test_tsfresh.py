@@ -430,6 +430,28 @@ def test_count_below_mean(S, res):
     )
     assert count_below_mean(pl.Series(S, dtype=pl.UInt32)) == res[0]
 
+@pytest.mark.parametrize("S, res, n_chunks", [
+    (range(90), [0.005189, ], 6)
+])
+def test_energy_ratios(S, res, n_chunks):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            energy_ratios(pl.col("a"), n_chunks=n_chunks)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            energy_ratios(pl.col("a"), n_chunks=n_chunks)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert energy_ratios(pl.Series(S), n_chunks=n_chunks) == res[0]
+
 
 def test_benford_correlation():
     # Nan, division by 0
