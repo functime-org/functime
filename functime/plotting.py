@@ -279,7 +279,7 @@ def plot_comet(
     y_pred: pl.DataFrame,
     scoring: Optional[METRIC_TYPE] = None,
     **kwargs,
-):
+) -> go.Figure:
     """Given a train-test-split of panel data (`y_train`, `y_test`) and forecast `y_pred`,
     returns a Comet plot i.e. scatterplot of volatility per entity in `y_train` against the forecast scores.
 
@@ -323,7 +323,7 @@ def plot_fva(
     y_pred_bench: pl.DataFrame,
     scoring: Optional[METRIC_TYPE] = None,
     **kwargs,
-):
+) -> go.Figure:
     """Given two panel data forecasts `y_pred` and `y_pred_bench`,
     returns scatterplot of benchmark scores against forecast scores.
     Each dot represents a single entity / time-series.
@@ -381,7 +381,6 @@ def plot_fva(
 
 
 if __name__ == "__main__":
-
     from functime.cross_validation import train_test_split
     from functime.forecasting import snaive
     from functime.metrics import mase
