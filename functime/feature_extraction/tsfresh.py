@@ -549,6 +549,7 @@ def cwt_coefficients(
 def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     """
     Calculates sum of squares over the whole series for `n_chunks` equally segmented parts of the time-series.
+    E.g. if n_chunks = 10, values are [0, 1, 2, 3, .. , 999], the first chunk will be [0, .. , 99].
 
     Parameters
     ----------
@@ -563,10 +564,15 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     """
     # Unlike Tsfresh,
     # We calculate all 1,2,3,...,n_chunk at once
-    seg_sum = x.pow(2).reshape((n_chunks, -1)).list.sum()
     if isinstance(x, pl.Series):
+        y = x.pow(2).extend_constant(0, n_chunks - (x.len() % n_chunks))
+        seg_sum = y.reshape((n_chunks, y.len()//n_chunks)).list.sum()
         return (seg_sum / seg_sum.sum()).to_list()
     else:
+        y = x.pow(2).append(
+            pl.lit(0).repeat_by(pl.lit(n_chunks) - x.count().mod(n_chunks))
+        )
+        seg_sum = y.reshape((n_chunks, -1)).list.sum()
         return (seg_sum / seg_sum.sum()).implode()
 
 
@@ -870,10 +876,12 @@ def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
             beta.alias("slope"), alpha.alias("intercept"), resid.dot(resid).alias("rss")
         )
 
-def longest_strike_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
+def longest_streak_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
-    Returns the length of the longest consecutive subsequence in x that is greater than the mean of x.
-    If all values in x are null, 0 will be returned.
+    Returns the length of the longest consecutive subsequence in x that is > mean of x.
+    If all values in x are null, 0 will be returned. Note: this does not measure consecutive
+    changes in time series, only counts the streak based on the original time series, not the
+    differences.
     
     Parameters
     ----------
@@ -884,17 +892,21 @@ def longest_strike_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    y = (x.cast(pl.Float64) > x.mean()).cast(pl.UInt8).rle()
-    result = y.filter(y.struct.field("values")==1).struct.field("lengths").max()
     if isinstance(x, pl.Series):
+        y = (x.cast(pl.Float64) > x.mean()).rle()
+        result = y.filter(y.struct.field("values")).struct.field("lengths").max()
         return 0 if result is None else result
-    else: # fill null only works with expression
-        return result.fill_null(0).cast(pl.UInt64)
+    else:
+        y = (x > x.mean()).rle()
+        return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
 
-def longest_strike_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
+
+def longest_streak_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
-    Returns the length of the longest consecutive subsequence in x that is smaller than the mean of x.
-    If all values in x are null, 0 will be returned.
+    Returns the length of the longest consecutive subsequence in x that is < mean of x.
+    If all values in x are null, 0 will be returned. Note: this does not measure consecutive
+    changes in time series, only counts the streak based on the original time series, not the
+    differences.
 
     Parameters
     ----------
@@ -905,12 +917,13 @@ def longest_strike_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    y = (x.cast(pl.Float64) < x.mean()).cast(pl.UInt8).rle()
-    result = y.filter(y.struct.field("values")==1).struct.field("lengths").max()
     if isinstance(x, pl.Series):
+        y = (x.cast(pl.Float64) < x.mean()).rle()
+        result = y.filter(y.struct.field("values")).struct.field("lengths").max()
         return 0 if result is None else result
-    else: # fill null only works with expression
-        return result.fill_null(0).cast(pl.UInt64)
+    else:
+        y = (x < x.mean()).rle()
+        return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
 
 def mean_abs_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
@@ -926,6 +939,22 @@ def mean_abs_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     float | Expr
     """
     return x.diff(null_behavior="drop").abs().mean()
+
+
+def max_abs_change(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
+    """
+    Compute the maximum absolute change from X_t to X_t+1.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        A single time-series.
+
+    Returns
+    -------
+    float | Expr
+    """
+    return absolute_maximum(x.diff(null_behavior="drop"))
 
 def mean_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
@@ -1467,7 +1496,7 @@ def var_gt_std(x: TIME_SERIES_T, ddof: int = 1) -> BOOL_EXPR:
     x : pl.Expr | pl.Series
         Input time series.
     ddof : int
-        Delta Degrees of Freedom used when computing var/std.
+        Delta Degrees of Freedom used when computing var.
 
     Returns
     -------
@@ -1478,7 +1507,7 @@ def var_gt_std(x: TIME_SERIES_T, ddof: int = 1) -> BOOL_EXPR:
 
 def harmonic_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
-    Returns the harmonic mean of the expression
+    Returns the harmonic mean of the of the time series.
 
     Parameters
     ----------
@@ -1491,6 +1520,171 @@ def harmonic_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     return x.len() / (pl.lit(1.0) / x).sum()
 
+def range_over_mean(x:TIME_SERIES_T) -> FLOAT_EXPR:
+    '''
+    Returns the range (max - min) over mean of the time series.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+
+    Returns
+    -------
+    float | Expr
+    '''
+    return (x.max() - x.min()) / x.mean()
+
+def range_change(x:TIME_SERIES_T, percentage:bool = True) -> FLOAT_EXPR:
+    '''
+    Returns the maximum value range. If percentage is true, will compute 
+    (max - min) / min, which only makes sense when x is always positive.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+
+    Returns
+    -------
+    float | Expr
+    '''
+    if percentage:
+        return x.max()/x.min() - 1.0
+    else:
+        return x.max() - x.min()
+
+
+def streak_length_stats(x:TIME_SERIES_T, above:bool, threshold: float) -> MAP_EXPR:
+    '''
+    Returns some statistics of the length of the streaks of the time series. Note that the streaks here
+    are about the changes for consecutive values in the time series, not the individual values.
+
+    The statistics include: min length, max length, average length, std of length,
+    10-percentile length, median length, 90-percentile length, and mode of the length. If input is Series,
+    a dictionary will be returned. If input is an expression, the expression will evaluate to a struct
+    with the fields ordered by the statistics.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+    above: bool
+        Above (>=) or below (<=) the given threshold
+    threshold
+        The threshold for the change (x_t+1 - x_t) to be counted
+
+    Returns
+    -------
+    float | Expr
+    '''
+    if above:
+        y = (x.diff().cast(pl.Float64) >= threshold).rle()
+    else:
+        y = (x.diff().cast(pl.Float64) <= threshold).rle()
+
+    y = y.filter(y.struct.field("values")).struct.field("lengths")
+    if isinstance(x, pl.Series):
+        return {
+            "min": y.min(),
+            "max": y.max(),
+            "mean": y.mean(),
+            "std": y.std(),
+            "10-percentile": y.quantile(0.1),
+            "median": y.median(),
+            "90-percentile": y.quantile(0.9),
+            "mode": y.mode()[0]
+        }
+    else:
+        return pl.struct(
+            y.min().alias("min"),
+            y.max().alias("max"),
+            y.mean().alias("mean"),
+            y.std().alias("std"),
+            y.quantile(0.1).alias("10-percentile"),
+            y.median().alias("median"),
+            y.quantile(0.9).alias("90-percentile"),
+            y.mode().first().alias("mode")
+        )
+
+def longest_streak_above(x:TIME_SERIES_T, threshold:float):
+    '''
+    Returns the longest streak of changes >= threshold of the time series. A change
+    is counted when (x_t+1 - x_t) >= threshold. Note that the streaks here
+    are about the changes for consecutive values in the time series, not the individual values.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+
+    Returns
+    -------
+    float | Expr
+    '''
+    if isinstance(x, pl.Series):
+        y = (x.diff().cast(pl.Float64) >= threshold).rle()
+        streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
+        return 0 if streak_max is None else streak_max
+    else:
+        y = (x.diff() >= threshold).rle()
+        return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
+
+def longest_streak_below(x:TIME_SERIES_T, threshold:float):
+    '''
+    Returns the longest streak of changes <= threshold of the time series. A change
+    is counted when (x_t+1 - x_t) <= threshold. Note that the streaks here
+    are about the changes for consecutive values in the time series, not the individual values.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+
+    Returns
+    -------
+    float | Expr
+    '''
+    if isinstance(x, pl.Series):
+        y = (x.diff().cast(pl.Float64) <= threshold).rle()
+        streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
+        return 0 if streak_max is None else streak_max
+    else:
+        y = (x.diff() <= threshold).rle()
+        return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
+
+def longest_winning_streak(x:TIME_SERIES_T):
+    '''
+    Returns the longest winning streak of the time series. A win is counted when
+    (x_t+1 - x_t) >= 0
+    
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+
+    Returns
+    -------
+    float | Expr
+    '''
+    return longest_streak_above(x, threshold=0)
+
+
+def longest_losing_streak(x:TIME_SERIES_T):
+    '''
+    Returns the longest losing streak of the time series. A loss is counted when
+    (x_t+1 - x_t) <= 0
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+
+    Returns
+    -------
+    float | Expr
+    '''
+    return longest_streak_below(x, threshold=0)
 
 # FFT Features
 
