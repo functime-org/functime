@@ -77,13 +77,6 @@ y_pred = forecaster.predict(fh=3)
 scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 ```
 
-!!! info "Supported Data Schemas"
-
-    `X: polars.LazyFrame | polars.DataFrame` and `y: polars.LazyFrame | polars.DataFrame` must contain at least three columns.
-    The first column must represent the `entity` / `series_id` dimension.
-    The second column must represent the `time` dimension as an integer, `pl.Date`, or `pl.Datetime` series.
-    Remaining columns are considered as features.
-
 !!! tip "functime ❤️ currying"
 
     Every `transformer` and `splitter` are [curried functions](https://composingprograms.com/pages/16-higher-order-functions.html#currying).
@@ -92,7 +85,7 @@ scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
     from functime.preprocessing import boxcox, impute
 
     # Use df.pipe to chain operations together
-    X_new: pl.LazyFrame = (
+    X_splits: pl.LazyFrame = (
         X.pipe(boxcox(method="mle"))
         .pipe(impute(method="linear"))
     )
