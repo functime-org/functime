@@ -32,12 +32,8 @@ dependencies = [
     "holidays",
     "kaleido==0.2.1",
     "numpy",
-    "plotly",
     "polars==0.19.8",
     "pyarrow",
-    "pylance",
-    "pynndescent==0.5.8",
-    "rich>=12.0.0",
     "scikit-learn==1.2.2",
     "scipy",
     "tqdm",
@@ -50,10 +46,12 @@ dependencies = [
 Homepage = "https://github.com/descendant-ai/functime"
 
 [project.optional-dependencies]
+ann = ["pylance"]
 cat = ["catboost"]
 xgb = ["xgboost"]
 lgb = ["lightgbm"]
 llm = ["openai", "tabulate", "tenacity", "tiktoken"]
+plot = ["plotly", "kaleido"]
 test = [
     "aeon",
     "coverage[toml]",
