@@ -431,7 +431,8 @@ def test_count_below_mean(S, res):
     assert count_below_mean(pl.Series(S, dtype=pl.UInt32)) == res[0]
 
 @pytest.mark.parametrize("S, res, n_chunks", [
-    (range(90), [0.005189, ], 6)
+    (range(90), [0.004247483941162932, 0.03155273784863892, 0.08710480614315903, 0.1709036888247233, 0.2829493858933317, 0.42324189734898415], 6),
+    (10*[1], [0.0], 3)
 ])
 def test_energy_ratios(S, res, n_chunks):
     assert_frame_equal(
