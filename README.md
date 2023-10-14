@@ -13,23 +13,22 @@
 </div>
 
 ---
-**functime** is a powerful [Python library](https://pypi.org/project/functime/) for production-ready global forecasting with large panel datasets and time-series feature engineering.
+**functime** is a powerful [Python library](https://pypi.org/project/functime/) for production-ready **global forecasting** and **time-series feature extraction** on **large panel datasets**.
 
 **functime** also comes with time-series [preprocessing](https://docs.functime.ai/ref/preprocessing/) (box-cox, differencing etc), cross-validation [splitters](https://docs.functime.ai/ref/cross-validation/) (expanding and sliding window), and forecast [metrics](https://docs.functime.ai/ref/metrics/) (MASE, SMAPE etc). All optimized as [lazy Polars](https://pola-rs.github.io/polars-book/user-guide/lazy/using/) transforms.
 
 Join us on [Discord](https://discord.gg/PFJpFqbu4)!
 
 ## Highlights
-- **Fast:** Forecast 100,000 time series in seconds *on your laptop*
+- **Fast:** Forecast and extract features (e.g. tsfresh, Catch22) across 100,000 time series in seconds *on your laptop*
 - **Efficient:** Embarrassingly parallel [feature engineering](https://docs.functime.ai/ref/preprocessing/) for time-series using [`Polars`](https://www.pola.rs/)
 - **Battle-tested:** Machine learning algorithms that deliver real business impact and win competitions
 - **Exogenous features:** supported by every forecaster
 - **Backtesting** with expanding window and sliding window splitters
 - **Automated lags and hyperparameter tuning** using [`FLAML`](https://github.com/microsoft/FLAML)
-- **Censored forecaster:** for zero-inflated and thresholding forecasts
 
 ## Additional Highlights
-`functime` comes with a specialized LLM agent to analyze, describe, and compare your forecasts! Check out the walkthrough [here](https://docs.functime.ai/notebooks/llm/). Currently supports OpenAI's GPT-3.5 and GPT-4 as the underyling engine.
+`functime` comes with a specialized LLM agent to analyze, describe, and compare your forecasts. Check out the walkthrough [here](https://docs.functime.ai/notebooks/llm/).
 
 ## Getting Started
 Install `functime` via the [pip](https://pypi.org/project/functime) package manager.
