@@ -15,7 +15,9 @@ pip install functime
 pip install "functime[llm,lgb]"
 ```
 
+- `ann`: To use `ann` (approximate nearest neighbors) forecaster
 - `cat`: To use `catboost` forecaster
 - `xgb`: To use `xgboost` forecaster
 - `lgb`: To use `lightgbm` forecaster
 - `llm`: To use the LLM-powered forecast analyst
+- `plot`: To use plotting functions
