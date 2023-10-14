@@ -565,14 +565,28 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     # Unlike Tsfresh,
     # We calculate all 1,2,3,...,n_chunk at once
     if isinstance(x, pl.Series):
-        y = x.pow(2).extend_constant(0, n_chunks - (x.len() % n_chunks))
-        seg_sum = y.reshape((n_chunks, y.len()//n_chunks)).list.sum()
+        r = x.len() % n_chunks
+        if r != 0:
+            y = x.pow(2).extend_constant(0, n_chunks - r)
+        else:
+            y = x.pow(2)
+        seg_sum = y.reshape((n_chunks, -1)).list.sum()
         return (seg_sum / seg_sum.sum()).to_list()
     else:
-        y = x.pow(2).append(
-            pl.lit(0).repeat_by(pl.lit(n_chunks) - x.count().mod(n_chunks))
+        r = x.count().mod(n_chunks)
+        y = (
+            pl.when(r.ne(pl.lit(0)))
+            .then(
+                x.pow(2).append(
+                    pl.repeat(0, n=(pl.lit(n_chunks) - r))
+                )
+            )
+            .otherwise(x.pow(2).append(
+                    pl.repeat(None, n=(pl.lit(n_chunks) - r))
+                )
+            )
         )
-        seg_sum = y.reshape((n_chunks, -1)).list.sum()
+        seg_sum = y.drop_nulls().reshape((n_chunks, -1)).list.sum()
         return (seg_sum / seg_sum.sum()).implode()
 
 
@@ -1544,7 +1558,9 @@ def range_change(x:TIME_SERIES_T, percentage:bool = True) -> FLOAT_EXPR:
     ----------
     x : pl.Expr | pl.Series
         Input time series.
-
+    percentage : bool
+        compute the percentage if set to True
+    
     Returns
     -------
     float | Expr
@@ -1555,7 +1571,7 @@ def range_change(x:TIME_SERIES_T, percentage:bool = True) -> FLOAT_EXPR:
         return x.max() - x.min()
 
 
-def streak_length_stats(x:TIME_SERIES_T, above:bool, threshold: float) -> MAP_EXPR:
+def streak_length_stats(x: TIME_SERIES_T, above: bool, threshold: float) -> MAP_EXPR:
     '''
     Returns some statistics of the length of the streaks of the time series. Note that the streaks here
     are about the changes for consecutive values in the time series, not the individual values.
@@ -1607,7 +1623,7 @@ def streak_length_stats(x:TIME_SERIES_T, above:bool, threshold: float) -> MAP_EX
             y.mode().first().alias("mode")
         )
 
-def longest_streak_above(x:TIME_SERIES_T, threshold:float):
+def longest_streak_above(x:TIME_SERIES_T, threshold:float)-> TIME_SERIES_T:
     '''
     Returns the longest streak of changes >= threshold of the time series. A change
     is counted when (x_t+1 - x_t) >= threshold. Note that the streaks here
@@ -1617,6 +1633,8 @@ def longest_streak_above(x:TIME_SERIES_T, threshold:float):
     ----------
     x : pl.Expr | pl.Series
         Input time series.
+    threshold : float
+        The threshold value for comparison.
 
     Returns
     -------
@@ -1630,7 +1648,7 @@ def longest_streak_above(x:TIME_SERIES_T, threshold:float):
         y = (x.diff() >= threshold).rle()
         return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
 
-def longest_streak_below(x:TIME_SERIES_T, threshold:float):
+def longest_streak_below(x:TIME_SERIES_T, threshold:float)-> TIME_SERIES_T:
     '''
     Returns the longest streak of changes <= threshold of the time series. A change
     is counted when (x_t+1 - x_t) <= threshold. Note that the streaks here
@@ -1640,6 +1658,8 @@ def longest_streak_below(x:TIME_SERIES_T, threshold:float):
     ----------
     x : pl.Expr | pl.Series
         Input time series.
+    threshold : float
+        The threshold value for comparison.
 
     Returns
     -------
@@ -1653,7 +1673,7 @@ def longest_streak_below(x:TIME_SERIES_T, threshold:float):
         y = (x.diff() <= threshold).rle()
         return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
 
-def longest_winning_streak(x:TIME_SERIES_T):
+def longest_winning_streak(x:TIME_SERIES_T) -> TIME_SERIES_T:
     '''
     Returns the longest winning streak of the time series. A win is counted when
     (x_t+1 - x_t) >= 0
@@ -1670,7 +1690,7 @@ def longest_winning_streak(x:TIME_SERIES_T):
     return longest_streak_above(x, threshold=0)
 
 
-def longest_losing_streak(x:TIME_SERIES_T):
+def longest_losing_streak(x:TIME_SERIES_T)-> TIME_SERIES_T:
     '''
     Returns the longest losing streak of the time series. A loss is counted when
     (x_t+1 - x_t) <= 0

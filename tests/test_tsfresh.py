@@ -21,6 +21,7 @@ from functime.feature_extraction.tsfresh import (
     count_above_mean,
     count_below,
     count_below_mean,
+    energy_ratios,
     longest_streak_above_mean,
     longest_streak_below_mean,
     mean_n_absolute_max,
@@ -31,7 +32,6 @@ from functime.feature_extraction.tsfresh import (
     number_peaks,
     symmetry_looking,
     time_reversal_asymmetry_statistic,
-    approximate_entropy,
     percent_reoccuring_values,
     lempel_ziv_complexity,
     range_over_mean,
@@ -429,6 +429,54 @@ def test_count_below_mean(S, res):
         pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32))
     )
     assert count_below_mean(pl.Series(S, dtype=pl.UInt32)) == res[0]
+
+@pytest.mark.parametrize("S, res, n_chunks", [
+    (range(90), [[0.004247483941162932, 0.03155273784863892, 0.08710480614315903, 0.1709036888247233, 0.2829493858933317, 0.42324189734898415]], 6),
+    (10*[1], [[0.4, 0.4, 0.2]], 3),
+    (8*[1], [[0.375, 0.375, 0.25]], 3)
+])
+def test_energy_ratios(S, res, n_chunks):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            energy_ratios(pl.col("a"), n_chunks=n_chunks)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            energy_ratios(pl.col("a"), n_chunks=n_chunks)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert energy_ratios(pl.Series(S), n_chunks=n_chunks) == res[0]
+
+@pytest.mark.parametrize("S, res, n_chunks", [
+    (8*[0], [[np.nan, np.nan, np.nan]], 3),
+    (10*[0], [[np.nan, np.nan, np.nan]], 3),
+    (9*[0], [[np.nan, np.nan, np.nan]], 3)
+])
+def test_energy_ratios_nan_cases(S, res, n_chunks):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            energy_ratios(pl.col("a"), n_chunks=n_chunks)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            energy_ratios(pl.col("a"), n_chunks=n_chunks)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    np.isnan(energy_ratios(pl.Series(S), n_chunks=n_chunks) == res[0])
 
 
 def test_benford_correlation():
