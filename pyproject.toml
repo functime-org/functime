@@ -30,7 +30,6 @@ dependencies = [
     "bottleneck",
     "flaml==2.0.2",
     "holidays",
-    "kaleido==0.2.1",
     "numpy",
     "polars==0.19.8",
     "pyarrow",
@@ -51,7 +50,7 @@ cat = ["catboost"]
 xgb = ["xgboost"]
 lgb = ["lightgbm"]
 llm = ["openai", "tabulate", "tenacity", "tiktoken"]
-plot = ["plotly", "kaleido"]
+plot = ["pandas", "plotly", "kaleido==0.2.1"]
 test = [
     "aeon",
     "coverage[toml]",
