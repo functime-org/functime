@@ -23,7 +23,7 @@ from .snaive import snaive
 try:
     from .lance import ann
 except ImportError:
-    msg = "Missing ann extras: `pip install functime[ann]`
+    msg = "Missing ann extras: `pip install functime[ann]`"
     ann = ImportError(msg)
 
 try:
