@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "functime"
-version = "0.8.1"
+version = "0.8.2"
 description = "Time-series machine learning at scale."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -30,14 +30,8 @@ dependencies = [
     "bottleneck",
     "flaml==2.0.2",
     "holidays",
-    "kaleido==0.2.1",
     "numpy",
-    "plotly",
     "polars==0.19.8",
-    "pyarrow",
-    "pylance",
-    "pynndescent==0.5.8",
-    "rich>=12.0.0",
     "scikit-learn==1.2.2",
     "scipy",
     "tqdm",
@@ -50,10 +44,12 @@ dependencies = [
 Homepage = "https://github.com/descendant-ai/functime"
 
 [project.optional-dependencies]
+ann = ["pylance", "pyarrow"]
 cat = ["catboost"]
-xgb = ["xgboost"]
+xgb = ["xgboost", "pyarrow"]
 lgb = ["lightgbm"]
 llm = ["openai", "tabulate", "tenacity", "tiktoken"]
+plot = ["pandas", "plotly", "kaleido==0.2.1"]
 test = [
     "aeon",
     "coverage[toml]",
