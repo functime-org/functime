@@ -272,7 +272,7 @@ forecaster = linear_model(
 ```python
 from functime.forecasting import linear_model
 from functime.feature_extraction import add_fourier_terms
-from functime.preprocessing import lag
+from functime.preprocessing import roll
 
 # Include Fourier terms to model complex seasonality
 forecaster = linear_model(
