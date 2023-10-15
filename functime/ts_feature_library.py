@@ -54,6 +54,16 @@ class FeatureLibrary:
         """
         return f.autocorrelation(self._expr, n_lags)
 
+    def root_mean_square(self)-> pl.Expr:
+        """
+        Calculate the root mean square.
+
+        Returns
+        -------
+        An expression of the output
+        """
+        return f.root_mean_square(self._expr)
+
     def benford_correlation(self) -> pl.Expr:
         """
         Returns the correlation between the first digit distribution of the input time series and
@@ -340,7 +350,7 @@ class FeatureLibrary:
         """
         return f.linear_trend(self._expr)
 
-    def longest_strike_above_mean(self) -> pl.Expr:
+    def longest_streak_above_mean(self) -> pl.Expr:
         """
         Returns the length of the longest consecutive subsequence in x that is greater than the mean of x.
 
@@ -348,9 +358,9 @@ class FeatureLibrary:
         -------
         An expression of the output
         """
-        return f.longest_strike_above_mean(self._expr)
+        return f.longest_streak_above_mean(self._expr)
 
-    def longest_strike_below_mean(self) -> pl.Expr:
+    def longest_streak_below_mean(self) -> pl.Expr:
         """
         Returns the length of the longest consecutive subsequence in x that is smaller than the mean of x.
 
@@ -358,7 +368,41 @@ class FeatureLibrary:
         -------
         An expression of the output
         """
-        return f.longest_strike_below_mean(self._expr)
+        return f.longest_streak_below_mean(self._expr)
+    
+    def longest_streak_above(self, threshold: float) -> pl.Expr:
+        """
+        Returns the longest streak of changes >= threshold of the time series. A change
+        is counted when (x_t+1 - x_t) >= threshold. Note that the streaks here
+        are about the changes for consecutive values in the time series, not the individual values.
+
+        Parameters
+        ----------
+        threshold : float
+            The threshold value for comparison.
+
+        Returns
+        -------
+        An expression of the output
+        """
+        return f.longest_streak_above(self._expr, threshold)
+
+    def longest_streak_below(self, threshold: float) -> pl.Expr:
+        """
+        Returns the longest streak of changes <= threshold of the time series. A change
+        is counted when (x_t+1 - x_t) <= threshold. Note that the streaks here
+        are about the changes for consecutive values in the time series, not the individual values.
+
+        Parameters
+        ----------
+        threshold : float
+            The threshold value for comparison.
+
+        Returns
+        -------
+        An expression of the output
+        """
+        return f.longest_streak_below(self._expr, threshold)
 
     def mean_abs_change(self) -> pl.Expr:
         """
@@ -369,6 +413,16 @@ class FeatureLibrary:
         An expression of the output
         """
         return f.mean_abs_change(self._expr)
+    
+    def max_abs_change(self)-> pl.Expr:
+        """
+        Compute the maximum absolute change from X_t to X_t+1.
+
+        Returns
+        -------
+        An expression of the output
+        """
+        return f.max_abs_change(self._expr)
 
     def mean_change(self) -> pl.Expr:
         """
@@ -650,3 +704,73 @@ class FeatureLibrary:
         An expression of the output
         """
         return f.harmonic_mean(self._expr)
+    
+    def range_over_mean(self)-> pl.Expr:
+        """
+        Returns the range (max - min) over mean of the time series.
+
+        Returns
+        -------
+        An expression of the output
+        """
+        return f.range_over_mean(self._expr)
+
+    def range_change(self, percentage: bool = True)-> pl.Expr:
+        """
+        Returns the range (max - min) over mean of the time series.
+        
+        Parameters
+        ----------
+        percentage : bool
+            Compute the percentage if set to True
+
+        Returns
+        -------
+        An expression of the output
+        """
+        return f.range_change(self._expr, percentage)
+    
+    def streak_length_stats(self, above: bool, threshold: float)-> pl.Expr:
+        """
+        Returns some statistics of the length of the streaks of the time series. Note that the streaks here
+        are about the changes for consecutive values in the time series, not the individual values.
+
+        The statistics include: min length, max length, average length, std of length,
+        10-percentile length, median length, 90-percentile length, and mode of the length. If input is Series,
+        a dictionary will be returned. If input is an expression, the expression will evaluate to a struct
+        with the fields ordered by the statistics.
+
+        Parameters
+        ----------
+        above: bool
+            Above (>=) or below (<=) the given threshold
+        threshold
+            The threshold for the change (x_t+1 - x_t) to be counted
+
+        Returns
+        -------
+        An expression of the output
+        """
+        return f.streak_length_stats(self._expr, above, threshold)
+
+    def longest_winning_streak(self)-> pl.Expr:
+        """
+        Returns the longest winning streak of the time series. A win is counted when
+        (x_t+1 - x_t) >= 0
+
+        Returns
+        -------
+        An expression of the output
+        """
+        return f.longest_winning_streak(self._expr)
+
+    def longest_losing_streak(self)-> pl.Expr:
+        """
+        Returns the longest losing streak of the time series. A loss is counted when
+        (x_t+1 - x_t) <= 0
+
+        Returns
+        -------
+        An expression of the output
+        """
+        return f.longest_losing_streak(self._expr)

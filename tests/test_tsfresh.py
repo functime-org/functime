@@ -14,6 +14,14 @@ from functime.feature_extraction.tsfresh import (
     autoregressive_coefficients,
     binned_entropy,
     benford_correlation,
+    first_location_of_maximum,
+    first_location_of_minimum,
+    has_duplicate,
+    has_duplicate_max,
+    has_duplicate_min,
+    index_mass_quantile,
+    last_location_of_maximum,
+    last_location_of_minimum,
     c3,
     change_quantiles,
     cid_ce,
@@ -430,6 +438,207 @@ def test_count_below_mean(S, res):
     )
     assert count_below_mean(pl.Series(S, dtype=pl.UInt32)) == res[0]
 
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1], [0.2]),
+    ([1.5, 2.6, 1.8, 2.1, 1.0], [0.2]),
+    ([2, 1, 1, 1, 1], [0.0]),
+    ([1, 1, 1, 1, 1], [0.0])
+])
+def test_first_location_of_maximum(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            first_location_of_maximum(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            first_location_of_maximum(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert first_location_of_maximum(pl.Series(S)) == res[0]
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1], [0.0]),
+    ([2, 1, 1, 1, 2], [0.2]),
+    ([2.7, 1.05, 1.2, 1.068, 2.3], [0.2]),
+    ([1, 1, 1, 1, 1], [0.0])
+])
+def test_first_location_of_minimum(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            first_location_of_minimum(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            first_location_of_minimum(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert first_location_of_minimum(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res", [
+    ([2.1, 0, 0, 2.1, 1.1], [True]),
+    ([2.1, 0, 4, 2, 1.1], [False])
+])
+def test_has_duplicate(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            has_duplicate(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            has_duplicate(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert has_duplicate(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res", [
+    ([-2.1, 0, 0, -2.1, 1.1], [True]),
+    ([2.1, 0, -1, 2, 1.1], [False]),
+    ([1, 1, 1, 1], [True]),
+    ([0], [False])
+])
+def test_has_duplicate_min(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            has_duplicate_min(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            has_duplicate_min(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert has_duplicate_min(pl.Series(S)) == res[0]
+
+@pytest.mark.parametrize("S, res", [
+    ([2.1, 0, 0, 2.1, 1.1], [True]),
+    ([2.1, 0, 0, 2, 1.1], [False]),
+    ([1, 1, 1, 1], [True]),
+    ([0], [False])
+])
+def test_has_duplicate_max(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            has_duplicate_max(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            has_duplicate_max(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert has_duplicate_max(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res, q", [
+    ([1] * 101, [0.504950495049505], 0.5),
+    ([0, 1, 1, 0, 0, 1, 0, 0], [0.25], 0.3),
+    ([0, 1, 1, 0, 0, 1, 0, 0], [0.375], 0.6),
+    ([0, 1, 1, 0, 0, 1, 0, 0], [0.75], 0.9)
+])
+def test_index_mass_quantile(S, res, q):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            index_mass_quantile(pl.col("a"), q)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            index_mass_quantile(pl.col("a"), q)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert index_mass_quantile(pl.Series(S), q) == res[0]
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1], [1.0]),
+    ([1, 2, 1, 2, 2], [0.6]),
+    ([2.7, 1.05, 1.2, 1.068, 2.3], [0.4]),
+    ([2, 1, 1, 1, 2], [0.8])
+])
+def test_last_location_of_minimum(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            last_location_of_minimum(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            last_location_of_minimum(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert last_location_of_minimum(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1], [0.8]),
+    ([1, 2, 1, 1, 2], [1.0]),
+    ([2.7, 1.05, 1.2, 1.068, 2.3], [0.19999999999999996]),
+    ([2, 1, 1, 1, 1], [0.19999999999999996])
+])
+def test_last_location_of_maximum(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            last_location_of_maximum(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            last_location_of_maximum(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert last_location_of_maximum(pl.Series(S)) == res[0]
 
 def test_benford_correlation():
     # Nan, division by 0
