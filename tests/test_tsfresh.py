@@ -2,12 +2,35 @@ import numpy as np
 import polars as pl
 import pytest
 from polars.testing import assert_frame_equal, assert_series_equal
+import inspect
 
 # percent_recoccuring_values,
 from functime.feature_extraction.tsfresh import (
+    absolute_energy,
+    absolute_maximum,
+    absolute_sum_of_changes,
+    approximate_entropy,
+    autocorrelation,
+    autoregressive_coefficients,
+    binned_entropy,
     benford_correlation,
-    longest_strike_above_mean,
-    longest_strike_below_mean,
+    first_location_of_maximum,
+    first_location_of_minimum,
+    has_duplicate,
+    has_duplicate_max,
+    has_duplicate_min,
+    index_mass_quantile,
+    last_location_of_maximum,
+    last_location_of_minimum,
+    c3,
+    change_quantiles,
+    cid_ce,
+    count_above,
+    count_above_mean,
+    count_below,
+    count_below_mean,
+    longest_streak_above_mean,
+    longest_streak_below_mean,
     mean_n_absolute_max,
     mean_second_derivative_central,
     percent_reocurring_points,
@@ -17,11 +40,605 @@ from functime.feature_extraction.tsfresh import (
     symmetry_looking,
     time_reversal_asymmetry_statistic,
     approximate_entropy,
-    percent_reoccuring_values
+    percent_reoccuring_values,
+    lempel_ziv_complexity,
+    range_over_mean,
+    range_change,
+    longest_winning_streak,
+    longest_streak_above,
+    longest_losing_streak,
+    longest_streak_below,
+    max_abs_change,
 )
 
 np.random.seed(42)
 
+@pytest.mark.parametrize("S, res", [
+    ([-5, 0, 1], [26]),
+    ([0], [0]),
+    ([-1, 2, -3], [14]),
+    ([-1, 1.3], [2.6900000000000004]),
+    ([1], [1])
+])
+def test_abolute_energy(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            absolute_energy(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            absolute_energy(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert absolute_energy(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res", [
+    ([-5, 0, 1], [5]),
+    ([0], [0]),
+    ([-1.0, 2.0, -3.0], [3.0]),
+])
+def test_absolute_maximum(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            absolute_maximum(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("max", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            absolute_maximum(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("max", res))
+    )
+    assert absolute_maximum(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 1, 1, 1, 2, 1], [2]),
+    ([1.4, -1.3, 1.7, -1.2], [8.6]),
+    ([1], [0])
+])
+def test_absolute_sum_of_changes(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            absolute_sum_of_changes(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            absolute_sum_of_changes(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert absolute_sum_of_changes(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res, m, r, scale", [
+    ([1], 0, 2, 0.5, False),
+    ([12, 13, 15, 16, 17] * 10, 0.282456191276673, 2, 0.9, True),
+    ([1.4, -1.3, 1.7, -1.2], 0.0566330122651324, 2, 0.5, False),
+    ([0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1], 0.002223871246127107, 2, 0.5, False),
+    ([0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1], 0.47133806162842484, 2, 0.5, False),
+    ([85, 80, 89] * 17, 1.099654110658932e-05, 2, 3, False),
+    ([85, 80, 89] * 17, 0.0, 2, 3, True)
+])
+def test_approximate_entropy(S, res, m, r, scale):
+    assert approximate_entropy(x = pl.Series(S), run_length=m, filtering_level=r, scale_by_std=scale) == res
+
+@pytest.mark.parametrize("S, res, n_lags", [
+    ([1, 2, 1, 2, 1, 2], [-1.0], 1),
+    ([1, 2, 1, 2, 1, 2], [1.0], 2),
+    ([1, 2, 1, 2, 1, 2], [1.0], 4),
+    ([0, 1, 2, 0, 1, 2], [-0.75], 2)
+])
+def test_autocorrelation(S, res, n_lags):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            autocorrelation(pl.col("a"), n_lags=n_lags)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            autocorrelation(pl.col("a"), n_lags=n_lags)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert autocorrelation(pl.Series(S), n_lags=n_lags) == res[0]
+
+@pytest.mark.parametrize("S, res, n_lags", [
+    ([1, 2, 1, 2, 1, 2], [1.0], 0)
+])
+def test_autocorrelation_shortcut(S, res, n_lags):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            autocorrelation(pl.col("a"), n_lags=n_lags)
+        ),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            autocorrelation(pl.col("a"), n_lags=n_lags)
+        ).collect(),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert autocorrelation(pl.Series(S), n_lags=n_lags) == res[0]
+
+
+
+@pytest.mark.parametrize("S, res, bin_count", [
+    ([10] * 100, [-0.0], 10),
+    ([10] * 10 + [1], [0.30463609734923813], 10),
+    (list(range(10)), [2.302585092994046], 100)
+])
+def test_binned_entropy(S, res, bin_count):
+    # Doesn't work for lazy mode
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            binned_entropy(pl.col("a"), bin_count=bin_count)
+        ),
+        pl.DataFrame(pl.Series("counts", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            binned_entropy(pl.col("a"), bin_count=bin_count)
+        ).collect(),
+        pl.DataFrame(pl.Series("counts", res))
+    )
+    assert binned_entropy(pl.Series(S), bin_count=bin_count) == res[0]
+
+@pytest.mark.parametrize("S, res, n_lags", [
+    ([1, 2, -3, 4], [-15.0], 1),
+    ([1]*10, [1.0], 1),
+    ([1]*10, [1.0], 2),
+    ([1]*10, [1.0], 3)
+])
+def test_c3(S, res, n_lags):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            c3(pl.col("a"), n_lags=n_lags)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            c3(pl.col("a"), n_lags=n_lags)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert c3(pl.Series(S), n_lags=n_lags) == res[0]
+
+@pytest.mark.parametrize("S, res, n_lags", [
+    ([1, 2, -3, 4], [np.nan], 2),
+    ([1, 2, -3, 4], [0.0], 3)
+])
+def test_c3_not_define(S, res, n_lags):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            c3(pl.col("a"), n_lags=n_lags)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            c3(pl.col("a"), n_lags=n_lags)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert np.isnan(c3(pl.Series(S), n_lags=n_lags))
+
+@pytest.mark.parametrize("S, res, q_low, q_high, is_abs", [
+    ([0, 1, -9, 0, 0, 1, 0], [[1, 0, 1, 1]], 0.1, 0.9, True),
+    ([0, 1, -9, 0, 0, 1, 0], [[1, 0, 1, -1]], 0.1, 0.9, False),
+    (list(range(10)), [[1, 1, 1]], 0.25, 0.75, True)
+])
+def test_change_quantiles(S, res, q_low, q_high, is_abs):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            change_quantiles(pl.col("a"), q_low=q_low, q_high=q_high, is_abs=is_abs)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            change_quantiles(pl.col("a"), q_low=q_low, q_high=q_high, is_abs=is_abs)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_series_equal(
+        change_quantiles(pl.Series(S), q_low=q_low, q_high=q_high, is_abs=is_abs),
+        pl.Series(res[0])
+    )
+
+@pytest.mark.parametrize("S, res, normalize", [
+    ([1, 1, 1], [0.0], False),
+    ([0, 4], [2.0], True),
+    ([100, 104], [2.0], True),
+    ([-4.33, -1.33, 2.67], [5.0], False)
+])
+def test_cid_ce(S, res, normalize):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            cid_ce(pl.col("a"), normalize=normalize)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            cid_ce(pl.col("a"), normalize=normalize)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert cid_ce(pl.Series(S), normalize=normalize) == res[0]
+
+
+@pytest.mark.parametrize("S, res, normalize", [
+    ([1, 1, 1], [np.nan], True)
+])
+def test_cid_ce_nan_case(S, res, normalize):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            cid_ce(pl.col("a"), normalize=normalize)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            cid_ce(pl.col("a"), normalize=normalize)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    np.isnan(cid_ce(pl.Series(S), normalize=normalize) == res[0])
+
+@pytest.mark.parametrize("S, res, threshold", [
+    ([0.1, 0.2, 0.3] * 3, [200 / 3], 0.2),
+    ([1] * 10, [100.0], 1.0),
+    (list(range(10)), [100.0], 0),
+    (list(range(10)), [50.0], 5)
+])
+def test_count_above(S, res, threshold):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            count_above(pl.col("a"), threshold=threshold)
+        ),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            count_above(pl.col("a"), threshold=threshold)
+        ).collect(),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert count_above(pl.Series(S), threshold=threshold) == res[0]
+
+@pytest.mark.parametrize("S, res, threshold", [
+    ([0.1, 0.2, 0.3] * 3, [200 / 3], 0.2),
+    ([1] * 10, [100.0], 1),
+    (list(range(10)), [60.0], 5),
+    (list(range(10)), [10.0], 0)
+])
+def test_count_below(S, res, threshold):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            count_below(pl.col("a"), threshold=threshold)
+        ),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            count_below(pl.col("a"), threshold=threshold)
+        ).collect(),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert count_below(pl.Series(S), threshold=threshold) == res[0]
+
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1, 2], [3]),
+    ([1, 1, 1, 1, 1, 2], [1]),
+    ([1, 1, 1, 1, 1], [0])
+])
+def test_count_above_mean(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            count_above_mean(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            count_above_mean(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32))
+    )
+    assert count_above_mean(pl.Series(S, dtype=pl.UInt32)) == res[0]
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1, 2], [3]),
+    ([1, 1, 1, 1, 1, 2], [5]),
+    ([1, 1, 1, 1, 1], [0])
+])
+def test_count_below_mean(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            count_below_mean(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            count_below_mean(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32))
+    )
+    assert count_below_mean(pl.Series(S, dtype=pl.UInt32)) == res[0]
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1], [0.2]),
+    ([1.5, 2.6, 1.8, 2.1, 1.0], [0.2]),
+    ([2, 1, 1, 1, 1], [0.0]),
+    ([1, 1, 1, 1, 1], [0.0])
+])
+def test_first_location_of_maximum(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            first_location_of_maximum(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            first_location_of_maximum(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert first_location_of_maximum(pl.Series(S)) == res[0]
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1], [0.0]),
+    ([2, 1, 1, 1, 2], [0.2]),
+    ([2.7, 1.05, 1.2, 1.068, 2.3], [0.2]),
+    ([1, 1, 1, 1, 1], [0.0])
+])
+def test_first_location_of_minimum(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            first_location_of_minimum(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            first_location_of_minimum(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert first_location_of_minimum(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res", [
+    ([2.1, 0, 0, 2.1, 1.1], [True]),
+    ([2.1, 0, 4, 2, 1.1], [False])
+])
+def test_has_duplicate(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            has_duplicate(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            has_duplicate(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert has_duplicate(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res", [
+    ([-2.1, 0, 0, -2.1, 1.1], [True]),
+    ([2.1, 0, -1, 2, 1.1], [False]),
+    ([1, 1, 1, 1], [True]),
+    ([0], [False])
+])
+def test_has_duplicate_min(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            has_duplicate_min(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            has_duplicate_min(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert has_duplicate_min(pl.Series(S)) == res[0]
+
+@pytest.mark.parametrize("S, res", [
+    ([2.1, 0, 0, 2.1, 1.1], [True]),
+    ([2.1, 0, 0, 2, 1.1], [False]),
+    ([1, 1, 1, 1], [True]),
+    ([0], [False])
+])
+def test_has_duplicate_max(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            has_duplicate_max(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            has_duplicate_max(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert has_duplicate_max(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res, q", [
+    ([1] * 101, [0.504950495049505], 0.5),
+    ([0, 1, 1, 0, 0, 1, 0, 0], [0.25], 0.3),
+    ([0, 1, 1, 0, 0, 1, 0, 0], [0.375], 0.6),
+    ([0, 1, 1, 0, 0, 1, 0, 0], [0.75], 0.9)
+])
+def test_index_mass_quantile(S, res, q):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            index_mass_quantile(pl.col("a"), q)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            index_mass_quantile(pl.col("a"), q)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert index_mass_quantile(pl.Series(S), q) == res[0]
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1], [1.0]),
+    ([1, 2, 1, 2, 2], [0.6]),
+    ([2.7, 1.05, 1.2, 1.068, 2.3], [0.4]),
+    ([2, 1, 1, 1, 2], [0.8])
+])
+def test_last_location_of_minimum(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            last_location_of_minimum(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            last_location_of_minimum(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert last_location_of_minimum(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 2, 1, 2, 1], [0.8]),
+    ([1, 2, 1, 1, 2], [1.0]),
+    ([2.7, 1.05, 1.2, 1.068, 2.3], [0.19999999999999996]),
+    ([2, 1, 1, 1, 1], [0.19999999999999996])
+])
+def test_last_location_of_maximum(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            last_location_of_maximum(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            last_location_of_maximum(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("literal", res))
+    )
+    assert last_location_of_maximum(pl.Series(S)) == res[0]
 
 def test_benford_correlation():
     # Nan, division by 0
@@ -95,12 +712,12 @@ def test_benford_correlation():
     ([1, 1, 1], [0]),
     ([], [0])
 ])
-def test_longest_strike_below_mean(S, res):
+def test_longest_streak_below_mean(S, res):
     assert_frame_equal(
         pl.DataFrame(
             {"a": S}
         ).select(
-            longest_strike_below_mean(pl.col("a")).alias("lengths")
+            longest_streak_below_mean(pl.col("a")).alias("lengths")
         ),
         pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
     )
@@ -108,7 +725,7 @@ def test_longest_strike_below_mean(S, res):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            longest_strike_below_mean(pl.col("a")).alias("lengths")
+            longest_streak_below_mean(pl.col("a")).alias("lengths")
         ).collect(),
         pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
     )
@@ -122,12 +739,12 @@ def test_longest_strike_below_mean(S, res):
     ([1, 1, 1], [0]),
     ([], [0])
 ])
-def test_longest_strike_above_mean(S, res):
+def test_longest_streak_above_mean(S, res):
     assert_frame_equal(
         pl.DataFrame(
             {"a": S}
         ).select(
-            longest_strike_above_mean(pl.col("a")).alias("lengths")
+            longest_streak_above_mean(pl.col("a")).alias("lengths")
         ),
         pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
     )
@@ -135,7 +752,7 @@ def test_longest_strike_above_mean(S, res):
         pl.LazyFrame(
             {"a": S}
         ).select(
-            longest_strike_above_mean(pl.col("a")).alias("lengths")
+            longest_streak_above_mean(pl.col("a")).alias("lengths")
         ).collect(),
         pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
     )
@@ -231,10 +848,9 @@ def test_percent_reoccuring_values(S, res):
 
 @pytest.mark.parametrize("S, res", [
     ([1, 1, 2, 3, 4, 4], [10]),
-    ([1, 1.5, 2, 3], [0]),
+    ([1, 1.5, 2, 3], [0.0]),
     ([1], [0]),
-    ([1.111, -2.45, 1.111, 2.45], [2.222]),
-    ([], [0])
+    ([1.111, -2.45, 1.111, 2.45], [2.222])
 ])
 def test_sum_reocurring_points(S, res):
     assert_frame_equal(
@@ -243,7 +859,7 @@ def test_sum_reocurring_points(S, res):
         ).select(
             sum_reocurring_points(pl.col("a"))
         ),
-        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+        pl.DataFrame(pl.Series("a", res))
     )
     assert_frame_equal(
         pl.LazyFrame(
@@ -251,16 +867,15 @@ def test_sum_reocurring_points(S, res):
         ).select(
             sum_reocurring_points(pl.col("a"))
         ).collect(),
-        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+        pl.DataFrame(pl.Series("a", res))
     )
 
 
 @pytest.mark.parametrize("S, res", [
     ([1, 1, 2, 3, 4, 4], [5]),
-    ([1, 1.5, 2, 3], [0]),
+    ([1, 1.5, 2, 3], [0.0]),
     ([1], [0]),
-    ([1.111, -2.45, 1.111, 2.45], [1.111]),
-    ([], [0])
+    ([1.111, -2.45, 1.111, 2.45], [1.111])
 ])
 def test_sum_reocurring_values(S, res):
     assert_frame_equal(
@@ -269,7 +884,7 @@ def test_sum_reocurring_values(S, res):
         ).select(
             sum_reocurring_values(pl.col("a"))
         ),
-        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+        pl.DataFrame(pl.Series("a", res))
     )
     assert_frame_equal(
         pl.LazyFrame(
@@ -277,7 +892,7 @@ def test_sum_reocurring_values(S, res):
         ).select(
             sum_reocurring_values(pl.col("a"))
         ).collect(),
-        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64))
+        pl.DataFrame(pl.Series("a", res))
     )
 
 
@@ -458,18 +1073,133 @@ def test_symmetry_looking(x, r, res):
         pl.DataFrame({x.name:[res]})
     )
 
-# The first test here is take from wikipedia
-@pytest.mark.parametrize(
-    "x, param, res", [
-        (pl.Series([85, 80, 89] * 17), {"m":2, "r":3, "scale":False}, 1.099654110658932e-05)
-    ]
-)
-def test_approximate_entropy(x, param, res):
-    ans = approximate_entropy(x, param["m"], param["r"], param["scale"])
-    assert ans == res
 
 @pytest.mark.parametrize(
     "x, lag, res", [(pl.Series([1] * 10), 0, 0), (pl.Series([1, 2, -3, 4]), 1, -10)]
 )
 def test_time_reversal_asymmetry_statistic(x, lag, res):
     assert time_reversal_asymmetry_statistic(x, lag) == res
+
+
+def test_lempel_ziv_complexity():
+    a = pl.Series([1,0,0,1,1,1,1,0,1,1,0,0,0,0,1,0])
+    assert lempel_ziv_complexity(a, threshold = 0) * len(a) == 8
+    a = pl.Series([1,0,0,1,1,1,1,0,1,1,0,0,0,0,1,0,0,0,0,0,1,0])
+    assert lempel_ziv_complexity(a, threshold = 0) * len(a) == 9
+    a = pl.Series([1,0,0,1,1,1,1,0,1,1,0,0,0,0,1,0,0,0,0,0,1,0,1,0])
+    assert lempel_ziv_complexity(a, threshold = 0) * len(a) == 10
+
+
+@pytest.mark.parametrize("S, res", [
+    (list(range(100)), 99),
+    ([0, 0 , 0, 0, -1, 2, -3, 1], 3),
+    (list(range(100, 0, -1)), 0)
+])
+def test_longest_streak_above(S, res):
+
+    x = pl.Series(S)
+    assert longest_streak_above(x, threshold=0) == res
+    df = x.to_frame()
+    assert_frame_equal(
+        df.select(
+            longest_streak_above(pl.col(x.name), threshold=0).alias(x.name).cast(pl.Int64)
+        ),
+        pl.DataFrame({x.name:[res]})
+    )
+
+    assert_frame_equal(
+        df.lazy().select(
+            longest_streak_above(pl.col(x.name), threshold=0).alias(x.name).cast(pl.Int64)
+        ).collect(),
+        pl.DataFrame({x.name:[res]})
+    )
+
+@pytest.mark.parametrize("S, res", [
+    (list(range(100)), 0),
+    ([0, 0, 0, 0, -1, 2, -3, 1], 4),
+    (list(range(100, 0, -1)), 99)
+])
+def test_longest_streak_below(S, res):
+
+    x = pl.Series(S)
+    assert longest_streak_below(x, threshold=0) == res
+    df = x.to_frame()
+    assert_frame_equal(
+        df.select(
+            longest_streak_below(pl.col(x.name), threshold=0).alias(x.name).cast(pl.Int64)
+        ),
+        pl.DataFrame({x.name:[res]})
+    )
+
+    assert_frame_equal(
+        df.lazy().select(
+            longest_streak_below(pl.col(x.name), threshold=0).alias(x.name).cast(pl.Int64)
+        ).collect(),
+        pl.DataFrame({x.name:[res]})
+    )
+
+@pytest.mark.parametrize("S, res", [
+    (list(range(100)), 1),
+    ([0, -100, 1,2,3,4,5,6,7,8,9], 101),
+    ([-50, -100, 200, 3, 9, 12], 300)
+])
+def test_max_abs_change(S, res):
+
+    x = pl.Series(S)
+    assert max_abs_change(x) == res
+    df = x.to_frame()
+    assert_frame_equal(
+        df.select(
+            max_abs_change(pl.col(x.name)).alias(x.name)
+        ),
+        pl.DataFrame({x.name:[res]})
+    )
+    assert_frame_equal(
+        df.lazy().select(
+            max_abs_change(pl.col(x.name)).alias(x.name)
+        ).collect(),
+        pl.DataFrame({x.name:[res]})
+    )
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 1, 1, 1, 1], 0.),
+    ([1, 2, 3, 4, 5, 6, 7], 1.5),
+    ([1], 0.),
+    ([0.1, 0.2, 0.8, 0.9], 1.6)
+])
+def test_range_over_mean_and_range(S, res):
+
+    # The tests here are non-exhaustive, but is good enough
+    x = pl.Series(S)
+    assert range_over_mean(x) == res
+    range_ = (np.max(S) - np.min(S))
+    range_chg_pct = range_ / np.min(S)
+    assert range_change(x, percentage=False) == range_
+    assert range_change(x, percentage=True) == range_chg_pct
+    df = x.to_frame()
+    assert_frame_equal(
+        df.select(
+            range_change(pl.col(x.name), percentage=False)
+        ),
+        pl.DataFrame({x.name:[range_]})
+    )
+    assert_frame_equal(
+        df.select(
+            range_over_mean(pl.col(x.name))
+        ),
+        pl.DataFrame({x.name:[res]})
+    )
+    assert_frame_equal(
+        df.lazy().select(
+            range_change(pl.col(x.name), percentage=True)
+        ).collect(),
+        pl.DataFrame({x.name:[range_chg_pct]})
+    )
+    assert_frame_equal(
+        df.lazy().select(
+            range_over_mean(pl.col(x.name))
+        ).collect(),
+        pl.DataFrame({x.name:[res]})
+    )
+
+

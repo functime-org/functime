@@ -20,7 +20,7 @@ MAP_EXPR = Union[Mapping[str, float], pl.Expr]
 MAP_LIST_EXPR = Union[Mapping[str, List[float]], pl.Expr]
 
 
-def absolute_energy(x: TIME_SERIES_T) -> FLOAT_EXPR:
+def absolute_energy(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Compute the absolute energy of a time series.
 
@@ -35,7 +35,7 @@ def absolute_energy(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     return x.dot(x)
 
-def absolute_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
+def absolute_maximum(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Compute the absolute maximum of a time series.
 
@@ -54,7 +54,7 @@ def absolute_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
         return pl.max_horizontal(x.min().abs(), x.max().abs())
 
 
-def absolute_sum_of_changes(x: TIME_SERIES_T) -> FLOAT_EXPR:
+def absolute_sum_of_changes(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Compute the absolute sum of changes of a time series.
 
@@ -204,7 +204,7 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     var = x.var(ddof=0)
     range_ = x.len() - n_lags
     y1 = x.slice(0, length=range_) - mean
-    y2 = x.slice(n_lags, length=None) - mean 
+    y2 = x.slice(n_lags, length=None) - mean
     return y1.dot(y2) / (var * range_)
 
 
@@ -356,8 +356,14 @@ def c3(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     float | Expr
     """
     twice_lag = 2 * n_lags
+    if isinstance(x, pl.Series):
+        if twice_lag >= x.len():
+            return np.nan
+        else:
+            return (x * x.shift(n_lags) * x.shift(twice_lag)).sum() / (x.len() - twice_lag)
+    else:
     # Would potentially be faster if there is a pl.product_horizontal()
-    return (x * x.shift(n_lags) * x.shift(twice_lag)).sum() / (x.len() - twice_lag)
+        return ((x.mul(x.shift(n_lags)).mul(x.shift(twice_lag))).sum()).truediv((x.len() - twice_lag))
 
 def change_quantiles(
     x: TIME_SERIES_T, q_low: float, q_high: float, is_abs: bool
@@ -424,12 +430,12 @@ def cid_ce(x: TIME_SERIES_T, normalize: bool = False) -> FLOAT_EXPR:
     float | Expr
     """
     if normalize:
-        y = (x - x.mean()) / x.std()
+        y = (x - x.mean()) / x.std(ddof=0)
     else:
         y = x
 
     if isinstance(x, pl.Series):
-        diff = np.diff(x)
+        diff = np.diff(y)
         return np.sqrt(np.dot(diff, diff))
     else:
         z = y - y.shift(-1)
@@ -467,7 +473,11 @@ def count_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    return (x > x.mean()).sum()
+    if isinstance(x, pl.Series):
+        y = x.cast(pl.Float64)
+    else:
+        y = x
+    return (y > y.mean()).sum()
 
 
 def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
@@ -500,7 +510,11 @@ def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    return (x < x.mean()).sum()
+    if isinstance(x, pl.Series):
+        y = x.cast(pl.Float64)
+    else:
+        y = x
+    return (y < y.mean()).sum()
 
 def cwt_coefficients(
     x: pl.Series, widths: Sequence[int] = (2, 5, 10, 20), n_coefficients: int = 14
@@ -535,6 +549,7 @@ def cwt_coefficients(
 def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     """
     Calculates sum of squares over the whole series for `n_chunks` equally segmented parts of the time-series.
+    E.g. if n_chunks = 10, values are [0, 1, 2, 3, .. , 999], the first chunk will be [0, .. , 99].
 
     Parameters
     ----------
@@ -549,11 +564,23 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     """
     # Unlike Tsfresh,
     # We calculate all 1,2,3,...,n_chunk at once
-    seg_sum = x.pow(2).reshape((n_chunks, -1)).list.sum()
     if isinstance(x, pl.Series):
+        r = x.len() % n_chunks
+        if r != 0:
+            y = x.pow(2).extend_constant(0, n_chunks - r)
+        else:
+            y = x.pow(2)
+        seg_sum = y.reshape((n_chunks, -1)).list.sum()
         return (seg_sum / seg_sum.sum()).to_list()
     else:
-        return (seg_sum / seg_sum.sum()).implode().suffix("_energy_ratio")
+        r = x.count().mod(n_chunks)
+        y = x.pow(2).append(
+            pl.repeat(0, n = pl.when(r == 0).then(0).otherwise(
+                pl.lit(n_chunks) - r
+            ))
+        )
+        seg_sum = y.reshape((n_chunks, -1)).list.sum()
+        return (seg_sum / seg_sum.sum()).implode()
 
 
 def first_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -714,10 +741,14 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    x_abs = x.abs()
-    x_sum = x.sum()
+    if isinstance(x, pl.Series):
+        y = x.cast(pl.Float64)
+    else:
+        y = x
+    y_abs = y.abs()
+    y_sum = y.sum()
     n = x.len()
-    idx = (x_abs.cumsum() >= q * x_sum).arg_max()
+    idx = (y_abs.cumsum() >= q*y_sum).arg_max()
     return (idx + 1) / n
 
 
@@ -776,38 +807,56 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     return 1.0 - x.reverse().arg_min()/x.len()
 
 
-def lempel_ziv_complexity(x: pl.Series, n_bins: int) -> List[float]:
+def lempel_ziv_complexity(x: TIME_SERIES_T, threshold: Union[float, pl.Expr]) -> FLOAT_EXPR:
     """
-    Calculate a complexity estimate based on the Lempel-Ziv compression algorithm.
+    Calculate a complexity estimate based on the Lempel-Ziv compression algorithm. The
+    implementation here is currently taken from Lilian Besson. See the reference section 
+    below. Instead of return the complexity value, we return a ratio w.r.t the length of
+    the input series.
 
     Parameters
     ----------
     x : pl.Expr | pl.Series
         Input time-series.
-    n_bins : int
-        An integer specifying the number of bins to use for discretizing the time series.
+    threshold: float | pl.Expr
+
+        Either a number, or an expression representing a comparable quantity. If x > value,
+        then it will be binarized as 1 and 0 otherwise. If x is eager, then value must also
+        be eager as well.
 
     Returns
     -------
-    list of float
+    float
+
+    Reference
+    ---------
+    https://github.com/Naereen/Lempel-Ziv_Complexity/tree/master
+    https://en.wikipedia.org/wiki/Lempel%E2%80%93Ziv_complexity
     """
-    complexities = []
-    seq = x.search_sorted(
-        element=np.linspace(x.min(), x.max(), n_bins + 1)[1:], side="left"
-    ).to_numpy()
-    sub_strs = set()
-    n = x.len()
-    ind, inc = 0, 1
-    while not ind + inc > n:
-        sub_str = seq[ind : ind + inc]
-        if sub_str in sub_strs:
-            inc += 1
-        else:
-            sub_strs.add(sub_str)
-            ind += inc
-            inc = 1
-        complexities.append(len(sub_str) / n)
-    return complexities
+    if isinstance(x, pl.Series):
+        if isinstance(threshold, pl.Expr):
+            raise ValueError("Input `value` must be a number when input x is a series.")
+
+        binary_seq = b"".join((x > threshold).cast(pl.Binary))
+
+        sub_strings = set()
+        n = len(binary_seq)
+        ind = 0
+        inc = 1
+        while True:
+            if ind + inc > len(binary_seq):
+                break
+            sub_str = binary_seq[ind : ind + inc]
+            if sub_str in sub_strings:
+                inc += 1
+            else:
+                sub_strings.add(sub_str)
+                ind += inc
+                inc = 1
+
+        return len(sub_strings) / n
+    else:
+        return NotImplemented
 
 
 def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
@@ -838,10 +887,12 @@ def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
             beta.alias("slope"), alpha.alias("intercept"), resid.dot(resid).alias("rss")
         )
 
-def longest_strike_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
+def longest_streak_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
-    Returns the length of the longest consecutive subsequence in x that is greater than the mean of x.
-    If all values in x are null, 0 will be returned.
+    Returns the length of the longest consecutive subsequence in x that is > mean of x.
+    If all values in x are null, 0 will be returned. Note: this does not measure consecutive
+    changes in time series, only counts the streak based on the original time series, not the
+    differences.
     
     Parameters
     ----------
@@ -852,17 +903,21 @@ def longest_strike_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    y = (x > x.mean()).cast(pl.UInt8).rle()
-    result = y.filter(y.struct.field("values")==1).struct.field("lengths").max()
     if isinstance(x, pl.Series):
+        y = (x.cast(pl.Float64) > x.mean()).rle()
+        result = y.filter(y.struct.field("values")).struct.field("lengths").max()
         return 0 if result is None else result
-    else: # fill null only works with expression
-        return result.fill_null(0).cast(pl.UInt64)
+    else:
+        y = (x > x.mean()).rle()
+        return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
 
-def longest_strike_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
+
+def longest_streak_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
-    Returns the length of the longest consecutive subsequence in x that is smaller than the mean of x.
-    If all values in x are null, 0 will be returned.
+    Returns the length of the longest consecutive subsequence in x that is < mean of x.
+    If all values in x are null, 0 will be returned. Note: this does not measure consecutive
+    changes in time series, only counts the streak based on the original time series, not the
+    differences.
 
     Parameters
     ----------
@@ -873,12 +928,13 @@ def longest_strike_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    y = (x < x.mean()).cast(pl.UInt8).rle()
-    result = y.filter(y.struct.field("values")==1).struct.field("lengths").max()
     if isinstance(x, pl.Series):
+        y = (x.cast(pl.Float64) < x.mean()).rle()
+        result = y.filter(y.struct.field("values")).struct.field("lengths").max()
         return 0 if result is None else result
-    else: # fill null only works with expression
-        return result.fill_null(0).cast(pl.UInt64)
+    else:
+        y = (x < x.mean()).rle()
+        return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
 
 def mean_abs_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
@@ -894,6 +950,22 @@ def mean_abs_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     float | Expr
     """
     return x.diff(null_behavior="drop").abs().mean()
+
+
+def max_abs_change(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
+    """
+    Compute the maximum absolute change from X_t to X_t+1.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        A single time-series.
+
+    Returns
+    -------
+    float | Expr
+    """
+    return absolute_maximum(x.diff(null_behavior="drop"))
 
 def mean_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
@@ -1140,7 +1212,6 @@ def permutation_entropy(
                 .struct.field("counts")  # extract the field named "counts"
             )
             .entropy(normalize=True)
-            .suffix("_permutation_entropy2")
         )
 
 
@@ -1436,7 +1507,7 @@ def var_gt_std(x: TIME_SERIES_T, ddof: int = 1) -> BOOL_EXPR:
     x : pl.Expr | pl.Series
         Input time series.
     ddof : int
-        Delta Degrees of Freedom used when computing var/std.
+        Delta Degrees of Freedom used when computing var.
 
     Returns
     -------
@@ -1447,7 +1518,7 @@ def var_gt_std(x: TIME_SERIES_T, ddof: int = 1) -> BOOL_EXPR:
 
 def harmonic_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
-    Returns the harmonic mean of the expression
+    Returns the harmonic mean of the of the time series.
 
     Parameters
     ----------
@@ -1460,6 +1531,177 @@ def harmonic_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     return x.len() / (pl.lit(1.0) / x).sum()
 
+def range_over_mean(x:TIME_SERIES_T) -> FLOAT_EXPR:
+    '''
+    Returns the range (max - min) over mean of the time series.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+
+    Returns
+    -------
+    float | Expr
+    '''
+    return (x.max() - x.min()) / x.mean()
+
+def range_change(x:TIME_SERIES_T, percentage:bool = True) -> FLOAT_EXPR:
+    '''
+    Returns the maximum value range. If percentage is true, will compute 
+    (max - min) / min, which only makes sense when x is always positive.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+    percentage : bool
+        compute the percentage if set to True
+    
+    Returns
+    -------
+    float | Expr
+    '''
+    if percentage:
+        return x.max()/x.min() - 1.0
+    else:
+        return x.max() - x.min()
+
+
+def streak_length_stats(x: TIME_SERIES_T, above: bool, threshold: float) -> MAP_EXPR:
+    '''
+    Returns some statistics of the length of the streaks of the time series. Note that the streaks here
+    are about the changes for consecutive values in the time series, not the individual values.
+
+    The statistics include: min length, max length, average length, std of length,
+    10-percentile length, median length, 90-percentile length, and mode of the length. If input is Series,
+    a dictionary will be returned. If input is an expression, the expression will evaluate to a struct
+    with the fields ordered by the statistics.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+    above: bool
+        Above (>=) or below (<=) the given threshold
+    threshold
+        The threshold for the change (x_t+1 - x_t) to be counted
+
+    Returns
+    -------
+    float | Expr
+    '''
+    if above:
+        y = (x.diff().cast(pl.Float64) >= threshold).rle()
+    else:
+        y = (x.diff().cast(pl.Float64) <= threshold).rle()
+
+    y = y.filter(y.struct.field("values")).struct.field("lengths")
+    if isinstance(x, pl.Series):
+        return {
+            "min": y.min(),
+            "max": y.max(),
+            "mean": y.mean(),
+            "std": y.std(),
+            "10-percentile": y.quantile(0.1),
+            "median": y.median(),
+            "90-percentile": y.quantile(0.9),
+            "mode": y.mode()[0]
+        }
+    else:
+        return pl.struct(
+            y.min().alias("min"),
+            y.max().alias("max"),
+            y.mean().alias("mean"),
+            y.std().alias("std"),
+            y.quantile(0.1).alias("10-percentile"),
+            y.median().alias("median"),
+            y.quantile(0.9).alias("90-percentile"),
+            y.mode().first().alias("mode")
+        )
+
+def longest_streak_above(x:TIME_SERIES_T, threshold:float)-> TIME_SERIES_T:
+    '''
+    Returns the longest streak of changes >= threshold of the time series. A change
+    is counted when (x_t+1 - x_t) >= threshold. Note that the streaks here
+    are about the changes for consecutive values in the time series, not the individual values.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+    threshold : float
+        The threshold value for comparison.
+
+    Returns
+    -------
+    float | Expr
+    '''
+    if isinstance(x, pl.Series):
+        y = (x.diff().cast(pl.Float64) >= threshold).rle()
+        streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
+        return 0 if streak_max is None else streak_max
+    else:
+        y = (x.diff() >= threshold).rle()
+        return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
+
+def longest_streak_below(x:TIME_SERIES_T, threshold:float)-> TIME_SERIES_T:
+    '''
+    Returns the longest streak of changes <= threshold of the time series. A change
+    is counted when (x_t+1 - x_t) <= threshold. Note that the streaks here
+    are about the changes for consecutive values in the time series, not the individual values.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+    threshold : float
+        The threshold value for comparison.
+
+    Returns
+    -------
+    float | Expr
+    '''
+    if isinstance(x, pl.Series):
+        y = (x.diff().cast(pl.Float64) <= threshold).rle()
+        streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
+        return 0 if streak_max is None else streak_max
+    else:
+        y = (x.diff() <= threshold).rle()
+        return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
+
+def longest_winning_streak(x:TIME_SERIES_T) -> TIME_SERIES_T:
+    '''
+    Returns the longest winning streak of the time series. A win is counted when
+    (x_t+1 - x_t) >= 0
+    
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+
+    Returns
+    -------
+    float | Expr
+    '''
+    return longest_streak_above(x, threshold=0)
+
+
+def longest_losing_streak(x:TIME_SERIES_T)-> TIME_SERIES_T:
+    '''
+    Returns the longest losing streak of the time series. A loss is counted when
+    (x_t+1 - x_t) <= 0
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time series.
+
+    Returns
+    -------
+    float | Expr
+    '''
+    return longest_streak_below(x, threshold=0)
 
 # FFT Features
 
