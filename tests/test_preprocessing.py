@@ -263,7 +263,7 @@ def test_detrend(method, pd_X):
         signal.detrend, type=method if method == "linear" else "constant"
     )
     X = pl.from_pandas(pd_X.reset_index()).lazy()
-    transformer = detrend(method=method)
+    transformer = detrend(method=method, freq="1d")
     X_new = X.pipe(transformer).collect()
     assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()))
     X_original = X_new.pipe(transformer.invert)
