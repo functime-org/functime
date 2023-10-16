@@ -96,7 +96,7 @@ def benchmark(f_feat: Callable, ts_feat: Callable, f_params: dict, ts_params: di
 
 
 def create_df_benchmarks(params: list[tuple])-> pl.DataFrame:
-    bench_df = pl.DataFrame(schema={"id": pl.Utf8, "n": pl.Int64, "tsfresh": pl.Float64, "functime": pl.Float64, "X_speed": pl.Float64})
+    bench_df = pl.DataFrame(schema={"id": pl.Utf8, "n": pl.Int64, "tsfresh": pl.Float64, "functime": pl.Float64, "X_time": pl.Float64})
     for x in params:
         try:
             print("Feature: {}".format(x))
@@ -113,7 +113,7 @@ def create_df_benchmarks(params: list[tuple])-> pl.DataFrame:
                     "n": bench.n_range,
                     "tsfresh": bench.timings_s[0],
                     "functime": bench.timings_s[1],
-                    "X_speed": bench.timings_s[0] / bench.timings_s[1]                
+                    "X_time": bench.timings_s[0] / bench.timings_s[1]                
                 }),
                 bench_df]
             )
