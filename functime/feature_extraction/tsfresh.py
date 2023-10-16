@@ -1258,8 +1258,8 @@ def ratio_beyond_r_sigma(x: TIME_SERIES_T, ratio: float = 0.25) -> FLOAT_EXPR:
     """
     return (
         x.is_between(
-            x.mean() - pl.lit(ratio) * x.std(),
-            x.mean() + pl.lit(ratio) * x.std(),
+            x.mean() - pl.lit(ratio) * x.std(ddof=0),
+            x.mean() + pl.lit(ratio) * x.std(ddof=0),
             closed="both",
         )
         .not_()

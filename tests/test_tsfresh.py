@@ -49,6 +49,9 @@ from functime.feature_extraction.tsfresh import (
     longest_losing_streak,
     longest_streak_below,
     max_abs_change,
+    ratio_beyond_r_sigma,
+    ratio_n_unique_to_length,
+    root_mean_square
 )
 
 np.random.seed(42)
@@ -756,6 +759,157 @@ def test_longest_streak_above_mean(S, res):
         ).collect(),
         pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64))
     )
+
+
+@pytest.mark.parametrize("S, res, ratio", [
+    ([0, 1] * 10 + [10, 20, -30], [3.0/23.0], 1),
+    ([0, 1] * 10 + [10, 20, -30], [2.0/23.0], 2),
+    ([0, 1] * 10 + [10, 20, -30], [1.0/23.0], 3)
+])
+def test_ratio_beyond_r_sigma(S, res, ratio):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            ratio_beyond_r_sigma(pl.col("a"), ratio = ratio)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            ratio_beyond_r_sigma(pl.col("a"), ratio = ratio)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert ratio_beyond_r_sigma(pl.Series(S), ratio = ratio) == res[0]
+
+
+@pytest.mark.parametrize("S, res, ratio", [
+    ([], [np.nan], 1)
+])
+def test_ratio_beyond_r_sigma_nan_case(S, res, ratio):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            ratio_beyond_r_sigma(pl.col("a"), ratio = ratio)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            ratio_beyond_r_sigma(pl.col("a"), ratio = ratio)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    with pytest.raises(ZeroDivisionError):
+        ratio_beyond_r_sigma(pl.Series(S), ratio = ratio)
+
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 1, 2, 3, 4], [0.8]),
+    ([1, 1.5, 2, 3], [1.0]),
+    ([1], [1.0]),
+    ([1.111, -2.45, 1.111, 2.45], [0.75])
+])
+def test_ratio_n_unique_to_length(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            ratio_n_unique_to_length(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            ratio_n_unique_to_length(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert ratio_n_unique_to_length(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res", [
+    ([], [np.nan])
+])
+def test_ratio_n_unique_to_length_nan_case(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            ratio_n_unique_to_length(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            ratio_n_unique_to_length(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    with pytest.raises(ZeroDivisionError):
+        ratio_n_unique_to_length(pl.Series(S))
+
+
+@pytest.mark.parametrize("S, res", [
+    ([1, 1, 1, 2, 2], [1.4832396974191326]),
+    ([1.0, 1.0, 1.0, 2.0, 2.0], [1.4832396974191326]),
+    ([0], [0.0]),
+    ([1], [1.0]),
+    ([-1], [1.0])
+])
+def test_root_mean_square(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            root_mean_square(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            root_mean_square(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert root_mean_square(pl.Series(S)) == res[0]
+
+
+@pytest.mark.parametrize("S, res", [
+    ([], [np.nan])
+])
+def test_root_mean_square_nan_case(S, res):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            root_mean_square(pl.col("a"))
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            root_mean_square(pl.col("a"))
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    np.isnan(root_mean_square(pl.Series(S)))
+
+
 
 @pytest.mark.parametrize("S, n_max, res", [
     ([], 1, [None]),
