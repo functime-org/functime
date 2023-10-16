@@ -1,4 +1,5 @@
 import logging
+import os
 from functools import partial
 from typing import List
 
@@ -235,6 +236,7 @@ def m5_dataset():
     fh = 28
     max_lags = 64
     freq = "1d"
+    n_samples = 30
 
     # Load data
     y_train = pl.read_parquet("data/m5_y_train.parquet")
@@ -243,7 +245,7 @@ def m5_dataset():
     X_test = pl.read_parquet("data/m5_X_test.parquet")
 
     # Check series lengths
-    entity_col, time_col = y_train.columns[:2]
+    entity_col, time_col, value_col = y_train.columns[:3]
     short_ts_counts = (
         y_train.group_by(entity_col)
         .agg(pl.col(time_col).count().alias("count"))
@@ -260,6 +262,20 @@ def m5_dataset():
             max_lags,
             short_ts_counts,
         )
+
+    # Sample if FUNCTIME__TEST_MODE=true env var is set
+    if os.environ.get("FUNCTIME__TEST_MODE", "").lower() == "true":
+        # Get top N top sellers
+        top_sellers = (
+            y_train.groupby(entity_col)
+            .agg(pl.col(value_col).sum())
+            .top_k(n_samples, by=value_col)
+            .get_column(entity_col)
+        )
+        y_train = y_train.filter(pl.col(entity_col).is_in(top_sellers))
+        X_train = X_train.filter(pl.col(entity_col).is_in(top_sellers))
+        y_test = y_test.filter(pl.col(entity_col).is_in(top_sellers))
+        X_test = X_test.filter(pl.col(entity_col).is_in(top_sellers))
 
     # Check m5 dataset RAM usage
     logging.info("y_train mem: %s", f'{y_train.estimated_size("mb"):.4f} mb')
