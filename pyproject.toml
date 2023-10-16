@@ -37,7 +37,6 @@ dependencies = [
     "tqdm",
     "typing-extensions",
     "zarr",
-    "requests"
 ]
 
 [project.urls]
