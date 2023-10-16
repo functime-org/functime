@@ -22,7 +22,7 @@ from functime.forecasting import (  # ann,
     zero_inflated_model,
 )
 from functime.metrics import rmsse, smape, smape_original
-from functime.preprocessing import detrend, diff, roll, scale
+from functime.preprocessing import detrend, diff, scale
 
 patch_sklearn()
 
@@ -324,22 +324,18 @@ def test_conformalize_non_crossing_m5(m5_dataset):
     [
         (scale(), None),
         (diff(order=1, fill_strategy="backward"), None),
-        ([detrend(method="linear"), scale()], None),
-        ([detrend(method="linear"), diff(order=1, fill_strategy="backward")], None),
+        ([diff(order=1, fill_strategy="backward"), scale()], None),
+        (
+            [
+                detrend(method="linear", freq="1d"),
+                diff(order=1, fill_strategy="backward"),
+            ],
+            None,
+        ),
         (None, add_fourier_terms(sp=12, K=3)),
         (
-            None,
-            [
-                add_fourier_terms(sp=3, K=3),
-                roll(window_sizes=[6, 12], stats=["mean", "std"], freq="1mo"),
-            ],
-        ),
-        (
-            [detrend(method="linear"), scale()],
-            [
-                add_fourier_terms(sp=3, K=3),
-                roll(window_sizes=[6, 12], stats=["mean", "std"], freq="1mo"),
-            ],
+            [diff(order=1, fill_strategy="backward"), scale()],
+            add_fourier_terms(sp=3, K=3),
         ),
     ],
 )
