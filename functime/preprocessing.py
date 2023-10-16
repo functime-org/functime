@@ -267,6 +267,7 @@ def roll(
     window_sizes: List[int],
     stats: List[Literal["mean", "min", "max", "mlm", "sum", "std", "cv"]],
     freq: str,
+    fill_strategy: Optional[str] = None,
 ):
     """
     Performs rolling window calculations on specified columns of a DataFrame.
@@ -287,6 +288,9 @@ def roll(
         - 'cv' for coefficient of variation
     freq : str
         Offset alias supported by Polars.
+    fill_strategy : Optional[str]
+        Strategy to fill nulls by. Nulls are not filled if None.
+        Supported strategies include: ["backward", "forward", "mean", "zero"].
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
@@ -326,7 +330,8 @@ def roll(
         X_new = X.join(X_rolling, on=[entity_col, time_col], how="left").select(
             X_rolling.columns
         )
-
+        if fill_strategy:
+            X_new = X_new.fill_null(strategy=fill_strategy)
         artifacts = {"X_new": X_new}
         return artifacts
 
@@ -520,7 +525,6 @@ def diff(order: int, sp: int = 1, fill_strategy: Optional[str] = None):
                 ]
             )
 
-        # Drop null
         if fill_strategy:
             X = X.fill_null(strategy=fill_strategy)
         artifacts = {
