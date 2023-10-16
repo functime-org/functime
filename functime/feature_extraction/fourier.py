@@ -39,7 +39,7 @@ def add_fourier_terms(sp: int, K: int):
             (pl.col(time_col).arg_sort().mod(sp).over(entity_col) / sp).alias(
                 "fourier_coef"
             )
-        ).select([entity_col, time_col, *cos_terms, *sin_terms])
+        ).select([*X.columns, *cos_terms, *sin_terms])
         artifacts = {"X_new": X_new}
         return artifacts
 
