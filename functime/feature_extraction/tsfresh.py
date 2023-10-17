@@ -1531,12 +1531,17 @@ def variation_coefficient(x: TIME_SERIES_T) -> FLOAT_EXPR:
     float | Expr
     """
     if isinstance(x, pl.Series):
-        if x.mean() == 0:
-            return 0.0
+        if x.mean() in (0, float(0)):
+            return 0
         else:
             return x.std(ddof=0) / x.mean()
     else:
-        return pl.when(x.mean() != 0).then(x.std(ddof=0) / x.mean()).otherwise(0)
+        return (
+            pl.when(x.mean() != float(0))
+            .then(x.std(ddof=0) / x.mean())
+            .otherwise(0)
+            .keep_name()
+        )
 
 
 def var_gt_std(x: TIME_SERIES_T, ddof: int = 1) -> BOOL_EXPR:

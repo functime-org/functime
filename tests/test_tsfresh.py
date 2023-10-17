@@ -104,11 +104,12 @@ def test_large_standard_deviation(S, res):
 @pytest.mark.parametrize(
     "S, res",
     [
-        ([0, 0, 0], [0.0]),
+        ([0, 0, 0], [0]),
+        ([0.0, 0.0, 0.0], [0]),
         ([0, 1, 2], [0.816497]),
         ([9, 7, 10000], [1.410825]),
         ([-1, 2, 3, 4], [0.93541434]),
-        ([-1, 1.3, 5.3, 4.5], [1.00049003]),
+        ([-1, 1.3, 5.3, 4.5], [1.00049]),
     ],
 )
 def test_variation_coefficient(S, res):
@@ -117,11 +118,11 @@ def test_variation_coefficient(S, res):
     )
     assert_frame_equal(
         pl.DataFrame({"a": S}).select(variation_coefficient(pl.col("a"))),
-        pl.DataFrame(pl.Series("a", res)),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
     )
     assert_frame_equal(
         pl.LazyFrame({"a": S}).select(variation_coefficient(pl.col("a"))).collect(),
-        pl.DataFrame(pl.Series("a", res)),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
     )
 
 
