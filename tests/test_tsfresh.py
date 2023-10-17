@@ -170,6 +170,26 @@ def test_autocorrelation(S, res, n_lags):
     )
     assert autocorrelation(pl.Series(S), n_lags=n_lags) == res[0]
 
+@pytest.mark.parametrize("S, res, n_lags", [([0.0,0.0,0.0], [np.nan], 1)])
+def test_autocorrelation_case_nan(S, res, n_lags):
+    assert_frame_equal(
+        pl.DataFrame(
+            {"a": S}
+        ).select(
+            autocorrelation(pl.col("a"), n_lags=n_lags)
+        ),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    assert_frame_equal(
+        pl.LazyFrame(
+            {"a": S}
+        ).select(
+            autocorrelation(pl.col("a"), n_lags=n_lags)
+        ).collect(),
+        pl.DataFrame(pl.Series("a", res))
+    )
+    np.isnan(autocorrelation(pl.Series(S), n_lags=n_lags))
+
 @pytest.mark.parametrize("S, res, n_lags", [
     ([1, 2, 1, 2, 1, 2], [1.0], 0)
 ])
