@@ -800,7 +800,7 @@ def test_percent_reoccuring_values(S, res):
         ([1.111, -2.45, 1.111, 2.45], [1.0 / 3.0]),
     ],
 )
-def test_percent_reoccuring_values_second(S, res):
+def test_percent_reoccuring_values(S, res):  # noqa
     assert_frame_equal(
         pl.DataFrame({"a": S}).select(percent_reoccuring_values(pl.col("a"))),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
