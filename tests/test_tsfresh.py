@@ -64,6 +64,9 @@ np.random.seed(42)
     ],
 )
 def test_var_gt_std(S, res):
+    assert_series_equal(
+        pl.Series("a", [var_gt_std(pl.Series("a", S))]), pl.Series("a", res)
+    )
     assert_frame_equal(
         pl.DataFrame({"a": S}).select(var_gt_std(pl.col("a"))),
         pl.DataFrame(pl.Series("a", res)),
@@ -106,6 +109,9 @@ def test_large_standard_deviation(S, res):
     ],
 )
 def test_variation_coefficient(S, res):
+    assert_series_equal(
+        pl.Series("a", [variation_coefficient(pl.Series("a", S))]), pl.Series("a", res)
+    )
     assert_frame_equal(
         pl.DataFrame({"a": S}).select(variation_coefficient(pl.col("a"))),
         pl.DataFrame(pl.Series("a", res)),

@@ -1530,6 +1530,12 @@ def variation_coefficient(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
+    if isinstance(x, pl.Series):
+        if x.mean() == 0:
+            return 0.0
+        else:
+            return x.std(ddof=0) / x.mean()
+
     return pl.when(x.mean() != 0).then(x.std(ddof=0) / x.mean()).otherwise(0)
 
 
