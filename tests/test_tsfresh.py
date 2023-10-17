@@ -69,6 +69,7 @@ np.random.seed(42)
         ([-1, 2, 3, 4], [5 / 3], {}),
         # # # this is a tough call, can potentially ask about this.
         ([-1, 1, 2, float("inf")], [float("inf")], {}),
+        ([-1, 1, 2, -float("inf")], [float("inf")], {}),
         ([float("inf"), -1, 1, 2], [float("inf")], {}),
         ([], [None], {"check_dtype": False}),
     ],
@@ -101,6 +102,7 @@ def test_mean_abs_change(S, res, k):
         ([-1, 2, 3, 4], [5 / 3], {}),
         ([-1, 1.3, 5.3, 4.5], [11 / 6], {}),
         ([-1, 1, 2, float("inf")], [float("inf")], {}),
+        ([-1, 1, 2, -float("inf")], [-float("inf")], {}),
         ([], [None], {"check_dtype": False}),
     ],
 )
