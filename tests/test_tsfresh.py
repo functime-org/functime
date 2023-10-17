@@ -134,11 +134,13 @@ def test_variation_coefficient(S, res):
     ],
 )
 def test_count_range(S, res):
+    assert_series_equal(
+        pl.Series("a", [range_count(pl.Series("a", S), 0, 5.5)]), pl.Series("a", res)
+    )
     assert_frame_equal(
         pl.DataFrame({"a": S}).select(range_count(pl.col("a"), 0, 5.5)),
         pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32)),
     )
-
     assert_frame_equal(
         pl.LazyFrame({"a": S}).select(range_count(pl.col("a"), 0, 5.5)).collect(),
         pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32)),
@@ -776,13 +778,29 @@ def test_mean_n_absolute_max_value_error():
         ([1], [0]),
         ([1.111, -2.45, 1.111, 2.45], [0.5]),
         ([], [np.nan]),
+    ],
+)
+def test_percent_reoccuring_values(S, res):
+    assert_frame_equal(
+        pl.DataFrame({"a": S}).select(percent_reoccuring_values(pl.col("a"))),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+    )
+    assert_frame_equal(
+        pl.LazyFrame({"a": S}).select(percent_reoccuring_values(pl.col("a"))).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+    )
+
+
+@pytest.mark.parametrize(
+    "S, res",
+    [
         ([1, 1, 2, 3, 4], [0.25]),
         ([1, 1.5, 2, 3], [0]),
         ([1], [0]),
         ([1.111, -2.45, 1.111, 2.45], [1.0 / 3.0]),
     ],
 )
-def test_percent_reoccuring_values(S, res):
+def test_percent_reoccuring_values_second(S, res):
     assert_frame_equal(
         pl.DataFrame({"a": S}).select(percent_reoccuring_values(pl.col("a"))),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
