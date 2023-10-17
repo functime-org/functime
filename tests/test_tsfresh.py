@@ -34,6 +34,8 @@ from functime.feature_extraction.tsfresh import (
     longest_streak_below,
     longest_streak_below_mean,
     max_abs_change,
+    mean_abs_change,
+    mean_change,
     mean_n_absolute_max,
     mean_second_derivative_central,
     number_peaks,
@@ -54,6 +56,70 @@ from functime.feature_extraction.tsfresh import (
 )
 
 np.random.seed(42)
+
+
+@pytest.mark.parametrize(
+    "S, res, k",
+    [
+        ([0, 0, 0], [0], {}),
+        ([0, 1, 2], [1], {}),
+        ([2, 1, 0], [1], {}),
+        ([0, 1.5, 2, 2.5], [5 / 6], {}),
+        ([2.5, 2, 1.5, 0], [5 / 6], {}),
+        ([-1, 2, 3, 4], [5 / 3], {}),
+        # # # this is a tough call, can potentially ask about this.
+        ([-1, 1, 2, float("inf")], [float("inf")], {}),
+        ([float("inf"), -1, 1, 2], [float("inf")], {}),
+        ([], [None], {"check_dtype": False}),
+    ],
+)
+def test_mean_abs_change(S, res, k):
+    assert_series_equal(
+        pl.Series("a", [mean_abs_change(pl.Series("a", S))]),
+        pl.Series("a", res, dtype=pl.Float64),
+        **k,
+    )
+    assert_frame_equal(
+        pl.DataFrame({"a": S}).select(mean_abs_change(pl.col("a"))),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+        **k,
+    )
+    assert_frame_equal(
+        pl.LazyFrame({"a": S}).select(mean_abs_change(pl.col("a"))).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+        **k,
+    )
+
+
+@pytest.mark.parametrize(
+    "S, res, k",
+    [
+        ([0, 0, 0], [0], {}),
+        ([0, 1, 2], [1], {}),
+        ([0, 1.5, 2, 2.5], [5 / 6], {}),
+        ([2.5, 2, 1.5, 0], [-5 / 6], {}),
+        ([-1, 2, 3, 4], [5 / 3], {}),
+        ([-1, 1.3, 5.3, 4.5], [11 / 6], {}),
+        ([-1, 1, 2, float("inf")], [float("inf")], {}),
+        ([], [None], {"check_dtype": False}),
+    ],
+)
+def test_mean_change(S, res, k):
+    assert_series_equal(
+        pl.Series("a", [mean_change(pl.Series("a", S))]),
+        pl.Series("a", res, dtype=pl.Float64),
+        **k,
+    )
+    assert_frame_equal(
+        pl.DataFrame({"a": S}).select(mean_change(pl.col("a"))),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+        **k,
+    )
+    assert_frame_equal(
+        pl.LazyFrame({"a": S}).select(mean_change(pl.col("a"))).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+        **k,
+    )
 
 
 @pytest.mark.parametrize(
