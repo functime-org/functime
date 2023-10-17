@@ -1,6 +1,7 @@
 import numpy as np
 import polars as pl
 import pytest
+import math
 from polars.testing import assert_frame_equal, assert_series_equal
 import inspect
 
@@ -16,6 +17,7 @@ from functime.feature_extraction.tsfresh import (
     benford_correlation,
     first_location_of_maximum,
     first_location_of_minimum,
+    fourier_entropy,
     has_duplicate,
     has_duplicate_max,
     has_duplicate_min,
@@ -34,12 +36,12 @@ from functime.feature_extraction.tsfresh import (
     mean_n_absolute_max,
     mean_second_derivative_central,
     percent_reocurring_points,
+    permutation_entropy,
     sum_reocurring_points,
     sum_reocurring_values,
     number_peaks,
     symmetry_looking,
     time_reversal_asymmetry_statistic,
-    approximate_entropy,
     percent_reoccuring_values,
     lempel_ziv_complexity,
     range_over_mean,
@@ -51,7 +53,8 @@ from functime.feature_extraction.tsfresh import (
     max_abs_change,
     ratio_beyond_r_sigma,
     ratio_n_unique_to_length,
-    root_mean_square
+    root_mean_square,
+    sample_entropy
 )
 
 np.random.seed(42)
@@ -1357,3 +1360,53 @@ def test_range_over_mean_and_range(S, res):
     )
 
 
+@pytest.mark.parametrize("S, t, d, b, res", [
+    ([4, 7, 9, 10, 6, 11, 3], 1, 3, 2, 1.5219281),
+    (list(range(10)), 1, 3, math.e, 0.0),
+    ([10]*10, 1, 3, math.e, 0.0)
+])
+def test_permutation_entropy(S, t, d, b, res):
+    # Test 1 comes from: https://www.aptech.com/blog/permutation-entropy/
+    # Linear case. Should be 0 because there is no randomness in the permutations
+    # Constant case. Same should be 0.
+
+    x = pl.Series(S)
+
+    res_series = permutation_entropy(x, tau = t, n_dims = d, base = b)
+    assert np.isclose(res, res_series)
+
+    df = x.to_frame()
+    res_eager = df.select(
+        permutation_entropy(pl.col(x.name), tau = t, n_dims = d, base = b)
+    ).item(0, 0)
+    assert np.isclose(res, res_eager)
+    res_lazy = df.lazy().select(
+        permutation_entropy(pl.col(x.name), tau = t, n_dims = d, base = b)
+    ).collect().item(0, 0)
+    assert np.isclose(res, res_lazy)
+
+
+@pytest.mark.parametrize("S, res", [
+    (list(range(100)), 0.010471299867295437),
+    (np.sin(2 * np.pi * np.arange(3000)/100), 0.16367903754688098),
+    ([1], np.nan)
+])
+def test_sample_entropy(S, res):
+    # Test 1's answer comes from comparing result with Tsfresh
+    # Thest 2's answer comes from running this using the Python code on Wikipedia
+    # Test 3 is an edge case. Should get nan.
+    x = pl.Series(S)
+    res_series = sample_entropy(x)
+    assert np.isclose(res, res_series, atol=1e-12, equal_nan=True)
+
+@pytest.mark.parametrize("S, res", [
+    (list(range(300)), 0.04539477814685819),
+    (np.sin(2 * np.pi * np.arange(300)/100), 0.09072899366212879),
+    ([1, 2], 0.),
+    ([1], np.nan)
+])
+def test_fourier_entropy(S, res):
+    # All tests' answers come from comparing with tsfresh.
+    x = pl.Series(S)
+    res_series = fourier_entropy(x)
+    assert np.isclose(res, res_series, atol=1e-12, equal_nan=True)
