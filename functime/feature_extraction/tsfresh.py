@@ -739,9 +739,19 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    x_sum = x.sum()
-    idx = x.abs().cumsum().search_sorted(q*x_sum, "left")
-    return (idx + 1) / x.len()
+    x_cumsum = x.abs().cumsum().set_sorted()
+    if isinstance(x, pl.Series):
+        if x.is_integer():
+            idx = x_cumsum.search_sorted(int(q*x_cumsum[-1]) + 1, "left")
+        else: # Search sorted is sensitive to dtype.
+            idx = x_cumsum.search_sorted(q*x_cumsum[-1], "left")
+        return (idx + 1) / x.len()
+    else:
+        # In lazy case we have to cast, which kind of wasts some time, but this is on
+        # par with the old implementation. Use max here because... believe it or not
+        # max (with fast track because I did set_sorted()) is faster than .last() ???
+        idx = x_cumsum.cast(pl.Float64).search_sorted(q*x_cumsum.max(), "left")
+        return (idx + 1) / x.len()
 
 
 def large_standard_deviation(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
@@ -1170,7 +1180,7 @@ def number_peaks(x: TIME_SERIES_T, support: int) -> INT_EXPR:
             ((x > x.shift(-i)) & (x > x.shift(i))).fill_null(False)
             for i in range(1, support + 1)
         ).sum()
-    
+
 
 def permutation_entropy(
     x: TIME_SERIES_T,
@@ -1201,7 +1211,7 @@ def permutation_entropy(
         # Complete this implementation by cheating (using exprs) for now.
         # There might be short cuts if we use eager. So improve this later.
         frame = x.to_frame()
-        expr = permutation_entropy(pl.col(x.name), tau=tau, n_dims=n_dims)
+        expr = permutation_entropy(pl.col(x.name), tau=tau, n_dims=n_dims, base=base)
         return frame.select(expr).item(0, 0)
     else:
         if tau == 1: # Fast track the most common use case
@@ -1209,12 +1219,13 @@ def permutation_entropy(
                 pl.concat_list(
                     x,
                     *(x.shift(-i) for i in range(1, n_dims))
-                ).head(x.len() -n_dims + 1)
+                ).head(x.len() - n_dims + 1)
                 .list.eval(
                     pl.element().arg_sort()
                 ).value_counts() # groupby and count, but returns a struct
                 .struct.field("counts") # extract the field named "counts"
-            ).entropy(base=base, normalize=True)
+                .entropy(base=base, normalize=True)
+            )
         else:
             max_shift = -n_dims + 1
             return (
@@ -1229,7 +1240,8 @@ def permutation_entropy(
                 )  # for each inner list, do an argsort
                 .value_counts()  # groupby and count, but returns a struct
                 .struct.field("counts")  # extract the field named "counts"
-            ).entropy(base=base, normalize=True)
+                .entropy(base=base, normalize=True)
+            )
 
 def range_count(
     x: TIME_SERIES_T, lower: float, upper: float, closed: ClosedInterval = "left"
