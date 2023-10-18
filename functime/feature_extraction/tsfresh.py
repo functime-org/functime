@@ -740,12 +740,8 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     float | Expr
     """
     x_sum = x.sum()
-    n = x.len()
-    # x.abs().cumsum() is monotonically increasing, so we do not need to 
-    # evaluate the whole boolean series. Technically we can stop at the first
-    # instance when the cumsum is greater than q*x_sum.
-    idx = (x.abs().cumsum() >= q*x_sum).arg_max()
-    return (idx + 1) / n
+    idx = x.abs().cumsum().search_sorted(q*x_sum, "left")
+    return (idx + 1) / x.len()
 
 
 def large_standard_deviation(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
@@ -1005,6 +1001,7 @@ def mean_n_absolute_max(x: TIME_SERIES_T, n_maxima: int) -> FLOAT_EXPR:
         raise ValueError("The number of maxima should be > 0.")
     return x.abs().top_k(n_maxima).mean()
 
+
 def mean_second_derivative_central(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the mean value of a central approximation of the second derivative.
@@ -1018,9 +1015,16 @@ def mean_second_derivative_central(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     pl.Series
     """
-    return (
-        x.tail(2).diff(null_behavior="drop") - x.head(2).diff(null_behavior="drop")
-    ) / (2 * (x.len() - 2))
+    if isinstance(x, pl.Series):
+        if len(x) < 3:
+            return np.nan
+        return (x[-1] - x[-2] - x[1] + x[0]) / (2 * (x.len() - 2))
+    else:
+        return pl.when(x.len() < 3).then(
+            np.nan
+        ).otherwise(
+            x.tail(2).sub(x.head(2)).diff().last() / (2 * (x.len() - 2))
+        )
 
 
 def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> FLOAT_EXPR:
@@ -1166,7 +1170,7 @@ def number_peaks(x: TIME_SERIES_T, support: int) -> INT_EXPR:
             ((x > x.shift(-i)) & (x > x.shift(i))).fill_null(False)
             for i in range(1, support + 1)
         ).sum()
-
+    
 
 def permutation_entropy(
     x: TIME_SERIES_T,
@@ -1193,31 +1197,39 @@ def permutation_entropy(
     -------
     float | Expr
     """
-    # This is kind of slow rn when tau > 1
-    max_shift = -n_dims + 1
     if isinstance(x, pl.Series):
         # Complete this implementation by cheating (using exprs) for now.
         # There might be short cuts if we use eager. So improve this later.
         frame = x.to_frame()
-        expr = permutation_entropy(pl.col(x.name), tau=tau, n_dims=n_dims, base = base)
+        expr = permutation_entropy(pl.col(x.name), tau=tau, n_dims=n_dims)
         return frame.select(expr).item(0, 0)
     else:
-        return (
-            (  # create list columns
+        if tau == 1: # Fast track the most common use case
+            return (
+                pl.concat_list(
+                    x,
+                    *(x.shift(-i) for i in range(1, n_dims))
+                ).head(x.len() -n_dims + 1)
+                .list.eval(
+                    pl.element().arg_sort()
+                ).value_counts() # groupby and count, but returns a struct
+                .struct.field("counts") # extract the field named "counts"
+            ).entropy(base=base, normalize=True)
+        else:
+            max_shift = -n_dims + 1
+            return (
                 pl.concat_list(
                     x.take_every(tau),
                     *(x.shift(-i).take_every(tau) for i in range(1, n_dims))
-                )
-                .filter(x.shift(max_shift).take_every(tau).is_not_null())
-                .list.eval(
+                ).filter( # This is the correct way to filter (with respect to tau) in this case.
+                    pl.repeat(True, x.len()).shift_and_fill(False, periods=max_shift)
+                    .take_every(tau)
+                ).list.eval(
                     pl.element().arg_sort()
                 )  # for each inner list, do an argsort
                 .value_counts()  # groupby and count, but returns a struct
                 .struct.field("counts")  # extract the field named "counts"
-            )
-            .entropy(base = base, normalize=True)
-        )
-
+            ).entropy(base=base, normalize=True)
 
 def range_count(
     x: TIME_SERIES_T, lower: float, upper: float, closed: ClosedInterval = "left"
