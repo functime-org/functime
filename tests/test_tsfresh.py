@@ -1187,16 +1187,33 @@ def test_augmented_dickey_fuller(x, param, res):
 @pytest.mark.parametrize(
     "x, res",
     [
-        (pl.Series(range(10)), pl.Series([0.0])),
-        (pl.Series([1, 3, 5]), pl.Series([0.0])),
-        (pl.Series([1, 3, 7, -3]), pl.Series([-3.0])),
+        (pl.Series(range(10)), 0.0),
+        (pl.Series([1, 3, 5]), 0.0),
+        (pl.Series([1, 3, 7, -3]),-3.0),
     ],
 )
 def test_mean_second_derivative_central(x, res):
-    assert_series_equal(
-        mean_second_derivative_central(x),
-        res
+
+    assert mean_second_derivative_central(x) == res
+    df = x.to_frame()
+    assert_frame_equal(
+        df.select(
+            mean_second_derivative_central(pl.col(x.name)).alias("1")
+        ),
+        pl.DataFrame({
+            "1": pl.Series([res])
+        })
     )
+    assert_frame_equal(
+        df.lazy().select(
+            mean_second_derivative_central(pl.col(x.name)).alias("1")
+        ).collect(),
+        pl.DataFrame({
+            "1": pl.Series([res])
+        })
+    )
+
+
 # This test needs to be rewritten..
 @pytest.mark.parametrize(
     "x, r, res",
