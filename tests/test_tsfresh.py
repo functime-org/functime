@@ -109,23 +109,25 @@ def test_mean_abs_change(S, res, k):
         ([-1, 1.3, 5.3, 4.5], [11 / 6], {}),
         ([-1, 1, 2, float("inf")], [float("inf")], {}),
         ([-1, 1, 2, -float("inf")], [-float("inf")], {}),
-        ([], [None], {"check_dtype": False}),
+        ([1], [0], {"check_dtype": False}),
+        ([], [], {"check_dtype": False}),
     ],
 )
 def test_mean_change(S, res, k):
-    assert_series_equal(
-        pl.Series("a", [mean_change(pl.Series("a", S))]),
-        pl.Series("a", res, dtype=pl.Float64),
-        **k,
-    )
+    # if len(res) == 0:
+    if len(res) == 0:
+        assert mean_change(pl.Series(S)) is None
+    else:
+        assert mean_change(pl.Series(S)) == res[0]
+
     assert_frame_equal(
         pl.DataFrame({"a": S}).select(mean_change(pl.col("a"))),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
         **k,
     )
     assert_frame_equal(
-        pl.LazyFrame({"a": S}).select(mean_change(pl.col("a"))).collect(),
-        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+        pl.LazyFrame({"a": S}).lazy().select(mean_change(pl.col("a"))).collect(),
+        pl.DataFrame({"a":pl.Series("a", res, dtype=pl.Float64)}),
         **k,
     )
 

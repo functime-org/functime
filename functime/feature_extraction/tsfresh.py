@@ -929,37 +929,8 @@ def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
         resid = x - (beta * x_range + alpha)
         # When length = 1, the case is handled implicitly, as x_range.var = 0 which makes beta nan
         return pl.struct(
-                beta.alias("slope"), alpha.alias("intercept"), resid.dot(resid).alias("rss")
-            )
-    
-def linear_trend_old(x: TIME_SERIES_T) -> MAP_EXPR:
-    """
-    Compute the slope, intercept, and RSS of the linear trend.
-
-    Parameters
-    ----------
-    x : pl.Expr | pl.Series
-        Input time-series.
-
-    Returns
-    -------
-    Mapping[str, float] | Expr
-    """
-    if isinstance(x, pl.Series):
-        x_range = np.arange(start=0, stop=x.len())
-        beta = np.cov(x_range, x)[0, 1] / np.var(x_range, ddof=1)
-        alpha = x.mean() - beta * x_range.mean()
-        resid = x - (beta * x_range + alpha)
-        return {"slope": beta, "intercept": alpha, "rss": np.dot(resid, resid)}
-    else:
-        x_range = pl.int_range(0, x.len())
-        beta = pl.cov(x_range, x) / x_range.var()
-        alpha = x.mean() - beta * x_range.mean()
-        resid = x - (beta * x_range + alpha)
-        return pl.struct(
             beta.alias("slope"), alpha.alias("intercept"), resid.dot(resid).alias("rss")
         )
-
 
 
 def longest_streak_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
@@ -1055,8 +1026,12 @@ def mean_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     float | Expr
     """
     if isinstance(x, pl.Series):
+        if len(x) < 1:
+            return None
+        elif len(x) == 1:
+            return 0
         return (x[-1] - x[0]) / (x.len() - 1)
-    return (x.last() - x.first()) / (x.len() - 1)
+    return pl.when(x.len() > 1).then((x.last() - x.first()) / (x.len() - 1)).otherwise(0)
 
 
 def mean_n_absolute_max(x: TIME_SERIES_T, n_maxima: int) -> FLOAT_EXPR:
@@ -1598,11 +1573,7 @@ def variation_coefficient(x: TIME_SERIES_T) -> FLOAT_EXPR:
     x_mean = x.mean()
     x_std = x.std(ddof=0)
     if isinstance(x, pl.Series):
-        if x_mean == 0:
-            if x_std == 0:
-                return np.nan
-            else:
-                return np.inf
+        return np.divide(x_std, x_mean)
     return x_std / x_mean
 
 
