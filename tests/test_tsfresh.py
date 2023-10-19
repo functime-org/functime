@@ -222,16 +222,6 @@ def test_count_range(S, res):
 
 
 @pytest.mark.parametrize(
-    "S, res",
-    [
-        ([-5, 0, 1], [26]),
-        ([0], [0]),
-        ([-1, 2, -3], [14]),
-        ([-1, 1.3], [2.6900000000000004]),
-        ([1], [1]),
-    ],
-)
-@pytest.mark.parametrize(
     "S, res, k",
     [
         # monotonic zero
