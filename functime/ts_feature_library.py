@@ -89,7 +89,8 @@ class FeatureLibrary:
 
     def binned_entropy(self, bin_count: int = 10) -> pl.Expr:
         """
-        Calculates the entropy of a binned histogram for a given time series.
+        Calculates the entropy of a binned histogram for a given time series. It is highly recommended
+        that you impute the time series before calling this.
 
         Parameters
         ----------
@@ -547,15 +548,17 @@ class FeatureLibrary:
         base: float = math.e,
     ) -> pl.Expr:
         """
-        Computes permutation entropy.
+        Computes permutation entropy. It is recommended that users should impute the time series 
+        before calling this.
 
         Parameters
         ----------
         tau : int
             The embedding time delay which controls the number of time periods between elements
-            of each of the new column vectors.
+            of each of the new column vectors. The recommended value is 1.
         n_dims : int, > 1
-            The embedding dimension which controls the length of each of the new column vectors
+            The embedding dimension which controls the length of each of the new column vectors. The
+            recommended range is 3-7.
         base : float
             The base for log in the entropy computation
 

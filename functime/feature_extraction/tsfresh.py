@@ -908,6 +908,44 @@ def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
     Mapping[str, float] | Expr
     """
     if isinstance(x, pl.Series):
+        n = x.len()
+        if n == 1:
+            return {"slope": np.nan, "intercept":np.nan, "rss": np.nan}
+
+        m = n-1
+        x_range_mean = m/2
+        x_range = np.arange(start=0, stop=n)
+        x_mean = x.mean()
+        beta = np.dot(x - x_mean, x_range - x_range_mean) / (m * np.var(x_range, ddof=1))
+        alpha = x_mean - beta * x_range_mean
+        resid = x - (beta * x_range + alpha)
+        return {"slope": beta, "intercept": alpha, "rss": np.dot(resid, resid)}
+    else:
+        m = x.len() - 1
+        x_range = pl.int_range(0, x.len())
+        x_range_mean = m/2
+        beta = (x - x.mean()).dot(x_range - x_range_mean) / (m * x_range.var())
+        alpha = x.mean() - beta * x_range_mean
+        resid = x - (beta * x_range + alpha)
+        # When length = 1, the case is handled implicitly, as x_range.var = 0 which makes beta nan
+        return pl.struct(
+                beta.alias("slope"), alpha.alias("intercept"), resid.dot(resid).alias("rss")
+            )
+    
+def linear_trend_old(x: TIME_SERIES_T) -> MAP_EXPR:
+    """
+    Compute the slope, intercept, and RSS of the linear trend.
+
+    Parameters
+    ----------
+    x : pl.Expr | pl.Series
+        Input time-series.
+
+    Returns
+    -------
+    Mapping[str, float] | Expr
+    """
+    if isinstance(x, pl.Series):
         x_range = np.arange(start=0, stop=x.len())
         beta = np.cov(x_range, x)[0, 1] / np.var(x_range, ddof=1)
         alpha = x.mean() - beta * x_range.mean()
@@ -921,6 +959,7 @@ def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
         return pl.struct(
             beta.alias("slope"), alpha.alias("intercept"), resid.dot(resid).alias("rss")
         )
+
 
 
 def longest_streak_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
