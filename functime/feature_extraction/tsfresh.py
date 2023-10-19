@@ -898,16 +898,16 @@ def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
     Mapping[str, float] | Expr
     """
     if isinstance(x, pl.Series):
-        x_range = np.arange(start=1, stop=x.len() + 1)
-        beta = np.cov(x, x_range)[0, 1] / x.var()
+        x_range = np.arange(start=0, stop=x.len())
+        beta = np.cov(x_range, x)[0, 1] / np.var(x_range, ddof=1)
         alpha = x.mean() - beta * x_range.mean()
-        resid = x - beta * x_range + alpha
+        resid = x - (beta * x_range + alpha)
         return {"slope": beta, "intercept": alpha, "rss": np.dot(resid, resid)}
     else:
-        x_range = pl.int_range(1, x.len() + 1)
-        beta = pl.cov(x, x_range) / x.var()
+        x_range = pl.int_range(0, x.len())
+        beta = pl.cov(x_range, x) / x_range.var()
         alpha = x.mean() - beta * x_range.mean()
-        resid = x - beta * x_range + alpha
+        resid = x - (beta * x_range + alpha)
         return pl.struct(
             beta.alias("slope"), alpha.alias("intercept"), resid.dot(resid).alias("rss")
         )

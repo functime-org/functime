@@ -29,6 +29,7 @@ from functime.feature_extraction.tsfresh import (
     last_location_of_maximum,
     last_location_of_minimum,
     lempel_ziv_complexity,
+    linear_trend,
     longest_streak_above,
     longest_streak_above_mean,
     longest_streak_below,
@@ -217,6 +218,66 @@ def test_count_range(S, res):
     assert_frame_equal(
         pl.LazyFrame({"a": S}).select(range_count(pl.col("a"), 0, 5.5)).collect(),
         pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32)),
+    )
+
+
+@pytest.mark.parametrize(
+    "S, res, k",
+    [
+        # monotonic zero
+        ([0, 0, 0, 0, 0], [0, 0, 0], {}),
+        # monotonic non-zero +ve
+        ([1, 1, 1, 1, 1], [0, 1, 0], {}),
+        # monotonic non-zero negative
+        ([-1, -1, -1, -1, -1], [0, -1, 0], {}),
+        # +ve trend no intercept no residual
+        ([1, 2, 3, 4, 5], [1, 1, 0], {}),
+        # larger +ve trend with intercept with float vals
+        (list(np.linspace(2, 102, num=51)), [2, 2, 0], {}),
+        # +ve trend float slope
+        (list(np.linspace(0, 49, 99)), [0.5, 0, 0], {"check_exact": False}),
+        # noise centered around 0 with v low variance
+        (
+            list(temp := np.random.normal(0, 0.001, 100)) - np.mean(temp),
+            [0, 0, 0],
+            {"check_exact": False, "atol": 0.0001},
+        ),
+        # -ve trend -1 intercept no residual
+        ([-1, -2, -3, -4, -5], [-1, -1, 0], {}),
+    ],
+)
+def test_linear_trend(S, res, k):
+    expected_df = (
+        pl.DataFrame(
+            {
+                "slope": res[0],
+                "intercept": res[1],
+                "rss": res[2],
+            },
+            schema={
+                "slope": pl.Float64,
+                "intercept": pl.Float64,
+                "rss": pl.Float64,
+            },
+        ).select(pl.struct(pl.all()).alias("slope"))
+    ).unnest("slope")
+    assert_frame_equal(
+        pl.DataFrame({"a": S}).select(linear_trend(pl.col("a"))).unnest("slope"),
+        expected_df,
+        **k,
+    )
+    assert_frame_equal(
+        pl.LazyFrame({"a": S})
+        .select(linear_trend(pl.col("a")))
+        .collect()
+        .unnest("slope"),
+        expected_df,
+        **k,
+    )
+    assert_frame_equal(
+        pl.DataFrame(linear_trend(pl.Series(S))),
+        expected_df,
+        **k,
     )
 
 
@@ -1214,7 +1275,6 @@ def test_lempel_ziv_complexity():
     ],
 )
 def test_longest_streak_above(S, res):
-
     x = pl.Series(S)
     assert longest_streak_above(x, threshold=0) == res
     df = x.to_frame()
@@ -1248,7 +1308,6 @@ def test_longest_streak_above(S, res):
     ],
 )
 def test_longest_streak_below(S, res):
-
     x = pl.Series(S)
     assert longest_streak_below(x, threshold=0) == res
     df = x.to_frame()
@@ -1282,7 +1341,6 @@ def test_longest_streak_below(S, res):
     ],
 )
 def test_max_abs_change(S, res):
-
     x = pl.Series(S)
     assert max_abs_change(x) == res
     df = x.to_frame()
@@ -1306,7 +1364,6 @@ def test_max_abs_change(S, res):
     ],
 )
 def test_range_over_mean_and_range(S, res):
-
     # The tests here are non-exhaustive, but is good enough
     x = pl.Series(S)
     assert range_over_mean(x) == res
