@@ -234,7 +234,7 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
                     pl.col(x.name).shift(i).tail(tail).alias(str(i))
                     for i in range(1, n_lags + 1)
                 ),
-                pl.lit(1),
+                pl.lit(1)
             )
             .to_numpy()
         )  # This matrix generation is faster than v-stack.
@@ -1241,7 +1241,7 @@ def permutation_entropy(
         return (  # create list columns
             pl.concat_list(
                 x.take_every(tau),
-                *(x.shift(-i).take_every(tau) for i in range(1, n_dims)),
+                *(x.shift(-i).take_every(tau) for i in range(1, n_dims))
             )
             .filter(x.shift(max_shift).take_every(tau).is_not_null())
             .list.eval(pl.element().arg_sort())  # for each inner list, do an argsort
@@ -1530,7 +1530,15 @@ def variation_coefficient(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.std(ddof=0) / x.mean()
+    x_mean = x.mean()
+    x_std = x.std(ddof=0)
+    if isinstance(x, pl.Series):
+        if x_mean == 0:
+            if x_std == 0:
+                return np.nan
+            else:
+                return np.inf
+    return x_std / x_mean
 
 
 def var_gt_std(x: TIME_SERIES_T, ddof: int = 1) -> BOOL_EXPR:

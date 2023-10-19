@@ -25,6 +25,7 @@ from functime.feature_extraction.tsfresh import (
     has_duplicate_max,
     has_duplicate_min,
     index_mass_quantile,
+    large_standard_deviation,
     last_location_of_maximum,
     last_location_of_minimum,
     lempel_ziv_complexity,
@@ -34,12 +35,15 @@ from functime.feature_extraction.tsfresh import (
     longest_streak_below,
     longest_streak_below_mean,
     max_abs_change,
+    mean_abs_change,
+    mean_change,
     mean_n_absolute_max,
     mean_second_derivative_central,
     number_peaks,
     percent_reoccuring_values,
     percent_reocurring_points,
     range_change,
+    range_count,
     range_over_mean,
     ratio_beyond_r_sigma,
     ratio_n_unique_to_length,
@@ -48,11 +52,185 @@ from functime.feature_extraction.tsfresh import (
     sum_reocurring_values,
     symmetry_looking,
     time_reversal_asymmetry_statistic,
+    var_gt_std,
+    variation_coefficient,
 )
 
 np.random.seed(42)
 
 
+@pytest.mark.parametrize(
+    "S, res, k",
+    [
+        ([0, 0, 0], [0], {}),
+        ([0, 1, 2], [1], {}),
+        ([2, 1, 0], [1], {}),
+        ([0, 1.5, 2, 2.5], [5 / 6], {}),
+        ([2.5, 2, 1.5, 0], [5 / 6], {}),
+        ([-1, 2, 3, 4], [5 / 3], {}),
+        # # # this is a tough call, can potentially ask about this.
+        ([-1, 1, 2, float("inf")], [float("inf")], {}),
+        ([-1, 1, 2, -float("inf")], [float("inf")], {}),
+        ([float("inf"), -1, 1, 2], [float("inf")], {}),
+        ([], [None], {"check_dtype": False}),
+    ],
+)
+def test_mean_abs_change(S, res, k):
+    assert_series_equal(
+        pl.Series("a", [mean_abs_change(pl.Series("a", S))]),
+        pl.Series("a", res, dtype=pl.Float64),
+        **k,
+    )
+    assert_frame_equal(
+        pl.DataFrame({"a": S}).select(mean_abs_change(pl.col("a"))),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+        **k,
+    )
+    assert_frame_equal(
+        pl.LazyFrame({"a": S}).select(mean_abs_change(pl.col("a"))).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+        **k,
+    )
+
+
+@pytest.mark.parametrize(
+    "S, res, k",
+    [
+        ([0, 0, 0], [0], {}),
+        ([0, 1, 2], [1], {}),
+        ([0, 1.5, 2, 2.5], [5 / 6], {}),
+        ([2.5, 2, 1.5, 0], [-5 / 6], {}),
+        ([-1, 2, 3, 4], [5 / 3], {}),
+        ([-1, 1.3, 5.3, 4.5], [11 / 6], {}),
+        ([-1, 1, 2, float("inf")], [float("inf")], {}),
+        ([-1, 1, 2, -float("inf")], [-float("inf")], {}),
+        ([], [None], {"check_dtype": False}),
+    ],
+)
+def test_mean_change(S, res, k):
+    assert_series_equal(
+        pl.Series("a", [mean_change(pl.Series("a", S))]),
+        pl.Series("a", res, dtype=pl.Float64),
+        **k,
+    )
+    assert_frame_equal(
+        pl.DataFrame({"a": S}).select(mean_change(pl.col("a"))),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+        **k,
+    )
+    assert_frame_equal(
+        pl.LazyFrame({"a": S}).select(mean_change(pl.col("a"))).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+        **k,
+    )
+
+
+@pytest.mark.parametrize(
+    "S, res",
+    [
+        ([0, 0, 0], [False]),
+        ([0, 1, 2], [True]),
+        ([0, 1.5, 2, 2.5, 50], [True]),
+        ([-1, 2, 3, 4], [True]),
+        ([-1, 1.3, 5.3, 4.5], [True]),
+    ],
+)
+def test_var_gt_std(S, res):
+    assert_series_equal(
+        pl.Series("a", [var_gt_std(pl.Series("a", S))]), pl.Series("a", res)
+    )
+    assert_frame_equal(
+        pl.DataFrame({"a": S}).select(var_gt_std(pl.col("a"))),
+        pl.DataFrame(pl.Series("a", res)),
+    )
+    assert_frame_equal(
+        pl.LazyFrame({"a": S}).select(var_gt_std(pl.col("a"))).collect(),
+        pl.DataFrame(pl.Series("a", res)),
+    )
+
+
+@pytest.mark.parametrize(
+    "S, res",
+    [
+        ([0, 0, 0], [False]),
+        ([0, 1, 2], [True]),
+        ([0, 1.5, 2, 2.5, 50], [True]),
+        ([-1, 2, 3, 4], [True]),
+        ([-1, 1.3, 5.3, 4.5], [True]),
+    ],
+)
+def test_large_standard_deviation(S, res):
+    assert_frame_equal(
+        pl.DataFrame({"a": S}).select(large_standard_deviation(pl.col("a"))),
+        pl.DataFrame(pl.Series("a", res)),
+    )
+    assert_frame_equal(
+        pl.LazyFrame({"a": S}).select(large_standard_deviation(pl.col("a"))).collect(),
+        pl.DataFrame(pl.Series("a", res)),
+    )
+
+
+@pytest.mark.parametrize(
+    "S, res",
+    [
+        ([0, 0, 0], [np.nan]),
+        ([0.0, 0.0, 0.0], [np.nan]),
+        ([-1.0, 1.0, 1.0, -1.0], [np.inf]),
+        ([0, 1, 2], [0.816497]),
+        ([9, 7, 10000], [1.410825]),
+        ([-1, 2, 3, 4], [0.93541434]),
+        ([-1, 1.3, 5.3, 4.5], [1.00049]),
+    ],
+)
+def test_variation_coefficient(S, res):
+    assert_series_equal(
+        pl.Series("a", [variation_coefficient(pl.Series("a", S))]), pl.Series("a", res)
+    )
+    assert_frame_equal(
+        pl.DataFrame({"a": S}).select(variation_coefficient(pl.col("a"))),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+    )
+    assert_frame_equal(
+        pl.LazyFrame({"a": S}).select(variation_coefficient(pl.col("a"))).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+    )
+
+
+@pytest.mark.parametrize(
+    "S, res",
+    [
+        ([-5, 0, 1], [2]),
+        ([0], [1]),
+        ([-1, 2, 3, 4], [3]),
+        ([-1, 1.3], [1]),
+        ([1, float("inf")], [1]),
+        ([1, None], [1]),
+    ],
+)
+def test_count_range(S, res):
+    assert_series_equal(
+        pl.Series("a", [range_count(pl.Series("a", S), 0, 5.5)]), pl.Series("a", res)
+    )
+    assert_frame_equal(
+        pl.DataFrame({"a": S}).select(range_count(pl.col("a"), 0, 5.5)),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32)),
+    )
+    assert_frame_equal(
+        pl.LazyFrame({"a": S}).select(range_count(pl.col("a"), 0, 5.5)).collect(),
+        pl.DataFrame(pl.Series("a", res, dtype=pl.UInt32)),
+    )
+
+
+@pytest.mark.parametrize(
+    "S, res",
+    [
+        ([-5, 0, 1], [26]),
+        ([0], [0]),
+        ([-1, 2, -3], [14]),
+        ([-1, 1.3], [2.6900000000000004]),
+        ([1], [1]),
+    ],
+)
 @pytest.mark.parametrize(
     "S, res, k",
     [
