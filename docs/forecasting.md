@@ -308,7 +308,7 @@ forecaster = linear_model(
     freq="1mo",
     lags=12,
     target_transform=scale(),
-    target_transform=add_fourier_terms(sp=12, K=3)
+    feature_transform=add_fourier_terms(sp=12, K=3)
 )
 ```
 

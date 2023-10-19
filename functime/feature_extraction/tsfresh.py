@@ -38,6 +38,7 @@ def absolute_energy(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
             return np.dot(x,x)
     return x.dot(x)
 
+
 def absolute_maximum(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Compute the absolute maximum of a time series.
@@ -229,13 +230,17 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
     """
     if isinstance(x, pl.Series):
         tail = len(x) - n_lags
-        data_x = x.to_frame().select(
-            *(
-                pl.col(x.name).shift(i).tail(tail).alias(str(i))
-                for i in range(1, n_lags + 1)
-            ),
-            pl.lit(1)
-        ).to_numpy()  # This matrix generation is faster than v-stack.
+        data_x = (
+            x.to_frame()
+            .select(
+                *(
+                    pl.col(x.name).shift(i).tail(tail).alias(str(i))
+                    for i in range(1, n_lags + 1)
+                ),
+                pl.lit(1)
+            )
+            .to_numpy()
+        )  # This matrix generation is faster than v-stack.
         y = x.tail(tail).to_numpy()
         # Ok to overwrite because data_x and y are copies
         return slq.lstsq(data_x, y, overwrite_a=True, overwrite_b=True, cond=None)[0]
@@ -263,7 +268,8 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
 
     if isinstance(x, pl.Series):
         counts = (
-            x.cast(pl.Utf8).str.strip_chars_start("-0.")
+            x.cast(pl.Utf8)
+            .str.strip_chars_start("-0.")
             .filter(x != 0)
             .str.slice(0, 1)
             .cast(pl.UInt8)
@@ -275,10 +281,16 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
         return np.corrcoef(counts - 1, _BENFORD_DIST_SERIES)[0, 1]
     else:
         y = x.cast(pl.Utf8).str.strip_chars_start("-0.")
-        counts = y.filter(x != 0).str.slice(0, 1).cast(pl.UInt8).append(
-            pl.int_range(1, 10, eager=False)
-        ).value_counts().sort().struct.field("counts")
-        return pl.corr(counts -1, pl.lit(_BENFORD_DIST_SERIES))
+        counts = (
+            y.filter(x != 0)
+            .str.slice(0, 1)
+            .cast(pl.UInt8)
+            .append(pl.int_range(1, 10, eager=False))
+            .value_counts()
+            .sort()
+            .struct.field("counts")
+        )
+        return pl.corr(counts - 1, pl.lit(_BENFORD_DIST_SERIES))
 
 
 def benford_correlation2(x: pl.Expr) -> pl.Expr:
@@ -363,10 +375,15 @@ def c3(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
         if twice_lag >= x.len():
             return np.nan
         else:
-            return (x * x.shift(n_lags) * x.shift(twice_lag)).sum() / (x.len() - twice_lag)
+            return (x * x.shift(n_lags) * x.shift(twice_lag)).sum() / (
+                x.len() - twice_lag
+            )
     else:
-    # Would potentially be faster if there is a pl.product_horizontal()
-        return ((x.mul(x.shift(n_lags)).mul(x.shift(twice_lag))).sum()).truediv((x.len() - twice_lag))
+        # Would potentially be faster if there is a pl.product_horizontal()
+        return ((x.mul(x.shift(n_lags)).mul(x.shift(twice_lag))).sum()).truediv(
+            x.len() - twice_lag
+        )
+
 
 def change_quantiles(
     x: TIME_SERIES_T, q_low: float, q_high: float, is_abs: bool
@@ -394,7 +411,9 @@ def change_quantiles(
     """
     if isinstance(x, pl.Series):
         frame = x.to_frame()
-        return frame.select(change_quantiles(pl.col(x.name), q_low, q_high, is_abs)).item(0,0)
+        return frame.select(
+            change_quantiles(pl.col(x.name), q_low, q_high, is_abs)
+        ).item(0, 0)
     else:
         if q_high <= q_low:
             return None
@@ -404,7 +423,7 @@ def change_quantiles(
             x.quantile(q_low, "linear"),
             x.quantile(q_high, "linear"),
         )
-        # I tested again, pl.all_horizontal is slightly faster than 
+        # I tested again, pl.all_horizontal is slightly faster than
         # pl.all_horizontal(y, y.shift_and_fill(False, periods=1))
         expr = x.diff().filter(pl.all_horizontal(y, y.shift_and_fill(False, periods=1)))
         if is_abs:
@@ -496,6 +515,7 @@ def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
     """
     return 100 * (x <= threshold).sum() / x.len()
 
+
 def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     Count the number of values that are below the mean.
@@ -510,6 +530,7 @@ def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     int | Expr
     """
     return (x < x.mean()).sum()
+
 
 def cwt_coefficients(
     x: pl.Series, widths: Sequence[int] = (2, 5, 10, 20), n_coefficients: int = 14
@@ -570,9 +591,7 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     else:
         r = x.count().mod(n_chunks)
         y = x.pow(2).append(
-            pl.repeat(0, n = pl.when(r == 0).then(0).otherwise(
-                pl.lit(n_chunks) - r
-            ))
+            pl.repeat(0, n=pl.when(r == 0).then(0).otherwise(pl.lit(n_chunks) - r))
         )
         seg_sum = y.reshape((n_chunks, -1)).list.sum()
         return (seg_sum / seg_sum.sum()).implode()
@@ -693,6 +712,7 @@ def has_duplicate(x: TIME_SERIES_T) -> BOOL_EXPR:
     """
     return x.is_duplicated().any()
 
+
 def has_duplicate_max(x: TIME_SERIES_T) -> BOOL_EXPR:
     """
     Check if the time-series contains any duplicate values equal to its maximum value.
@@ -708,6 +728,7 @@ def has_duplicate_max(x: TIME_SERIES_T) -> BOOL_EXPR:
     """
     return (x == x.max()).sum() > 1
 
+
 def has_duplicate_min(x: TIME_SERIES_T) -> BOOL_EXPR:
     """
     Check if the time-series contains duplicate values equal to its minimum value.
@@ -722,6 +743,7 @@ def has_duplicate_min(x: TIME_SERIES_T) -> BOOL_EXPR:
     bool | Expr
     """
     return (x == x.min()).sum() > 1
+
 
 def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     """
@@ -775,6 +797,7 @@ def large_standard_deviation(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR
     x_interval = x.max() - x.min()
     return x_std > (ratio * x_interval)
 
+
 def last_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the last location of the maximum value of x.
@@ -817,10 +840,12 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     return 1.0 - (x.reverse().arg_min()) / x.len()
 
 
-def lempel_ziv_complexity(x: TIME_SERIES_T, threshold: Union[float, pl.Expr]) -> FLOAT_EXPR:
+def lempel_ziv_complexity(
+    x: TIME_SERIES_T, threshold: Union[float, pl.Expr]
+) -> FLOAT_EXPR:
     """
     Calculate a complexity estimate based on the Lempel-Ziv compression algorithm. The
-    implementation here is currently taken from Lilian Besson. See the reference section 
+    implementation here is currently taken from Lilian Besson. See the reference section
     below. Instead of return the complexity value, we return a ratio w.r.t the length of
     the input series.
 
@@ -883,19 +908,20 @@ def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
     Mapping[str, float] | Expr
     """
     if isinstance(x, pl.Series):
-        x_range = np.arange(start=1, stop=x.len() + 1)
-        beta = np.cov(x, x_range)[0, 1] / x.var()
+        x_range = np.arange(start=0, stop=x.len())
+        beta = np.cov(x_range, x)[0, 1] / np.var(x_range, ddof=1)
         alpha = x.mean() - beta * x_range.mean()
-        resid = x - beta * x_range + alpha
+        resid = x - (beta * x_range + alpha)
         return {"slope": beta, "intercept": alpha, "rss": np.dot(resid, resid)}
     else:
-        x_range = pl.int_range(1, x.len() + 1)
-        beta = pl.cov(x, x_range) / x.var()
+        x_range = pl.int_range(0, x.len())
+        beta = pl.cov(x_range, x) / x_range.var()
         alpha = x.mean() - beta * x_range.mean()
-        resid = x - beta * x_range + alpha
+        resid = x - (beta * x_range + alpha)
         return pl.struct(
             beta.alias("slope"), alpha.alias("intercept"), resid.dot(resid).alias("rss")
         )
+
 
 def longest_streak_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
@@ -903,7 +929,7 @@ def longest_streak_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     If all values in x are null, 0 will be returned. Note: this does not measure consecutive
     changes in time series, only counts the streak based on the original time series, not the
     differences.
-    
+
     Parameters
     ----------
     x : pl.Expr | pl.Series
@@ -975,6 +1001,7 @@ def max_abs_change(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     return absolute_maximum(x.diff(null_behavior="drop"))
 
+
 def mean_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Compute mean change.
@@ -991,6 +1018,7 @@ def mean_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     if isinstance(x, pl.Series):
         return (x[-1] - x[0]) / (x.len() - 1)
     return (x.last() - x.first()) / (x.len() - 1)
+
 
 def mean_n_absolute_max(x: TIME_SERIES_T, n_maxima: int) -> FLOAT_EXPR:
     """
@@ -1528,7 +1556,15 @@ def variation_coefficient(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.std(ddof=0) / x.mean()
+    x_mean = x.mean()
+    x_std = x.std(ddof=0)
+    if isinstance(x, pl.Series):
+        if x_mean == 0:
+            if x_std == 0:
+                return np.nan
+            else:
+                return np.inf
+    return x_std / x_mean
 
 
 def var_gt_std(x: TIME_SERIES_T, ddof: int = 1) -> BOOL_EXPR:
@@ -1564,8 +1600,9 @@ def harmonic_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     return x.len() / (1.0/x).sum()
 
-def range_over_mean(x:TIME_SERIES_T) -> FLOAT_EXPR:
-    '''
+
+def range_over_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
+    """
     Returns the range (max - min) over mean of the time series.
 
     Parameters
@@ -1576,12 +1613,13 @@ def range_over_mean(x:TIME_SERIES_T) -> FLOAT_EXPR:
     Returns
     -------
     float | Expr
-    '''
+    """
     return (x.max() - x.min()) / x.mean()
 
-def range_change(x:TIME_SERIES_T, percentage:bool = True) -> FLOAT_EXPR:
-    '''
-    Returns the maximum value range. If percentage is true, will compute 
+
+def range_change(x: TIME_SERIES_T, percentage: bool = True) -> FLOAT_EXPR:
+    """
+    Returns the maximum value range. If percentage is true, will compute
     (max - min) / min, which only makes sense when x is always positive.
 
     Parameters
@@ -1594,15 +1632,15 @@ def range_change(x:TIME_SERIES_T, percentage:bool = True) -> FLOAT_EXPR:
     Returns
     -------
     float | Expr
-    '''
+    """
     if percentage:
-        return x.max()/x.min() - 1.0
+        return x.max() / x.min() - 1.0
     else:
         return x.max() - x.min()
 
 
 def streak_length_stats(x: TIME_SERIES_T, above: bool, threshold: float) -> MAP_EXPR:
-    '''
+    """
     Returns some statistics of the length of the streaks of the time series. Note that the streaks here
     are about the changes for consecutive values in the time series, not the individual values.
 
@@ -1623,7 +1661,7 @@ def streak_length_stats(x: TIME_SERIES_T, above: bool, threshold: float) -> MAP_
     Returns
     -------
     float | Expr
-    '''
+    """
     if above:
         y = (x.diff() >= threshold).rle()
     else:
@@ -1639,7 +1677,7 @@ def streak_length_stats(x: TIME_SERIES_T, above: bool, threshold: float) -> MAP_
             "10-percentile": y.quantile(0.1),
             "median": y.median(),
             "90-percentile": y.quantile(0.9),
-            "mode": y.mode()[0]
+            "mode": y.mode()[0],
         }
     else:
         return pl.struct(
@@ -1650,11 +1688,12 @@ def streak_length_stats(x: TIME_SERIES_T, above: bool, threshold: float) -> MAP_
             y.quantile(0.1).alias("10-percentile"),
             y.median().alias("median"),
             y.quantile(0.9).alias("90-percentile"),
-            y.mode().first().alias("mode")
+            y.mode().first().alias("mode"),
         )
 
-def longest_streak_above(x:TIME_SERIES_T, threshold:float)-> TIME_SERIES_T:
-    '''
+
+def longest_streak_above(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
+    """
     Returns the longest streak of changes >= threshold of the time series. A change
     is counted when (x_t+1 - x_t) >= threshold. Note that the streaks here
     are about the changes for consecutive values in the time series, not the individual values.
@@ -1669,7 +1708,8 @@ def longest_streak_above(x:TIME_SERIES_T, threshold:float)-> TIME_SERIES_T:
     Returns
     -------
     float | Expr
-    '''
+    """
+    
     y = (x.diff() >= threshold).rle()
     if isinstance(x, pl.Series):
         streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
@@ -1677,8 +1717,9 @@ def longest_streak_above(x:TIME_SERIES_T, threshold:float)-> TIME_SERIES_T:
     else:
         return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
 
-def longest_streak_below(x:TIME_SERIES_T, threshold:float)-> TIME_SERIES_T:
-    '''
+
+def longest_streak_below(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
+    """
     Returns the longest streak of changes <= threshold of the time series. A change
     is counted when (x_t+1 - x_t) <= threshold. Note that the streaks here
     are about the changes for consecutive values in the time series, not the individual values.
@@ -1693,7 +1734,7 @@ def longest_streak_below(x:TIME_SERIES_T, threshold:float)-> TIME_SERIES_T:
     Returns
     -------
     float | Expr
-    '''
+    """
     y = (x.diff() <= threshold).rle()
     if isinstance(x, pl.Series):
         streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
@@ -1701,11 +1742,12 @@ def longest_streak_below(x:TIME_SERIES_T, threshold:float)-> TIME_SERIES_T:
     else:
         return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
 
-def longest_winning_streak(x:TIME_SERIES_T) -> TIME_SERIES_T:
-    '''
+
+def longest_winning_streak(x: TIME_SERIES_T) -> TIME_SERIES_T:
+    """
     Returns the longest winning streak of the time series. A win is counted when
     (x_t+1 - x_t) >= 0
-    
+
     Parameters
     ----------
     x : pl.Expr | pl.Series
@@ -1714,12 +1756,12 @@ def longest_winning_streak(x:TIME_SERIES_T) -> TIME_SERIES_T:
     Returns
     -------
     float | Expr
-    '''
+    """
     return longest_streak_above(x, threshold=0)
 
 
-def longest_losing_streak(x:TIME_SERIES_T)-> TIME_SERIES_T:
-    '''
+def longest_losing_streak(x: TIME_SERIES_T) -> TIME_SERIES_T:
+    """
     Returns the longest losing streak of the time series. A loss is counted when
     (x_t+1 - x_t) <= 0
 
@@ -1731,8 +1773,9 @@ def longest_losing_streak(x:TIME_SERIES_T)-> TIME_SERIES_T:
     Returns
     -------
     float | Expr
-    '''
+    """
     return longest_streak_below(x, threshold=0)
+
 
 # FFT Features
 
