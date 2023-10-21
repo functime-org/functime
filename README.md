@@ -2,12 +2,12 @@
     <h1>Time-series machine learning at scale</h1>
 <br />
 
-![functime](https://github.com/descendant-ai/functime/raw/main/docs/img/banner_dark_bg.png)
+![functime](https://github.com/neocortexdb/functime/raw/main/docs/img/banner_dark_bg.png)
 [![Python](https://img.shields.io/pypi/pyversions/functime)](https://pypi.org/project/functime/)
 [![PyPi](https://img.shields.io/pypi/v/functime?color=blue)](https://pypi.org/project/functime/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![GitHub Publish to PyPI](https://github.com/descendant-ai/functime/actions/workflows/publish.yml/badge.svg)](https://github.com/descendant-ai/functime/actions/workflows/publish.yml)
-[![GitHub Run Quickstart](https://github.com/descendant-ai/functime/actions/workflows/quickstart.yml/badge.svg)](https://github.com/descendant-ai/functime/actions/workflows/quickstart.yml)
+[![GitHub Publish to PyPI](https://github.com/neocortexdb/functime/actions/workflows/publish.yml/badge.svg)](https://github.com/neocortexdb/functime/actions/workflows/publish.yml)
+[![GitHub Run Quickstart](https://github.com/neocortexdb/functime/actions/workflows/quickstart.yml/badge.svg)](https://github.com/neocortexdb/functime/actions/workflows/quickstart.yml)
 [![Discord](https://img.shields.io/discord/1145819725276917782)](https://discord.gg/JKMrZKjEwN)
 
 </div>
@@ -58,7 +58,7 @@ from functime.preprocessing import scale
 from functime.metrics import mase
 
 # Load commodities price data
-y = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/commodities.parquet")
+y = pl.read_parquet("https://github.com/neocortexdb/functime/raw/main/data/commodities.parquet")
 entity_col, time_col = y.columns[:2]
 
 # Time series split

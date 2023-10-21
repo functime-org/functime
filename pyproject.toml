@@ -40,7 +40,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/descendant-ai/functime"
+Homepage = "https://github.com/neocortexdb/functime"
 
 [project.optional-dependencies]
 ann = ["pylance", "pyarrow"]
