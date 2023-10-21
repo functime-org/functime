@@ -22,8 +22,15 @@ jobs:
         uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Create virtual environment
+        run: |
+          python -m venv .venv
+          echo "$GITHUB_WORKSPACE/functime/.venv/bin" >> $GITHUB_PATH
+
       - name: Create LFS file list
         run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id
+
       - name: LFS Cache
         uses: actions/cache@v3
         with:
@@ -31,13 +38,29 @@ jobs:
           key: ${{ runner.os }}-lfs-${{ hashFiles('.lfs-assets-id') }}
           restore-keys: |
             ${{ runner.os }}-lfs-
+
       - name: Git LFS Pull
         run: git lfs pull
-      - name: Install dependencies
+
+      - name: Set up Rust
+        run: rustup show
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: py-polars
+          save-if: ${{ github.ref_name == 'main' }}
+
+      - name: Install functime
+        run: |
+          source activate
+          maturin develop --extras=test,cat,xgb,lgb
+
+      - name: Install extra dependencies
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install scikit-learn-intelex
-          python3 -m pip install ".[test,cat,xgb,lgb]"
+
       - name: Test
         env:
           FUNCTIME__TEST_MODE: "true"
