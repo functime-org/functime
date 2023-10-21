@@ -48,7 +48,7 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: py-polars
+          workspaces: functime
           save-if: ${{ github.ref_name == 'main' }}
 
       - name: Install functime
