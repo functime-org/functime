@@ -33,7 +33,7 @@ from functime.feature_extraction import add_calendar_effects
 
 
 # Load data
-y = pl.read_parquet("https://github.com/descendant-ai/functime/raw/main/data/commodities.parquet")
+y = pl.read_parquet("https://github.com/neocortexdb/functime/raw/main/data/commodities.parquet")
 entity_col, time_col = y.columns[:2]
 X = (
     y.select([entity_col, time_col])
@@ -308,7 +308,7 @@ forecaster = linear_model(
     freq="1mo",
     lags=12,
     target_transform=scale(),
-    target_transform=add_fourier_terms(sp=12, K=3)
+    feature_transform=add_fourier_terms(sp=12, K=3)
 )
 ```
 
