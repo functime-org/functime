@@ -3,7 +3,7 @@ import polars as pl
 import functime.feature_extraction.tsfresh as f
 from polars.type_aliases import ClosedInterval
 
-@pl.api.register_expr_namespace("ts")
+@pl.api.register_expr_namespace("tse")
 class FeatureLibrary:
     def __init__(self, expr: pl.Expr):
         self._expr = expr
@@ -774,3 +774,18 @@ class FeatureLibrary:
         An expression of the output
         """
         return f.longest_losing_streak(self._expr)
+    
+    def ratio_n_unique_to_length(self)-> pl.Expr:
+        """
+        Calculate the ratio of the number of unique values to the length of the time-series.
+
+        Parameters
+        ----------
+        x : pl.Expr | pl.Series
+            Input time-series.
+
+        Returns
+        -------
+        float | Expr
+        """
+        return f.ratio_n_unique_to_length(self._expr)
