@@ -234,7 +234,7 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
                     pl.col(x.name).shift(i).tail(tail).alias(str(i))
                     for i in range(1, n_lags + 1)
                 ),
-                pl.lit(1)
+                pl.lit(1),
             )
             .to_numpy()
         )  # This matrix generation is faster than v-stack.
@@ -1241,7 +1241,7 @@ def permutation_entropy(
         return (  # create list columns
             pl.concat_list(
                 x.take_every(tau),
-                *(x.shift(-i).take_every(tau) for i in range(1, n_dims))
+                *(x.shift(-i).take_every(tau) for i in range(1, n_dims)),
             )
             .filter(x.shift(max_shift).take_every(tau).is_not_null())
             .list.eval(pl.element().arg_sort())  # for each inner list, do an argsort
@@ -1651,7 +1651,7 @@ def streak_length_stats(x: TIME_SERIES_T, above: bool, threshold: float) -> MAP_
             "10-percentile": y.quantile(0.1),
             "median": y.median(),
             "90-percentile": y.quantile(0.9),
-            "mode": y.mode()[0],
+            "mode": y.mode().sort()[0],
         }
     else:
         return pl.struct(
@@ -1662,7 +1662,7 @@ def streak_length_stats(x: TIME_SERIES_T, above: bool, threshold: float) -> MAP_
             y.quantile(0.1).alias("10-percentile"),
             y.median().alias("median"),
             y.quantile(0.9).alias("90-percentile"),
-            y.mode().first().alias("mode"),
+            y.mode().sort(nulls_last=True).first().alias("mode"),
         )
 
 
