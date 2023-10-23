@@ -97,3 +97,8 @@ ignore = [
     "B008", # do not perform function calls in argument defaults
     "B905", # `zip()` without an explicit `strict=` parameter
 ]
+
+
+[tool.maturin]
+module-name = "functime._functime_rust"
+features = ["pyo3/extension-module"]

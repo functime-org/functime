@@ -3,9 +3,9 @@ import polars as pl
 import functime.feature_extraction.tsfresh as f
 from polars.type_aliases import ClosedInterval
 # from polars.type_aliases import IntoExpr
-from polars.utils.udfs import _get_shared_lib_location
+# from polars.utils.udfs import _get_shared_lib_location
 
-lib = _get_shared_lib_location(__file__)
+# lib = _get_shared_lib_location(__file__)
 
 @pl.api.register_expr_namespace("ts")
 class FeatureExtractor:
