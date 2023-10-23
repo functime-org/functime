@@ -368,3 +368,6 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+### asdf ###
+.tool-versions
