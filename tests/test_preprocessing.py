@@ -98,7 +98,7 @@ def pd_lag(X: pd.DataFrame, lags: List[int]) -> pd.DataFrame:
     """Lag values in panel pd.DataFrame by `lags` and suffix k-lag
     column names with `_lag_{k}`. Includes original columns.
     """
-    gb = X.group_by(level=0)
+    gb = X.groupby(level=0)
     X_lags = []
     for _lag in lags:
         X_lag = gb.shift(_lag).add_suffix(f"__lag_{_lag}")
@@ -184,7 +184,7 @@ def test_scale(pd_X):
     entity_col = pd_X.index.names[0]
     numeric_cols = pd_X.select_dtypes(include=["float"]).columns
     pd_X = pd_X.assign(**{col: pd_X[col].abs() for col in numeric_cols}).replace(0, 1)
-    expected = pd_X.group_by(entity_col)[numeric_cols].transform(
+    expected = pd_X.groupby(entity_col)[numeric_cols].transform(
         lambda x: (x - x.mean()) / x.std()
     )
     X = pl.from_pandas(pd_X.reset_index()).lazy()
@@ -200,7 +200,7 @@ def test_diff(pd_X, sp):
     entity_col, time_col = pd_X.index.names
     idx_cols = (entity_col, time_col)
     numeric_cols = pd_X.select_dtypes(include=["float"]).columns
-    expected_X_new = pd_X.group_by(entity_col, group_keys=False)[numeric_cols].diff(
+    expected_X_new = pd_X.groupby(entity_col, group_keys=False)[numeric_cols].diff(
         periods=sp
     )
     X = pl.from_pandas(pd_X.reset_index()).lazy()
@@ -228,7 +228,7 @@ def test_boxcox(pd_X):
     pd_X = pd_X.assign(**{col: pd_X[col].abs() for col in numeric_cols}).replace(0, 1)
 
     transformer = PowerTransformer(method="box-cox", standardize=False)
-    expected = pd_X.group_by(entity_col)[numeric_cols].transform(
+    expected = pd_X.groupby(entity_col)[numeric_cols].transform(
         lambda x: np.concatenate(transformer.fit_transform(x.values.reshape(-1, 1)))
     )
     X = pl.from_pandas(pd_X.reset_index()).lazy()
@@ -245,7 +245,7 @@ def test_yeojohnson(pd_X):
     print(pd_X.info())
     print(pd_X[numeric_cols].head())  # Print the first row of each group
     transformer = PowerTransformer(method="yeo-johnson", standardize=False)
-    expected = pd_X.group_by(entity_col)[numeric_cols].transform(
+    expected = pd_X.groupby(entity_col)[numeric_cols].transform(
         lambda x: np.concatenate(transformer.fit_transform(x.values.reshape(-1, 1)))
     )
     X = pl.from_pandas(pd_X.reset_index()).lazy()
@@ -259,11 +259,11 @@ def test_yeojohnson(pd_X):
 @pytest.mark.parametrize("method", ["linear", "mean"])
 def test_detrend(method, pd_X):
     entity_col = pd_X.index.names[0]
-    expected = pd_X.group_by(entity_col).transform(
+    expected = pd_X.groupby(entity_col).transform(
         signal.detrend, type=method if method == "linear" else "constant"
     )
     X = pl.from_pandas(pd_X.reset_index()).lazy()
-    transformer = detrend(method=method)
+    transformer = detrend(method=method, freq="1d")
     X_new = X.pipe(transformer).collect()
     assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()))
     X_original = X_new.pipe(transformer.invert)

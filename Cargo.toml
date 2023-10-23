@@ -1,0 +1,13 @@
+[package]
+name = "functime"
+version = "0.8.4"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "functime"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = {version = "0.19.2", features = ["extension-module"]}
+pyo3-polars = {version = "0.7.0", features = ["derive"]}
