@@ -1,12 +1,12 @@
 [build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.2.1,<2"]
+build-backend = "maturin"
 
 [project]
 name = "functime"
+version = "0.8.4"
 description = "Time-series machine learning at scale."
 readme = "README.md"
-dynamic = ["version"]
 requires-python = ">=3.8"
 authors = [
     { name = "functime Team", email = "team@functime.ai" },
@@ -28,11 +28,11 @@ classifiers = [
 dependencies = [
     "dask",
     "bottleneck",
-    "flaml==2.0.2",
+    "flaml>=2.0.2,<3",
     "holidays",
     "numpy",
-    "polars==0.19.8",
-    "scikit-learn==1.2.2",
+    "polars>=0.19.8,<1",
+    "scikit-learn>=1.2.2,<2",
     "scipy",
     "tqdm",
     "typing-extensions",
@@ -40,7 +40,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/descendant-ai/functime"
+Homepage = "https://github.com/neocortexdb/functime"
 
 [project.optional-dependencies]
 ann = ["pylance", "pyarrow"]
@@ -65,12 +65,6 @@ test = [
     "tsfresh",
 ]
 doc = ["mkdocs", "mkdocs-material", "mkdocstrings-python", "mkdocs-jupyter"]
-
-[tool.setuptools.packages.find]
-include = ["functime", "functime.*"]
-
-[tool.setuptools.dynamic]
-version = {attr = "functime.__version__"}
 
 [tool.isort]
 profile = "black"
