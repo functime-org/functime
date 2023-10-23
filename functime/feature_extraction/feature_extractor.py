@@ -2,9 +2,13 @@ import math
 import polars as pl
 import functime.feature_extraction.tsfresh as f
 from polars.type_aliases import ClosedInterval
+# from polars.type_aliases import IntoExpr
+from polars.utils.udfs import _get_shared_lib_location
+
+lib = _get_shared_lib_location(__file__)
 
 @pl.api.register_expr_namespace("ts")
-class FeatureLibrary:
+class FeatureExtractor:
     def __init__(self, expr: pl.Expr):
         self._expr = expr
 
@@ -340,6 +344,27 @@ class FeatureLibrary:
         An expression of the output
         """
         return f.last_location_of_minimum(self._expr)
+
+    # def lempel_ziv_complexity(self, threshold:float, as_ratio:bool=True) -> pl.Expr:
+    #     """
+    #     Returns the Lempel Ziv Complexity. This will binarize the function and if value > threshold,
+    #     this the binarized value will be 1 and otherwise 0. Null will be treated as 0s in the binarization.
+
+    #     Parameters
+    #     ----------
+    #     thrshold
+    #         A python literal or a Polars Expression to compare with
+    #     as_ratio
+    #         If true, return the complexity divided length of the sequence
+    #     """
+    #     out = (self._expr > threshold)._register_plugin(
+    #         lib=lib,
+    #         symbol="pl_lempel_ziv_complexity",
+    #         is_elementwise=True,
+    #     )
+    #     if as_ratio:
+    #         return out / self._expr.len()
+    #     return out
 
     def linear_trend(self) -> pl.Expr:
         """

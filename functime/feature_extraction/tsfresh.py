@@ -10,6 +10,8 @@ from polars.type_aliases import ClosedInterval
 from scipy.signal import find_peaks_cwt, ricker, welch
 from scipy.spatial import KDTree
 
+from functime._functime_rust import rs_lempel_ziv_complexity
+
 TIME_SERIES_T = Union[pl.Series, pl.Expr]
 FLOAT_EXPR = Union[float, pl.Expr]
 FLOAT_INT_EXPR = Union[int, float, pl.Expr]
@@ -431,7 +433,7 @@ def change_quantiles(
 
         return expr.implode()
 
-
+# Revisit later.
 def cid_ce(x: TIME_SERIES_T, normalize: bool = False) -> FLOAT_EXPR:
     """
     Computes estimate of time-series complexity[^1].
@@ -481,7 +483,7 @@ def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
     """
     return 100 * (x >= threshold).sum() / x.len()
 
-
+# Should this be percentage?
 def count_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     Count the number of values that are above the mean.
@@ -841,7 +843,7 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
 
 
 def lempel_ziv_complexity(
-    x: TIME_SERIES_T, threshold: Union[float, pl.Expr]
+    x: TIME_SERIES_T, threshold: Union[float, pl.Expr], as_ratio:bool=True
 ) -> FLOAT_EXPR:
     """
     Calculate a complexity estimate based on the Lempel-Ziv compression algorithm. The
@@ -854,10 +856,11 @@ def lempel_ziv_complexity(
     x : pl.Expr | pl.Series
         Input time-series.
     threshold: float | pl.Expr
-
         Either a number, or an expression representing a comparable quantity. If x > value,
         then it will be binarized as 1 and 0 otherwise. If x is eager, then value must also
         be eager as well.
+    as_ratio: bool 
+        If true, return the complexity / length of sequence
 
     Returns
     -------
@@ -869,27 +872,11 @@ def lempel_ziv_complexity(
     https://en.wikipedia.org/wiki/Lempel%E2%80%93Ziv_complexity
     """
     if isinstance(x, pl.Series):
-        if isinstance(threshold, pl.Expr):
-            raise ValueError("Input `value` must be a number when input x is a series.")
-
-        binary_seq = b"".join((x > threshold).cast(pl.Binary))
-
-        sub_strings = set()
-        n = len(binary_seq)
-        ind = 0
-        inc = 1
-        while True:
-            if ind + inc > len(binary_seq):
-                break
-            sub_str = binary_seq[ind : ind + inc]
-            if sub_str in sub_strings:
-                inc += 1
-            else:
-                sub_strings.add(sub_str)
-                ind += inc
-                inc = 1
-
-        return len(sub_strings) / n
+        b = bytes(x > threshold)
+        c = rs_lempel_ziv_complexity(b)
+        if as_ratio:
+            return c / x.len()
+        return c
     else:
         return NotImplemented
 
