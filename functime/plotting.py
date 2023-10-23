@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 import plotly.express as px
@@ -21,6 +21,47 @@ def _remove_legend_duplicates(fig: go.Figure) -> go.Figure:
         else names.add(trace.name)
     )
     return fig
+
+
+def plot_entities(
+    y: Union[pl.DataFrame, pl.LazyFrame],
+    **kwargs,
+) -> go.Figure:
+    """Given panel DataFrame of observed values `y`,
+    returns bar chart of entity counts.
+
+    Parameters
+    ----------
+    y : pl.DataFrame | pl.LazyFrame
+        Panel DataFrame of observed values.
+
+    Returns
+    -------
+    figure : plotly.graph_objects.Figure
+        Plotly bar chart.
+    """
+    entity_col = y.columns[0]
+
+    if isinstance(y, pl.DataFrame):
+        y = y.lazy()
+
+    entity_counts = y.group_by(entity_col).agg(pl.count()).collect()
+
+    height = kwargs.pop("height", len(entity_counts) * 20)
+    title = kwargs.pop("title", "Entities counts")
+    template = kwargs.pop("template", "plotly_white")
+
+    return px.bar(
+        data_frame=entity_counts,
+        x="count",
+        y=entity_col,
+        orientation="h",
+    ).update_layout(
+        height=height,
+        title=title,
+        template=template,
+        **kwargs,
+    )
 
 
 def plot_panel(
@@ -77,7 +118,9 @@ def plot_panel(
             col=col,
         )
 
-    fig.update_layout(**kwargs)
+    template = kwargs.pop("template", "plotly_white")
+
+    fig.update_layout(template=template, **kwargs)
     fig = _remove_legend_duplicates(fig)
     return fig
 
@@ -155,7 +198,9 @@ def plot_forecasts(
             col=col,
         )
 
-    fig.update_layout(**kwargs)
+    template = kwargs.pop("template", "plotly_white")
+
+    fig.update_layout(template=template, **kwargs)
     fig = _remove_legend_duplicates(fig)
     return fig
 
@@ -233,6 +278,8 @@ def plot_backtests(
             col=col,
         )
 
+    template = kwargs.pop("template", "plotly_white")
+
     fig.update_layout(**kwargs)
     fig = _remove_legend_duplicates(fig)
     return fig
@@ -269,7 +316,10 @@ def plot_residuals(
         histfunc="count",
         nbins=n_bins,
     )
-    fig.update_layout(**kwargs)
+
+    template = kwargs.pop("template", "plotly_white")
+
+    fig.update_layout(template=template, **kwargs)
     return fig
 
 
@@ -313,7 +363,10 @@ def plot_comet(
     )
     fig.add_hline(y=mean_score)
     fig.add_vline(x=mean_cv)
-    fig.update_layout(**kwargs)
+
+    template = kwargs.pop("template", "plotly_white")
+
+    fig.update_layout(template=template, **kwargs)
     return fig
 
 
@@ -371,17 +424,20 @@ def plot_fva(
     min_score = min(
         scores.get_column(metric_name).min(), scores_bench.get_column(metric_name).min()
     )
+
+    template = kwargs.pop("template", "plotly_white")
+
     fig.update_layout(
         shapes=[deg45_line],
         xaxis={"range": [min_score, max_score]},
         yaxis={"range": [min_score, max_score]},
+        template=template,
     )
     fig.update_layout(**kwargs)
     return fig
 
 
 if __name__ == "__main__":
-
     from functime.cross_validation import train_test_split
     from functime.forecasting import snaive
     from functime.metrics import mase
@@ -396,5 +452,5 @@ if __name__ == "__main__":
 
     y = y.filter(pl.col(entity_col).is_in(top_scoring))
     y_pred = y_pred.filter(pl.col(entity_col).is_in(top_scoring))
-    fig = plot_forecasts(y=y, y_pred=y_pred, width=1150)
+    fig = plot_forecasts(y_true=y, y_pred=y_pred, width=1150)
     fig.show()
