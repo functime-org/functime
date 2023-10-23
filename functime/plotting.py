@@ -53,7 +53,7 @@ def plot_panel(
     """
 
     # Get most recent observations
-    entity_col, time_col, target_col = y.columns[:2]
+    entity_col, time_col, target_col = y.columns[:3]
 
     if isinstance(y, pl.DataFrame):
         y = y.group_by(entity_col).tail(last_n)
@@ -122,7 +122,7 @@ def plot_forecasts(
     """
 
     # Get most recent observations
-    entity_col, time_col, target_col = y_true.columns[:2]
+    entity_col, time_col, target_col = y_true.columns[:3]
     y = y_true.group_by(entity_col).tail(last_n)
 
     # Organize subplots
@@ -200,7 +200,7 @@ def plot_backtests(
     """
 
     # Get most recent observations
-    entity_col, time_col, target_col = y_true.columns[:2]
+    entity_col, time_col, target_col = y_true.columns[:3]
     y = y_true.group_by(entity_col).tail(last_n)
 
     # Organize subplots
@@ -265,7 +265,7 @@ def plot_residuals(
     figure : plotly.graph_objects.Figure
         Plotly histogram.
     """
-    entity_col, _, target_col = y_resids.columns[:2]
+    entity_col, _, target_col = y_resids.columns[:3]
     y_resids = y_resids.with_columns(pl.col(target_col).alias("Residuals"))
     fig = px.histogram(
         y_resids,
@@ -306,7 +306,7 @@ def plot_comet(
     figure : plotly.graph_objects.Figure
         Plotly scatterplot.
     """
-    entity_col, _, target_col = y_train.columns[:2]
+    entity_col, _, target_col = y_train.columns[:3]
     scoring = scoring or smape
     scores = scoring(y_true=y_test, y_pred=y_pred)
     cvs = y_train.group_by(entity_col).agg(
