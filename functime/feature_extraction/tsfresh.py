@@ -4,13 +4,12 @@ from typing import List, Mapping, Optional, Sequence, Union
 import bottleneck as bn
 import numpy as np
 import polars as pl
-import scipy.linalg as slq
 from numpy.linalg import lstsq
 from polars.type_aliases import ClosedInterval
 from scipy.signal import find_peaks_cwt, ricker, welch
 from scipy.spatial import KDTree
 
-from functime._functime_rust import rs_lempel_ziv_complexity
+from functime._functime_rust import rs_faer_lstsq, rs_lempel_ziv_complexity
 
 TIME_SERIES_T = Union[pl.Series, pl.Expr]
 FLOAT_EXPR = Union[float, pl.Expr]
@@ -217,7 +216,7 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
 def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
     """
     Computes coefficients for an AR(`n_lags`) process. This only works for Series input
-    right now.
+    right now. Caution: Any Null Value in Series will replaced by 0!
 
     Parameters
     ----------
@@ -231,21 +230,22 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
     list of float
     """
     if isinstance(x, pl.Series):
-        tail = len(x) - n_lags
+        length = len(x) - n_lags
+        y = x.fill_null(0.)
         data_x = (
-            x.to_frame()
+            y.to_frame()
             .select(
                 *(
-                    pl.col(x.name).shift(i).tail(tail).alias(str(i))
+                    pl.col(y.name).slice(n_lags - i, length=length).alias(str(i))
                     for i in range(1, n_lags + 1)
                 ),
                 pl.lit(1)
             )
             .to_numpy()
-        )  # This matrix generation is faster than v-stack.
-        y = x.tail(tail).to_numpy()
-        # Ok to overwrite because data_x and y are copies
-        return slq.lstsq(data_x, y, overwrite_a=True, overwrite_b=True, cond=None)[0]
+        )
+        y_ = y.tail(length).to_numpy(zero_copy_only=True).reshape((-1,1))
+        out:np.ndarray = rs_faer_lstsq(data_x, y_)
+        return out.ravel()
     else:
         return NotImplemented
 
@@ -427,7 +427,7 @@ def change_quantiles(
         )
         # I tested again, pl.all_horizontal is slightly faster than
         # pl.all_horizontal(y, y.shift_and_fill(False, periods=1))
-        expr = x.diff().filter(pl.all_horizontal(y, y.shift_and_fill(False, periods=1)))
+        expr = x.diff().filter(pl.all_horizontal(y, y.shift(1, fill_value=False)))
         if is_abs:
             expr = expr.abs()
 
@@ -1018,7 +1018,8 @@ def mean_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
         elif len(x) == 1:
             return 0
         return (x[-1] - x[0]) / (x.len() - 1)
-    return pl.when(x.len() > 1).then((x.last() - x.first()) / (x.len() - 1)).otherwise(0)
+    else:
+        return pl.when(x.len() - 1 > 0).then((x.last() - x.first()) / (x.len() - 1)).otherwise(0)
 
 
 def mean_n_absolute_max(x: TIME_SERIES_T, n_maxima: int) -> FLOAT_EXPR:
@@ -1262,7 +1263,7 @@ def permutation_entropy(
                     x.take_every(tau),
                     *(x.shift(-i).take_every(tau) for i in range(1, n_dims))
                 ).filter( # This is the correct way to filter (with respect to tau) in this case.
-                    pl.repeat(True, x.len()).shift_and_fill(False, periods=max_shift)
+                    pl.repeat(True, x.len()).shift(max_shift, fill_value=False)
                     .take_every(tau)
                 ).list.eval(
                     pl.element().arg_sort()
