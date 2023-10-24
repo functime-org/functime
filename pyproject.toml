@@ -31,7 +31,7 @@ dependencies = [
     "flaml>=2.0.2,<3",
     "holidays",
     "numpy",
-    "polars>=0.19.8,<1",
+    "polars>=0.19.11",
     "scikit-learn>=1.2.2,<2",
     "scipy",
     "tqdm",
@@ -105,3 +105,8 @@ ignore = [
 [tool.ruff.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.
 keep-runtime-typing = true
+
+[tool.maturin]
+module-name = "functime._functime_rust"
+features = ["pyo3/extension-module"]
+
