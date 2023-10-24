@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 import plotly.express as px
@@ -6,25 +6,32 @@ import plotly.graph_objects as go
 import polars as pl
 from plotly.subplots import make_subplots
 
-from functime.base.metric import METRIC_TYPE
 from functime.metrics import smape
+from functime.plotting._utils import (
+    _get_entities,
+    _remove_legend_duplicates,
+    _sample_entities,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
+    from typing import Optional, Union
+
+    from functime.base.metric import METRIC_TYPE
 
 COLOR_PALETTE = {"actual": "#B7B7B7", "forecast": "#1b57f1", "backtest": "#A76EF4"}
 DEFAULT_LAST_N = 64
 
 
-def _remove_legend_duplicates(fig: go.Figure) -> go.Figure:
-    names = set()
-    fig.for_each_trace(
-        lambda trace: trace.update(showlegend=False)
-        if (trace.name in names)
-        else names.add(trace.name)
-    )
-    return fig
-
-
 def plot_panel(
-    y: pl.DataFrame, n_cols: int = 2, last_n: int = DEFAULT_LAST_N, **kwargs
+    y: Union[pl.DataFrame, pl.LazyFrame],
+    *,
+    ids: Optional[Union[str, Collection[str]]] = None,
+    sample: Optional[int] = None,
+    seed: Optional[int] = None,
+    n_cols: int = 2,
+    last_n: int = DEFAULT_LAST_N,
+    **kwargs,
 ):
     """Given panel DataFrames of observed values `y`,
     returns subplots for each individual entity / time-series.
@@ -48,16 +55,37 @@ def plot_panel(
     figure : plotly.graph_objects.Figure
         Plotly subplots.
     """
+    entity_col, time_col, target_col = y.columns[:3]
 
-    # Get most recent observations
-    entity_col, time_col, target_col = y.columns
-    y = y.group_by(entity_col).tail(last_n)
+    if isinstance(y, pl.DataFrame):
+        y = y.lazy()
+
+    if ids is not None and sample is not None:
+        raise ValueError("Cannot specify both `ids` and `sample`.")
+    elif ids is not None:
+        y = _get_entities(y, ids=ids).group_by(entity_col).tail(last_n).collect()
+
+        n_series = len(ids)
+        entity_ids = sorted(ids)
+    elif sample is not None:
+        y_samples, entity_ids = _sample_entities(
+            y, k=sample, seed=seed, return_entities=True
+        )
+
+        y = y_samples.group_by(entity_col).tail(last_n).collect()
+
+        n_series = sample
+    else:
+        y = y.group_by(entity_col).tail(last_n).collect()
+
+        n_series = y.get_column(entity_col).n_unique()
+        entity_ids = sorted(y.get_column(entity_col).unique())
 
     # Organize subplots
-    n_series = y.get_column(entity_col).n_unique()
+    # PERF: can we do this without numpy?
     n_rows = int(np.ceil(n_series / n_cols))
     row_idx = np.repeat(range(n_rows), n_cols)
-    entity_ids = sorted(y.get_column(entity_col).unique())
+
     fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entity_ids)
 
     for i, entity_id in enumerate(entity_ids):
@@ -115,7 +143,7 @@ def plot_forecasts(
     """
 
     # Get most recent observations
-    entity_col, time_col, target_col = y_true.columns
+    entity_col, time_col, target_col = y_true.columns[:3]
     y = y_true.group_by(entity_col).tail(last_n)
 
     # Organize subplots
@@ -193,7 +221,7 @@ def plot_backtests(
     """
 
     # Get most recent observations
-    entity_col, time_col, target_col = y_true.columns
+    entity_col, time_col, target_col = y_true.columns[:3]
     y = y_true.group_by(entity_col).tail(last_n)
 
     # Organize subplots
@@ -299,7 +327,7 @@ def plot_comet(
     figure : plotly.graph_objects.Figure
         Plotly scatterplot.
     """
-    entity_col, _, target_col = y_train.columns
+    entity_col, _, target_col = y_train.columns[:3]
     scoring = scoring or smape
     scores = scoring(y_true=y_test, y_pred=y_pred)
     cvs = y_train.group_by(entity_col).agg(
@@ -381,7 +409,6 @@ def plot_fva(
 
 
 if __name__ == "__main__":
-
     from functime.cross_validation import train_test_split
     from functime.forecasting import snaive
     from functime.metrics import mase
@@ -396,5 +423,5 @@ if __name__ == "__main__":
 
     y = y.filter(pl.col(entity_col).is_in(top_scoring))
     y_pred = y_pred.filter(pl.col(entity_col).is_in(top_scoring))
-    fig = plot_forecasts(y=y, y_pred=y_pred, width=1150)
+    fig = plot_forecasts(y_true=y, y_pred=y_pred, width=1150)
     fig.show()
