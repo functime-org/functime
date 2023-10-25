@@ -4,11 +4,12 @@ from typing import List, Mapping, Optional, Sequence, Union
 import bottleneck as bn
 import numpy as np
 import polars as pl
-import scipy.linalg as slq
 from numpy.linalg import lstsq
 from polars.type_aliases import ClosedInterval
 from scipy.signal import find_peaks_cwt, ricker, welch
 from scipy.spatial import KDTree
+
+from functime._functime_rust import rs_faer_lstsq, rs_lempel_ziv_complexity
 
 TIME_SERIES_T = Union[pl.Series, pl.Expr]
 FLOAT_EXPR = Union[float, pl.Expr]
@@ -33,6 +34,9 @@ def absolute_energy(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     -------
     float | Expr
     """
+    if isinstance(x, pl.Series):
+        if x.len() > 300_000: # Would be different for different machines
+            return np.dot(x,x)
     return x.dot(x)
 
 
@@ -212,7 +216,7 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
 def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
     """
     Computes coefficients for an AR(`n_lags`) process. This only works for Series input
-    right now.
+    right now. Caution: Any Null Value in Series will replaced by 0!
 
     Parameters
     ----------
@@ -226,21 +230,22 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
     list of float
     """
     if isinstance(x, pl.Series):
-        tail = len(x) - n_lags
+        length = len(x) - n_lags
+        y = x.fill_null(0.)
         data_x = (
-            x.to_frame()
+            y.to_frame()
             .select(
                 *(
-                    pl.col(x.name).shift(i).tail(tail).alias(str(i))
+                    pl.col(y.name).slice(n_lags - i, length=length).alias(str(i))
                     for i in range(1, n_lags + 1)
                 ),
                 pl.lit(1)
             )
             .to_numpy()
-        )  # This matrix generation is faster than v-stack.
-        y = x.tail(tail).to_numpy()
-        # Ok to overwrite because data_x and y are copies
-        return slq.lstsq(data_x, y, overwrite_a=True, overwrite_b=True, cond=None)[0]
+        )
+        y_ = y.tail(length).to_numpy(zero_copy_only=True).reshape((-1,1))
+        out:np.ndarray = rs_faer_lstsq(data_x, y_)
+        return out.ravel()
     else:
         return NotImplemented
 
@@ -422,13 +427,13 @@ def change_quantiles(
         )
         # I tested again, pl.all_horizontal is slightly faster than
         # pl.all_horizontal(y, y.shift_and_fill(False, periods=1))
-        expr = x.diff().filter(pl.all_horizontal(y, y.shift_and_fill(False, periods=1)))
+        expr = x.diff().filter(pl.all_horizontal(y, y.shift(1, fill_value=False)))
         if is_abs:
             expr = expr.abs()
 
         return expr.implode()
 
-
+# Revisit later.
 def cid_ce(x: TIME_SERIES_T, normalize: bool = False) -> FLOAT_EXPR:
     """
     Computes estimate of time-series complexity[^1].
@@ -478,7 +483,7 @@ def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
     """
     return 100 * (x >= threshold).sum() / x.len()
 
-
+# Should this be percentage?
 def count_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     Count the number of values that are above the mean.
@@ -492,11 +497,7 @@ def count_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    if isinstance(x, pl.Series):
-        y = x.cast(pl.Float64)
-    else:
-        y = x
-    return (y > y.mean()).sum()
+    return (x > x.mean()).sum()
 
 
 def count_below(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
@@ -530,11 +531,7 @@ def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
-    if isinstance(x, pl.Series):
-        y = x.cast(pl.Float64)
-    else:
-        y = x
-    return (y < y.mean()).sum()
+    return (x < x.mean()).sum()
 
 
 def cwt_coefficients(
@@ -654,8 +651,11 @@ def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
     if not isinstance(x, pl.Series):
         return NotImplemented
 
-    _, pxx = welch(x, nperseg=min(x.len(), 256))
-    return binned_entropy(pxx / bn.nanmax(pxx), n_bins)
+    if len(x) == 1:
+        return np.nan
+    else:
+        _, pxx = welch(x, nperseg=min(x.len(), 256))
+        return binned_entropy(pl.Series(pxx) / bn.nanmax(pxx), n_bins)
 
 
 def friedrich_coefficients(
@@ -763,15 +763,19 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     -------
     float | Expr
     """
+    x_cumsum = x.abs().cumsum().set_sorted()
     if isinstance(x, pl.Series):
-        y = x.cast(pl.Float64)
+        if x.is_integer():
+            idx = x_cumsum.search_sorted(int(q*x_cumsum[-1]) + 1, "left")
+        else: # Search sorted is sensitive to dtype.
+            idx = x_cumsum.search_sorted(q*x_cumsum[-1], "left")
+        return (idx + 1) / x.len()
     else:
-        y = x
-    y_abs = y.abs()
-    y_sum = y.sum()
-    n = x.len()
-    idx = (y_abs.cumsum() >= q * y_sum).arg_max()
-    return (idx + 1) / n
+        # In lazy case we have to cast, which kind of wasts some time, but this is on
+        # par with the old implementation. Use max here because... believe it or not
+        # max (with fast track because I did set_sorted()) is faster than .last() ???
+        idx = x_cumsum.cast(pl.Float64).search_sorted(q*x_cumsum.max(), "left")
+        return (idx + 1) / x.len()
 
 
 def large_standard_deviation(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
@@ -810,7 +814,11 @@ def last_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return 1.0 - x.reverse().arg_max() / x.len()
+    # if isinstance(x, pl.Series):
+    #     return ((x == x.max()).arg_true()[-1] + 1) / x.len()
+    # else:
+    #     return ((x == x.max()).arg_true().last() + 1) / x.len()
+    return 1.0 - (x.reverse().arg_max()) / x.len()
 
 
 def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -827,11 +835,15 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return 1.0 - x.reverse().arg_min() / x.len()
+    # if isinstance(x, pl.Series):
+    #     return ((x == x.min()).arg_true()[-1] + 1) / x.len()
+    # else:
+    #     return ((x == x.min()).arg_true().last() + 1) / x.len()
+    return 1.0 - (x.reverse().arg_min()) / x.len()
 
 
 def lempel_ziv_complexity(
-    x: TIME_SERIES_T, threshold: Union[float, pl.Expr]
+    x: TIME_SERIES_T, threshold: Union[float, pl.Expr], as_ratio:bool=True
 ) -> FLOAT_EXPR:
     """
     Calculate a complexity estimate based on the Lempel-Ziv compression algorithm. The
@@ -844,10 +856,11 @@ def lempel_ziv_complexity(
     x : pl.Expr | pl.Series
         Input time-series.
     threshold: float | pl.Expr
-
         Either a number, or an expression representing a comparable quantity. If x > value,
         then it will be binarized as 1 and 0 otherwise. If x is eager, then value must also
         be eager as well.
+    as_ratio: bool 
+        If true, return the complexity / length of sequence
 
     Returns
     -------
@@ -859,27 +872,11 @@ def lempel_ziv_complexity(
     https://en.wikipedia.org/wiki/Lempel%E2%80%93Ziv_complexity
     """
     if isinstance(x, pl.Series):
-        if isinstance(threshold, pl.Expr):
-            raise ValueError("Input `value` must be a number when input x is a series.")
-
-        binary_seq = b"".join((x > threshold).cast(pl.Binary))
-
-        sub_strings = set()
-        n = len(binary_seq)
-        ind = 0
-        inc = 1
-        while True:
-            if ind + inc > len(binary_seq):
-                break
-            sub_str = binary_seq[ind : ind + inc]
-            if sub_str in sub_strings:
-                inc += 1
-            else:
-                sub_strings.add(sub_str)
-                ind += inc
-                inc = 1
-
-        return len(sub_strings) / n
+        b = bytes(x > threshold)
+        c = rs_lempel_ziv_complexity(b)
+        if as_ratio:
+            return c / x.len()
+        return c
     else:
         return NotImplemented
 
@@ -898,16 +895,26 @@ def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
     Mapping[str, float] | Expr
     """
     if isinstance(x, pl.Series):
-        x_range = np.arange(start=0, stop=x.len())
-        beta = np.cov(x_range, x)[0, 1] / np.var(x_range, ddof=1)
-        alpha = x.mean() - beta * x_range.mean()
+        n = x.len()
+        if n == 1:
+            return {"slope": np.nan, "intercept":np.nan, "rss": np.nan}
+
+        m = n-1
+        x_range_mean = m/2
+        x_range = np.arange(start=0, stop=n)
+        x_mean = x.mean()
+        beta = np.dot(x - x_mean, x_range - x_range_mean) / (m * np.var(x_range, ddof=1))
+        alpha = x_mean - beta * x_range_mean
         resid = x - (beta * x_range + alpha)
         return {"slope": beta, "intercept": alpha, "rss": np.dot(resid, resid)}
     else:
+        m = x.len() - 1
         x_range = pl.int_range(0, x.len())
-        beta = pl.cov(x_range, x) / x_range.var()
-        alpha = x.mean() - beta * x_range.mean()
+        x_range_mean = m/2
+        beta = (x - x.mean()).dot(x_range - x_range_mean) / (m * x_range.var())
+        alpha = x.mean() - beta * x_range_mean
         resid = x - (beta * x_range + alpha)
+        # When length = 1, the case is handled implicitly, as x_range.var = 0 which makes beta nan
         return pl.struct(
             beta.alias("slope"), alpha.alias("intercept"), resid.dot(resid).alias("rss")
         )
@@ -929,18 +936,12 @@ def longest_streak_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
+    y = (x > x.mean()).rle()
     if isinstance(x, pl.Series):
-        y = (x.cast(pl.Float64) > x.mean()).rle()
         result = y.filter(y.struct.field("values")).struct.field("lengths").max()
         return 0 if result is None else result
     else:
-        y = (x > x.mean()).rle()
-        return (
-            y.filter(y.struct.field("values"))
-            .struct.field("lengths")
-            .max()
-            .fill_null(0)
-        )
+        return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
 
 
 def longest_streak_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
@@ -959,19 +960,12 @@ def longest_streak_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     -------
     int | Expr
     """
+    y = (x < x.mean()).rle()
     if isinstance(x, pl.Series):
-        y = (x.cast(pl.Float64) < x.mean()).rle()
         result = y.filter(y.struct.field("values")).struct.field("lengths").max()
         return 0 if result is None else result
     else:
-        y = (x < x.mean()).rle()
-        return (
-            y.filter(y.struct.field("values"))
-            .struct.field("lengths")
-            .max()
-            .fill_null(0)
-        )
-
+        return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
 
 def mean_abs_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
@@ -1018,7 +1012,14 @@ def mean_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.diff(null_behavior="drop").mean()
+    if isinstance(x, pl.Series):
+        if len(x) < 1:
+            return None
+        elif len(x) == 1:
+            return 0
+        return (x[-1] - x[0]) / (x.len() - 1)
+    else:
+        return pl.when(x.len() - 1 > 0).then((x.last() - x.first()) / (x.len() - 1)).otherwise(0)
 
 
 def mean_n_absolute_max(x: TIME_SERIES_T, n_maxima: int) -> FLOAT_EXPR:
@@ -1054,9 +1055,16 @@ def mean_second_derivative_central(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     pl.Series
     """
-    return (
-        x.tail(2).diff(null_behavior="drop") - x.head(2).diff(null_behavior="drop")
-    ) / (2 * (x.len() - 2))
+    if isinstance(x, pl.Series):
+        if len(x) < 3:
+            return np.nan
+        return (x[-1] - x[-2] - x[1] + x[0]) / (2 * (x.len() - 2))
+    else:
+        return pl.when(x.len() < 3).then(
+            np.nan
+        ).otherwise(
+            x.tail(2).sub(x.head(2)).diff().last() / (2 * (x.len() - 2))
+        )
 
 
 def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> FLOAT_EXPR:
@@ -1078,7 +1086,7 @@ def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> FLOAT_EXP
     float | Expr
     """
     return (
-        x.gt(crossing_value).cast(pl.Int8).diff(null_behavior="drop").abs().eq(1).sum()
+        ((x > crossing_value).cast(pl.Int8).diff(null_behavior="drop").abs() == 1).sum()
     )
 
 
@@ -1229,26 +1237,41 @@ def permutation_entropy(
     -------
     float | Expr
     """
-    # This is kind of slow rn when tau > 1
-    max_shift = -n_dims + 1
     if isinstance(x, pl.Series):
         # Complete this implementation by cheating (using exprs) for now.
         # There might be short cuts if we use eager. So improve this later.
         frame = x.to_frame()
-        expr = permutation_entropy(pl.col(x.name), tau=tau, n_dims=n_dims)
+        expr = permutation_entropy(pl.col(x.name), tau=tau, n_dims=n_dims, base=base)
         return frame.select(expr).item(0, 0)
     else:
-        return (  # create list columns
-            pl.concat_list(
-                x.take_every(tau),
-                *(x.shift(-i).take_every(tau) for i in range(1, n_dims))
+        if tau == 1: # Fast track the most common use case
+            return (
+                pl.concat_list(
+                    x,
+                    *(x.shift(-i) for i in range(1, n_dims))
+                ).head(x.len() - n_dims + 1)
+                .list.eval(
+                    pl.element().arg_sort()
+                ).value_counts() # groupby and count, but returns a struct
+                .struct.field("counts") # extract the field named "counts"
+                .entropy(base=base, normalize=True)
             )
-            .filter(x.shift(max_shift).take_every(tau).is_not_null())
-            .list.eval(pl.element().arg_sort())  # for each inner list, do an argsort
-            .value_counts()  # groupby and count, but returns a struct
-            .struct.field("counts")  # extract the field named "counts"
-        ).entropy(normalize=True)
-
+        else:
+            max_shift = -n_dims + 1
+            return (
+                pl.concat_list(
+                    x.take_every(tau),
+                    *(x.shift(-i).take_every(tau) for i in range(1, n_dims))
+                ).filter( # This is the correct way to filter (with respect to tau) in this case.
+                    pl.repeat(True, x.len()).shift(max_shift, fill_value=False)
+                    .take_every(tau)
+                ).list.eval(
+                    pl.element().arg_sort()
+                )  # for each inner list, do an argsort
+                .value_counts()  # groupby and count, but returns a struct
+                .struct.field("counts")  # extract the field named "counts"
+                .entropy(base=base, normalize=True)
+            )
 
 def range_count(
     x: TIME_SERIES_T, lower: float, upper: float, closed: ClosedInterval = "left"
@@ -1353,7 +1376,7 @@ def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
 
 
 # Only works on series
-def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> FLOAT_EXPR:
+def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2, m:int = 2) -> FLOAT_EXPR:
     """
     Calculate the sample entropy of a time series.
     This only works for Series input right now.
@@ -1364,38 +1387,42 @@ def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2) -> FLOAT_EXPR:
         The input time series.
     ratio : float, optional
         The tolerance parameter. Default is 0.2.
+    m : int
+        Length of a run of data. Most common run length is 2.
 
     Returns
     -------
     float | Expr
     """
     # This is significantly faster than tsfresh
-    if not isinstance(x, pl.Series):
-        return NotImplemented
+    if isinstance(x, pl.Series):
+        if len(x) < m:
+            return np.nan
 
-    threshold = ratio * x.std(ddof=0)
-    m = 2
-    mat = _into_sequential_chunks(x, m)
-    tree = KDTree(mat)
-    b = (
-        np.sum(
-            tree.query_ball_point(
-                mat, r=threshold, p=np.inf, workers=-1, return_length=True
+        threshold = ratio * x.std(ddof=0)
+        mat = _into_sequential_chunks(x, m)
+        tree = KDTree(mat)
+        b = (
+            np.sum(
+                tree.query_ball_point(
+                    mat, r=threshold, p=np.inf, workers=-1, return_length=True
+                )
             )
+            - mat.shape[0]
         )
-        - mat.shape[0]
-    )
-    mat = _into_sequential_chunks(x, m + 1)  #
-    tree = KDTree(mat)
-    a = (
-        np.sum(
-            tree.query_ball_point(
-                mat, r=threshold, p=np.inf, workers=-1, return_length=True
+        mat = _into_sequential_chunks(x, m + 1)  #
+        tree = KDTree(mat)
+        a = (
+            np.sum(
+                tree.query_ball_point(
+                    mat, r=threshold, p=np.inf, workers=-1, return_length=True
+                )
             )
+            - mat.shape[0]
         )
-        - mat.shape[0]
-    )
-    return np.log(b / a)  # -ln(a/b) = ln(b/a)
+        return np.log(b / a)  # -ln(a/b) = ln(b/a)
+    else:
+        return NotImplemented
 
 
 # Need to improve the input arguments depending on use cases.
@@ -1514,7 +1541,8 @@ def time_reversal_asymmetry_statistic(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EX
     """
     one_lag = x.shift(-n_lags)
     two_lag = x.shift(-2 * n_lags)
-    return (one_lag * (two_lag.pow(2) - x.pow(2))).head(x.len() - 2 * n_lags).mean()
+    # We don't need to do .head() here because nulls won't affect mean calculation
+    return (one_lag * (two_lag + x) * (two_lag - x)).mean()
 
 
 def variation_coefficient(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1533,11 +1561,7 @@ def variation_coefficient(x: TIME_SERIES_T) -> FLOAT_EXPR:
     x_mean = x.mean()
     x_std = x.std(ddof=0)
     if isinstance(x, pl.Series):
-        if x_mean == 0:
-            if x_std == 0:
-                return np.nan
-            else:
-                return np.inf
+        return np.divide(x_std, x_mean)
     return x_std / x_mean
 
 
@@ -1572,7 +1596,7 @@ def harmonic_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.len() / (pl.lit(1.0) / x).sum()
+    return x.len() / (1.0/x).sum()
 
 
 def range_over_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1637,9 +1661,9 @@ def streak_length_stats(x: TIME_SERIES_T, above: bool, threshold: float) -> MAP_
     float | Expr
     """
     if above:
-        y = (x.diff().cast(pl.Float64) >= threshold).rle()
+        y = (x.diff() >= threshold).rle()
     else:
-        y = (x.diff().cast(pl.Float64) <= threshold).rle()
+        y = (x.diff() <= threshold).rle()
 
     y = y.filter(y.struct.field("values")).struct.field("lengths")
     if isinstance(x, pl.Series):
@@ -1683,18 +1707,13 @@ def longest_streak_above(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
     -------
     float | Expr
     """
+    
+    y = (x.diff() >= threshold).rle()
     if isinstance(x, pl.Series):
-        y = (x.diff().cast(pl.Float64) >= threshold).rle()
         streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
         return 0 if streak_max is None else streak_max
     else:
-        y = (x.diff() >= threshold).rle()
-        return (
-            y.filter(y.struct.field("values"))
-            .struct.field("lengths")
-            .max()
-            .fill_null(0)
-        )
+        return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
 
 
 def longest_streak_below(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
@@ -1714,18 +1733,12 @@ def longest_streak_below(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
     -------
     float | Expr
     """
+    y = (x.diff() <= threshold).rle()
     if isinstance(x, pl.Series):
-        y = (x.diff().cast(pl.Float64) <= threshold).rle()
         streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
         return 0 if streak_max is None else streak_max
     else:
-        y = (x.diff() <= threshold).rle()
-        return (
-            y.filter(y.struct.field("values"))
-            .struct.field("lengths")
-            .max()
-            .fill_null(0)
-        )
+        return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
 
 
 def longest_winning_streak(x: TIME_SERIES_T) -> TIME_SERIES_T:
