@@ -402,5 +402,5 @@ if __name__ == "__main__":
 
     y = y.filter(pl.col(entity_col).is_in(top_scoring))
     y_pred = y_pred.filter(pl.col(entity_col).is_in(top_scoring))
-    fig = plot_forecasts(y=y, y_pred=y_pred, width=1150)
+    fig = plot_forecasts(y_true=y, y_pred=y_pred, width=1150)
     fig.show()
