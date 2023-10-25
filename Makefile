@@ -4,12 +4,15 @@ BASE ?= master
 PY ?= python3
 
 edit:
+	maturin develop --release
 	$(PY) -m pip install -e .
 
 build:
+	maturin develop --release
 	$(PY) -m pip install .
 
 build-test:
+	maturin develop --release
 	$(PY) -m pip install ".[test]"
 
 clean:
