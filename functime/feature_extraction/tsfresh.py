@@ -143,7 +143,7 @@ def approximate_entropy(
 
         return np.abs(phi_m - phi_mp1)
     else:
-        logger.info("Expression version of Lempel Ziv Complexity is not yet implemented due to "
+        logger.info("Expression version of approximate_entropy is not yet implemented due to "
                 "technical difficulty regarding Polars Expression Plugins.")
         return NotImplemented
 
@@ -190,7 +190,7 @@ def augmented_dickey_fuller(x: TIME_SERIES_T, n_lags: int) -> float:
         stderr = np.sqrt(mse / ss)
         return coeffs[0] / stderr
     else:
-        logger.info("Expression version of Lempel Ziv Complexity is not yet implemented due to "
+        logger.info("Expression version of augmented_dickey_fuller is not yet implemented due to "
             "technical difficulty regarding Polars Expression Plugins.")
         return NotImplemented
 
@@ -260,7 +260,7 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
         out:np.ndarray = rs_faer_lstsq(data_x, y_)
         return out.ravel()
     else:
-        logger.info("Expression version of Lempel Ziv Complexity is not yet implemented due to "
+        logger.info("Expression version of autoregressive_coefficients is not yet implemented due to "
             "technical difficulty regarding Polars Expression Plugins.")
         return NotImplemented
 
@@ -664,7 +664,7 @@ def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
     float
     """
     if not isinstance(x, pl.Series):
-        logger.info("Expression version of Lempel Ziv Complexity is not yet implemented due to "
+        logger.info("Expression version of fourier_entropy is not yet implemented due to "
             "technical difficulty regarding Polars Expression Plugins.")
         return NotImplemented
 
@@ -896,7 +896,7 @@ def lempel_ziv_complexity(
             return c / x.len()
         return c
     else:
-        logger.info("Expression version of Lempel Ziv Complexity is not yet implemented due to "
+        logger.info("Expression version of lempel_ziv_complexity is not yet implemented due to "
                     "technical difficulty regarding Polars Expression Plugins.")
         return NotImplemented
 
@@ -1442,7 +1442,7 @@ def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2, m:int = 2) -> FLOAT_EXP
         )
         return np.log(b / a)  # -ln(a/b) = ln(b/a)
     else:
-        logger.info("Expression version of Lempel Ziv Complexity is not yet implemented due to "
+        logger.info("Expression version of sample_entropy is not yet implemented due to "
             "technical difficulty regarding Polars Expression Plugins.")
         return NotImplemented
 
@@ -1473,7 +1473,7 @@ def spkt_welch_density(x: TIME_SERIES_T, n_coeffs: Optional[int] = None) -> LIST
         _, pxx = welch(x, nperseg=min(len(x), 256))
         return pxx[:last_idx]
     else:
-        logger.info("Expression version of Lempel Ziv Complexity is not yet implemented due to "
+        logger.info("Expression version of spkt_welch_density is not yet implemented due to "
             "technical difficulty regarding Polars Expression Plugins.")
         return NotImplemented
 
