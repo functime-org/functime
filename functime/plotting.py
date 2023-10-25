@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 import plotly.express as px
@@ -24,7 +24,7 @@ def _remove_legend_duplicates(fig: go.Figure) -> go.Figure:
 
 
 def plot_panel(
-    y: pl.DataFrame | pl.LazyFrame,
+    y: Union[pl.DataFrame, pl.LazyFrame],
     n_cols: int = 2,
     last_n: int = DEFAULT_LAST_N,
     **kwargs,
@@ -37,7 +37,7 @@ def plot_panel(
 
     Parameters
     ----------
-    y : pl.DataFrame
+    y : Union[pl.DataFrame, pl.LazyFrame]
         Panel DataFrame of observed values.
     n_cols : int
         Number of columns to arrange subplots.
@@ -56,9 +56,9 @@ def plot_panel(
     entity_col, time_col, target_col = y.columns[:3]
 
     if isinstance(y, pl.DataFrame):
-        y = y.group_by(entity_col).tail(last_n)
-    elif isinstance(y, pl.LazyFrame):
-        y = y.group_by(entity_col).tail(last_n).collect()
+        y = y.lazy()
+
+    y = y.group_by(entity_col).tail(last_n).collect()
 
     # Organize subplots
     n_series = y.get_column(entity_col).n_unique()
