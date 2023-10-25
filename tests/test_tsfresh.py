@@ -48,6 +48,7 @@ from functime.feature_extraction.tsfresh import (
     ratio_beyond_r_sigma,
     ratio_n_unique_to_length,
     root_mean_square,
+    streak_length_stats,
     sum_reocurring_points,
     sum_reocurring_values,
     symmetry_looking,
@@ -57,6 +58,107 @@ from functime.feature_extraction.tsfresh import (
 )
 
 np.random.seed(42)
+
+
+@pytest.mark.parametrize(
+    "S, params, res, k",
+    [
+        (
+            [0, 0, 0],
+            [True, 0],
+            [2, 2, 2.0, None, 2.0, 2.0, 2.0, 2],
+            {"check_dtype": False},
+        ),
+        (
+            [0, 0, 0],
+            [False, 0],
+            [2, 2, 2.0, None, 2.0, 2.0, 2.0, 2],
+            {"check_dtype": False},
+        ),
+        (
+            [0, 0, 0],
+            [False, 1],
+            [2, 2, 2.0, None, 2.0, 2.0, 2.0, 2],
+            {"check_dtype": False},
+        ),
+        # won't work with no matches - error
+        # add error handling for this
+        (
+            [0, 0, 0],
+            [True, 1],
+            [0, None, None, None, None, None, None, None],
+            {"check_dtype": False},
+        ),
+        (
+            [0, 1, 1, 0, 2, 2, 2],
+            [True, 0],
+            [2, 3, 2.5, 0.707107, 2.0, 2.5, 3.0, 2],
+            {"check_dtype": False},
+        ),
+        # # floats
+        (
+            [0, 1.5, 1.5, 0, 2.5, 2.5, 2.5],
+            [True, 0],
+            [2, 3, 2.5, 0.707107, 2.0, 2.5, 3.0, 2],
+            {"check_dtype": False},
+        ),
+        # # negative floats
+        (
+            [0, -1.5, -1.5, 0, -2.5, -2.5, -2.5],
+            [False, 0],
+            [2, 3, 2.5, 0.707107, 2.0, 2.5, 3.0, 2],
+            {"check_dtype": False},
+        ),
+        # # infinites
+        # # this doesn't work
+        # (
+        #     [float("inf"), float("inf"), 0],
+        #     [True, 0],
+        #     [2, 2, 2.0, None, 2.0, 2.0, 2.0, 2],
+        #     {"check_dtype": False},
+        # ),
+    ],
+)
+def test_streak_length_stats(S, params, res, k):
+    above = params[0]
+    threshold = params[1]
+    keys = [
+        "min",
+        "max",
+        "mean",
+        "std",
+        "10-percentile",
+        "median",
+        "90-percentile",
+        "mode",
+    ]
+    res = pl.DataFrame(dict(zip(keys, res)))
+
+    assert_frame_equal(
+        pl.DataFrame(streak_length_stats(pl.Series("a", S), above, threshold)), res, **k
+    )
+
+    # For no streaks, this returns an empty DataFrame.
+    # But, will return 0s and Nulls for Series.
+    # Hence, ad hoc way of making the expected result empty.
+    res = res.filter(pl.col("max").is_not_null())
+
+    assert_frame_equal(
+        pl.DataFrame({"a": S})
+        .select(streak_length_stats(pl.col("a"), above, threshold))
+        .unnest("min"),
+        res,
+        **k,
+    )
+
+    assert_frame_equal(
+        pl.LazyFrame({"a": S})
+        .select(streak_length_stats(pl.col("a"), above, threshold))
+        .unnest("min")
+        .collect(),
+        res,
+        **k,
+    )
 
 
 @pytest.mark.parametrize(
