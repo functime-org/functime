@@ -1644,18 +1644,18 @@ def streak_length_stats(x: TIME_SERIES_T, above: bool, threshold: float) -> MAP_
     y = y.filter(y.struct.field("values")).struct.field("lengths")
     if isinstance(x, pl.Series):
         return {
-            "min": y.min(),
+            "min": y.min() or 0,
             "max": y.max(),
             "mean": y.mean(),
             "std": y.std(),
             "10-percentile": y.quantile(0.1),
             "median": y.median(),
             "90-percentile": y.quantile(0.9),
-            "mode": y.mode().sort()[0],
+            "mode": y.mode().sort()[0] if not y.is_empty() else None,
         }
     else:
         return pl.struct(
-            y.min().alias("min"),
+            y.min().clip_min(0).alias("min"),
             y.max().alias("max"),
             y.mean().alias("mean"),
             y.std().alias("std"),
