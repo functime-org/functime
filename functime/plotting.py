@@ -28,7 +28,7 @@ def plot_entities(
     **kwargs,
 ) -> go.Figure:
     """Given panel DataFrame of observed values `y`,
-    returns bar chart of entity counts.
+    returns bar chart of entity counts, which is the number of observed values per entity.
 
     Parameters
     ----------
