@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 import plotly.express as px
@@ -6,8 +6,12 @@ import plotly.graph_objects as go
 import polars as pl
 from plotly.subplots import make_subplots
 
-from functime.base.metric import METRIC_TYPE
 from functime.metrics import smape
+
+if TYPE_CHECKING:
+    from typing import Optional, Union
+
+    from functime.base.metric import METRIC_TYPE
 
 COLOR_PALETTE = {"actual": "#B7B7B7", "forecast": "#1b57f1", "backtest": "#A76EF4"}
 DEFAULT_LAST_N = 64
@@ -24,7 +28,10 @@ def _remove_legend_duplicates(fig: go.Figure) -> go.Figure:
 
 
 def plot_panel(
-    y: pl.DataFrame, n_cols: int = 2, last_n: int = DEFAULT_LAST_N, **kwargs
+    y: Union[pl.DataFrame, pl.LazyFrame],
+    n_cols: int = 2,
+    last_n: int = DEFAULT_LAST_N,
+    **kwargs,
 ):
     """Given panel DataFrames of observed values `y`,
     returns subplots for each individual entity / time-series.
@@ -34,7 +41,7 @@ def plot_panel(
 
     Parameters
     ----------
-    y : pl.DataFrame
+    y : Union[pl.DataFrame, pl.LazyFrame]
         Panel DataFrame of observed values.
     n_cols : int
         Number of columns to arrange subplots.
@@ -48,10 +55,13 @@ def plot_panel(
     figure : plotly.graph_objects.Figure
         Plotly subplots.
     """
+    entity_col, time_col, target_col = y.columns[:3]
+
+    if isinstance(y, pl.DataFrame):
+        y = y.lazy()
 
     # Get most recent observations
-    entity_col, time_col, target_col = y.columns
-    y = y.group_by(entity_col).tail(last_n)
+    y = y.group_by(entity_col).tail(last_n).collect()
 
     # Organize subplots
     n_series = y.get_column(entity_col).n_unique()
@@ -83,7 +93,7 @@ def plot_panel(
 
 
 def plot_forecasts(
-    y_true: pl.DataFrame,
+    y_true: Union[pl.DataFrame, pl.LazyFrame],
     y_pred: pl.DataFrame,
     n_cols: int = 2,
     last_n: int = DEFAULT_LAST_N,
@@ -97,7 +107,7 @@ def plot_forecasts(
 
     Parameters
     ----------
-    y_true : pl.DataFrame
+    y_true : Union[pl.DataFrame, pl.LazyFrame]
         Panel DataFrame of observed values.
     y_pred : pl.DataFrame
         Panel DataFrame of forecasted values.
@@ -113,10 +123,13 @@ def plot_forecasts(
     figure : plotly.graph_objects.Figure
         Plotly subplots.
     """
+    entity_col, time_col, target_col = y_true.columns[:3]
+
+    if isinstance(y_true, pl.DataFrame):
+        y_true = y_true.lazy()
 
     # Get most recent observations
-    entity_col, time_col, target_col = y_true.columns
-    y = y_true.group_by(entity_col).tail(last_n)
+    y = y_true.group_by(entity_col).tail(last_n).collect()
 
     # Organize subplots
     n_series = y.get_column(entity_col).n_unique()
@@ -161,7 +174,7 @@ def plot_forecasts(
 
 
 def plot_backtests(
-    y_true: pl.DataFrame,
+    y_true: Union[pl.DataFrame, pl.LazyFrame],
     y_preds: pl.DataFrame,
     n_cols: int = 2,
     last_n: int = DEFAULT_LAST_N,
@@ -175,7 +188,7 @@ def plot_backtests(
 
     Parameters
     ----------
-    y_true : pl.DataFrame
+    y_true : Union[pl.DataFrame, pl.LazyFrame]
         Panel DataFrame of observed values.
     y_preds : pl.DataFrame
         Panel DataFrame of backtested values.
@@ -191,10 +204,13 @@ def plot_backtests(
     figure : plotly.graph_objects.Figure
         Plotly subplots.
     """
+    entity_col, time_col, target_col = y_true.columns[:3]
+
+    if isinstance(y_true, pl.DataFrame):
+        y_true = y_true.lazy()
 
     # Get most recent observations
-    entity_col, time_col, target_col = y_true.columns
-    y = y_true.group_by(entity_col).tail(last_n)
+    y = y_true.group_by(entity_col).tail(last_n).collect()
 
     # Organize subplots
     n_series = y.get_column(entity_col).n_unique()
@@ -239,7 +255,9 @@ def plot_backtests(
 
 
 def plot_residuals(
-    y_resids: pl.DataFrame, n_bins: Optional[int] = None, **kwargs
+    y_resids: Union[pl.DataFrame, pl.LazyFrame],
+    n_bins: Optional[int] = None,
+    **kwargs,
 ) -> go.Figure:
     """Given panel DataFrame of residuals across splits `y_resids`,
     returns binned counts plot of forecast residuals colored by entity / time-series.
@@ -248,7 +266,7 @@ def plot_residuals(
 
     Parameters
     ----------
-    y_resids : pl.DataFrame
+    y_resids : Union[pl.DataFrame, pl.LazyFrame]
         Panel DataFrame of forecast residuals (i.e. observed less forecast).
     n_bins : int
         Number of bins.
@@ -259,7 +277,12 @@ def plot_residuals(
         Plotly histogram.
     """
     entity_col, _, target_col = y_resids.columns[:3]
-    y_resids = y_resids.with_columns(pl.col(target_col).alias("Residuals"))
+
+    if isinstance(y_resids, pl.DataFrame):
+        y_resids = y_resids.lazy()
+
+    y_resids = y_resids.with_columns(pl.col(target_col).alias("Residuals")).collect()
+
     fig = px.histogram(
         y_resids,
         x="Residuals",
@@ -299,12 +322,17 @@ def plot_comet(
     figure : plotly.graph_objects.Figure
         Plotly scatterplot.
     """
-    entity_col, _, target_col = y_train.columns
+    entity_col, _, target_col = y_train.columns[:3]
+
     scoring = scoring or smape
+
+    # FIX: this fails when scoring is not SMAPE.
     scores = scoring(y_true=y_test, y_pred=y_pred)
+
     cvs = y_train.group_by(entity_col).agg(
         (pl.col(target_col).var() / pl.col(target_col).mean()).alias("CV")
     )
+
     comet = scores.join(cvs, on=entity_col, how="left").drop_nulls()
     mean_score = scores.get_column(scores.columns[-1]).mean()
     mean_cv = cvs.get_column(cvs.columns[-1]).mean()
@@ -378,23 +406,3 @@ def plot_fva(
     )
     fig.update_layout(**kwargs)
     return fig
-
-
-if __name__ == "__main__":
-
-    from functime.cross_validation import train_test_split
-    from functime.forecasting import snaive
-    from functime.metrics import mase
-
-    y = pl.read_parquet("data/commodities.parquet")
-    entity_col = y.columns[0]
-    fh = 24
-    y_train, y_test = train_test_split(test_size=fh)(y)
-    y_pred = snaive(freq="1mo", sp=12)(y=y_train, fh=fh)
-    scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
-    top_scoring = scores.sort("mase").get_column(entity_col).head(n=4)
-
-    y = y.filter(pl.col(entity_col).is_in(top_scoring))
-    y_pred = y_pred.filter(pl.col(entity_col).is_in(top_scoring))
-    fig = plot_forecasts(y=y, y_pred=y_pred, width=1150)
-    fig.show()
