@@ -42,6 +42,7 @@ from functime.feature_extraction.tsfresh import (
     mean_change,
     mean_n_absolute_max,
     mean_second_derivative_central,
+    number_crossings,
     number_peaks,
     percent_reoccuring_values,
     percent_reocurring_points,
@@ -1411,6 +1412,29 @@ def test_range_over_mean_and_range(S, res):
     assert_frame_equal(
         df.lazy().select(range_over_mean(pl.col(x.name))).collect(),
         pl.DataFrame({x.name: [res]}),
+    )
+@pytest.mark.parametrize(
+    "S, res, m",
+    [
+        ([10, -10, 10, -10], [3], 0),
+        ([10, -10, 10, -10], [0], 10),
+        ([10, 20, 20, 30], [0], 0),
+        ([10, 20, 20, 30], [1], 15),
+        ([10, -10, 10, -10], [3], 0),
+        ([-10, 10.1, -10, 10.1, -10], [4], 10),
+        ([10,11,12,10,11], [3], 10.5)
+    ],
+)
+def test_number_crossing(S, res, m):
+    assert number_crossings(pl.Series(S), m) == res[0]
+    
+    assert_frame_equal(
+        pl.DataFrame({"a": S}).select(number_crossings(pl.col("a"), m)),
+        pl.DataFrame(pl.Series("a", res, pl.UInt32)),
+    )
+    assert_frame_equal(
+        pl.LazyFrame({"a": S}).select(number_crossings(pl.col("a"), m)).collect(),
+        pl.DataFrame(pl.Series("a", res, pl.UInt32)),
     )
 
 
