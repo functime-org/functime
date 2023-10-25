@@ -1,15 +1,21 @@
+import logging
 import math
 from typing import List, Mapping, Optional, Sequence, Union
 
-import bottleneck as bn
+# import bottleneck as bn
 import numpy as np
 import polars as pl
-from numpy.linalg import lstsq
 from polars.type_aliases import ClosedInterval
+
+# from numpy.linalg import lstsq
+from scipy.linalg import lstsq
 from scipy.signal import find_peaks_cwt, ricker, welch
 from scipy.spatial import KDTree
 
 from functime._functime_rust import rs_faer_lstsq, rs_lempel_ziv_complexity
+from functime._utils import UseAtOwnRisk
+
+logger = logging.getLogger(__name__)
 
 TIME_SERIES_T = Union[pl.Series, pl.Expr]
 FLOAT_EXPR = Union[float, pl.Expr]
@@ -137,13 +143,15 @@ def approximate_entropy(
 
         return np.abs(phi_m - phi_mp1)
     else:
+        logger.info("Expression version of approximate_entropy is not yet implemented due to "
+                "technical difficulty regarding Polars Expression Plugins.")
         return NotImplemented
 
 
 # An alias
 ApEn = approximate_entropy
 
-
+@UseAtOwnRisk
 def augmented_dickey_fuller(x: TIME_SERIES_T, n_lags: int) -> float:
     """
     Calculates the Augmented Dickey-Fuller (ADF) test statistic. This only works for Series input right now.
@@ -160,25 +168,30 @@ def augmented_dickey_fuller(x: TIME_SERIES_T, n_lags: int) -> float:
     float
     """
     if isinstance(x, pl.Series):
-        x_diff = x.diff()
-        k = x_diff.len()
-        X = np.vstack(
-            [
-                x.slice(n_lags),
-                np.asarray(
-                    [x_diff.shift(i).slice(n_lags) for i in range(1, n_lags + 1)]
+        y = x.fill_null(0.)
+        length = y.len() - n_lags - 1
+        data_x = (
+            y.to_frame().select(
+                pl.col(y.name).slice(n_lags, length = length),
+                *(
+                    pl.col(y.name).diff(null_behavior="drop").slice(n_lags - i, length = length).alias(str(i)) 
+                    for i in range(0, n_lags + 1)
                 ),
-                np.ones(k - n_lags),
-            ]
-        ).T
-        y = x_diff.slice(n_lags).to_numpy(zero_copy_only=True)
-        coeffs, resids, _, _ = lstsq(X, y, rcond=None)
-        mse = bn.nansum(resids**2) / (k - X.shape[1])
-        x_arr = np.asarray(x).T, np.asarray(x)
-        cov = mse * np.linalg.inv(np.dot(x_arr.T, x))
-        stderrs = np.sqrt(np.diag(cov))
-        return coeffs[0] / stderrs[0]
+                pl.lit(1)
+            )
+        ) # was a frame
+        y = data_x.drop_in_place("0").to_numpy(zero_copy_only=True)
+        data_x = data_x.to_numpy() # to NumPy matrix
+
+        coeffs, resids, _, _ = lstsq(data_x, y, cond=None)
+        mse = np.sum(resids**2) / (length - data_x.shape[1])
+        ys = data_x[:, 0] - np.mean(data_x[:, 0])
+        ss = np.dot(ys, ys)
+        stderr = np.sqrt(mse / ss)
+        return coeffs[0] / stderr
     else:
+        logger.info("Expression version of augmented_dickey_fuller is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins.")
         return NotImplemented
 
 
@@ -247,6 +260,8 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
         out:np.ndarray = rs_faer_lstsq(data_x, y_)
         return out.ravel()
     else:
+        logger.info("Expression version of autoregressive_coefficients is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins.")
         return NotImplemented
 
 
@@ -649,13 +664,16 @@ def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
     float
     """
     if not isinstance(x, pl.Series):
+        logger.info("Expression version of fourier_entropy is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins.")
         return NotImplemented
 
     if len(x) == 1:
         return np.nan
     else:
         _, pxx = welch(x, nperseg=min(x.len(), 256))
-        return binned_entropy(pl.Series(pxx) / bn.nanmax(pxx), n_bins)
+        pxx_as_series = pl.Series(pxx)
+        return binned_entropy(pxx_as_series / pxx_as_series.max(), n_bins)
 
 
 def friedrich_coefficients(
@@ -878,6 +896,8 @@ def lempel_ziv_complexity(
             return c / x.len()
         return c
     else:
+        logger.info("Expression version of lempel_ziv_complexity is not yet implemented due to "
+                    "technical difficulty regarding Polars Expression Plugins.")
         return NotImplemented
 
 
@@ -1422,6 +1442,8 @@ def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2, m:int = 2) -> FLOAT_EXP
         )
         return np.log(b / a)  # -ln(a/b) = ln(b/a)
     else:
+        logger.info("Expression version of sample_entropy is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins.")
         return NotImplemented
 
 
@@ -1451,6 +1473,8 @@ def spkt_welch_density(x: TIME_SERIES_T, n_coeffs: Optional[int] = None) -> LIST
         _, pxx = welch(x, nperseg=min(len(x), 256))
         return pxx[:last_idx]
     else:
+        logger.info("Expression version of spkt_welch_density is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins.")
         return NotImplemented
 
 
