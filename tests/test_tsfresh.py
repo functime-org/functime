@@ -803,27 +803,27 @@ def test_benford_correlation():
 
     X_fibo_lazy = pl.LazyFrame({"a": l_fibo})
     assert_frame_equal(
-        X_uniform.select(benford_correlation(pl.col("a"))),
+        X_uniform.select(benford_correlation(pl.col("a")).alias("counts")),
         pl.DataFrame({"counts": [np.nan]}),
     )
     assert_frame_equal(
-        X_uniform_lazy.select(benford_correlation(pl.col("a"))).collect(),
+        X_uniform_lazy.select(benford_correlation(pl.col("a")).alias("counts")).collect(),
         pl.DataFrame({"counts": [np.nan]}),
     )
     assert_frame_equal(
-        X_random.select(benford_correlation(pl.col("a"))),
+        X_random.select(benford_correlation(pl.col("a")).alias("counts")),
         pl.DataFrame({"counts": [0.39753280229716703]}),
     )
     assert_frame_equal(
-        X_random_lazy.select(benford_correlation(pl.col("a"))).collect(),
+        X_random_lazy.select(benford_correlation(pl.col("a")).alias("counts")).collect(),
         pl.DataFrame({"counts": [0.39753280229716703]}),
     )
     assert_frame_equal(
-        X_fibo.select(benford_correlation(pl.col("a"))),
+        X_fibo.select(benford_correlation(pl.col("a")).alias("counts")),
         pl.DataFrame({"counts": [0.9959632739083689]}),
     )
     assert_frame_equal(
-        X_fibo_lazy.select(benford_correlation(pl.col("a"))).collect(),
+        X_fibo_lazy.select(benford_correlation(pl.col("a")).alias("counts")).collect(),
         pl.DataFrame({"counts": [0.9959632739083689]}),
     )
 
