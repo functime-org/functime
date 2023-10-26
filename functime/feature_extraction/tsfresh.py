@@ -285,27 +285,25 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
 
     if isinstance(x, pl.Series):
         counts = (
-            x.cast(pl.Utf8)
-            .str.strip_chars_start("-0.")
-            .filter(x != 0)
-            .str.slice(0, 1)
-            .cast(pl.UInt8)
-            .append(pl.int_range(1, 10, eager=True, dtype=pl.UInt8))
-            .value_counts()
-            .sort(by=x.name)
-            .get_column("counts")
+            pl.int_range(1, 10, eager=True, dtype=pl.UInt8)
+            .cast(pl.Utf8)
+            .append(
+                x.cast(pl.Utf8)
+                .str.strip_chars_start("-0.")
+                .filter(x != 0)
+                .str.slice(0, 1)
+            ).unique_counts()
         )
         return np.corrcoef(counts - 1, _BENFORD_DIST_SERIES)[0, 1]
     else:
-        y = x.cast(pl.Utf8).str.strip_chars_start("-0.")
         counts = (
-            y.filter(x != 0)
-            .str.slice(0, 1)
-            .cast(pl.UInt8)
-            .append(pl.int_range(1, 10, eager=False))
-            .value_counts()
-            .sort()
-            .struct.field("counts")
+            pl.int_range(1, 10, eager=False)
+            .cast(pl.Utf8)
+            .append(
+                x.cast(pl.Utf8).str.strip_chars_start("-0.")
+                .filter(x != 0)
+                .str.slice(0, 1)
+            ).unique_counts()
         )
         return pl.corr(counts - 1, pl.lit(_BENFORD_DIST_SERIES))
 
@@ -323,7 +321,7 @@ def benford_correlation2(x: pl.Expr) -> pl.Expr:
 
     Returns
     -------
-    An expression for benford_correlation representing a float
+    float | Expr
     """
     counts = (
         # This part can be simplified once the log10(1000) precision issue is resolved.
@@ -396,7 +394,6 @@ def c3(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
                 x.len() - twice_lag
             )
     else:
-        # Would potentially be faster if there is a pl.product_horizontal()
         return ((x.mul(x.shift(n_lags)).mul(x.shift(twice_lag))).sum()).truediv(
             x.len() - twice_lag
         )
@@ -426,15 +423,15 @@ def change_quantiles(
     -------
     list of float | Expr
     """
+    if q_high <= q_low:
+        return None
+
     if isinstance(x, pl.Series):
         frame = x.to_frame()
         return frame.select(
             change_quantiles(pl.col(x.name), q_low, q_high, is_abs)
         ).item(0, 0)
     else:
-        if q_high <= q_low:
-            return None
-
         # Use linear to conform to NumPy
         y = x.is_between(
             x.quantile(q_low, "linear"),
@@ -599,16 +596,16 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     # We calculate all 1,2,3,...,n_chunk at once
     if isinstance(x, pl.Series):
         r = x.len() % n_chunks
-        if r != 0:
-            y = x.pow(2).extend_constant(0, n_chunks - r)
-        else:
+        if r == 0:
             y = x.pow(2)
+        else:
+            y = x.pow(2).extend_constant(0, n_chunks - r)
         seg_sum = y.reshape((n_chunks, -1)).list.sum()
         return (seg_sum / seg_sum.sum()).to_list()
     else:
         r = x.count().mod(n_chunks)
         y = x.pow(2).append(
-            pl.repeat(0, n=pl.when(r == 0).then(0).otherwise(pl.lit(n_chunks) - r))
+            pl.repeat(0, n = r.eq(0).not_() * (pl.lit(n_chunks) - r))
         )
         seg_sum = y.reshape((n_chunks, -1)).list.sum()
         return (seg_sum / seg_sum.sum()).implode()
@@ -678,7 +675,7 @@ def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
 
 def friedrich_coefficients(
     x: TIME_SERIES_T, polynomial_order: int = 3, n_quantiles: int = 30
-) -> List[float]:
+) -> LIST_EXPR:
     """
     Calculate the Friedrich coefficients of a time series.
 
@@ -695,26 +692,32 @@ def friedrich_coefficients(
     -------
     list of float
     """
-    X = (
-        x.alias("signal")
-        .to_frame()
-        .with_columns(
-            delta=x.diff().alias("delta"),
-            quantile=x.qcut(q=n_quantiles, labels=[str(i) for i in range(n_quantiles)]),
+    if isinstance(x, pl.Series):
+        x_means = (
+            x.alias("signal")
+            .to_frame()
+            .lazy()
+            .with_columns(
+                pl.col("signal").diff().alias("delta"),
+                pl.col("signal").qcut(
+                    q=n_quantiles, labels=[str(i) for i in range(n_quantiles)]
+                ).alias("quantile")
+            ).group_by("quantile").agg(
+                pl.all().mean()
+            ).drop_nulls()
+            .collect()
         )
-        .lazy()
-    )
-    X_means = (
-        X.groupby("quantile")
-        .agg([pl.all().mean()])
-        .drop_nulls()
-        .collect(streaming=True)
-    )
-    return np.polyfit(
-        X_means.get_column("signal").to_numpy(zero_copy_only=True),
-        X_means.get_column("delta").to_numpy(zero_copy_only=True),
-        deg=polynomial_order,
-    )
+        # This is a Vandermonde matrix. May have shortcuts in our use case, as again length >> degree.
+        # Not sure if NumPy is taking advantage of this though.
+        return np.polyfit(
+            x_means.get_column("signal").to_numpy(zero_copy_only=True),
+            x_means.get_column("delta").to_numpy(zero_copy_only=True),
+            deg=polynomial_order,
+        )
+    else:
+        logger.info("Expression version of friedrich_coefficients is not yet implemented due to "
+                    "technical difficulty regarding Polars Expression Plugins.")
+        return NotImplemented
 
 
 def has_duplicate(x: TIME_SERIES_T) -> BOOL_EXPR:
@@ -919,8 +922,8 @@ def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
         if n == 1:
             return {"slope": np.nan, "intercept":np.nan, "rss": np.nan}
 
-        m = n-1
-        x_range_mean = m/2
+        m = n - 1
+        x_range_mean = m / 2
         x_range = np.arange(start=0, stop=n)
         x_mean = x.mean()
         beta = np.dot(x - x_mean, x_range - x_range_mean) / (m * np.var(x_range, ddof=1))
@@ -930,7 +933,7 @@ def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
     else:
         m = x.len() - 1
         x_range = pl.int_range(0, x.len())
-        x_range_mean = m/2
+        x_range_mean = m / 2
         beta = (x - x.mean()).dot(x_range - x_range_mean) / (m * x_range.var())
         alpha = x.mean() - beta * x_range_mean
         resid = x - (beta * x_range + alpha)
@@ -1105,9 +1108,8 @@ def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> FLOAT_EXP
     -------
     float | Expr
     """
-    return (
-        ((x > crossing_value).cast(pl.Int8).diff(null_behavior="drop").abs() == 1).sum()
-    )
+    y = x > crossing_value
+    return y.eq(y.shift(1)).not_().sum()
 
 
 def number_cwt_peaks(x: pl.Series, max_width: int = 5) -> float:
@@ -1144,7 +1146,7 @@ def partial_autocorrelation(x: TIME_SERIES_T, n_lags: int) -> float:
     return NotImplemented
 
 
-def percent_reocurring_points(x: TIME_SERIES_T) -> float:
+def percent_reoccurring_points(x: TIME_SERIES_T) -> float:
     """
     Returns the percentage of non-unique data points in the time series. Non-unique data points are those that occur
     more than once in the time series.
@@ -1165,17 +1167,17 @@ def percent_reocurring_points(x: TIME_SERIES_T) -> float:
     -------
     float
     """
-    count = x.unique_counts()
-    return count.filter(count > 1).sum() / x.len()
+    return 1 - x.is_unique().sum() / x.len()
 
 
-def percent_reoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
+
+def percent_reoccurring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the percentage of values that are present in the time series more than once.
 
     The percentage is calculated as follows:
 
-        len(different values occurring more than once) / len(different values)
+        # (distinct values occurring more than once) / # of distinct values
 
     This means the percentage is normalized to the number of unique values in the time series, in contrast to the
     `percent_reocurring_points` function.
@@ -1293,6 +1295,7 @@ def permutation_entropy(
                 .entropy(base=base, normalize=True)
             )
 
+
 def range_count(
     x: TIME_SERIES_T, lower: float, upper: float, closed: ClosedInterval = "left"
 ) -> INT_EXPR:
@@ -1346,7 +1349,6 @@ def ratio_beyond_r_sigma(x: TIME_SERIES_T, ratio: float = 0.25) -> FLOAT_EXPR:
     )
 
 
-# Originally named `ratio_value_number_to_time_series_length` in tsfresh
 def ratio_n_unique_to_length(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Calculate the ratio of the number of unique values to the length of the time-series.
@@ -1479,7 +1481,7 @@ def spkt_welch_density(x: TIME_SERIES_T, n_coeffs: Optional[int] = None) -> LIST
 
 
 # Originally named: `sum_of_reoccurring_data_points`
-def sum_reocurring_points(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
+def sum_reoccurring_points(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Returns the sum of all data points that are present in the time series more than once.
 
@@ -1501,7 +1503,7 @@ def sum_reocurring_points(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
 
 
 # Originally named: `sum_of_reoccurring_values`
-def sum_reocurring_values(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
+def sum_reoccurring_values(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Returns the sum of all values that are present in the time series more than once.
 
@@ -1519,7 +1521,19 @@ def sum_reocurring_values(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     -------
     float | Expr
     """
-    return x.filter(~x.is_unique()).unique().sum()
+    if isinstance(x, pl.Series):
+        vc = x.value_counts()
+        return vc.filter(
+            pl.col("counts") > 1
+        ).select(
+            pl.col(x.name).sum()
+        ).item(0, 0)
+    else:
+        name = x.meta.output_name() or "_"
+        vc = x.value_counts()
+        return vc.filter(
+            vc.struct.field("counts") > 1
+        ).struct.field(name).sum()
 
 
 def symmetry_looking(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
@@ -1565,7 +1579,6 @@ def time_reversal_asymmetry_statistic(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EX
     """
     one_lag = x.shift(-n_lags)
     two_lag = x.shift(-2 * n_lags)
-    # We don't need to do .head() here because nulls won't affect mean calculation
     return (one_lag * (two_lag + x) * (two_lag - x)).mean()
 
 
@@ -1731,7 +1744,7 @@ def longest_streak_above(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
     -------
     float | Expr
     """
-    
+
     y = (x.diff() >= threshold).rle()
     if isinstance(x, pl.Series):
         streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
