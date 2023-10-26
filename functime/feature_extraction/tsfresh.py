@@ -1530,7 +1530,7 @@ def sum_reoccurring_values(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
         ).item(0, 0)
     else:
         name = x.meta.output_name() or "_"
-        vc = x.value_counts()
+        vc = x.value_counts(sort=True)
         return vc.filter(
             vc.struct.field("counts") > 1
         ).struct.field(name).sum()
