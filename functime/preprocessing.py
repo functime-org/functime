@@ -998,7 +998,7 @@ def deseasonalize_fourier(sp: int, K: int, robust: bool = False):
 
 @transformer
 def fractional_diff(
-    d: float, min_weight: float | None = None, window_size: int | None = None
+    d: float, min_weight: Optional[float] = None, window_size: Optional[int] = None
 ):
     """Compute the fractional differential of a time series.
 
@@ -1034,7 +1034,9 @@ def fractional_diff(
         time_col = idx_cols[1]
 
         def get_ffd_weights(
-            d: float, threshold: float | None = None, window_size: int | None = None
+            d: float,
+            threshold: Optional[float] = None,
+            window_size: Optional[int] = None,
         ):
             w, k = [1.0], 1
             while True:
