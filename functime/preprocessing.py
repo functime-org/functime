@@ -877,7 +877,6 @@ def deseasonalize_fourier(sp: int, K: int, robust: bool = False):
         regressor_cls = TheilSenRegressor
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-
         X = X.collect()  # Not lazy
         if X.shape[1] > 3:
             raise ValueError(
@@ -945,7 +944,6 @@ def deseasonalize_fourier(sp: int, K: int, robust: bool = False):
         return artifacts
 
     def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
-
         X = X.collect()
         entity_col, time_col, target_col = X.columns[:3]
 
@@ -996,3 +994,96 @@ def deseasonalize_fourier(sp: int, K: int, robust: bool = False):
         return y_new.lazy()
 
     return transform, invert
+
+
+@transformer
+def fractional_diff(
+    d: float, min_weight: float | None = None, window_size: int | None = None
+):
+    """Compute the fractional differential of a time series.
+
+    This particular functionality is referenced in Advances in Financial Machine
+    Learning by Marcos Lopez de Prado (2018).
+
+    For feature creation purposes, it is suggested that the minimum value of d
+    is used that removes stationarity from the time series. This can be achieved
+    by running the augmented dickey-fuller test on the time series for different
+    values of d and selecting the minimum value that makes the time series
+    stationary.
+
+    Parameters
+    ----------
+    d : float
+        The fractional order of the differencing operator.
+    min_weight : float, optional
+        The minimum weight to use for calculations. If specified, the window size is
+        computed from this value and not needed.
+    window_size : int, optional
+        The window size of the fractional differencing operator.
+        If specified, the minimum weight is not needed.
+    """
+    if min_weight is None and window_size is None:
+        raise ValueError("Either `min_weight` or `window_size` must be specified.")
+
+    if min_weight is not None and window_size is not None:
+        raise ValueError("Only one of `min_weight` or `window_size` must be specified.")
+
+    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+        idx_cols = X.columns[:2]
+        entity_col = idx_cols[0]
+        time_col = idx_cols[1]
+
+        def get_ffd_weights(
+            d: float, threshold: float | None = None, window_size: int | None = None
+        ):
+            w, k = [1.0], 1
+            while True:
+                w_ = -w[-1] / k * (d - k + 1)
+                if threshold is not None and abs(w_) < threshold:
+                    break
+                if window_size is not None and k >= window_size:
+                    break
+                w.append(w_)
+                k += 1
+            return w
+
+        weights = get_ffd_weights(d, min_weight, window_size)
+
+        num_cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).columns
+        X_new = (
+            X.sort(time_col)
+            .with_columns(
+                pl.col(time_col).cumcount().over(entity_col).alias("__FT_time_ind"),
+            )
+            .with_columns(
+                *[
+                    pl.col(f"{col}")
+                    .shift(i)
+                    .over(entity_col)
+                    .alias(f"__FT_{col}_t-{i}")
+                    for i in range(len(weights))
+                    for col in num_cols
+                ]
+            )
+            .with_columns(
+                *[
+                    pl.sum_horizontal(
+                        [pl.col(f"__FT_{col}_t-{i}") * w for i, w in enumerate(weights)]
+                    ).alias(col)
+                    for col in num_cols
+                ]
+            )
+            .with_columns(
+                *[
+                    pl.when(pl.col("__FT_time_ind") < (len(weights) - 1))
+                    .then(None)
+                    .otherwise(pl.col(f"{col}"))
+                    .alias(f"{col}")
+                    for col in num_cols
+                ],
+            )
+            .select(~cs.contains("__FT_"))
+        )
+        return {"X_new": X_new}
+
+    return transform

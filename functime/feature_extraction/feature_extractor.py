@@ -2,9 +2,13 @@ import math
 import polars as pl
 import functime.feature_extraction.tsfresh as f
 from polars.type_aliases import ClosedInterval
+# from polars.type_aliases import IntoExpr
+# from polars.utils.udfs import _get_shared_lib_location
 
-@pl.api.register_expr_namespace("tse")
-class FeatureLibrary:
+# lib = _get_shared_lib_location(__file__)
+
+@pl.api.register_expr_namespace("ts")
+class FeatureExtractor:
     def __init__(self, expr: pl.Expr):
         self._expr = expr
 
@@ -89,7 +93,8 @@ class FeatureLibrary:
 
     def binned_entropy(self, bin_count: int = 10) -> pl.Expr:
         """
-        Calculates the entropy of a binned histogram for a given time series.
+        Calculates the entropy of a binned histogram for a given time series. It is highly recommended
+        that you impute the time series before calling this.
 
         Parameters
         ----------
@@ -340,6 +345,27 @@ class FeatureLibrary:
         """
         return f.last_location_of_minimum(self._expr)
 
+    # def lempel_ziv_complexity(self, threshold:float, as_ratio:bool=True) -> pl.Expr:
+    #     """
+    #     Returns the Lempel Ziv Complexity. This will binarize the function and if value > threshold,
+    #     this the binarized value will be 1 and otherwise 0. Null will be treated as 0s in the binarization.
+
+    #     Parameters
+    #     ----------
+    #     thrshold
+    #         A python literal or a Polars Expression to compare with
+    #     as_ratio
+    #         If true, return the complexity divided length of the sequence
+    #     """
+    #     out = (self._expr > threshold)._register_plugin(
+    #         lib=lib,
+    #         symbol="pl_lempel_ziv_complexity",
+    #         is_elementwise=True,
+    #     )
+    #     if as_ratio:
+    #         return out / self._expr.len()
+    #     return out
+
     def linear_trend(self) -> pl.Expr:
         """
         Compute the slope, intercept, and RSS of the linear trend.
@@ -547,15 +573,17 @@ class FeatureLibrary:
         base: float = math.e,
     ) -> pl.Expr:
         """
-        Computes permutation entropy.
+        Computes permutation entropy. It is recommended that users should impute the time series 
+        before calling this.
 
         Parameters
         ----------
         tau : int
             The embedding time delay which controls the number of time periods between elements
-            of each of the new column vectors.
+            of each of the new column vectors. The recommended value is 1.
         n_dims : int, > 1
-            The embedding dimension which controls the length of each of the new column vectors
+            The embedding dimension which controls the length of each of the new column vectors. The
+            recommended range is 3-7.
         base : float
             The base for log in the entropy computation
 
@@ -774,18 +802,3 @@ class FeatureLibrary:
         An expression of the output
         """
         return f.longest_losing_streak(self._expr)
-    
-    def ratio_n_unique_to_length(self)-> pl.Expr:
-        """
-        Calculate the ratio of the number of unique values to the length of the time-series.
-
-        Parameters
-        ----------
-        x : pl.Expr | pl.Series
-            Input time-series.
-
-        Returns
-        -------
-        float | Expr
-        """
-        return f.ratio_n_unique_to_length(self._expr)
