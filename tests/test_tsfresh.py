@@ -44,8 +44,8 @@ from functime.feature_extraction.tsfresh import (
     mean_second_derivative_central,
     number_crossings,
     number_peaks,
-    percent_reoccuring_values,
-    percent_reocurring_points,
+    percent_reoccurring_values,
+    percent_reoccurring_points,
     permutation_entropy,
     range_change,
     range_count,
@@ -54,8 +54,8 @@ from functime.feature_extraction.tsfresh import (
     ratio_n_unique_to_length,
     root_mean_square,
     sample_entropy,
-    sum_reocurring_points,
-    sum_reocurring_values,
+    sum_reoccurring_points,
+    sum_reoccurring_values,
     symmetry_looking,
     time_reversal_asymmetry_statistic,
     var_gt_std,
@@ -803,27 +803,27 @@ def test_benford_correlation():
 
     X_fibo_lazy = pl.LazyFrame({"a": l_fibo})
     assert_frame_equal(
-        X_uniform.select(benford_correlation(pl.col("a"))),
+        X_uniform.select(benford_correlation(pl.col("a")).alias("counts")),
         pl.DataFrame({"counts": [np.nan]}),
     )
     assert_frame_equal(
-        X_uniform_lazy.select(benford_correlation(pl.col("a"))).collect(),
+        X_uniform_lazy.select(benford_correlation(pl.col("a")).alias("counts")).collect(),
         pl.DataFrame({"counts": [np.nan]}),
     )
     assert_frame_equal(
-        X_random.select(benford_correlation(pl.col("a"))),
+        X_random.select(benford_correlation(pl.col("a")).alias("counts")),
         pl.DataFrame({"counts": [0.39753280229716703]}),
     )
     assert_frame_equal(
-        X_random_lazy.select(benford_correlation(pl.col("a"))).collect(),
+        X_random_lazy.select(benford_correlation(pl.col("a")).alias("counts")).collect(),
         pl.DataFrame({"counts": [0.39753280229716703]}),
     )
     assert_frame_equal(
-        X_fibo.select(benford_correlation(pl.col("a"))),
+        X_fibo.select(benford_correlation(pl.col("a")).alias("counts")),
         pl.DataFrame({"counts": [0.9959632739083689]}),
     )
     assert_frame_equal(
-        X_fibo_lazy.select(benford_correlation(pl.col("a"))).collect(),
+        X_fibo_lazy.select(benford_correlation(pl.col("a")).alias("counts")).collect(),
         pl.DataFrame({"counts": [0.9959632739083689]}),
     )
 
@@ -1032,12 +1032,12 @@ def test_mean_n_absolute_max_value_error():
 )
 def test_percent_reoccuring_values(S, res):
     assert_frame_equal(
-        pl.DataFrame({"a": S}).select(percent_reoccuring_values(pl.col("a"))),
-        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+        pl.DataFrame({"a": S}).select(percent_reoccurring_values(pl.col("a"))),
+        pl.DataFrame(pl.Series("literal", res, dtype=pl.Float64)),
     )
     assert_frame_equal(
-        pl.LazyFrame({"a": S}).select(percent_reoccuring_values(pl.col("a"))).collect(),
-        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+        pl.LazyFrame({"a": S}).select(percent_reoccurring_values(pl.col("a"))).collect(),
+        pl.DataFrame(pl.Series("literal", res, dtype=pl.Float64)),
     )
 
 
@@ -1052,11 +1052,11 @@ def test_percent_reoccuring_values(S, res):
 )
 def test_percent_reoccuring_values(S, res):  # noqa
     assert_frame_equal(
-        pl.DataFrame({"a": S}).select(percent_reoccuring_values(pl.col("a"))),
+        pl.DataFrame({"a": S}).select(percent_reoccurring_values(pl.col("a"))),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
     )
     assert_frame_equal(
-        pl.LazyFrame({"a": S}).select(percent_reoccuring_values(pl.col("a"))).collect(),
+        pl.LazyFrame({"a": S}).select(percent_reoccurring_values(pl.col("a"))).collect(),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
     )
 
@@ -1072,11 +1072,11 @@ def test_percent_reoccuring_values(S, res):  # noqa
 )
 def test_sum_reocurring_points(S, res):
     assert_frame_equal(
-        pl.DataFrame({"a": S}).select(sum_reocurring_points(pl.col("a"))),
+        pl.DataFrame({"a": S}).select(sum_reoccurring_points(pl.col("a"))),
         pl.DataFrame(pl.Series("a", res)),
     )
     assert_frame_equal(
-        pl.LazyFrame({"a": S}).select(sum_reocurring_points(pl.col("a"))).collect(),
+        pl.LazyFrame({"a": S}).select(sum_reoccurring_points(pl.col("a"))).collect(),
         pl.DataFrame(pl.Series("a", res)),
     )
 
@@ -1092,11 +1092,11 @@ def test_sum_reocurring_points(S, res):
 )
 def test_sum_reocurring_values(S, res):
     assert_frame_equal(
-        pl.DataFrame({"a": S}).select(sum_reocurring_values(pl.col("a"))),
+        pl.DataFrame({"a": S}).select(sum_reoccurring_values(pl.col("a"))),
         pl.DataFrame(pl.Series("a", res)),
     )
     assert_frame_equal(
-        pl.LazyFrame({"a": S}).select(sum_reocurring_values(pl.col("a"))).collect(),
+        pl.LazyFrame({"a": S}).select(sum_reoccurring_values(pl.col("a"))).collect(),
         pl.DataFrame(pl.Series("a", res)),
     )
 
@@ -1113,12 +1113,12 @@ def test_sum_reocurring_values(S, res):
 )
 def test_percent_reocurring_points(S, res):
     assert_frame_equal(
-        pl.DataFrame({"a": S}).select(percent_reocurring_points(pl.col("a"))),
-        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+        pl.DataFrame({"a": S}).select(percent_reoccurring_points(pl.col("a"))),
+        pl.DataFrame(pl.Series("literal", res, dtype=pl.Float64)),
     )
     assert_frame_equal(
-        pl.LazyFrame({"a": S}).select(percent_reocurring_points(pl.col("a"))).collect(),
-        pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
+        pl.LazyFrame({"a": S}).select(percent_reoccurring_points(pl.col("a"))).collect(),
+        pl.DataFrame(pl.Series("literal", res, dtype=pl.Float64)),
     )
 
 
