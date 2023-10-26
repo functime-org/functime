@@ -1146,7 +1146,7 @@ def partial_autocorrelation(x: TIME_SERIES_T, n_lags: int) -> float:
     return NotImplemented
 
 
-def percent_reocurring_points(x: TIME_SERIES_T) -> float:
+def percent_reoccurring_points(x: TIME_SERIES_T) -> float:
     """
     Returns the percentage of non-unique data points in the time series. Non-unique data points are those that occur
     more than once in the time series.
@@ -1170,7 +1170,8 @@ def percent_reocurring_points(x: TIME_SERIES_T) -> float:
     return 1 - x.is_unique().sum() / x.len()
 
 
-def percent_reoccuring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
+
+def percent_reoccurring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the percentage of values that are present in the time series more than once.
 
@@ -1480,7 +1481,7 @@ def spkt_welch_density(x: TIME_SERIES_T, n_coeffs: Optional[int] = None) -> LIST
 
 
 # Originally named: `sum_of_reoccurring_data_points`
-def sum_reocurring_points(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
+def sum_reoccurring_points(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Returns the sum of all data points that are present in the time series more than once.
 
@@ -1502,7 +1503,7 @@ def sum_reocurring_points(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
 
 
 # Originally named: `sum_of_reoccurring_values`
-def sum_reocurring_values(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
+def sum_reoccurring_values(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Returns the sum of all values that are present in the time series more than once.
 
@@ -1528,10 +1529,11 @@ def sum_reocurring_values(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
             pl.col(x.name).sum()
         ).item(0, 0)
     else:
-        vc = x.alias("_").value_counts()
+        name = x.meta.output_name() or "_"
+        vc = x.value_counts()
         return vc.filter(
             vc.struct.field("counts") > 1
-        ).struct.field("_").sum()
+        ).struct.field(name).sum()
 
 
 def symmetry_looking(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
