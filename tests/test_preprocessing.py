@@ -11,7 +11,16 @@ from scipy import signal
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import PowerTransformer
 
-from functime.preprocessing import boxcox, detrend, diff, lag, roll, scale, yeojohnson
+from functime.preprocessing import (
+    boxcox,
+    detrend,
+    diff,
+    fractional_diff,
+    lag,
+    roll,
+    scale,
+    yeojohnson,
+)
 
 
 @pytest.fixture
@@ -268,3 +277,77 @@ def test_detrend(method, pd_X):
     assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()))
     X_original = X_new.pipe(transformer.invert)
     assert_frame_equal(X_original, X, check_dtype=False)
+
+
+def pd_fractional_diff(df, d, thres):
+    """Pandas implementation of fracdiff from Marcos Lopez de Prado."""
+
+    def getWeights_FFD(d, thres):
+        # thres>0 drops insignificant weights
+        w, k = [1.0], 1
+        while True:
+            w_ = -w[-1] / k * (d - k + 1)
+            if abs(w_) < thres:
+                break
+            w.append(w_)
+            k += 1
+        w = np.array(w[::-1]).reshape(-1, 1)
+        return w
+
+    def fracDiff_FFD(series, d, thres=1e-5):
+        # 1) Compute weights for the longest series
+        w = getWeights_FFD(d, thres)
+        width = len(w) - 1
+        # 2) Apply weights to values
+        df = {"time": series[series.columns[0]]}
+        for name in series.columns[1:]:
+            seriesF = series[[name]].dropna()
+            df_ = pd.Series()
+            for iloc1 in range(width, seriesF.shape[0]):
+                loc0, loc1 = seriesF.index[iloc1 - width], seriesF.index[iloc1]
+                if not np.isfinite(series.loc[loc1, name]):
+                    continue  # exclude NAs
+                df_[loc1] = np.dot(w.T, seriesF.loc[loc0:loc1])[0, 0]
+                df[name] = df_.copy(deep=True)
+        df = pd.concat(df, axis=1)
+        return df
+
+    numeric_cols = df.select_dtypes(include=["float"]).columns
+    cols = [df.index.names[1]]
+    cols.extend(numeric_cols)
+    return (
+        df.reset_index().groupby(df.index.names[0])[cols].apply(fracDiff_FFD, d, thres)
+    )
+
+
+def test_fractional_diff(pd_X):
+    X = pl.from_pandas(pd_X.reset_index()).lazy()
+    entity_col = pd_X.index.names[0]
+    time_col = pd_X.index.names[1]
+    transformer = fractional_diff(d=0.5, min_weight=1e-3)
+    X_new = X.pipe(transformer).collect()
+    expected = (
+        pd_fractional_diff(pd_X, d=0.5, thres=1e-3)
+        .reset_index()
+        .drop(columns="level_1")
+    )
+    assert_frame_equal(
+        X_new.drop_nulls().sort(entity_col, time_col),
+        pl.DataFrame(expected).drop_nulls().sort(entity_col, time_col),
+    )
+
+
+### Temporarily commented out. Uncomment when benchmarking is ready. ###
+# @pytest.mark.benchmark(group="fractional_diff")
+# def test_fractional_diff_benchmark_functime(pd_X, benchmark):
+#     X = pl.from_pandas(pd_X.reset_index()).lazy()
+#     entity_col = pd_X.index.names[0]
+#     time_col = pd_X.index.names[1]
+#     transformer = fractional_diff(d=0.5, min_weight=1e-3)
+#     X_new = X.pipe(transformer)
+#     benchmark(X_new.collect)
+
+
+# @pytest.mark.benchmark(group="fractional_diff")
+# def test_fractional_diff_benchmark_pd(pd_X, benchmark):
+#     benchmark(pd_fractional_diff, pd_X, d=0.5, thres=1e-3)
