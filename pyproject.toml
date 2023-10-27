@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "functime"
-version = "0.8.3"
+version = "0.8.4"
 description = "Time-series machine learning at scale."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -31,7 +31,7 @@ dependencies = [
     "flaml>=2.0.2,<3",
     "holidays",
     "numpy",
-    "polars>=0.19.8,<1",
+    "polars>=0.19.11",
     "scikit-learn>=1.2.2,<2",
     "scipy",
     "tqdm",
@@ -50,6 +50,7 @@ lgb = ["lightgbm"]
 llm = ["openai", "tabulate", "tenacity", "tiktoken"]
 plot = ["pandas", "plotly", "kaleido==0.2.1"]
 benchmark = ["pandas", "perfplot", "tsfresh", "pyarrow"]
+dev = ["pre-commit"]
 test = [
     "aeon",
     "coverage[toml]",
@@ -86,15 +87,27 @@ source = ["tests", "functime"]
 context = '${CONTEXT}'
 
 [tool.ruff]
+include = ["*.py", "*.pyi", "**/pyproject.toml", "*.ipynb"]
 select = [
-    "E", # pycodestyle errors
-    "W", # pycodestyle warnings
-    "F", # pyflakes
-    "I", # isort
-    "B", # flake8-bugbear
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "UP", # pyupgrade
+    "I",  # isort
 ]
 ignore = [
     "E501", # line too long, handled by black
     "B008", # do not perform function calls in argument defaults
     "B905", # `zip()` without an explicit `strict=` parameter
 ]
+
+[tool.ruff.pyupgrade]
+# Preserve types, even if a file imports `from __future__ import annotations`.
+keep-runtime-typing = true
+
+[tool.maturin]
+module-name = "functime._functime_rust"
+features = ["pyo3/extension-module"]
+
