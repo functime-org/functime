@@ -74,7 +74,6 @@ class AutoForecaster(Forecaster):
         feature_transform: Optional[Transformer] = None,
         **kwargs,
     ):
-
         if freq not in SUPPORTED_FREQ:
             raise ValueError(f"Offset {freq} not supported")
 

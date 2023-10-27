@@ -65,7 +65,6 @@ def add_holiday_effects(country_codes: List[str], as_dummies: bool = False):
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-
         # Get min and max timestamps
         time_col = X.columns[1]
         timestamps = (

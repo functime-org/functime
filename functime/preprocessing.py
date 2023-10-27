@@ -434,7 +434,7 @@ def impute(
     method: Union[
         Literal["mean", "median", "fill", "ffill", "bfill", "interpolate"],
         Union[int, float],
-    ]
+    ],
 ):
     """
     Performs missing value imputation on numeric columns of a DataFrame grouped by entity.

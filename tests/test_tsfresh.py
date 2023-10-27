@@ -54,6 +54,7 @@ from functime.feature_extraction.tsfresh import (
     ratio_n_unique_to_length,
     root_mean_square,
     sample_entropy,
+    streak_length_stats,
     sum_reoccurring_points,
     sum_reoccurring_values,
     symmetry_looking,
@@ -63,6 +64,99 @@ from functime.feature_extraction.tsfresh import (
 )
 
 np.random.seed(42)
+
+
+@pytest.mark.parametrize(
+    "S, params, res, k",
+    [
+        (
+            [0, 0, 0],
+            [True, 0],
+            [2, 2, 2.0, None, 2.0, 2.0, 2.0, 2],
+            {"check_dtype": False},
+        ),
+        (
+            [0, 0, 0],
+            [False, 0],
+            [2, 2, 2.0, None, 2.0, 2.0, 2.0, 2],
+            {"check_dtype": False},
+        ),
+        (
+            [0, 0, 0],
+            [False, 1],
+            [2, 2, 2.0, None, 2.0, 2.0, 2.0, 2],
+            {"check_dtype": False},
+        ),
+        # won't work with no matches - error
+        # add error handling for this
+        (
+            [0, 0, 0],
+            [True, 1],
+            [0, None, None, None, None, None, None, None],
+            {"check_dtype": False},
+        ),
+        (
+            [0, 1, 1, 0, 2, 2, 2],
+            [True, 0],
+            [2, 3, 2.5, 0.707107, 2.0, 2.5, 3.0, 2],
+            {"check_dtype": False},
+        ),
+        # # floats
+        (
+            [0, 1.5, 1.5, 0, 2.5, 2.5, 2.5],
+            [True, 0],
+            [2, 3, 2.5, 0.707107, 2.0, 2.5, 3.0, 2],
+            {"check_dtype": False},
+        ),
+        # # negative floats
+        (
+            [0, -1.5, -1.5, 0, -2.5, -2.5, -2.5],
+            [False, 0],
+            [2, 3, 2.5, 0.707107, 2.0, 2.5, 3.0, 2],
+            {"check_dtype": False},
+        ),
+    ],
+)
+def test_streak_length_stats(S, params, res, k):
+    above = params[0]
+    threshold = params[1]
+    keys = [
+        "min",
+        "max",
+        "mean",
+        "std",
+        "10-percentile",
+        "median",
+        "90-percentile",
+        "mode",
+    ]
+    res = pl.DataFrame(dict(zip(keys, res)))
+
+    assert_frame_equal(
+        pl.DataFrame(streak_length_stats(pl.Series("a", S), above, threshold)), res, **k
+    )
+
+    # For no streaks, this returns an empty DataFrame.
+    # But, will return 0s and Nulls for Series.
+    # Hence, ad hoc way of making the expected result empty.
+    res = res.filter(pl.col("max").is_not_null())
+
+    assert_frame_equal(
+        pl.DataFrame({"a": S})
+        .select(streak_length_stats(pl.col("a"), above, threshold))
+        .unnest("min"),
+        res,
+        **k,
+    )
+
+    assert_frame_equal(
+        pl.LazyFrame({"a": S})
+        .select(streak_length_stats(pl.col("a"), above, threshold))
+        .unnest("min")
+        .collect(),
+        res,
+        **k,
+    )
 
 
 @pytest.mark.parametrize(
@@ -128,7 +222,7 @@ def test_mean_change(S, res, k):
     )
     assert_frame_equal(
         pl.LazyFrame({"a": S}).lazy().select(mean_change(pl.col("a"))).collect(),
-        pl.DataFrame({"a":pl.Series("a", res, dtype=pl.Float64)}),
+        pl.DataFrame({"a": pl.Series("a", res, dtype=pl.Float64)}),
         **k,
     )
 
@@ -807,7 +901,9 @@ def test_benford_correlation():
         pl.DataFrame({"counts": [np.nan]}),
     )
     assert_frame_equal(
-        X_uniform_lazy.select(benford_correlation(pl.col("a")).alias("counts")).collect(),
+        X_uniform_lazy.select(
+            benford_correlation(pl.col("a")).alias("counts")
+        ).collect(),
         pl.DataFrame({"counts": [np.nan]}),
     )
     assert_frame_equal(
@@ -815,7 +911,9 @@ def test_benford_correlation():
         pl.DataFrame({"counts": [0.39753280229716703]}),
     )
     assert_frame_equal(
-        X_random_lazy.select(benford_correlation(pl.col("a")).alias("counts")).collect(),
+        X_random_lazy.select(
+            benford_correlation(pl.col("a")).alias("counts")
+        ).collect(),
         pl.DataFrame({"counts": [0.39753280229716703]}),
     )
     assert_frame_equal(
@@ -1036,7 +1134,9 @@ def test_percent_reoccuring_values(S, res):
         pl.DataFrame(pl.Series("literal", res, dtype=pl.Float64)),
     )
     assert_frame_equal(
-        pl.LazyFrame({"a": S}).select(percent_reoccurring_values(pl.col("a"))).collect(),
+        pl.LazyFrame({"a": S})
+        .select(percent_reoccurring_values(pl.col("a")))
+        .collect(),
         pl.DataFrame(pl.Series("literal", res, dtype=pl.Float64)),
     )
 
@@ -1056,7 +1156,9 @@ def test_percent_reoccuring_values(S, res):  # noqa
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
     )
     assert_frame_equal(
-        pl.LazyFrame({"a": S}).select(percent_reoccurring_values(pl.col("a"))).collect(),
+        pl.LazyFrame({"a": S})
+        .select(percent_reoccurring_values(pl.col("a")))
+        .collect(),
         pl.DataFrame(pl.Series("a", res, dtype=pl.Float64)),
     )
 
@@ -1117,7 +1219,9 @@ def test_percent_reocurring_points(S, res):
         pl.DataFrame(pl.Series("literal", res, dtype=pl.Float64)),
     )
     assert_frame_equal(
-        pl.LazyFrame({"a": S}).select(percent_reoccurring_points(pl.col("a"))).collect(),
+        pl.LazyFrame({"a": S})
+        .select(percent_reoccurring_points(pl.col("a")))
+        .collect(),
         pl.DataFrame(pl.Series("literal", res, dtype=pl.Float64)),
     )
 
@@ -1229,28 +1333,21 @@ def test_augmented_dickey_fuller(x, param, res):
     [
         (pl.Series(range(10)), 0.0),
         (pl.Series([1, 3, 5]), 0.0),
-        (pl.Series([1, 3, 7, -3]),-3.0),
+        (pl.Series([1, 3, 7, -3]), -3.0),
     ],
 )
 def test_mean_second_derivative_central(x, res):
-
     assert mean_second_derivative_central(x) == res
     df = x.to_frame()
     assert_frame_equal(
-        df.select(
-            mean_second_derivative_central(pl.col(x.name)).alias("1")
-        ),
-        pl.DataFrame({
-            "1": pl.Series([res])
-        })
+        df.select(mean_second_derivative_central(pl.col(x.name)).alias("1")),
+        pl.DataFrame({"1": pl.Series([res])}),
     )
     assert_frame_equal(
-        df.lazy().select(
-            mean_second_derivative_central(pl.col(x.name)).alias("1")
-        ).collect(),
-        pl.DataFrame({
-            "1": pl.Series([res])
-        })
+        df.lazy()
+        .select(mean_second_derivative_central(pl.col(x.name)).alias("1"))
+        .collect(),
+        pl.DataFrame({"1": pl.Series([res])}),
     )
 
 
@@ -1413,6 +1510,8 @@ def test_range_over_mean_and_range(S, res):
         df.lazy().select(range_over_mean(pl.col(x.name))).collect(),
         pl.DataFrame({x.name: [res]}),
     )
+
+
 @pytest.mark.parametrize(
     "S, res, m",
     [
@@ -1422,12 +1521,12 @@ def test_range_over_mean_and_range(S, res):
         ([10, 20, 20, 30], [1], 15),
         ([10, -10, 10, -10], [3], 0),
         ([-10, 10.1, -10, 10.1, -10], [4], 10),
-        ([10,11,12,10,11], [3], 10.5)
+        ([10, 11, 12, 10, 11], [3], 10.5),
     ],
 )
 def test_number_crossing(S, res, m):
     assert number_crossings(pl.Series(S), m) == res[0]
-    
+
     assert_frame_equal(
         pl.DataFrame({"a": S}).select(number_crossings(pl.col("a"), m)),
         pl.DataFrame(pl.Series("a", res, pl.UInt32)),
@@ -1438,11 +1537,14 @@ def test_number_crossing(S, res, m):
     )
 
 
-@pytest.mark.parametrize("S, t, d, b, res", [
-    ([4, 7, 9, 10, 6, 11, 3], 1, 3, 2, 1.5219281),
-    (list(range(10)), 1, 3, math.e, 0.0),
-    ([10]*10, 1, 3, math.e, 0.0)
-])
+@pytest.mark.parametrize(
+    "S, t, d, b, res",
+    [
+        ([4, 7, 9, 10, 6, 11, 3], 1, 3, 2, 1.5219281),
+        (list(range(10)), 1, 3, math.e, 0.0),
+        ([10] * 10, 1, 3, math.e, 0.0),
+    ],
+)
 def test_permutation_entropy(S, t, d, b, res):
     # Test 1 comes from: https://www.aptech.com/blog/permutation-entropy/
     # Linear case. Should be 0 because there is no randomness in the permutations
@@ -1450,25 +1552,31 @@ def test_permutation_entropy(S, t, d, b, res):
 
     x = pl.Series(S)
 
-    res_series = permutation_entropy(x, tau = t, n_dims = d, base = b)
+    res_series = permutation_entropy(x, tau=t, n_dims=d, base=b)
     assert np.isclose(res, res_series)
 
     df = x.to_frame()
     res_eager = df.select(
-        permutation_entropy(pl.col(x.name), tau = t, n_dims = d, base = b)
+        permutation_entropy(pl.col(x.name), tau=t, n_dims=d, base=b)
     ).item(0, 0)
     assert np.isclose(res, res_eager)
-    res_lazy = df.lazy().select(
-        permutation_entropy(pl.col(x.name), tau = t, n_dims = d, base = b)
-    ).collect().item(0, 0)
+    res_lazy = (
+        df.lazy()
+        .select(permutation_entropy(pl.col(x.name), tau=t, n_dims=d, base=b))
+        .collect()
+        .item(0, 0)
+    )
     assert np.isclose(res, res_lazy)
 
 
-@pytest.mark.parametrize("S, res", [
-    (list(range(100)), 0.010471299867295437),
-    (np.sin(2 * np.pi * np.arange(3000)/100), 0.16367903754688098),
-    ([1], np.nan)
-])
+@pytest.mark.parametrize(
+    "S, res",
+    [
+        (list(range(100)), 0.010471299867295437),
+        (np.sin(2 * np.pi * np.arange(3000) / 100), 0.16367903754688098),
+        ([1], np.nan),
+    ],
+)
 def test_sample_entropy(S, res):
     # Test 1's answer comes from comparing result with Tsfresh
     # Thest 2's answer comes from running this using the Python code on Wikipedia
@@ -1477,12 +1585,16 @@ def test_sample_entropy(S, res):
     res_series = sample_entropy(x)
     assert np.isclose(res, res_series, atol=1e-12, equal_nan=True)
 
-@pytest.mark.parametrize("S, res", [
-    (list(range(300)), 0.04539477814685819),
-    (np.sin(2 * np.pi * np.arange(300)/100), 0.09072899366212879),
-    ([1, 2], 0.),
-    ([1], np.nan)
-])
+
+@pytest.mark.parametrize(
+    "S, res",
+    [
+        (list(range(300)), 0.04539477814685819),
+        (np.sin(2 * np.pi * np.arange(300) / 100), 0.09072899366212879),
+        ([1, 2], 0.0),
+        ([1], np.nan),
+    ],
+)
 def test_fourier_entropy(S, res):
     # All tests' answers come from comparing with tsfresh.
     x = pl.Series(S)

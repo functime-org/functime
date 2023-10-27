@@ -42,8 +42,8 @@ def absolute_energy(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     float | Expr
     """
     if isinstance(x, pl.Series):
-        if x.len() > 300_000: # Would be different for different machines
-            return np.dot(x,x)
+        if x.len() > 300_000:  # Would be different for different machines
+            return np.dot(x, x)
     return x.dot(x)
 
 
@@ -144,13 +144,16 @@ def approximate_entropy(
 
         return np.abs(phi_m - phi_mp1)
     else:
-        logger.info("Expression version of approximate_entropy is not yet implemented due to "
-                "technical difficulty regarding Polars Expression Plugins.")
+        logger.info(
+            "Expression version of approximate_entropy is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
 
 # An alias
 ApEn = approximate_entropy
+
 
 @UseAtOwnRisk
 def augmented_dickey_fuller(x: TIME_SERIES_T, n_lags: int) -> float:
@@ -169,20 +172,21 @@ def augmented_dickey_fuller(x: TIME_SERIES_T, n_lags: int) -> float:
     float
     """
     if isinstance(x, pl.Series):
-        y = x.fill_null(0.)
+        y = x.fill_null(0.0)
         length = y.len() - n_lags - 1
-        data_x = (
-            y.to_frame().select(
-                pl.col(y.name).slice(n_lags, length = length),
-                *(
-                    pl.col(y.name).diff(null_behavior="drop").slice(n_lags - i, length = length).alias(str(i)) 
-                    for i in range(0, n_lags + 1)
-                ),
-                pl.lit(1)
-            )
-        ) # was a frame
+        data_x = y.to_frame().select(
+            pl.col(y.name).slice(n_lags, length=length),
+            *(
+                pl.col(y.name)
+                .diff(null_behavior="drop")
+                .slice(n_lags - i, length=length)
+                .alias(str(i))
+                for i in range(0, n_lags + 1)
+            ),
+            pl.lit(1),
+        )  # was a frame
         y = data_x.drop_in_place("0").to_numpy(zero_copy_only=True)
-        data_x = data_x.to_numpy() # to NumPy matrix
+        data_x = data_x.to_numpy()  # to NumPy matrix
 
         coeffs, resids, _, _ = lstsq(data_x, y, cond=None)
         mse = np.sum(resids**2) / (length - data_x.shape[1])
@@ -191,8 +195,10 @@ def augmented_dickey_fuller(x: TIME_SERIES_T, n_lags: int) -> float:
         stderr = np.sqrt(mse / ss)
         return coeffs[0] / stderr
     else:
-        logger.info("Expression version of augmented_dickey_fuller is not yet implemented due to "
-            "technical difficulty regarding Polars Expression Plugins.")
+        logger.info(
+            "Expression version of augmented_dickey_fuller is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
 
@@ -245,7 +251,7 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
     """
     if isinstance(x, pl.Series):
         length = len(x) - n_lags
-        y = x.fill_null(0.)
+        y = x.fill_null(0.0)
         data_x = (
             y.to_frame()
             .select(
@@ -253,16 +259,23 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
                     pl.col(y.name).slice(n_lags - i, length=length).alias(str(i))
                     for i in range(1, n_lags + 1)
                 ),
-                pl.lit(1)
+                pl.lit(1),
             )
             .to_numpy()
         )
+<<<<<<< HEAD
         y_ = y.tail(length).to_numpy(zero_copy_only=True).reshape((-1,1))
         out:np.ndarray = rs_faer_lstsq1(data_x, y_)
+=======
+        y_ = y.tail(length).to_numpy(zero_copy_only=True).reshape((-1, 1))
+        out: np.ndarray = rs_faer_lstsq(data_x, y_)
+>>>>>>> main
         return out.ravel()
     else:
-        logger.info("Expression version of autoregressive_coefficients is not yet implemented due to "
-            "technical difficulty regarding Polars Expression Plugins.")
+        logger.info(
+            "Expression version of autoregressive_coefficients is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
 
@@ -293,7 +306,8 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
                 .str.strip_chars_start("-0.")
                 .filter(x != 0)
                 .str.slice(0, 1)
-            ).unique_counts()
+            )
+            .unique_counts()
         )
         return np.corrcoef(counts - 1, _BENFORD_DIST_SERIES)[0, 1]
     else:
@@ -301,10 +315,12 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
             pl.int_range(1, 10, eager=False)
             .cast(pl.Utf8)
             .append(
-                x.cast(pl.Utf8).str.strip_chars_start("-0.")
+                x.cast(pl.Utf8)
+                .str.strip_chars_start("-0.")
                 .filter(x != 0)
                 .str.slice(0, 1)
-            ).unique_counts()
+            )
+            .unique_counts()
         )
         return pl.corr(counts - 1, pl.lit(_BENFORD_DIST_SERIES))
 
@@ -446,6 +462,7 @@ def change_quantiles(
 
         return expr.implode()
 
+
 # Revisit later.
 def cid_ce(x: TIME_SERIES_T, normalize: bool = False) -> FLOAT_EXPR:
     """
@@ -495,6 +512,7 @@ def count_above(x: TIME_SERIES_T, threshold: float = 0.0) -> FLOAT_EXPR:
     float | Expr
     """
     return 100 * (x >= threshold).sum() / x.len()
+
 
 # Should this be percentage?
 def count_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
@@ -605,9 +623,7 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
         return (seg_sum / seg_sum.sum()).to_list()
     else:
         r = x.count().mod(n_chunks)
-        y = x.pow(2).append(
-            pl.repeat(0, n = r.eq(0).not_() * (pl.lit(n_chunks) - r))
-        )
+        y = x.pow(2).append(pl.repeat(0, n=r.eq(0).not_() * (pl.lit(n_chunks) - r)))
         seg_sum = y.reshape((n_chunks, -1)).list.sum()
         return (seg_sum / seg_sum.sum()).implode()
 
@@ -662,8 +678,10 @@ def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
     float
     """
     if not isinstance(x, pl.Series):
-        logger.info("Expression version of fourier_entropy is not yet implemented due to "
-            "technical difficulty regarding Polars Expression Plugins.")
+        logger.info(
+            "Expression version of fourier_entropy is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
     if len(x) == 1:
@@ -700,12 +718,13 @@ def friedrich_coefficients(
             .lazy()
             .with_columns(
                 pl.col("signal").diff().alias("delta"),
-                pl.col("signal").qcut(
-                    q=n_quantiles, labels=[str(i) for i in range(n_quantiles)]
-                ).alias("quantile")
-            ).group_by("quantile").agg(
-                pl.all().mean()
-            ).drop_nulls()
+                pl.col("signal")
+                .qcut(q=n_quantiles, labels=[str(i) for i in range(n_quantiles)])
+                .alias("quantile"),
+            )
+            .group_by("quantile")
+            .agg(pl.all().mean())
+            .drop_nulls()
             .collect()
         )
         # This is a Vandermonde matrix. May have shortcuts in our use case, as again length >> degree.
@@ -716,8 +735,10 @@ def friedrich_coefficients(
             deg=polynomial_order,
         )
     else:
-        logger.info("Expression version of friedrich_coefficients is not yet implemented due to "
-                    "technical difficulty regarding Polars Expression Plugins.")
+        logger.info(
+            "Expression version of friedrich_coefficients is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
 
@@ -788,15 +809,15 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     x_cumsum = x.abs().cumsum().set_sorted()
     if isinstance(x, pl.Series):
         if x.is_integer():
-            idx = x_cumsum.search_sorted(int(q*x_cumsum[-1]) + 1, "left")
-        else: # Search sorted is sensitive to dtype.
-            idx = x_cumsum.search_sorted(q*x_cumsum[-1], "left")
+            idx = x_cumsum.search_sorted(int(q * x_cumsum[-1]) + 1, "left")
+        else:  # Search sorted is sensitive to dtype.
+            idx = x_cumsum.search_sorted(q * x_cumsum[-1], "left")
         return (idx + 1) / x.len()
     else:
         # In lazy case we have to cast, which kind of wasts some time, but this is on
         # par with the old implementation. Use max here because... believe it or not
         # max (with fast track because I did set_sorted()) is faster than .last() ???
-        idx = x_cumsum.cast(pl.Float64).search_sorted(q*x_cumsum.max(), "left")
+        idx = x_cumsum.cast(pl.Float64).search_sorted(q * x_cumsum.max(), "left")
         return (idx + 1) / x.len()
 
 
@@ -865,7 +886,7 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
 
 
 def lempel_ziv_complexity(
-    x: TIME_SERIES_T, threshold: Union[float, pl.Expr], as_ratio:bool=True
+    x: TIME_SERIES_T, threshold: Union[float, pl.Expr], as_ratio: bool = True
 ) -> FLOAT_EXPR:
     """
     Calculate a complexity estimate based on the Lempel-Ziv compression algorithm. The
@@ -899,7 +920,15 @@ def lempel_ziv_complexity(
             pl.col(x.name).ts.lempel_ziv_complexity(threshold, as_ratio)
         ).item(0,0)
     else:
+<<<<<<< HEAD
         return x.ts.lempel_ziv_complexity(threshold, as_ratio)
+=======
+        logger.info(
+            "Expression version of lempel_ziv_complexity is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
+        return NotImplemented
+>>>>>>> main
 
 
 def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
@@ -918,13 +947,15 @@ def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
     if isinstance(x, pl.Series):
         n = x.len()
         if n == 1:
-            return {"slope": np.nan, "intercept":np.nan, "rss": np.nan}
+            return {"slope": np.nan, "intercept": np.nan, "rss": np.nan}
 
         m = n - 1
         x_range_mean = m / 2
         x_range = np.arange(start=0, stop=n)
         x_mean = x.mean()
-        beta = np.dot(x - x_mean, x_range - x_range_mean) / (m * np.var(x_range, ddof=1))
+        beta = np.dot(x - x_mean, x_range - x_range_mean) / (
+            m * np.var(x_range, ddof=1)
+        )
         alpha = x_mean - beta * x_range_mean
         resid = x - (beta * x_range + alpha)
         return {"slope": beta, "intercept": alpha, "rss": np.dot(resid, resid)}
@@ -962,7 +993,12 @@ def longest_streak_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
         result = y.filter(y.struct.field("values")).struct.field("lengths").max()
         return 0 if result is None else result
     else:
-        return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
+        return (
+            y.filter(y.struct.field("values"))
+            .struct.field("lengths")
+            .max()
+            .fill_null(0)
+        )
 
 
 def longest_streak_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
@@ -986,7 +1022,13 @@ def longest_streak_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
         result = y.filter(y.struct.field("values")).struct.field("lengths").max()
         return 0 if result is None else result
     else:
-        return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
+        return (
+            y.filter(y.struct.field("values"))
+            .struct.field("lengths")
+            .max()
+            .fill_null(0)
+        )
+
 
 def mean_abs_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
@@ -1040,7 +1082,11 @@ def mean_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
             return 0
         return (x[-1] - x[0]) / (x.len() - 1)
     else:
-        return pl.when(x.len() - 1 > 0).then((x.last() - x.first()) / (x.len() - 1)).otherwise(0)
+        return (
+            pl.when(x.len() - 1 > 0)
+            .then((x.last() - x.first()) / (x.len() - 1))
+            .otherwise(0)
+        )
 
 
 def mean_n_absolute_max(x: TIME_SERIES_T, n_maxima: int) -> FLOAT_EXPR:
@@ -1081,10 +1127,10 @@ def mean_second_derivative_central(x: TIME_SERIES_T) -> FLOAT_EXPR:
             return np.nan
         return (x[-1] - x[-2] - x[1] + x[0]) / (2 * (x.len() - 2))
     else:
-        return pl.when(x.len() < 3).then(
-            np.nan
-        ).otherwise(
-            x.tail(2).sub(x.head(2)).diff().last() / (2 * (x.len() - 2))
+        return (
+            pl.when(x.len() < 3)
+            .then(np.nan)
+            .otherwise(x.tail(2).sub(x.head(2)).diff().last() / (2 * (x.len() - 2)))
         )
 
 
@@ -1168,7 +1214,6 @@ def percent_reoccurring_points(x: TIME_SERIES_T) -> float:
     return 1 - x.is_unique().sum() / x.len()
 
 
-
 def percent_reoccurring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
     """
     Returns the percentage of values that are present in the time series more than once.
@@ -1178,7 +1223,7 @@ def percent_reoccurring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
         # (distinct values occurring more than once) / # of distinct values
 
     This means the percentage is normalized to the number of unique values in the time series, in contrast to the
-    `percent_reocurring_points` function.
+    `percent_reoccurring_points` function.
 
     Parameters
     ----------
@@ -1264,16 +1309,13 @@ def permutation_entropy(
         expr = permutation_entropy(pl.col(x.name), tau=tau, n_dims=n_dims, base=base)
         return frame.select(expr).item(0, 0)
     else:
-        if tau == 1: # Fast track the most common use case
+        if tau == 1:  # Fast track the most common use case
             return (
-                pl.concat_list(
-                    x,
-                    *(x.shift(-i) for i in range(1, n_dims))
-                ).head(x.len() - n_dims + 1)
-                .list.eval(
-                    pl.element().arg_sort()
-                ).value_counts() # groupby and count, but returns a struct
-                .struct.field("counts") # extract the field named "counts"
+                pl.concat_list(x, *(x.shift(-i) for i in range(1, n_dims)))
+                .head(x.len() - n_dims + 1)
+                .list.eval(pl.element().arg_sort())
+                .value_counts()  # groupby and count, but returns a struct
+                .struct.field("counts")  # extract the field named "counts"
                 .entropy(base=base, normalize=True)
             )
         else:
@@ -1281,11 +1323,14 @@ def permutation_entropy(
             return (
                 pl.concat_list(
                     x.take_every(tau),
-                    *(x.shift(-i).take_every(tau) for i in range(1, n_dims))
-                ).filter( # This is the correct way to filter (with respect to tau) in this case.
-                    pl.repeat(True, x.len()).shift(max_shift, fill_value=False)
+                    *(x.shift(-i).take_every(tau) for i in range(1, n_dims)),
+                )
+                .filter(  # This is the correct way to filter (with respect to tau) in this case.
+                    pl.repeat(True, x.len())
+                    .shift(max_shift, fill_value=False)
                     .take_every(tau)
-                ).list.eval(
+                )
+                .list.eval(
                     pl.element().arg_sort()
                 )  # for each inner list, do an argsort
                 .value_counts()  # groupby and count, but returns a struct
@@ -1396,7 +1441,7 @@ def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
 
 
 # Only works on series
-def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2, m:int = 2) -> FLOAT_EXPR:
+def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2, m: int = 2) -> FLOAT_EXPR:
     """
     Calculate the sample entropy of a time series.
     This only works for Series input right now.
@@ -1442,8 +1487,10 @@ def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2, m:int = 2) -> FLOAT_EXP
         )
         return np.log(b / a)  # -ln(a/b) = ln(b/a)
     else:
-        logger.info("Expression version of sample_entropy is not yet implemented due to "
-            "technical difficulty regarding Polars Expression Plugins.")
+        logger.info(
+            "Expression version of sample_entropy is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
 
@@ -1473,8 +1520,10 @@ def spkt_welch_density(x: TIME_SERIES_T, n_coeffs: Optional[int] = None) -> LIST
         _, pxx = welch(x, nperseg=min(len(x), 256))
         return pxx[:last_idx]
     else:
-        logger.info("Expression version of spkt_welch_density is not yet implemented due to "
-            "technical difficulty regarding Polars Expression Plugins.")
+        logger.info(
+            "Expression version of spkt_welch_density is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
 
@@ -1483,10 +1532,10 @@ def sum_reoccurring_points(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Returns the sum of all data points that are present in the time series more than once.
 
-    For example, `sum_reocurring_points(pl.Series([2, 2, 2, 2, 1]))` returns 8, as 2 is a reoccurring value, so all 2's
+    For example, `sum_reoccurring_points(pl.Series([2, 2, 2, 2, 1]))` returns 8, as 2 is a reoccurring value, so all 2's
     are summed up.
 
-    This is in contrast to the `sum_reocurring_values` function, where each reoccuring value is only counted once.
+    This is in contrast to the `sum_reoccurring_values` function, where each reoccuring value is only counted once.
 
     Parameters
     ----------
@@ -1505,10 +1554,10 @@ def sum_reoccurring_values(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Returns the sum of all values that are present in the time series more than once.
 
-    For example, `sum_reocurring_values(pl.Series([2, 2, 2, 2, 1]))` returns 2, as 2 is a reoccurring value, so it is
+    For example, `sum_reoccurring_values(pl.Series([2, 2, 2, 2, 1]))` returns 2, as 2 is a reoccurring value, so it is
     summed up with all other reoccuring values (there is none), so the result is 2.
 
-    This is in contrast to the `sum_reocurring_points` function, where each reoccuring value is only counted as often as it is present in the data.
+    This is in contrast to the `sum_reoccurring_points` function, where each reoccuring value is only counted as often as it is present in the data.
 
     Parameters
     ----------
@@ -1521,17 +1570,11 @@ def sum_reoccurring_values(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     if isinstance(x, pl.Series):
         vc = x.value_counts()
-        return vc.filter(
-            pl.col("counts") > 1
-        ).select(
-            pl.col(x.name).sum()
-        ).item(0, 0)
+        return vc.filter(pl.col("counts") > 1).select(pl.col(x.name).sum()).item(0, 0)
     else:
         name = x.meta.output_name() or "_"
         vc = x.value_counts(sort=True)
-        return vc.filter(
-            vc.struct.field("counts") > 1
-        ).struct.field(name).sum()
+        return vc.filter(vc.struct.field("counts") > 1).struct.field(name).sum()
 
 
 def symmetry_looking(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
@@ -1631,7 +1674,7 @@ def harmonic_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    return x.len() / (1.0/x).sum()
+    return x.len() / (1.0 / x).sum()
 
 
 def range_over_mean(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1703,25 +1746,25 @@ def streak_length_stats(x: TIME_SERIES_T, above: bool, threshold: float) -> MAP_
     y = y.filter(y.struct.field("values")).struct.field("lengths")
     if isinstance(x, pl.Series):
         return {
-            "min": y.min(),
+            "min": y.min() or 0,
             "max": y.max(),
             "mean": y.mean(),
             "std": y.std(),
             "10-percentile": y.quantile(0.1),
             "median": y.median(),
             "90-percentile": y.quantile(0.9),
-            "mode": y.mode()[0],
+            "mode": y.mode().sort()[0] if not y.is_empty() else None,
         }
     else:
         return pl.struct(
-            y.min().alias("min"),
+            y.min().clip_min(0).alias("min"),
             y.max().alias("max"),
             y.mean().alias("mean"),
             y.std().alias("std"),
             y.quantile(0.1).alias("10-percentile"),
             y.median().alias("median"),
             y.quantile(0.9).alias("90-percentile"),
-            y.mode().first().alias("mode"),
+            y.mode().sort(nulls_last=True).first().alias("mode"),
         )
 
 
@@ -1748,7 +1791,12 @@ def longest_streak_above(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
         streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
         return 0 if streak_max is None else streak_max
     else:
-        return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
+        return (
+            y.filter(y.struct.field("values"))
+            .struct.field("lengths")
+            .max()
+            .fill_null(0)
+        )
 
 
 def longest_streak_below(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
@@ -1773,7 +1821,12 @@ def longest_streak_below(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
         streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
         return 0 if streak_max is None else streak_max
     else:
-        return y.filter(y.struct.field("values")).struct.field("lengths").max().fill_null(0)
+        return (
+            y.filter(y.struct.field("values"))
+            .struct.field("lengths")
+            .max()
+            .fill_null(0)
+        )
 
 
 def longest_winning_streak(x: TIME_SERIES_T) -> TIME_SERIES_T:

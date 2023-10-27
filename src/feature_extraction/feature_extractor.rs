@@ -1,9 +1,20 @@
 use pyo3::prelude::*;
 use polars_core::prelude::*;
 //use polars_lazy::prelude::*;
+use polars_core::prelude::*;
+//use polars_lazy::prelude::*;
 use pyo3_polars::{derive::polars_expr, export::polars_core::{series::Series, prelude::{*}}};
 use std::collections::HashSet;
 
+#[polars_expr(output_type=UInt32)]
+fn pl_lempel_ziv_complexity(inputs: &[Series]) -> PolarsResult<Series>  {
+    
+    let input: &Series = &inputs[0];
+    let name = input.name();
+    let input = input.bool()?;
+    let bits: Vec<bool> = input.into_iter().map(
+        |op_b| op_b.unwrap_or(false)
+    ).collect();
 #[polars_expr(output_type=UInt32)]
 fn pl_lempel_ziv_complexity(inputs: &[Series]) -> PolarsResult<Series>  {
     
@@ -17,6 +28,9 @@ fn pl_lempel_ziv_complexity(inputs: &[Series]) -> PolarsResult<Series>  {
     let mut ind:usize = 0;
     let mut inc:usize = 1;
 
+    let mut sub_strings: HashSet<&[bool]> = HashSet::new();
+    while ind + inc <= bits.len() {
+        let subseq: &[bool] = &bits[ind..ind+inc];
     let mut sub_strings: HashSet<&[bool]> = HashSet::new();
     while ind + inc <= bits.len() {
         let subseq: &[bool] = &bits[ind..ind+inc];
@@ -36,7 +50,10 @@ fn pl_lempel_ziv_complexity(inputs: &[Series]) -> PolarsResult<Series>  {
 
 
 
-// // Test this when Faer updates its Polars interop
+// Test this when Faer updates its Polars interop
+
+// #[polars_expr(output_type=Float64)]
+// fn pl_autoregressive_coefficients(inputs: &[Series]) -> PolarsResult<Series>{
 
 // #[polars_expr(output_type=Float64)]
 // fn pl_autoregressive_coefficients(inputs: &[Series]) -> PolarsResult<Series>{
