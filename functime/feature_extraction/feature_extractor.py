@@ -1,11 +1,15 @@
 import math
-import polars as pl
-import functime.feature_extraction.tsfresh as f
-from polars.type_aliases import ClosedInterval
-# from polars.type_aliases import IntoExpr
-# from polars.utils.udfs import _get_shared_lib_location
+from typing import Union
 
-# lib = _get_shared_lib_location(__file__)
+import polars as pl
+from polars.type_aliases import ClosedInterval
+from polars.utils.udfs import _get_shared_lib_location
+
+import functime.feature_extraction.tsfresh as f
+
+# from polars.type_aliases import IntoExpr
+
+lib = _get_shared_lib_location(__file__)
 
 @pl.api.register_expr_namespace("ts")
 class FeatureExtractor:
@@ -78,18 +82,6 @@ class FeatureExtractor:
         An expression of the output
         """
         return f.benford_correlation(self._expr)
-
-    def benford_correlation2(self) -> pl.Expr:
-        """
-        Returns the correlation between the first digit distribution of the input time series and
-        the Newcomb-Benford's Law distribution. This version may be numerically unstable due to float
-        point precision issue, but is faster for bigger data.
-
-        Returns
-        -------
-        An expression of the output
-        """
-        return f.benford_correlation2(self._expr)
 
     def binned_entropy(self, bin_count: int = 10) -> pl.Expr:
         """
@@ -345,26 +337,41 @@ class FeatureExtractor:
         """
         return f.last_location_of_minimum(self._expr)
 
-    # def lempel_ziv_complexity(self, threshold:float, as_ratio:bool=True) -> pl.Expr:
-    #     """
-    #     Returns the Lempel Ziv Complexity. This will binarize the function and if value > threshold,
-    #     this the binarized value will be 1 and otherwise 0. Null will be treated as 0s in the binarization.
+    def lempel_ziv_complexity(self, threshold:Union[float, pl.Expr], as_ratio:bool=True) -> pl.Expr:
+        """
+        Calculate a complexity estimate based on the Lempel-Ziv compression algorithm. The
+        implementation here is currently a Rust rewrite of Lilian Besson'code. Instead of returning
+        the complexity value, we return a ratio w.r.t the length of the input series. If null is
+        encountered, it will be interpreted as 0 in the bit sequence.
 
-    #     Parameters
-    #     ----------
-    #     thrshold
-    #         A python literal or a Polars Expression to compare with
-    #     as_ratio
-    #         If true, return the complexity divided length of the sequence
-    #     """
-    #     out = (self._expr > threshold)._register_plugin(
-    #         lib=lib,
-    #         symbol="pl_lempel_ziv_complexity",
-    #         is_elementwise=True,
-    #     )
-    #     if as_ratio:
-    #         return out / self._expr.len()
-    #     return out
+        Parameters
+        ----------
+        x : pl.Expr | pl.Series
+            Input time-series.
+        threshold: float | pl.Expr
+            Either a number, or an expression representing a comparable quantity. If x > threshold,
+            then it will be binarized as 1 and 0 otherwise.
+        as_ratio: bool
+            If true, return the complexity divided by length of sequence
+
+        Returns
+        -------
+        Expr
+
+        Reference
+        ---------
+        https://github.com/Naereen/Lempel-Ziv_Complexity/tree/master
+        https://en.wikipedia.org/wiki/Lempel%E2%80%93Ziv_complexity
+        """
+        out = (self._expr > threshold).register_plugin(
+            lib=lib,
+            symbol="pl_lempel_ziv_complexity",
+            is_elementwise=False,
+            returns_scalar=True
+        )
+        if as_ratio:
+            return out / self._expr.len()
+        return out
 
     def linear_trend(self) -> pl.Expr:
         """
