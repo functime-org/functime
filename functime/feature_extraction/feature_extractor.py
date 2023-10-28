@@ -1,7 +1,10 @@
 import math
+
 import polars as pl
-import functime.feature_extraction.tsfresh as f
 from polars.type_aliases import ClosedInterval
+
+import functime.feature_extraction.tsfresh as f
+
 # from polars.type_aliases import IntoExpr
 # from polars.utils.udfs import _get_shared_lib_location
 
