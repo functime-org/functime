@@ -1180,7 +1180,7 @@ def percent_reoccurring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
         # (distinct values occurring more than once) / # of distinct values
 
     This means the percentage is normalized to the number of unique values in the time series, in contrast to the
-    `percent_reocurring_points` function.
+    `percent_reoccurring_points` function.
 
     Parameters
     ----------
@@ -1485,10 +1485,10 @@ def sum_reoccurring_points(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Returns the sum of all data points that are present in the time series more than once.
 
-    For example, `sum_reocurring_points(pl.Series([2, 2, 2, 2, 1]))` returns 8, as 2 is a reoccurring value, so all 2's
+    For example, `sum_reoccurring_points(pl.Series([2, 2, 2, 2, 1]))` returns 8, as 2 is a reoccurring value, so all 2's
     are summed up.
 
-    This is in contrast to the `sum_reocurring_values` function, where each reoccuring value is only counted once.
+    This is in contrast to the `sum_reoccurring_values` function, where each reoccuring value is only counted once.
 
     Parameters
     ----------
@@ -1507,10 +1507,10 @@ def sum_reoccurring_values(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     Returns the sum of all values that are present in the time series more than once.
 
-    For example, `sum_reocurring_values(pl.Series([2, 2, 2, 2, 1]))` returns 2, as 2 is a reoccurring value, so it is
+    For example, `sum_reoccurring_values(pl.Series([2, 2, 2, 2, 1]))` returns 2, as 2 is a reoccurring value, so it is
     summed up with all other reoccuring values (there is none), so the result is 2.
 
-    This is in contrast to the `sum_reocurring_points` function, where each reoccuring value is only counted as often as it is present in the data.
+    This is in contrast to the `sum_reoccurring_points` function, where each reoccuring value is only counted as often as it is present in the data.
 
     Parameters
     ----------
