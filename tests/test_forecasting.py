@@ -4,7 +4,6 @@ import cloudpickle
 import numpy as np
 import polars as pl
 import pytest
-from sklearnex import patch_sklearn
 
 from functime.feature_extraction import add_fourier_terms
 from functime.forecasting import (  # ann,
@@ -23,9 +22,6 @@ from functime.forecasting import (  # ann,
 )
 from functime.metrics import rmsse, smape, smape_original
 from functime.preprocessing import detrend, diff, scale
-
-patch_sklearn()
-
 
 DEFAULT_LAGS = 12
 DIRECT_KWARGS = {"max_horizons": 28, "strategy": "direct"}
