@@ -43,7 +43,7 @@ class censored_model(Forecaster):
         threshold: float = 0.0,
         regress: Optional[Callable] = None,
         classify: Optional[Callable] = None,
-        **kwargs
+        **kwargs,
     ):
         self.threshold = threshold
         self.regress = regress or default_regress
@@ -53,7 +53,6 @@ class censored_model(Forecaster):
         )
 
     def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
-
         # 1. Fit classifier
         target_col = y.columns[-1]
         X_y_final = (
@@ -103,7 +102,7 @@ class zero_inflated_model(censored_model):
         strategy: FORECAST_STRATEGIES = None,
         regress: Optional[Callable] = None,
         classify: Optional[Callable] = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             freq=freq,
@@ -113,5 +112,5 @@ class zero_inflated_model(censored_model):
             threshold=0.0,
             regress=regress,
             classify=classify,
-            **kwargs
+            **kwargs,
         )

@@ -25,7 +25,6 @@ def _enforce_label_constraint(y: pl.DataFrame, loss_function: Union[str, None]):
 
 def _catboost(weight_transform: Optional[Callable] = None, **kwargs):
     def regress(X: pl.DataFrame, y: pl.DataFrame):
-
         idx_cols = X.columns[:2]
         feature_cols = X.columns[2:]
         categorical_cols = X.select(pl.col(pl.Categorical).exclude(idx_cols)).columns

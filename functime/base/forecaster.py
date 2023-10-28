@@ -114,7 +114,6 @@ class Forecaster(Model):
         feature_transform: Optional[Union[Transformer, List[Transformer]]] = None,
         **kwargs,
     ):
-
         if freq not in SUPPORTED_FREQ:
             raise ValueError(f"Offset {freq} not supported")
 
@@ -200,7 +199,6 @@ class Forecaster(Model):
         return self
 
     def predict(self, fh: int, X: Optional[DF_TYPE] = None) -> pl.DataFrame:
-
         from functime.forecasting._ar import predict_autoreg
 
         state = self.state

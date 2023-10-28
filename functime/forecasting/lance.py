@@ -23,7 +23,7 @@ class ANNRegressor:
         ivf_centroids: Optional[np.ndarray] = None,
         nprobes: Optional[int] = None,
         refine_factor: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ):
         self.uri = uri or "functime_embs/knn.lance"
         self.index_type = index_type

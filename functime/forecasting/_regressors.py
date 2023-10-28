@@ -36,7 +36,6 @@ class GradientBoostedTreeRegressor:
         return X_new
 
     def fit(self, X: pl.DataFrame, y: pl.DataFrame):
-
         weight_transform = self.weight_transform
         sample_weight = None
         if weight_transform is not None:

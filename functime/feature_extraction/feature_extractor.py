@@ -7,19 +7,20 @@ from polars.type_aliases import ClosedInterval
 
 # lib = _get_shared_lib_location(__file__)
 
+
 @pl.api.register_expr_namespace("ts")
 class FeatureExtractor:
     def __init__(self, expr: pl.Expr):
         self._expr = expr
 
     def absolute_energy(self) -> pl.Expr:
-        '''
+        """
         Compute the absolute energy of a time series.
 
         Returns
         -------
         An expression of the output
-        '''
+        """
         return f.absolute_energy(self._expr)
 
     def absolute_maximum(self) -> pl.Expr:
@@ -44,7 +45,7 @@ class FeatureExtractor:
 
     def autocorrelation(self, n_lags: int) -> pl.Expr:
         """
-        Calculate the autocorrelation for a specified lag. The autocorrelation measures the linear 
+        Calculate the autocorrelation for a specified lag. The autocorrelation measures the linear
         dependence between a time-series and a lagged version of itself.
 
         Parameters
@@ -58,7 +59,7 @@ class FeatureExtractor:
         """
         return f.autocorrelation(self._expr, n_lags)
 
-    def root_mean_square(self)-> pl.Expr:
+    def root_mean_square(self) -> pl.Expr:
         """
         Calculate the root mean square.
 
@@ -123,10 +124,7 @@ class FeatureExtractor:
         return f.c3(self._expr, n_lags)
 
     def change_quantiles(
-        self,
-        q_low: float,
-        q_high: float,
-        is_abs: bool = True
+        self, q_low: float, q_high: float, is_abs: bool = True
     ) -> pl.Expr:
         """
         First fixes a corridor given by the quantiles ql and qh of the distribution of x.
@@ -210,7 +208,6 @@ class FeatureExtractor:
         An expression of the output
         """
         return f.count_below(self._expr, threshold)
-
 
     def count_below_mean(self) -> pl.Expr:
         """
@@ -395,7 +392,7 @@ class FeatureExtractor:
         An expression of the output
         """
         return f.longest_streak_below_mean(self._expr)
-    
+
     def longest_streak_above(self, threshold: float) -> pl.Expr:
         """
         Returns the longest streak of changes >= threshold of the time series. A change
@@ -439,8 +436,8 @@ class FeatureExtractor:
         An expression of the output
         """
         return f.mean_abs_change(self._expr)
-    
-    def max_abs_change(self)-> pl.Expr:
+
+    def max_abs_change(self) -> pl.Expr:
         """
         Compute the maximum absolute change from X_t to X_t+1.
 
@@ -489,7 +486,7 @@ class FeatureExtractor:
         """
         Calculates the number of crossings of x on m, where m is the crossing value.
 
-        A crossing is defined as two sequential values where the first value is lower than m and the next is greater, 
+        A crossing is defined as two sequential values where the first value is lower than m and the next is greater,
         or vice-versa. If you set m to zero, you will get the number of zero crossings.
 
         Parameters
@@ -573,7 +570,7 @@ class FeatureExtractor:
         base: float = math.e,
     ) -> pl.Expr:
         """
-        Computes permutation entropy. It is recommended that users should impute the time series 
+        Computes permutation entropy. It is recommended that users should impute the time series
         before calling this.
 
         Parameters
@@ -594,10 +591,7 @@ class FeatureExtractor:
         return f.permutation_entropy(self._expr, tau, n_dims, base)
 
     def range_count(
-        self,
-        lower: float,
-        upper: float,
-        closed: ClosedInterval = "left"
+        self, lower: float, upper: float, closed: ClosedInterval = "left"
     ) -> pl.Expr:
         """
         Computes values of input expression that is between lower (inclusive) and upper (exclusive).
@@ -682,7 +676,6 @@ class FeatureExtractor:
         """
         return f.symmetry_looking(self._expr, ratio)
 
-
     def time_reversal_asymmetry_statistic(self, n_lags: int) -> pl.Expr:
         """
         Returns the time reversal asymmetry statistic.
@@ -732,8 +725,8 @@ class FeatureExtractor:
         An expression of the output
         """
         return f.harmonic_mean(self._expr)
-    
-    def range_over_mean(self)-> pl.Expr:
+
+    def range_over_mean(self) -> pl.Expr:
         """
         Returns the range (max - min) over mean of the time series.
 
@@ -743,10 +736,10 @@ class FeatureExtractor:
         """
         return f.range_over_mean(self._expr)
 
-    def range_change(self, percentage: bool = True)-> pl.Expr:
+    def range_change(self, percentage: bool = True) -> pl.Expr:
         """
         Returns the range (max - min) over mean of the time series.
-        
+
         Parameters
         ----------
         percentage : bool
@@ -757,8 +750,8 @@ class FeatureExtractor:
         An expression of the output
         """
         return f.range_change(self._expr, percentage)
-    
-    def streak_length_stats(self, above: bool, threshold: float)-> pl.Expr:
+
+    def streak_length_stats(self, above: bool, threshold: float) -> pl.Expr:
         """
         Returns some statistics of the length of the streaks of the time series. Note that the streaks here
         are about the changes for consecutive values in the time series, not the individual values.
@@ -781,7 +774,7 @@ class FeatureExtractor:
         """
         return f.streak_length_stats(self._expr, above, threshold)
 
-    def longest_winning_streak(self)-> pl.Expr:
+    def longest_winning_streak(self) -> pl.Expr:
         """
         Returns the longest winning streak of the time series. A win is counted when
         (x_t+1 - x_t) >= 0
@@ -792,7 +785,7 @@ class FeatureExtractor:
         """
         return f.longest_winning_streak(self._expr)
 
-    def longest_losing_streak(self)-> pl.Expr:
+    def longest_losing_streak(self) -> pl.Expr:
         """
         Returns the longest losing streak of the time series. A loss is counted when
         (x_t+1 - x_t) <= 0

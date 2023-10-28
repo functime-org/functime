@@ -143,13 +143,16 @@ def approximate_entropy(
 
         return np.abs(phi_m - phi_mp1)
     else:
-        logger.info("Expression version of approximate_entropy is not yet implemented due to "
-                "technical difficulty regarding Polars Expression Plugins.")
+        logger.info(
+            "Expression version of approximate_entropy is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
 
 # An alias
 ApEn = approximate_entropy
+
 
 @UseAtOwnRisk
 def augmented_dickey_fuller(x: TIME_SERIES_T, n_lags: int) -> float:
@@ -168,20 +171,21 @@ def augmented_dickey_fuller(x: TIME_SERIES_T, n_lags: int) -> float:
     float
     """
     if isinstance(x, pl.Series):
-        y = x.fill_null(0.)
+        y = x.fill_null(0.0)
         length = y.len() - n_lags - 1
-        data_x = (
-            y.to_frame().select(
-                pl.col(y.name).slice(n_lags, length = length),
-                *(
-                    pl.col(y.name).diff(null_behavior="drop").slice(n_lags - i, length = length).alias(str(i)) 
-                    for i in range(0, n_lags + 1)
-                ),
-                pl.lit(1)
-            )
-        ) # was a frame
+        data_x = y.to_frame().select(
+            pl.col(y.name).slice(n_lags, length=length),
+            *(
+                pl.col(y.name)
+                .diff(null_behavior="drop")
+                .slice(n_lags - i, length=length)
+                .alias(str(i))
+                for i in range(0, n_lags + 1)
+            ),
+            pl.lit(1),
+        )  # was a frame
         y = data_x.drop_in_place("0").to_numpy(zero_copy_only=True)
-        data_x = data_x.to_numpy() # to NumPy matrix
+        data_x = data_x.to_numpy()  # to NumPy matrix
 
         coeffs, resids, _, _ = lstsq(data_x, y, cond=None)
         mse = np.sum(resids**2) / (length - data_x.shape[1])
@@ -190,8 +194,10 @@ def augmented_dickey_fuller(x: TIME_SERIES_T, n_lags: int) -> float:
         stderr = np.sqrt(mse / ss)
         return coeffs[0] / stderr
     else:
-        logger.info("Expression version of augmented_dickey_fuller is not yet implemented due to "
-            "technical difficulty regarding Polars Expression Plugins.")
+        logger.info(
+            "Expression version of augmented_dickey_fuller is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
 
@@ -260,8 +266,10 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
         out: np.ndarray = rs_faer_lstsq(data_x, y_)
         return out.ravel()
     else:
-        logger.info("Expression version of autoregressive_coefficients is not yet implemented due to "
-            "technical difficulty regarding Polars Expression Plugins.")
+        logger.info(
+            "Expression version of autoregressive_coefficients is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
 
@@ -292,7 +300,8 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
                 .str.strip_chars_start("-0.")
                 .filter(x != 0)
                 .str.slice(0, 1)
-            ).unique_counts()
+            )
+            .unique_counts()
         )
         return np.corrcoef(counts - 1, _BENFORD_DIST_SERIES)[0, 1]
     else:
@@ -300,10 +309,12 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
             pl.int_range(1, 10, eager=False)
             .cast(pl.Utf8)
             .append(
-                x.cast(pl.Utf8).str.strip_chars_start("-0.")
+                x.cast(pl.Utf8)
+                .str.strip_chars_start("-0.")
                 .filter(x != 0)
                 .str.slice(0, 1)
-            ).unique_counts()
+            )
+            .unique_counts()
         )
         return pl.corr(counts - 1, pl.lit(_BENFORD_DIST_SERIES))
 
@@ -606,9 +617,7 @@ def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
         return (seg_sum / seg_sum.sum()).to_list()
     else:
         r = x.count().mod(n_chunks)
-        y = x.pow(2).append(
-            pl.repeat(0, n = r.eq(0).not_() * (pl.lit(n_chunks) - r))
-        )
+        y = x.pow(2).append(pl.repeat(0, n=r.eq(0).not_() * (pl.lit(n_chunks) - r)))
         seg_sum = y.reshape((n_chunks, -1)).list.sum()
         return (seg_sum / seg_sum.sum()).implode()
 
@@ -663,8 +672,10 @@ def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
     float
     """
     if not isinstance(x, pl.Series):
-        logger.info("Expression version of fourier_entropy is not yet implemented due to "
-            "technical difficulty regarding Polars Expression Plugins.")
+        logger.info(
+            "Expression version of fourier_entropy is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
     if len(x) == 1:
@@ -701,12 +712,13 @@ def friedrich_coefficients(
             .lazy()
             .with_columns(
                 pl.col("signal").diff().alias("delta"),
-                pl.col("signal").qcut(
-                    q=n_quantiles, labels=[str(i) for i in range(n_quantiles)]
-                ).alias("quantile")
-            ).group_by("quantile").agg(
-                pl.all().mean()
-            ).drop_nulls()
+                pl.col("signal")
+                .qcut(q=n_quantiles, labels=[str(i) for i in range(n_quantiles)])
+                .alias("quantile"),
+            )
+            .group_by("quantile")
+            .agg(pl.all().mean())
+            .drop_nulls()
             .collect()
         )
         # This is a Vandermonde matrix. May have shortcuts in our use case, as again length >> degree.
@@ -717,8 +729,10 @@ def friedrich_coefficients(
             deg=polynomial_order,
         )
     else:
-        logger.info("Expression version of friedrich_coefficients is not yet implemented due to "
-                    "technical difficulty regarding Polars Expression Plugins.")
+        logger.info(
+            "Expression version of friedrich_coefficients is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
 
@@ -901,8 +915,10 @@ def lempel_ziv_complexity(
             return c / x.len()
         return c
     else:
-        logger.info("Expression version of lempel_ziv_complexity is not yet implemented due to "
-                    "technical difficulty regarding Polars Expression Plugins.")
+        logger.info(
+            "Expression version of lempel_ziv_complexity is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
 
@@ -1131,7 +1147,6 @@ def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> FLOAT_EXP
     return y.eq(y.shift(1)).not_().sum()
 
 
-
 def number_cwt_peaks(x: pl.Series, max_width: int = 5) -> float:
     """
     Number of different peaks in x.
@@ -1188,7 +1203,6 @@ def percent_reoccurring_points(x: TIME_SERIES_T) -> float:
     float
     """
     return 1 - x.is_unique().sum() / x.len()
-
 
 
 def percent_reoccurring_values(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -1464,8 +1478,10 @@ def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2, m: int = 2) -> FLOAT_EX
         )
         return np.log(b / a)  # -ln(a/b) = ln(b/a)
     else:
-        logger.info("Expression version of sample_entropy is not yet implemented due to "
-            "technical difficulty regarding Polars Expression Plugins.")
+        logger.info(
+            "Expression version of sample_entropy is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
 
@@ -1495,8 +1511,10 @@ def spkt_welch_density(x: TIME_SERIES_T, n_coeffs: Optional[int] = None) -> LIST
         _, pxx = welch(x, nperseg=min(len(x), 256))
         return pxx[:last_idx]
     else:
-        logger.info("Expression version of spkt_welch_density is not yet implemented due to "
-            "technical difficulty regarding Polars Expression Plugins.")
+        logger.info(
+            "Expression version of spkt_welch_density is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
 
@@ -1543,17 +1561,11 @@ def sum_reoccurring_values(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     if isinstance(x, pl.Series):
         vc = x.value_counts()
-        return vc.filter(
-            pl.col("counts") > 1
-        ).select(
-            pl.col(x.name).sum()
-        ).item(0, 0)
+        return vc.filter(pl.col("counts") > 1).select(pl.col(x.name).sum()).item(0, 0)
     else:
         name = x.meta.output_name() or "_"
         vc = x.value_counts(sort=True)
-        return vc.filter(
-            vc.struct.field("counts") > 1
-        ).struct.field(name).sum()
+        return vc.filter(vc.struct.field("counts") > 1).struct.field(name).sum()
 
 
 def symmetry_looking(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
