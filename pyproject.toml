@@ -83,7 +83,6 @@ test = [
   "pytest-benchmark",
   "pytest-memray",
   "pytest-timeout",
-  "scikit-learn-intelex",
   "statsmodels",
   "tsfresh",
 ]
@@ -93,6 +92,48 @@ xgb = [
 ]
 [project.urls]
 Homepage = "https://github.com/neocortexdb/functime"
+
+[project.optional-dependencies]
+ann = ["pylance", "pyarrow"]
+cat = ["catboost"]
+xgb = ["xgboost", "pyarrow"]
+lgb = ["lightgbm"]
+llm = ["openai", "tabulate", "tenacity", "tiktoken"]
+plot = ["pandas", "plotly", "kaleido==0.2.1"]
+dev = ["pre-commit"]
+test = [
+    "aeon",
+    "coverage[toml]",
+    "fastapi",
+    "joblib",
+    "mlforecast==0.8.1",
+    "pandas",
+    "pytest-benchmark",
+    "pytest-memray",
+    "pytest-timeout",
+    "pytest",
+    "statsmodels",
+    "tsfresh",
+]
+doc = ["mkdocs", "mkdocs-material", "mkdocstrings-python", "mkdocs-jupyter"]
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+
+[tool.pytest.ini_options]
+addopts = ["--strict-config", "--strict-markers"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "benchmark: marks tests as part of benchmarking",
+    "multivariate: marks multivariate forecast test",
+]
+xfail_strict = true
+
+[tool.coverage.run]
+parallel = true
+source = ["tests", "functime"]
+context = '${CONTEXT}'
 
 [tool.ruff]
 include = ["*.py", "*.pyi", "**/pyproject.toml", "*.ipynb"]
