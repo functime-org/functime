@@ -31,7 +31,7 @@ dependencies = [
     "flaml>=2.0.2,<3",
     "holidays",
     "numpy",
-    "polars>=0.19.12",
+    "polars>=0.19.11",
     "scikit-learn>=1.2.2,<2",
     "scipy",
     "tqdm",
