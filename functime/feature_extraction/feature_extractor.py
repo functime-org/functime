@@ -503,7 +503,7 @@ class FeatureExtractor:
         """
         return f.number_crossings(self._expr, crossing_value)
 
-    def percent_reocurring_points(self) -> pl.Expr:
+    def percent_reoccurring_points(self) -> pl.Expr:
         """
         Returns the percentage of non-unique data points in the time series. Non-unique data points are those that occur
         more than once in the time series.
@@ -519,9 +519,9 @@ class FeatureExtractor:
         -------
         An expression of the output
         """
-        return f.percent_reocurring_points(self._expr)
+        return f.percent_reoccurring_points(self._expr)
 
-    def percent_reoccuring_values(self) -> pl.Expr:
+    def percent_reoccurring_values(self) -> pl.Expr:
         """
         Returns the percentage of values that are present in the time series more than once.
 
@@ -530,13 +530,13 @@ class FeatureExtractor:
             len(different values occurring more than once) / len(different values)
 
         This means the percentage is normalized to the number of unique values in the time series, in contrast to the
-        `percent_reocurring_points` function.
+        `percent_reoccurring_points` function.
 
         Returns
         -------
         An expression of the output
         """
-        return f.percent_reoccuring_values(self._expr)
+        return f.percent_reoccurring_values(self._expr)
 
     def number_peaks(self, support: int) -> pl.Expr:
         """
@@ -633,37 +633,37 @@ class FeatureExtractor:
         return f.ratio_beyond_r_sigma(self._expr, ratio)
 
     # Originally named: `sum_of_reoccurring_data_points`
-    def sum_reocurring_points(self) -> pl.Expr:
+    def sum_reoccurring_points(self) -> pl.Expr:
         """
         Returns the sum of all data points that are present in the time series more than once.
 
-        For example, `sum_reocurring_points(pl.Series([2, 2, 2, 2, 1]))` returns 8, as 2 is a reoccurring value, so all 2's
+        For example, `sum_reoccurring_points(pl.Series([2, 2, 2, 2, 1]))` returns 8, as 2 is a reoccurring value, so all 2's
         are summed up.
 
-        This is in contrast to the `sum_reocurring_values` function, where each reoccuring value is only counted once.
+        This is in contrast to the `sum_reoccurring_values` function, where each reoccuring value is only counted once.
 
         Returns
         -------
         An expression of the output
         """
-        return f.sum_reocurring_points(self._expr)
+        return f.sum_reoccurring_points(self._expr)
 
     # Originally named: `sum_of_reoccurring_values`
-    def sum_reocurring_values(self) -> pl.Expr:
+    def sum_reoccurring_values(self) -> pl.Expr:
         """
         Returns the sum of all values that are present in the time series more than once.
 
-        For example, `sum_reocurring_values(pl.Series([2, 2, 2, 2, 1]))` returns 2, as 2 is a reoccurring value, so it is
+        For example, `sum_reoccurring_values(pl.Series([2, 2, 2, 2, 1]))` returns 2, as 2 is a reoccurring value, so it is
         summed up with all other reoccuring values (there is none), so the result is 2.
 
-        This is in contrast to the `sum_reocurring_points` function, where each reoccuring value is only counted as often
+        This is in contrast to the `sum_reoccurring_points` function, where each reoccuring value is only counted as often
         as it is present in the data.
 
         Returns
         -------
         An expression of the output
         """
-        return f.sum_reocurring_values(self._expr)
+        return f.sum_reoccurring_values(self._expr)
 
     def symmetry_looking(self, ratio: float = 0.25) -> pl.Expr:
         """
