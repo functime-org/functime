@@ -61,7 +61,6 @@ test = [
     "pytest-memray",
     "pytest-timeout",
     "pytest",
-    "scikit-learn-intelex",
     "statsmodels",
     "tsfresh",
 ]

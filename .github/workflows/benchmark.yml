@@ -32,7 +32,6 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install ".[test,lgb]"
-          python3 -m pip install scikit-learn-intelex
       - name: Benchmark
         run: |
           pytest -k "test_benchmark" -vv \

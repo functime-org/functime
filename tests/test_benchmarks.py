@@ -9,14 +9,10 @@ from scipy.stats import ttest_ind
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import Pipeline
-from sklearnex import patch_sklearn
 
 from functime.forecasting import linear_model
 from functime.metrics import mae, mase, mse, rmse, rmsse, smape
 from functime.preprocessing import scale
-
-patch_sklearn()
-
 
 METRICS_TO_TEST = [smape, rmse, rmsse, mae, mase, mse]
 TTEST_SIG_LEVEL = 0.20  # Two tailed
