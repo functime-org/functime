@@ -49,6 +49,7 @@ xgb = ["xgboost", "pyarrow"]
 lgb = ["lightgbm"]
 llm = ["openai", "tabulate", "tenacity", "tiktoken"]
 plot = ["pandas", "plotly", "kaleido==0.2.1"]
+benchmark = ["pandas", "perfplot", "tsfresh", "pyarrow"]
 dev = ["pre-commit"]
 test = [
     "aeon",
