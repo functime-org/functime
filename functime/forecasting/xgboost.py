@@ -33,7 +33,6 @@ def _enforce_label_constraint(y: pl.DataFrame, objective: Union[str, None]):
 
 def _xgboost(weight_transform: Optional[Callable] = None, **kwargs):
     def regress(X: pl.DataFrame, y: pl.DataFrame):
-
         feature_cols = X.columns[2:]
 
         def train(X: pa.Table, y: pa.Table, sample_weight: Optional[np.ndarray] = None):

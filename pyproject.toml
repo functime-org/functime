@@ -1,89 +1,96 @@
 [build-system]
-requires = ["maturin>=1.2.1,<2"]
 build-backend = "maturin"
+requires = [
+  "maturin<2,>=1.2.1",
+]
 
 [project]
 name = "functime"
 version = "0.8.5"
 description = "Time-series machine learning at scale."
 readme = "README.md"
-requires-python = ">=3.8"
 authors = [
     { name = "functime Team", email = "team@functime.ai" },
     { name = "Chris Lo", email = "chris@functime.ai" },
     { name = "Daryl Lim", email = "daryl@functime.ai" },
 ]
+requires-python = ">=3.8"
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Science/Research",
-    "Intended Audience :: Developers",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: Scientific/Engineering",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "dask",
-    "bottleneck",
-    "flaml>=2.0.2,<3",
-    "holidays",
-    "numpy",
-    "polars>=0.19.12",
-    "scikit-learn>=1.2.2,<2",
-    "scipy",
-    "tqdm",
-    "typing-extensions",
-    "zarr",
+  "bottleneck",
+  "dask",
+  "flaml<3,>=2.0.2",
+  "holidays",
+  "numpy",
+  "polars>=0.19.11",
+  "scikit-learn<2,>=1.2.2",
+  "scipy",
+  "tqdm",
+  "typing-extensions",
+  "zarr",
 ]
-
-[project.urls]
-Homepage = "https://github.com/neocortexdb/functime"
-
 [project.optional-dependencies]
-ann = ["pylance", "pyarrow"]
-cat = ["catboost"]
-xgb = ["xgboost", "pyarrow"]
-lgb = ["lightgbm"]
-llm = ["openai", "tabulate", "tenacity", "tiktoken"]
-plot = ["pandas", "plotly", "kaleido==0.2.1"]
-benchmark = ["pandas", "perfplot", "tsfresh", "pyarrow"]
-dev = ["pre-commit"]
+ann = [
+  "pyarrow",
+  "pylance",
+]
+cat = [
+  "catboost",
+]
+dev = [
+  "pre-commit",
+]
+doc = [
+  "jupyterlab",
+  "mkdocs",
+  "mkdocs-jupyter",
+  "mkdocs-material",
+  "mkdocstrings-python",
+]
+lgb = [
+  "lightgbm",
+]
+llm = [
+  "openai",
+  "tabulate",
+  "tenacity",
+  "tiktoken",
+]
+plot = [
+  "kaleido==0.2.1",
+  "pandas",
+  "plotly",
+]
 test = [
-    "aeon",
-    "coverage[toml]",
-    "fastapi",
-    "joblib",
-    "mlforecast==0.8.1",
-    "pandas",
-    "pytest-benchmark",
-    "pytest-memray",
-    "pytest-timeout",
-    "pytest",
-    "statsmodels",
-    "tsfresh",
+  "aeon",
+  "coverage[toml]",
+  "fastapi",
+  "joblib",
+  "mlforecast==0.8.1",
+  "pandas",
+  "pytest",
+  "pytest-benchmark",
+  "pytest-memray",
+  "pytest-timeout",
+  "statsmodels",
+  "tsfresh",
 ]
-doc = ["mkdocs", "mkdocs-material", "mkdocstrings-python", "mkdocs-jupyter"]
-
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-
-[tool.pytest.ini_options]
-addopts = ["--strict-config", "--strict-markers"]
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "benchmark: marks tests as part of benchmarking",
-    "multivariate: marks multivariate forecast test",
+xgb = [
+  "pyarrow",
+  "xgboost",
 ]
-xfail_strict = true
-
-[tool.coverage.run]
-parallel = true
-source = ["tests", "functime"]
-context = '${CONTEXT}'
 
 [tool.ruff]
 include = ["*.py", "*.pyi", "**/pyproject.toml", "*.ipynb"]
@@ -105,6 +112,20 @@ ignore = [
 [tool.ruff.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.
 keep-runtime-typing = true
+
+[tool.pytest.ini_options]
+addopts = ["--strict-config", "--strict-markers"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "benchmark: marks tests as part of benchmarking",
+    "multivariate: marks multivariate forecast test",
+]
+xfail_strict = true
+
+[tool.coverage.run]
+parallel = true
+source = ["tests", "functime"]
+context = '${CONTEXT}'
 
 [tool.maturin]
 module-name = "functime._functime_rust"

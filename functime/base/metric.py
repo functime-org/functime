@@ -23,7 +23,6 @@ def metric(score: Callable):
         *args,
         **kwargs,
     ) -> pl.DataFrame:
-
         if isinstance(y_true, pl.LazyFrame):
             y_true = y_true.collect(streaming=True)
 

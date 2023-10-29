@@ -59,7 +59,9 @@ scores_with_exog = smape(y_true=y_test, y_pred=y_pred)
 
 print("✅ Predictions (multivariate):\n", y_pred.sort(entity_col))
 print("💯 Scores (multivariate):\n", scores_with_exog.sort("smape"))
-print("💯 Scores summary (multivariate):\n", scores_with_exog.select("smape").describe())
+print(
+    "💯 Scores summary (multivariate):\n", scores_with_exog.select("smape").describe()
+)
 
 # Check uplift from Fourier features
 uplift = (
