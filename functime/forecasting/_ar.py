@@ -132,7 +132,6 @@ def fit_cv(  # noqa: Ruff too complex
     X: Optional[pl.LazyFrame] = None,
     **kwargs,
 ) -> Mapping[str, Any]:
-
     # TODO: Consolidate logging
     logging.basicConfig(level=logging.INFO)
 

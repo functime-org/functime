@@ -26,7 +26,7 @@ pub fn rs_lempel_ziv_complexity(
 
 // #[polars_expr(output_type=UInt32)]
 // fn pl_lempel_ziv_complexity(inputs: &[Series]) -> PolarsResult<Series>  {
-    
+
 //     let input: &Series = &inputs[0];
 //     let name = input.name();
 //     let input = input.bool()?;
