@@ -14,8 +14,7 @@ from scipy.spatial import KDTree
 
 from functime._functime_rust import rs_faer_lstsq1
 from functime._utils import UseAtOwnRisk
-
-from .feature_extractor import FeatureExtractor  # noqa: F401
+from functime.feature_extractor import FeatureExtractor  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -1389,7 +1388,7 @@ def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
     df = (
         x.to_frame()
         .select(
-            pl.col(name), *(pl.col(name).shift(-i).suffix(str(i)) for i in range(1, m))
+            pl.col(name), *(pl.col(name).shift(-i).name.suffix(str(i)) for i in range(1, m))
         )
         .slice(0, n_rows)
     )

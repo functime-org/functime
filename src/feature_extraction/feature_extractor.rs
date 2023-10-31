@@ -36,7 +36,7 @@ fn pl_lempel_ziv_complexity(inputs: &[Series]) -> PolarsResult<Series>  {
 
 
 
-// Test this when Faer updates its Polars interop
+// // Test this when Faer updates its Polars interop
 
 // #[polars_expr(output_type=Float64)]
 // fn pl_autoregressive_coefficients(inputs: &[Series]) -> PolarsResult<Series>{
