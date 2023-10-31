@@ -1,16 +1,5 @@
 import math
-<<<<<<< HEAD:functime/feature_extractor.py
 from typing import Union
-=======
-
-import polars as pl
-from polars.type_aliases import ClosedInterval
-
-import functime.feature_extraction.tsfresh as f
-
-# from polars.type_aliases import IntoExpr
-# from polars.utils.udfs import _get_shared_lib_location
->>>>>>> main:functime/feature_extraction/feature_extractor.py
 
 import polars as pl
 from polars.type_aliases import ClosedInterval
