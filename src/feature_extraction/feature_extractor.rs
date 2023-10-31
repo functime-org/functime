@@ -23,9 +23,6 @@ fn pl_lempel_ziv_complexity(inputs: &[Series]) -> PolarsResult<Series>  {
     let mut sub_strings: HashSet<&[bool]> = HashSet::new();
     while ind + inc <= bits.len() {
         let subseq: &[bool] = &bits[ind..ind+inc];
-    let mut sub_strings: HashSet<&[bool]> = HashSet::new();
-    while ind + inc <= bits.len() {
-        let subseq: &[bool] = &bits[ind..ind+inc];
         if sub_strings.contains(subseq) {
             inc += 1;
         } else {
@@ -37,7 +34,6 @@ fn pl_lempel_ziv_complexity(inputs: &[Series]) -> PolarsResult<Series>  {
     let c = sub_strings.len();
     Ok(Series::new(name, [c as u32]))
 
-    }
 }
 
 
