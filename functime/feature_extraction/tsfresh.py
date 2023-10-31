@@ -263,13 +263,8 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
             )
             .to_numpy()
         )
-<<<<<<< HEAD
         y_ = y.tail(length).to_numpy(zero_copy_only=True).reshape((-1,1))
         out:np.ndarray = rs_faer_lstsq1(data_x, y_)
-=======
-        y_ = y.tail(length).to_numpy(zero_copy_only=True).reshape((-1, 1))
-        out: np.ndarray = rs_faer_lstsq(data_x, y_)
->>>>>>> main
         return out.ravel()
     else:
         logger.info(
@@ -920,15 +915,7 @@ def lempel_ziv_complexity(
             pl.col(x.name).ts.lempel_ziv_complexity(threshold, as_ratio)
         ).item(0,0)
     else:
-<<<<<<< HEAD
         return x.ts.lempel_ziv_complexity(threshold, as_ratio)
-=======
-        logger.info(
-            "Expression version of lempel_ziv_complexity is not yet implemented due to "
-            "technical difficulty regarding Polars Expression Plugins."
-        )
-        return NotImplemented
->>>>>>> main
 
 
 def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
