@@ -29,17 +29,17 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-  "bottleneck",
-  "dask",
-  "flaml<3,>=2.0.2",
-  "holidays",
-  "numpy",
-  "polars>=0.19.11",
-  "scikit-learn<2,>=1.2.2",
-  "scipy",
-  "tqdm",
-  "typing-extensions",
-  "zarr",
+    "dask",
+    "bottleneck",
+    "flaml>=2.0.2,<3",
+    "holidays",
+    "numpy",
+    "polars>=0.19.12",
+    "scikit-learn>=1.2.2,<2",
+    "scipy",
+    "tqdm",
+    "typing-extensions",
+    "zarr",
 ]
 [project.optional-dependencies]
 ann = [

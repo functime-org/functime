@@ -12,8 +12,9 @@ from scipy.linalg import lstsq
 from scipy.signal import find_peaks_cwt, ricker, welch
 from scipy.spatial import KDTree
 
-from functime._functime_rust import rs_faer_lstsq, rs_lempel_ziv_complexity
+from functime._functime_rust import rs_faer_lstsq1
 from functime._utils import UseAtOwnRisk
+from functime.feature_extractor import FeatureExtractor  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -262,8 +263,8 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
             )
             .to_numpy()
         )
-        y_ = y.tail(length).to_numpy(zero_copy_only=True).reshape((-1, 1))
-        out: np.ndarray = rs_faer_lstsq(data_x, y_)
+        y_ = y.tail(length).to_numpy(zero_copy_only=True).reshape((-1,1))
+        out:np.ndarray = rs_faer_lstsq1(data_x, y_)
         return out.ravel()
     else:
         logger.info(
@@ -884,9 +885,9 @@ def lempel_ziv_complexity(
 ) -> FLOAT_EXPR:
     """
     Calculate a complexity estimate based on the Lempel-Ziv compression algorithm. The
-    implementation here is currently taken from Lilian Besson. See the reference section
-    below. Instead of return the complexity value, we return a ratio w.r.t the length of
-    the input series.
+    implementation here is currently a Rust rewrite of Lilian Besson'code. See the reference 
+    section below. Instead of return the complexity value, we return a ratio w.r.t the length of
+    the input series. If null is encountered, it will be interpreted as 0 in the bit sequence.
 
     Parameters
     ----------
@@ -909,17 +910,12 @@ def lempel_ziv_complexity(
     https://en.wikipedia.org/wiki/Lempel%E2%80%93Ziv_complexity
     """
     if isinstance(x, pl.Series):
-        b = bytes(x > threshold)
-        c = rs_lempel_ziv_complexity(b)
-        if as_ratio:
-            return c / x.len()
-        return c
+        frame = x.to_frame()
+        return frame.select(
+            pl.col(x.name).ts.lempel_ziv_complexity(threshold, as_ratio)
+        ).item(0,0)
     else:
-        logger.info(
-            "Expression version of lempel_ziv_complexity is not yet implemented due to "
-            "technical difficulty regarding Polars Expression Plugins."
-        )
-        return NotImplemented
+        return x.ts.lempel_ziv_complexity(threshold, as_ratio)
 
 
 def linear_trend(x: TIME_SERIES_T) -> MAP_EXPR:
@@ -1424,7 +1420,7 @@ def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
     df = (
         x.to_frame()
         .select(
-            pl.col(name), *(pl.col(name).shift(-i).suffix(str(i)) for i in range(1, m))
+            pl.col(name), *(pl.col(name).shift(-i).name.suffix(str(i)) for i in range(1, m))
         )
         .slice(0, n_rows)
     )
@@ -1466,7 +1462,7 @@ def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2, m: int = 2) -> FLOAT_EX
             )
             - mat.shape[0]
         )
-        mat = _into_sequential_chunks(x, m + 1)  #
+        mat = _into_sequential_chunks(x, m + 1)
         tree = KDTree(mat)
         a = (
             np.sum(
