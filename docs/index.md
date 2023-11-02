@@ -78,7 +78,18 @@ Includes utilities to support the full forecasting lifecycle: preprocessing, fea
 View the [full walkthrough](forecasting.md) on forecasting with `functime`.
 
 ### Feature Extraction
-Coming soon.
+`functime` has over 100+ time-series feature extractors (e.g. `binned_entropy`, `longest_streak_above_mean`) available for any `Polars` Series. Approximately 85% of the implementations are optimized lazy queries and works on both `polars.Series` and `polars.Expr`.
+
+- Over 100+ time-series features
+- All features are registered under a custom `ts` Polars namespace
+- ~85% optimized lazy queries and works on both `polars.Series` and `polars.Expr`
+- 2x-200x speed-ups compared to `tsfresh`
+- >200x speed-ups compared to `tsfresh` for group by operations
+- Supports univariate feature extraction
+- Supports feature extraction across many time-series (via `group_by`)
+- Supports feature extraction across windows (via `group_by_dynamic`)
+
+View the [full walkthrough](feature_extraction.md) on forecasting with `functime`.
 
 ### Preprocessing
 View API reference for [`functime.preprocessing`](https://docs.functime.ai/preprocessing/).
