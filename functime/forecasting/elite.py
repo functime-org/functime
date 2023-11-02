@@ -12,13 +12,13 @@ from functime.base.forecaster import Forecaster
 from functime.base.metric import METRIC_TYPE
 from functime.conversion import X_to_numpy, y_to_numpy
 from functime.cross_validation import expanding_window_split
-from functime.feature_extraction import add_fourier_terms
 from functime.forecasting.knn import knn
 from functime.forecasting.linear import lasso_cv, linear_model, ridge_cv
 from functime.forecasting.naive import naive
 from functime.metrics import mae
 from functime.offsets import freq_to_sp
 from functime.preprocessing import coerce_dtypes, detrend, diff, scale
+from functime.seasonality import add_fourier_terms
 
 
 class elite(Forecaster):

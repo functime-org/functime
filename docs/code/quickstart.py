@@ -4,10 +4,10 @@ from timeit import default_timer
 import polars as pl
 
 from functime.cross_validation import train_test_split
-from functime.feature_extraction import add_fourier_terms
 from functime.forecasting import auto_linear_model, linear_model, naive, snaive
 from functime.metrics import smape
 from functime.preprocessing import scale
+from functime.seasonality import add_fourier_terms
 
 start_time = default_timer()
 

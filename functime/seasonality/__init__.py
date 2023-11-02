@@ -1,10 +1,10 @@
-from .calendar import (
+from functime.seasonality.calendar import (
     add_calendar_effects,
     add_holiday_effects,
     make_future_calendar_effects,
     make_future_holiday_effects,
 )
-from .fourier import add_fourier_terms
+from functime.seasonality.fourier import add_fourier_terms
 
 __all__ = [
     "add_calendar_effects",

@@ -6,7 +6,7 @@ from aeon.transformations.series.fourier import FourierFeatures
 from polars.testing import assert_frame_equal
 
 from functime.cross_validation import train_test_split
-from functime.feature_extraction import add_fourier_terms
+from functime.seasonality import add_fourier_terms
 
 
 @pytest.mark.parametrize("freq,sp", [("1h", 24), ("1d", 365), ("1w", 52)])
