@@ -48,6 +48,7 @@ nav:
   - Installation: installation.md
   - Forecasting: forecasting.md
   - Preprocessing: preprocessing.md
+  - Feature Extraction: feature-extraction.md
   - Seasonality: seasonality.md
   - Developer Guide: develop.md
   - Tutorials:
