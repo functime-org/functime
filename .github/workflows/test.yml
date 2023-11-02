@@ -65,4 +65,4 @@ jobs:
           FUNCTIME__TEST_MODE: "true"
         run: |
           source venv/bin/activate
-          pytest tests -vv --benchmark-disable -k "not test_benchmarks"
+          pytest tests -vv --show-capture-no --tb=line --benchmark-disable -k "not test_benchmarks"
