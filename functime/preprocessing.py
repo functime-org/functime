@@ -11,7 +11,7 @@ from typing_extensions import Literal
 
 from functime.base import transformer
 from functime.base.model import ModelState
-from functime.feature_extraction import add_fourier_terms
+from functime.seasonality import add_fourier_terms
 from functime.offsets import _strip_freq_alias
 
 
