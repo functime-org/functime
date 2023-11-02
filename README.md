@@ -146,7 +146,7 @@ features = (
     )
 )
 
-# 🚄 Extract fetures blazingly fast on windows
+# 🚄 Extract features blazingly fast on windows
 # of many time-series using `group_by_dynamic`
 features = (
     # Compute rolling features at yearly intervals
