@@ -2,4 +2,4 @@
 
 ## Time-series Feature Extractors
 
-:::functime.featre_extraction.tsfresh
+:::functime.feature_extraction.tsfresh
