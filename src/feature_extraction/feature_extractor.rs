@@ -1,11 +1,7 @@
-use pyo3::prelude::*;
 use polars_core::prelude::*;
-//use polars_lazy::prelude::*;
-use polars_core::prelude::*;
-//use polars_lazy::prelude::*;
+use hashbrown::HashSet;
 use pyo3_polars::{derive::polars_expr, export::polars_core::{series::Series, prelude::{*}}};
-use std::collections::HashSet;
-
+//use pyo3::prelude::*;
 
 #[polars_expr(output_type=UInt32)]
 fn pl_lempel_ziv_complexity(inputs: &[Series]) -> PolarsResult<Series>  {
@@ -20,7 +16,7 @@ fn pl_lempel_ziv_complexity(inputs: &[Series]) -> PolarsResult<Series>  {
     let mut ind:usize = 0;
     let mut inc:usize = 1;
 
-    let mut sub_strings: HashSet<&[bool]> = HashSet::new();
+    let mut sub_strings:HashSet<&[bool]> = HashSet::new(); 
     while ind + inc <= bits.len() {
         let subseq: &[bool] = &bits[ind..ind+inc];
         if sub_strings.contains(subseq) {

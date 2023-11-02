@@ -6,7 +6,8 @@ import pytest
 from polars.testing import assert_frame_equal, assert_series_equal
 
 # percent_recoccuring_values,
-from functime.feature_extraction.tsfresh import (
+from functime.feature_extractor import (
+    FeatureExtractor,  # noqa: F401
     absolute_energy,
     absolute_maximum,
     absolute_sum_of_changes,
@@ -31,7 +32,6 @@ from functime.feature_extraction.tsfresh import (
     large_standard_deviation,
     last_location_of_maximum,
     last_location_of_minimum,
-    lempel_ziv_complexity,
     linear_trend,
     longest_streak_above,
     longest_streak_above_mean,
@@ -1378,15 +1378,33 @@ def test_time_reversal_asymmetry_statistic(x, lag, res):
     assert time_reversal_asymmetry_statistic(x, lag) == res
 
 
-def test_lempel_ziv_complexity():
-    a = pl.Series([1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0])
-    assert lempel_ziv_complexity(a, threshold=0) * len(a) == 8
-    a = pl.Series([1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0])
-    assert lempel_ziv_complexity(a, threshold=0) * len(a) == 9
-    a = pl.Series(
-        [1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0]
+@pytest.mark.parametrize(
+    "df, threshold, res",
+    [
+        (
+            pl.DataFrame({"a": pl.Series([1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0])})
+            , 0
+            , 8
+        ),
+        (
+            pl.DataFrame({"a": pl.Series([1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0])})
+            , 0
+            , 9
+        ),
+        (
+            pl.DataFrame({"a": pl.Series([1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0])})
+            , 0
+            , 10
+        ),
+    ],
+)
+def test_lempel_ziv_complexity(df, threshold, res):
+
+    test = df.select(
+        pl.col("a").ts.lempel_ziv_complexity(threshold, as_ratio = False)
     )
-    assert lempel_ziv_complexity(a, threshold=0) * len(a) == 10
+    assert test.item(0,0) == res
+
 
 
 @pytest.mark.parametrize(
