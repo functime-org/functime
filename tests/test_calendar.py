@@ -3,7 +3,7 @@ from datetime import datetime
 import polars as pl
 from polars.testing import assert_frame_equal
 
-from functime.feature_extraction.calendar import (
+from functime.seasonality.calendar import (
     add_calendar_effects,
     add_holiday_effects,
 )

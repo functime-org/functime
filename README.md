@@ -52,7 +52,7 @@ pip install "functime[llm,lgb]"
 ```python
 import polars as pl
 from functime.cross_validation import train_test_split
-from functime.feature_extraction import add_fourier_terms
+from functime.seasonality import add_fourier_terms
 from functime.forecasting import linear_model
 from functime.preprocessing import scale
 from functime.metrics import mase
@@ -101,9 +101,9 @@ View the full walkthrough on forecasting [here](https://docs.functime.ai/forecas
 ### Feature Extraction
 
 `functime` comes with over 100+ [time-series feature extractors](https://docs.functime.ai/feature-extraction/).
-These features are easily accessible via our custom `ts` (time-series) namespace on any `Polars` Series or expression.
+Every feature is easily accessible via `functime`'s custom `ts` (time-series) namespace, which works with any `Polars` Series or expression. To register the custom `ts` `Polars` namespace, you must first import `functime` in your module.
 
-To register the custom `ts` `Polars` namespace, you must first import `functime` in your module!
+To register the custom `ts` `Polars` namespace, you must first import `functime`!
 
 ```python
 import polar as pl

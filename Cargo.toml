@@ -18,3 +18,4 @@ faer = {version = "0.14.1", features = ["ndarray"]}
 ndarray = "0.15.6"
 numpy = "0.20.0"
 serde = {version = "1.0.190", features=["derive"]}
+hashbrown = "0.14.2"

@@ -5,7 +5,6 @@ import numpy as np
 import polars as pl
 import pytest
 
-from functime.feature_extraction import add_fourier_terms
 from functime.forecasting import (  # ann,
     auto_elastic_net,
     auto_lightgbm,
@@ -22,6 +21,7 @@ from functime.forecasting import (  # ann,
 )
 from functime.metrics import rmsse, smape, smape_original
 from functime.preprocessing import detrend, diff, scale
+from functime.seasonality import add_fourier_terms
 
 DEFAULT_LAGS = 12
 DIRECT_KWARGS = {"max_horizons": 28, "strategy": "direct"}
