@@ -12,7 +12,7 @@ from scipy.linalg import lstsq
 from scipy.signal import find_peaks_cwt, ricker, welch
 from scipy.spatial import KDTree
 
-from functime._functime_rust import rs_faer_lstsq1
+#from functime._functime_rust import rs_faer_lstsq1
 from functime._utils import UseAtOwnRisk
 from functime.feature_extractor import FeatureExtractor  # noqa: F401
 
