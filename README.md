@@ -21,7 +21,7 @@ Join us on [Discord](https://discord.gg/JKMrZKjEwN)!
 
 ## Highlights
 - **Fast:** Forecast and extract features (e.g. tsfresh, Catch22) across 100,000 time series in seconds *on your laptop*
-- **Efficient:** Embarrassingly parallel [feature engineering](https://docs.functime.ai/ref/preprocessing/) for time-series using [`Polars`](https://www.pola.rs/)
+- **Efficient:** Embarrassingly parallel feature engineering for time-series using [`Polars`](https://www.pola.rs/)
 - **Battle-tested:** Machine learning algorithms that deliver real business impact and win competitions
 - **Exogenous features:** supported by every forecaster
 - **Backtesting** with expanding window and sliding window splitters
@@ -98,35 +98,75 @@ y_pred = forecaster.predict(fh=3, X=X_future)
 
 View the full walkthrough on forecasting [here](https://docs.functime.ai/forecasting/).
 
-## LLM Copilot
+### Feature Extraction
 
-Requires an OpenAI API key set as an environment variable `OPENAI_API_KEY`.
+`functime` comes with over 100+ [time-series feature extractors](https://docs.functime.ai/feature-extraction/).
+These features are easily accessible via our custom `ts` (time-series) namespace on any `Polars` Series or expression.
+
+To register the custom `ts` `Polars` namespace, you must first import `functime` in your module!
 
 ```python
-import polars as pl
-import functime.llm
+import polar as pl
+import numpy as np
+import functime
 
-y = pl.read_parquet("../../data/commodities.parquet")
-context = "This dataset comprises of historical commodity prices between 1980 to 2022."
+# Load commodities price data
+y = pl.read_parquet("https://github.com/neocortexdb/functime/raw/main/data/commodities.parquet")
 
-# Analyze trend and seasonality for two commodities
-analysis = y_pred.llm.analyze(
-    context=dataset_context,
-    basket=["Aluminum", "Banana, Europe"]
+# Get column names ("commodity_type", "time", "price")
+entity_col, time_col, value_col = y.columns
+
+# Extract a single feature from a single time-series
+binned_entropy = (
+    pl.Series(np.random.normal(0, 1, size=10))
+    .ts.binned_entropy(bin_count=10)
 )
-print("📊 Analysis:\n", analysis)
 
-# Compare two baskets of commodities!
-basket_a = ["Aluminum", "Banana, Europe"]
-basket_b = ["Chicken", "Cocoa"]
-comparison = y_pred.llm.compare(
-    basket=basket_a,
-    other_basket=basket_b
+# 🔥 Also works on LazyFrames with query optimization
+features = (
+    pl.LazyFrame({
+        "index": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+        "value": np.random.normal(0, 1, size=10)
+    })
+    .select(
+        pl.col("value").ts.binned_entropy(bin_count=10),
+        pl.col("value").ts.lempel_ziv_complexity(threshold=3),
+        pl.col("value").ts.longest_streak_above_mean(),
+    )
 )
-print("📊 Comparison:\n", comparison)
+
+# 🚄 Extract features blazingly fast on many
+# stacked time-series using `group_by`
+features = (
+    y.group_by(entity_col)
+    .agg(
+        pl.col(value_col).ts.binned_entropy(bin_count=10),
+        pl.col(value_col).ts.lempel_ziv_complexity(threshold=3),
+        pl.col(value_col).ts.longest_streak_above_mean(),
+    )
+)
+
+# 🚄 Extract fetures blazingly fast on windows
+# of many time-series using `group_by_dynamic`
+features = (
+    # Compute rolling features at yearly intervals
+    y.group_by_dynamic(
+        time_col,
+        every="12mo",
+        by=entity_col,
+    )
+    .select(
+        pl.col("value").ts.binned_entropy(bin_count=10),
+        pl.col("value").ts.lempel_ziv_complexity(threshold=3),
+        pl.col("value").ts.longest_streak_above_mean(),
+    )
+)
+
 ```
 
-View the full walkthrough on the LLM copilot [here](https://docs.functime.ai/notebooks/llm/).
+## Related Projects
+
+If you are interested in general data-science / machine-learning related plugins for `Polars`, you must check out [`polars-ml`](https://github.com/abstractqqq/polars_ds_extension). `polars-ml` is a project created by one of `functime`'s core maintainers and is the easiest way to extend your `Polars` pipelines with commonly used data-science operations made blazing fast with Rust!
 
 ## License
 `functime` is distributed under [Apache-2.0](LICENSE).
