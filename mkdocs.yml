@@ -55,6 +55,7 @@ nav:
     - Time-Series Preprocessing: notebooks/preprocessing.ipynb
     - Forecast Evaluation: notebooks/evaluation.ipynb
     - LLM Analysis: notebooks/llm.ipynb
+    - Feature extraction benchmark: notebooks/benchmarks.ipynb
   - API Reference:
     - forecasting: ref/forecasting.md
     - preprocessing: ref/preprocessing.md
