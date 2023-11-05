@@ -52,10 +52,10 @@ nav:
   - Seasonality: seasonality.md
   - Developer Guide: develop.md
   - Tutorials:
-    - Time-Series Preprocessing: notebooks/preprocessing.ipynb
+    - Preprocessing: notebooks/preprocessing.ipynb
+    - Feature Extraction: notebooks/benchmarks.ipynb
     - Forecast Evaluation: notebooks/evaluation.ipynb
     - LLM Analysis: notebooks/llm.ipynb
-    - Feature extraction benchmark: notebooks/benchmarks.ipynb
   - API Reference:
     - forecasting: ref/forecasting.md
     - preprocessing: ref/preprocessing.md
