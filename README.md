@@ -166,7 +166,7 @@ features = (
 
 ## Related Projects
 
-If you are interested in general data-science / machine-learning related plugins for `Polars`, you must check out [`polars-ml`](https://github.com/abstractqqq/polars_ds_extension). `polars-ml` is a project created by one of `functime`'s core maintainers and is the easiest way to extend your `Polars` pipelines with commonly used data-science operations made blazing fast with Rust!
+If you are interested in general data-science related plugins for `Polars`, you must check out [`polars-ds`](https://github.com/abstractqqq/polars_ds_extension). `polars-ds` is a project created by one of `functime`'s core maintainers and is the easiest way to extend your `Polars` pipelines with commonly used data-science operations made blazing fast with Rust!
 
 ## License
 `functime` is distributed under [Apache-2.0](LICENSE).
