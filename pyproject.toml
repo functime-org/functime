@@ -29,17 +29,17 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "dask",
-    "bottleneck",
-    "flaml>=2.0.2,<3",
-    "holidays",
-    "numpy",
-    "polars>=0.19.12",
-    "scikit-learn>=1.2.2,<2",
-    "scipy",
-    "tqdm",
-    "typing-extensions",
-    "zarr",
+  "bottleneck",
+  "dask",
+  "flaml<3,>=2.0.2",
+  "holidays",
+  "numpy",
+  "polars>=0.19.12",
+  "scikit-learn<2,>=1.2.2",
+  "scipy",
+  "tqdm",
+  "typing-extensions",
+  "zarr",
 ]
 [project.optional-dependencies]
 ann = [
@@ -107,6 +107,8 @@ ignore = [
     "E501", # line too long, handled by black
     "B008", # do not perform function calls in argument defaults
     "B905", # `zip()` without an explicit `strict=` parameter
+    "B018", # Found useless expression.
+    "F821", # Undefined name
 ]
 
 [tool.ruff.pyupgrade]
