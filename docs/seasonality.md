@@ -58,7 +58,7 @@ For example, if `sp=12` and `K=3`, `X_new` would contain the columns `sin_12_1`,
 
 ```python
 from functime.offsets import freq_to_sp
-from functime.feature_extraction import add_fourier_terms
+from functime.seasonality import add_fourier_terms
 
 sp = freq_to_sp["1mo"][0]
 X_new = X.pipe(add_fourier_terms(sp=sp, K=3)).collect()

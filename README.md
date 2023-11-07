@@ -52,7 +52,7 @@ pip install "functime[llm,lgb]"
 ```python
 import polars as pl
 from functime.cross_validation import train_test_split
-from functime.feature_extraction import add_fourier_terms
+from functime.seasonality import add_fourier_terms
 from functime.forecasting import linear_model
 from functime.preprocessing import scale
 from functime.metrics import mase
