@@ -35,7 +35,7 @@ If you choose the dummy variable strategy, beware of the "dummy variable trap" (
   - year: 1999, 2000, ..., 2023 (any year)
 
 ```python
-from functime.feature_extraction import add_calendar_effects
+from functime.seasonality import add_calendar_effects
 
 # Returns X with one categorical column "month" with values 1,2,...,12
 X_new = X.pipe(add_calendar_effects(["month"])).collect()
@@ -69,7 +69,7 @@ X_new = X.pipe(add_fourier_terms(sp=sp, K=3)).collect()
 `functime` has a wrapper function around the [`holidays`](https://pypi.org/project/holidays/) Python package to generate categorical features for special events. Dates without a holiday are filled with nulls.
 
 ```python
-from functime.feature_extraction import add_holiday_effects
+from functime.seasonality import add_holiday_effects
 
 # Returns X with two categorical columns "holiday__US" and "holiday__CA"
 north_america_holidays = add_holiday_effects(country_codes=["US", "CA"])

@@ -29,7 +29,7 @@ Load a collection of time series, also known as panel data, into a [`polars.Lazy
 import polars as pl
 from functime.cross_validation import train_test_split
 from functime.metrics import mase
-from functime.feature_extraction import add_calendar_effects
+from functime.seasonality import add_calendar_effects
 
 
 # Load data
