@@ -269,8 +269,8 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
             )
             .to_numpy()
         )
-        y_ = y.tail(length).to_numpy(zero_copy_only=True).reshape((-1,1))
-        out:np.ndarray = rs_faer_lstsq1(data_x, y_)
+        y_ = y.tail(length).to_numpy(zero_copy_only=True).reshape((-1, 1))
+        out: np.ndarray = rs_faer_lstsq1(data_x, y_)
         return out.ravel()
     else:
         logger.info(
@@ -891,7 +891,7 @@ def lempel_ziv_complexity(
 ) -> FLOAT_EXPR:
     """
     Calculate a complexity estimate based on the Lempel-Ziv compression algorithm. The
-    implementation here is currently a Rust rewrite of Lilian Besson'code. See the reference 
+    implementation here is currently a Rust rewrite of Lilian Besson'code. See the reference
     section below. Instead of return the complexity value, we return a ratio w.r.t the length of
     the input series. If null is encountered, it will be interpreted as 0 in the bit sequence.
 
@@ -919,7 +919,7 @@ def lempel_ziv_complexity(
         frame = x.to_frame()
         return frame.select(
             pl.col(x.name).ts.lempel_ziv_complexity(threshold, as_ratio)
-        ).item(0,0)
+        ).item(0, 0)
     else:
         return x.ts.lempel_ziv_complexity(threshold, as_ratio)
 
@@ -1426,7 +1426,8 @@ def _into_sequential_chunks(x: pl.Series, m: int) -> np.ndarray:
     df = (
         x.to_frame()
         .select(
-            pl.col(name), *(pl.col(name).shift(-i).name.suffix(str(i)) for i in range(1, m))
+            pl.col(name),
+            *(pl.col(name).shift(-i).name.suffix(str(i)) for i in range(1, m)),
         )
         .slice(0, n_rows)
     )
@@ -2211,7 +2212,9 @@ class FeatureExtractor:
         """
         return last_location_of_minimum(self._expr)
 
-    def lempel_ziv_complexity(self, threshold:Union[float, pl.Expr], as_ratio:bool=True) -> pl.Expr:
+    def lempel_ziv_complexity(
+        self, threshold: Union[float, pl.Expr], as_ratio: bool = True
+    ) -> pl.Expr:
         """
         Calculate a complexity estimate based on the Lempel-Ziv compression algorithm. The
         implementation here is currently a Rust rewrite of Lilian Besson'code. Instead of returning
@@ -2241,7 +2244,7 @@ class FeatureExtractor:
             lib=lib,
             symbol="pl_lempel_ziv_complexity",
             is_elementwise=False,
-            returns_scalar=True
+            returns_scalar=True,
         )
         if as_ratio:
             return out / self._expr.len()

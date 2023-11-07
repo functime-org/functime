@@ -6,7 +6,7 @@ import pytest
 from polars.testing import assert_frame_equal, assert_series_equal
 
 # percent_recoccuring_values,
-from functime.feature_extractor import (
+from functime.feature_extractors import (
     FeatureExtractor,  # noqa: F401
     absolute_energy,
     absolute_maximum,
@@ -1382,29 +1382,87 @@ def test_time_reversal_asymmetry_statistic(x, lag, res):
     "df, threshold, res",
     [
         (
-            pl.DataFrame({"a": pl.Series([1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0])})
-            , 0
-            , 8
+            pl.DataFrame(
+                {"a": pl.Series([1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0])}
+            ),
+            0,
+            8,
         ),
         (
-            pl.DataFrame({"a": pl.Series([1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0])})
-            , 0
-            , 9
+            pl.DataFrame(
+                {
+                    "a": pl.Series(
+                        [
+                            1,
+                            0,
+                            0,
+                            1,
+                            1,
+                            1,
+                            1,
+                            0,
+                            1,
+                            1,
+                            0,
+                            0,
+                            0,
+                            0,
+                            1,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            1,
+                            0,
+                        ]
+                    )
+                }
+            ),
+            0,
+            9,
         ),
         (
-            pl.DataFrame({"a": pl.Series([1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0])})
-            , 0
-            , 10
+            pl.DataFrame(
+                {
+                    "a": pl.Series(
+                        [
+                            1,
+                            0,
+                            0,
+                            1,
+                            1,
+                            1,
+                            1,
+                            0,
+                            1,
+                            1,
+                            0,
+                            0,
+                            0,
+                            0,
+                            1,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            1,
+                            0,
+                            1,
+                            0,
+                        ]
+                    )
+                }
+            ),
+            0,
+            10,
         ),
     ],
 )
 def test_lempel_ziv_complexity(df, threshold, res):
-
-    test = df.select(
-        pl.col("a").ts.lempel_ziv_complexity(threshold, as_ratio = False)
-    )
-    assert test.item(0,0) == res
-
+    test = df.select(pl.col("a").ts.lempel_ziv_complexity(threshold, as_ratio=False))
+    assert test.item(0, 0) == res
 
 
 @pytest.mark.parametrize(
