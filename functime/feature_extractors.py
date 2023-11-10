@@ -326,35 +326,35 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
         return pl.corr(counts - 1, pl.lit(_BENFORD_DIST_SERIES))
 
 
-def benford_correlation2(x: pl.Expr) -> pl.Expr:
-    """
-    Returns the correlation between the first digit distribution of the input time series and
-    the Newcomb-Benford's Law distribution. This version may hit some float point precision
-    issues for some rare numbers.
+# def benford_correlation2(x: pl.Expr) -> pl.Expr:
+#     """
+#     Returns the correlation between the first digit distribution of the input time series and
+#     the Newcomb-Benford's Law distribution. This version may hit some float point precision
+#     issues for some rare numbers.
 
-    Parameters
-    ----------
-    x : pl.Expr | pl.Series
-        Input time-series.
+#     Parameters
+#     ----------
+#     x : pl.Expr | pl.Series
+#         Input time-series.
 
-    Returns
-    -------
-    float | Expr
-    """
-    counts = (
-        # This part can be simplified once the log10(1000) precision issue is resolved.
-        pl.when(x.abs() == 1000)
-        .then(pl.lit(1))
-        .otherwise(x.abs() / (pl.lit(10).pow((x.abs().log10()).floor())))
-        .drop_nans()
-        .drop_nulls()
-        .cast(pl.UInt8)
-        .append(pl.int_range(1, 10, eager=False))
-        .value_counts()
-        .sort()
-        .struct.field("counts")
-    )
-    return pl.corr(counts - 1, pl.lit(_BENFORD_DIST_SERIES))
+#     Returns
+#     -------
+#     float | Expr
+#     """
+#     counts = (
+#         # This part can be simplified once the log10(1000) precision issue is resolved.
+#         pl.when(x.abs() == 1000)
+#         .then(pl.lit(1))
+#         .otherwise(x.abs() / (pl.lit(10).pow((x.abs().log10()).floor())))
+#         .drop_nans()
+#         .drop_nulls()
+#         .cast(pl.UInt8)
+#         .append(pl.int_range(1, 10, eager=False))
+#         .value_counts()
+#         .sort()
+#         .struct.field("counts")
+#     )
+#     return pl.corr(counts - 1, pl.lit(_BENFORD_DIST_SERIES))
 
 
 def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> FLOAT_EXPR:
@@ -567,7 +567,7 @@ def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
 
 
 def cwt_coefficients(
-    x: pl.Series, widths: Sequence[int] = (2, 5, 10, 20), n_coefficients: int = 14
+    x: TIME_SERIES_T, widths: Sequence[int] = (2, 5, 10, 20), n_coefficients: int = 14
 ) -> List[float]:
     """
     Calculates a Continuous wavelet transform for the Ricker wavelet.
@@ -585,16 +585,22 @@ def cwt_coefficients(
     -------
     list of float
     """
-    convolution = np.empty((len(widths), x.len()), dtype=np.float32)
-    for i, width in enumerate(widths):
-        points = np.min([10 * width, x.len()])
-        wavelet_x = np.conj(ricker(points, width)[::-1])
-        convolution[i] = np.convolve(x.to_numpy(zero_copy_only=True), wavelet_x)
-    coeffs = []
-    for coeff_idx in range(min(n_coefficients, convolution.shape[1])):
-        coeffs.extend(convolution[widths.index(), coeff_idx] for _ in widths)
-    return coeffs
-
+    if isinstance(x, pl.Series):
+        convolution = np.empty((len(widths), x.len()), dtype=np.float32)
+        for i, width in enumerate(widths):
+            points = np.min([10 * width, x.len()])
+            wavelet_x = np.conj(ricker(points, width)[::-1])
+            convolution[i] = np.convolve(x.to_numpy(zero_copy_only=True), wavelet_x)
+        coeffs = []
+        for coeff_idx in range(min(n_coefficients, convolution.shape[1])):
+            coeffs.extend(convolution[widths.index(), coeff_idx] for _ in widths)
+        return coeffs
+    else:
+        logger.info(
+            "Expression version of cwt_coefficients is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
+        NotImplemented
 
 def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     """
@@ -678,19 +684,21 @@ def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
     -------
     float
     """
-    if not isinstance(x, pl.Series):
+    if isinstance(x, pl.Series):
+        if len(x) == 1:
+            return np.nan
+        else:
+            _, pxx = welch(x, nperseg=min(x.len(), 256))
+            pxx_as_series = pl.Series(pxx)
+            return binned_entropy(pxx_as_series / pxx_as_series.max(), n_bins)
+    else:
         logger.info(
             "Expression version of fourier_entropy is not yet implemented due to "
             "technical difficulty regarding Polars Expression Plugins."
         )
         return NotImplemented
 
-    if len(x) == 1:
-        return np.nan
-    else:
-        _, pxx = welch(x, nperseg=min(x.len(), 256))
-        pxx_as_series = pl.Series(pxx)
-        return binned_entropy(pxx_as_series / pxx_as_series.max(), n_bins)
+    
 
 
 def friedrich_coefficients(
@@ -1149,7 +1157,7 @@ def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> FLOAT_EXP
     return y.eq(y.shift(1)).not_().sum()
 
 
-def number_cwt_peaks(x: pl.Series, max_width: int = 5) -> float:
+def number_cwt_peaks(x: TIME_SERIES_T, max_width: int = 5) -> float:
     """
     Number of different peaks in x.
 
@@ -1170,17 +1178,24 @@ def number_cwt_peaks(x: pl.Series, max_width: int = 5) -> float:
     -------
     float
     """
-    return len(
-        find_peaks_cwt(
-            vector=x.to_numpy(zero_copy_only=True),
-            widths=np.array(list(range(1, max_width + 1))),
-            wavelet=ricker,
+    if isinstance(x, pl.Series):
+        return len(
+            find_peaks_cwt(
+                vector=x.to_numpy(zero_copy_only=True),
+                widths=np.array(list(range(1, max_width + 1))),
+                wavelet=ricker,
+            )
         )
-    )
+    else:
+        logger.info(
+            "Expression version of number_cwt_peaks is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
+        return NotImplemented
 
 
-def partial_autocorrelation(x: TIME_SERIES_T, n_lags: int) -> float:
-    return NotImplemented
+# def partial_autocorrelation(x: TIME_SERIES_T, n_lags: int) -> float:
+#     return NotImplemented
 
 
 def percent_reoccurring_points(x: TIME_SERIES_T) -> float:
