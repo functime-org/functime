@@ -596,6 +596,10 @@ def cwt_coefficients(
             coeffs.extend(convolution[widths.index(), coeff_idx] for _ in widths)
         return coeffs
     else:
+        logger.info(
+            "Expression version of cwt_coefficients is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         NotImplemented
 
 def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
@@ -680,19 +684,21 @@ def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
     -------
     float
     """
-    if not isinstance(x, pl.Series):
+    if isinstance(x, pl.Series):
+        if len(x) == 1:
+            return np.nan
+        else:
+            _, pxx = welch(x, nperseg=min(x.len(), 256))
+            pxx_as_series = pl.Series(pxx)
+            return binned_entropy(pxx_as_series / pxx_as_series.max(), n_bins)
+    else:
         logger.info(
             "Expression version of fourier_entropy is not yet implemented due to "
             "technical difficulty regarding Polars Expression Plugins."
         )
         return NotImplemented
 
-    if len(x) == 1:
-        return np.nan
-    else:
-        _, pxx = welch(x, nperseg=min(x.len(), 256))
-        pxx_as_series = pl.Series(pxx)
-        return binned_entropy(pxx_as_series / pxx_as_series.max(), n_bins)
+    
 
 
 def friedrich_coefficients(
@@ -1181,11 +1187,15 @@ def number_cwt_peaks(x: TIME_SERIES_T, max_width: int = 5) -> float:
             )
         )
     else:
+        logger.info(
+            "Expression version of number_cwt_peaks is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
 
-def partial_autocorrelation(x: TIME_SERIES_T, n_lags: int) -> float:
-    return NotImplemented
+# def partial_autocorrelation(x: TIME_SERIES_T, n_lags: int) -> float:
+#     return NotImplemented
 
 
 def percent_reoccurring_points(x: TIME_SERIES_T) -> float:
@@ -1486,10 +1496,7 @@ def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2, m: int = 2) -> FLOAT_EX
         )
         return np.log(b / a)  # -ln(a/b) = ln(b/a)
     else:
-        logger.info(
-            "Expression version of sample_entropy is not yet implemented due to "
-            "technical difficulty regarding Polars Expression Plugins."
-        )
+        ≈
         return NotImplemented
 
 
