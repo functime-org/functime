@@ -1496,7 +1496,10 @@ def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2, m: int = 2) -> FLOAT_EX
         )
         return np.log(b / a)  # -ln(a/b) = ln(b/a)
     else:
-        ≈
+        logger.info(
+            "Expression version of sample_entropy is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
         return NotImplemented
 
 
