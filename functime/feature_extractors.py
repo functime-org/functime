@@ -326,35 +326,35 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
         return pl.corr(counts - 1, pl.lit(_BENFORD_DIST_SERIES))
 
 
-def benford_correlation2(x: pl.Expr) -> pl.Expr:
-    """
-    Returns the correlation between the first digit distribution of the input time series and
-    the Newcomb-Benford's Law distribution. This version may hit some float point precision
-    issues for some rare numbers.
+# def benford_correlation2(x: pl.Expr) -> pl.Expr:
+#     """
+#     Returns the correlation between the first digit distribution of the input time series and
+#     the Newcomb-Benford's Law distribution. This version may hit some float point precision
+#     issues for some rare numbers.
 
-    Parameters
-    ----------
-    x : pl.Expr | pl.Series
-        Input time-series.
+#     Parameters
+#     ----------
+#     x : pl.Expr | pl.Series
+#         Input time-series.
 
-    Returns
-    -------
-    float | Expr
-    """
-    counts = (
-        # This part can be simplified once the log10(1000) precision issue is resolved.
-        pl.when(x.abs() == 1000)
-        .then(pl.lit(1))
-        .otherwise(x.abs() / (pl.lit(10).pow((x.abs().log10()).floor())))
-        .drop_nans()
-        .drop_nulls()
-        .cast(pl.UInt8)
-        .append(pl.int_range(1, 10, eager=False))
-        .value_counts()
-        .sort()
-        .struct.field("counts")
-    )
-    return pl.corr(counts - 1, pl.lit(_BENFORD_DIST_SERIES))
+#     Returns
+#     -------
+#     float | Expr
+#     """
+#     counts = (
+#         # This part can be simplified once the log10(1000) precision issue is resolved.
+#         pl.when(x.abs() == 1000)
+#         .then(pl.lit(1))
+#         .otherwise(x.abs() / (pl.lit(10).pow((x.abs().log10()).floor())))
+#         .drop_nans()
+#         .drop_nulls()
+#         .cast(pl.UInt8)
+#         .append(pl.int_range(1, 10, eager=False))
+#         .value_counts()
+#         .sort()
+#         .struct.field("counts")
+#     )
+#     return pl.corr(counts - 1, pl.lit(_BENFORD_DIST_SERIES))
 
 
 def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> FLOAT_EXPR:
