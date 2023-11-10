@@ -567,7 +567,7 @@ def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
 
 
 def cwt_coefficients(
-    x: pl.Series, widths: Sequence[int] = (2, 5, 10, 20), n_coefficients: int = 14
+    x: TIME_SERIES_T, widths: Sequence[int] = (2, 5, 10, 20), n_coefficients: int = 14
 ) -> List[float]:
     """
     Calculates a Continuous wavelet transform for the Ricker wavelet.
@@ -585,16 +585,18 @@ def cwt_coefficients(
     -------
     list of float
     """
-    convolution = np.empty((len(widths), x.len()), dtype=np.float32)
-    for i, width in enumerate(widths):
-        points = np.min([10 * width, x.len()])
-        wavelet_x = np.conj(ricker(points, width)[::-1])
-        convolution[i] = np.convolve(x.to_numpy(zero_copy_only=True), wavelet_x)
-    coeffs = []
-    for coeff_idx in range(min(n_coefficients, convolution.shape[1])):
-        coeffs.extend(convolution[widths.index(), coeff_idx] for _ in widths)
-    return coeffs
-
+    if isinstance(x, pl.Series):
+        convolution = np.empty((len(widths), x.len()), dtype=np.float32)
+        for i, width in enumerate(widths):
+            points = np.min([10 * width, x.len()])
+            wavelet_x = np.conj(ricker(points, width)[::-1])
+            convolution[i] = np.convolve(x.to_numpy(zero_copy_only=True), wavelet_x)
+        coeffs = []
+        for coeff_idx in range(min(n_coefficients, convolution.shape[1])):
+            coeffs.extend(convolution[widths.index(), coeff_idx] for _ in widths)
+        return coeffs
+    else:
+        NotImplemented
 
 def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     """
@@ -1149,7 +1151,7 @@ def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> FLOAT_EXP
     return y.eq(y.shift(1)).not_().sum()
 
 
-def number_cwt_peaks(x: pl.Series, max_width: int = 5) -> float:
+def number_cwt_peaks(x: TIME_SERIES_T, max_width: int = 5) -> float:
     """
     Number of different peaks in x.
 
@@ -1170,13 +1172,16 @@ def number_cwt_peaks(x: pl.Series, max_width: int = 5) -> float:
     -------
     float
     """
-    return len(
-        find_peaks_cwt(
-            vector=x.to_numpy(zero_copy_only=True),
-            widths=np.array(list(range(1, max_width + 1))),
-            wavelet=ricker,
+    if isinstance(x, pl.Series):
+        return len(
+            find_peaks_cwt(
+                vector=x.to_numpy(zero_copy_only=True),
+                widths=np.array(list(range(1, max_width + 1))),
+                wavelet=ricker,
+            )
         )
-    )
+    else:
+        return NotImplemented
 
 
 def partial_autocorrelation(x: TIME_SERIES_T, n_lags: int) -> float:
