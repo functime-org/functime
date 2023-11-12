@@ -3,7 +3,6 @@ import logging
 from functime.feature_reduction._feat_calculator import FeatureCalculator
 from functime.feature_reduction._dim_reducer import DimensionReducer
 
-
 class TimeSeriesProcessor:
     def __init__(self, features: str = "custom", model: str = "PCA"):
         self.feature_calculator = FeatureCalculator()
