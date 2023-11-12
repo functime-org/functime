@@ -11,8 +11,8 @@ from typing_extensions import Literal
 
 from functime.base import transformer
 from functime.base.model import ModelState
-from functime.seasonality import add_fourier_terms
 from functime.offsets import _strip_freq_alias
+from functime.seasonality import add_fourier_terms
 
 
 def PL_NUMERIC_COLS(*exclude):
@@ -75,10 +75,9 @@ def time_to_arange(eager: bool = False):
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
         time_range_expr = (
-            pl.int_ranges(0, pl.col(time_col).count())
+            pl.int_ranges(0, pl.col(time_col).count(), dtype=pl.UInt32)
             .over(entity_col)
             .alias(time_col)
-            .cast(pl.Int32)
         )
         other_cols = pl.all().exclude([entity_col, time_col])
         X_new = X.select([entity_col, time_range_expr, other_cols])
@@ -146,18 +145,10 @@ def trim(direction: Literal["both", "left", "right"] = "both"):
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
-        maxmin = (
-            X.group_by(entity_col)
-            .agg(pl.col(time_col).min())
-            .select(pl.col(time_col).max())
-        )
-        minmax = (
-            X.group_by(entity_col)
-            .agg(pl.col(time_col).max())
-            .select(pl.col(time_col).min())
-        )
-        start, end = pl.collect_all([minmax, maxmin])
-        start, end = start.item(), end.item()
+
+        start = pl.col(time_col).min().over(entity_col).max()
+        end = pl.col(time_col).max().over(entity_col).min()
+
         if direction == "both":
             expr = (pl.col(time_col) >= start) & (pl.col(time_col) <= end)
         elif direction == "left":
@@ -172,46 +163,47 @@ def trim(direction: Literal["both", "left", "right"] = "both"):
 
 
 @transformer
-def lag(lags: List[int], fill_strategy: Optional[str] = None):
-    """Applies lag transformation to a LazyFrame.
+def lag(lags: List[int], is_sorted:bool=False):
+    """Applies lag transformation to a LazyFrame. The time series is assumed to have no null values.
 
     Parameters
     ----------
     lags : List[int]
         A list of lag values to apply.
-    fill_strategy : Optional[str]
-        Strategy to fill nulls by. Nulls are not filled if None.
-        Supported strategies include: ["backward", "forward", "mean", "zero"].
+    is_sorted: bool
+        If already sorted by entity and time columns already, this won't sort again and can save some
+        time.
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col = X.columns[0]
         time_col = X.columns[1]
         max_lag = max(lags)
-        lagged_series = [
+        lagged_series = (
             (
                 pl.all()
                 .exclude([entity_col, time_col])
                 .shift(lag)
                 .over(entity_col)
-                .suffix(f"__lag_{lag}")
+                .name.suffix(f"__lag_{lag}")
             )
             for lag in lags
-        ]
+        )
+        if is_sorted:
+            X_new = X
+        else: # Pre-sorting seems to improve performance by ~20%
+            X_new = X.sort(by=[entity_col, time_col])
+
         X_new = (
-            # Pre-sorting seems to improve performance by ~20%
-            X.sort(by=[entity_col, time_col])
-            .select(
+            X_new.select(
                 pl.col(entity_col).set_sorted(),
                 pl.col(time_col).set_sorted(),
                 *lagged_series,
+            ).filter(
+                pl.col(time_col).arg_sort().over(entity_col) >= max_lag
             )
-            .group_by(entity_col)
-            .agg(pl.all().slice(max_lag))
-            .explode(pl.all().exclude(entity_col))
         )
-        if fill_strategy:
-            X_new = X_new.fill_null(strategy=fill_strategy)
+
         artifacts = {"X_new": X_new}
         return artifacts
 
