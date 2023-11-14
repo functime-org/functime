@@ -2697,3 +2697,13 @@ class FeatureExtractor:
         An expression of the output
         """
         return longest_losing_streak(self._expr)
+
+    def ratio_n_unique_to_length(self) -> pl.Expr:
+        """
+        Calculate the ratio of the number of unique values to the length of the time-series.
+
+        Returns
+        -------
+        An expression of the output
+        """
+        return ratio_n_unique_to_length(self._expr)
