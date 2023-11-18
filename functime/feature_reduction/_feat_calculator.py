@@ -5,6 +5,7 @@ from functime import feature_extractors as fe
 class FeatureCalculator:
     def __init__(self):
         self.features = []
+        self.X_features = None
 
     def add_feature(self, feature: str, params: dict):
         self.features.append(
@@ -33,18 +34,20 @@ class FeatureCalculator:
                 self.features.remove(x)
 
     def calculate_features(self, X: pl.DataFrame):
-        X_features = (
+        self.X_features = (
             X
             .transpose(include_header=True, header_name="id")
             .melt(id_vars="id")
             .group_by(
-                pl.col("id")
+                pl.col("id"),
+                maintain_order=True
             )
             .agg(
                 [
-                    getattr(pl.col("value").ts, x[0])().alias(x[0])
+                    getattr(pl.col("value").ts, x[0])(**x[1])
+                    .alias(f"{x[0]}{''.join(f'_{param}_{val}' for param, val in x[1].items())}")
                     for x in self.features
                 ]
             )
         )
-        return X_features
+        return self.X_features
