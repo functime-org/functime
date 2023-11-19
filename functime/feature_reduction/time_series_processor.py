@@ -4,7 +4,7 @@ from functime.feature_reduction._feat_calculator import FeatureCalculator
 from functime.feature_reduction._dim_reducer import DimensionReducer
 
 class features_dim_reduction:
-    def __init__(self, features: str = "default", model: str = "PCA"):
+    def __init__(self, features: str = "default", model: str = "PCA", format: str = "wide"):
         self.feature_calculator = FeatureCalculator()
         self.dimension_reducer = DimensionReducer()
         self.model = model
@@ -97,24 +97,37 @@ df = pl.DataFrame(
     {"a": s1, "b": s2, "c": s3, "d": s4, "e": s5, "f": s6}
 )
 
-ts_proc = features_dim_reduction(features= "default", model = "PCA")
+# ts_proc = features_dim_reduction(features= "default", model = "PCA")
 
-fitted_pca = (
-    ts_proc
-    .add_multi_features(
-        [
-            ["number_peaks", {"support": 2}],
-            ["mean_n_absolute_max", {"n_maxima": 10}]
-        ]
-    )
-    .fit(X = df)
-)
+# fitted_pca = (
+#     ts_proc
+#     .add_multi_features(
+#         [
+#             ["number_peaks", {"support": 2}],
+#             ["mean_n_absolute_max", {"n_maxima": 10}]
+#         ]
+#     )
+#     .fit(X = df)
+# )
 
-# Use sklearn parameters
-fitted_pca.explained_variance_ratio_
+# # Use sklearn parameters
+# fitted_pca.explained_variance_ratio_
 
-# Get the X_reduced
-X_reduced = ts_proc.X_reduced()
+# # Get the X_reduced
+# X_reduced = ts_proc.X_reduced()
 
-# Get the table of the features
-ts_proc.X_features()
+# # Get the table of the features
+# ts_proc.X_features()
+
+
+# df_res = (
+#     df
+#     .transpose(include_header=True, header_name="id")
+#     .melt(id_vars="id")
+#     .with_columns([
+#         pl.col("value").ts.number_peaks(support=2).over(pl.col("id")).alias("nb_peaks"),
+#         pl.col("value").ts.mean_n_absolute_max(n_maxima=10).over(pl.col("id")).alias("mean_abs")
+#     ])
+# )
+
+# print(df_res)

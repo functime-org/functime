@@ -33,21 +33,37 @@ class FeatureCalculator:
             for x in elem_to_rm:
                 self.features.remove(x)
 
-    def calculate_features(self, X: pl.DataFrame):
-        self.X_features = (
-            X
-            .transpose(include_header=True, header_name="id")
-            .melt(id_vars="id")
-            .group_by(
-                pl.col("id"),
-                maintain_order=True
+    def calculate_features(self, X: pl.DataFrame, format: str = "wide"):
+        if format == "wide":
+            self.X_features = (
+                X
+                .transpose(include_header=True, header_name="id")
+                .melt(id_vars="id")
+                .group_by(
+                    pl.col("id"),
+                    maintain_order=True
+                )
+                .agg(
+                    [
+                        getattr(pl.col("value").ts, x[0])(**x[1])
+                        .alias(f"{x[0]}{''.join(f'_{param}_{val}' for param, val in x[1].items())}")
+                        for x in self.features
+                    ]
+                )
             )
-            .agg(
-                [
-                    getattr(pl.col("value").ts, x[0])(**x[1])
-                    .alias(f"{x[0]}{''.join(f'_{param}_{val}' for param, val in x[1].items())}")
-                    for x in self.features
-                ]
+        elif format == "long":
+            self.X_features = (
+                X
+                .group_by(
+                    pl.col("id"),
+                    maintain_order=True
+                )
+                .agg(
+                    [
+                        getattr(pl.col("value").ts, x[0])(**x[1])
+                        .alias(f"{x[0]}{''.join(f'_{param}_{val}' for param, val in x[1].items())}")
+                        for x in self.features
+                    ]
+                )
             )
-        )
         return self.X_features
