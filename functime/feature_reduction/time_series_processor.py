@@ -73,6 +73,7 @@ class features_dim_reduction:
             logger.info(
                 "The dimension algorithm requested has not been implemented yet."
             )
+            sys.exit(1)
     
     def fit_transform(self, X: pl.DataFrame, dim: int = 2, **kwargs)-> pl.DataFrame:
         id = X.columns[0]
@@ -95,38 +96,39 @@ class features_dim_reduction:
             logger.info(
                 "The dimension algorithm requested has not been implemented yet."
             )
+            sys.exit(1)
 
 
 
-df = pl.read_parquet("data/sp500.parquet")
-ts_proc = features_dim_reduction(model = "PCA")
+# df = pl.read_parquet("data/sp500.parquet")
+# ts_proc = features_dim_reduction(model = "PCA")
 
-fitted_pca = (
-    ts_proc
-    .add_multi_features(
-        [
-            ["number_peaks", {"support": 2}],
-            ["number_peaks", {"support": 2}],
-            ["mean_n_absolute_max", {"n_maxima": 10}],
-            ["max"]
-        ]
-    )
-    .add_feature(
-        feature="number_peaks",
-        params = {"support": 4}
-    )
-    .fit(X = df, dim = 3)
-)
+# fitted_pca = (
+#     ts_proc
+#     .add_multi_features(
+#         [
+#             ["number_peaks", {"support": 2}],
+#             ["number_peaks", {"support": 2}],
+#             ["mean_n_absolute_max", {"n_maxima": 10}],
+#             ["max"]
+#         ]
+#     )
+#     .add_feature(
+#         feature="number_peaks",
+#         params = {"support": 4}
+#     )
+#     .fit(X = df, dim = 3)
+# )
 
-print(fitted_pca)
+# print(fitted_pca)
 
-# # Use sklearn parameters
-print(fitted_pca.explained_variance_ratio_)
+# # # Use sklearn parameters
+# print(fitted_pca.explained_variance_ratio_)
 
-# Get the X_reduced
-X_reduced = ts_proc.X_reduced()
-print(X_reduced)
+# # Get the X_reduced
+# X_reduced = ts_proc.X_reduced()
+# print(X_reduced)
 
-# Get the table of the features
-print(ts_proc.X_features())
+# # Get the table of the features
+# print(ts_proc.X_features())
 
