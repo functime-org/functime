@@ -1,10 +1,13 @@
 import polars as pl
 import logging
+import sys
 from functime.feature_reduction._feat_calculator import FeatureCalculator
 from functime.feature_reduction._dim_reducer import DimensionReducer
 
+logger = logging.getLogger(__name__)
+
 class features_dim_reduction:
-    def __init__(self, features: str = "default", model: str = "PCA", format: str = "wide"):
+    def __init__(self, features: str = "", model: str = "PCA"):
         self.feature_calculator = FeatureCalculator()
         self.dimension_reducer = DimensionReducer()
         self.model = model
@@ -12,12 +15,16 @@ class features_dim_reduction:
         if features == "default":
             self.feature_calculator.add_multi_features(
                 [
+                    ["number_peaks", {"support": 2}],
+                    ["mean_n_absolute_max", {"n_maxima": 10}],
                     ["root_mean_square", {}],
                     ["count_above_mean", {}],
                     ["first_location_of_minimum", {}],
                     ["first_location_of_maximum", {}]
                 ]
             )
+        elif features == "all":
+            pass
 
     def add_feature(self, feature: str, params: dict = {}):
         self.feature_calculator.add_feature(feature, params)
@@ -38,17 +45,19 @@ class features_dim_reduction:
         return self.feature_calculator.X_features
     
     def X_reduced(self):
+        id = self.feature_calculator.X_features.columns[0]
         return self.dimension_reducer.state_model.transform(
             self.feature_calculator.X_features.select(
-                pl.exclude("id")
+                pl.exclude(id)
             )
         )
     
     def fit(self, X: pl.DataFrame, dim: int = 2, **kwargs):
+        id = X.columns[0]
         X_features = (
             self.calculate_features(X)
             .select(
-                pl.exclude("id")
+                pl.exclude(id)
             )
         )
         if self.model == "PCA":
@@ -61,15 +70,16 @@ class features_dim_reduction:
         elif self.model == "TSNE":
             pass
         else:
-            logging.info(
+            logger.info(
                 "The dimension algorithm requested has not been implemented yet."
             )
     
     def fit_transform(self, X: pl.DataFrame, dim: int = 2, **kwargs)-> pl.DataFrame:
+        id = X.columns[0]
         X_features = (
             self.calculate_features(X)
             .select(
-                pl.exclude("id")
+                pl.exclude(id)
             )
         )
         if self.model == "PCA":
@@ -82,52 +92,41 @@ class features_dim_reduction:
         elif self.model == "TSNE":
             pass
         else:
-            logging.info(
+            logger.info(
                 "The dimension algorithm requested has not been implemented yet."
             )
 
-s1 = pl.Series([1,2,3,4,5]*10000)
-s2 = pl.Series([1,2,3,3,3]*10000)
-s3 = pl.Series([1,2,3,4,5]*10000)
-s4 = pl.Series([1,2,3,3,3]*10000)
-s5 = pl.Series([1,2,3,4,5]*10000)
-s6 = pl.Series([1,2,3,3,3]*10000)
 
-df = pl.DataFrame(
-    {"a": s1, "b": s2, "c": s3, "d": s4, "e": s5, "f": s6}
+
+df = pl.read_parquet("data/sp500.parquet")
+ts_proc = features_dim_reduction(model = "PCA")
+
+fitted_pca = (
+    ts_proc
+    .add_multi_features(
+        [
+            ["number_peaks", {"support": 2}],
+            ["number_peaks", {"support": 2}],
+            ["mean_n_absolute_max", {"n_maxima": 10}],
+            ["max"]
+        ]
+    )
+    .add_feature(
+        feature="number_peaks",
+        params = {"support": 4}
+    )
+    .fit(X = df, dim = 3)
 )
 
-# ts_proc = features_dim_reduction(features= "default", model = "PCA")
-
-# fitted_pca = (
-#     ts_proc
-#     .add_multi_features(
-#         [
-#             ["number_peaks", {"support": 2}],
-#             ["mean_n_absolute_max", {"n_maxima": 10}]
-#         ]
-#     )
-#     .fit(X = df)
-# )
+print(fitted_pca)
 
 # # Use sklearn parameters
-# fitted_pca.explained_variance_ratio_
+print(fitted_pca.explained_variance_ratio_)
 
-# # Get the X_reduced
-# X_reduced = ts_proc.X_reduced()
+# Get the X_reduced
+X_reduced = ts_proc.X_reduced()
+print(X_reduced)
 
-# # Get the table of the features
-# ts_proc.X_features()
+# Get the table of the features
+print(ts_proc.X_features())
 
-
-# df_res = (
-#     df
-#     .transpose(include_header=True, header_name="id")
-#     .melt(id_vars="id")
-#     .with_columns([
-#         pl.col("value").ts.number_peaks(support=2).over(pl.col("id")).alias("nb_peaks"),
-#         pl.col("value").ts.mean_n_absolute_max(n_maxima=10).over(pl.col("id")).alias("mean_abs")
-#     ])
-# )
-
-# print(df_res)
