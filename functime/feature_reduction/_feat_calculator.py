@@ -5,18 +5,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class FeatureCalculator:
     def __init__(self):
         self.features = []
         self.X_features = None
 
     def add_feature(self, feature: str, params: dict):
-        self.features.append(
-            [
-                feature,
-                params
-            ]
-        )
+        self.features.append([feature, params])
 
     @staticmethod
     def _clean_feature(x: list[str, dict] | list[str]):
@@ -42,17 +38,14 @@ class FeatureCalculator:
             if self._clean_feature(x):
                 features[i].append({})
             if 0 < len(x) <= 2:
-                self._check_feature(feat_name = x[0])
+                self._check_feature(feat_name=x[0])
             if features.count(x) > 1:
                 features.remove(x)
-        
+
         self.features += features
 
     def rm_feature(self, feature):
-        elem_to_rm = [
-            sub for sub in self.features 
-            if sub[0] == feature
-        ]
+        elem_to_rm = [sub for sub in self.features if sub[0] == feature]
         if len(elem_to_rm) > 0:
             for x in elem_to_rm:
                 self.features.remove(x)
@@ -60,24 +53,22 @@ class FeatureCalculator:
     def calculate_features(self, X: pl.DataFrame):
         id = X.columns[0]
         feat_values = X.columns[-1]
-        feat_agg = [
-            getattr(pl.col(feat_values).ts, x[0])(**x[1])
-            .alias(f"{x[0]}{''.join(f'_{param}_{val}' for param, val in x[1].items())}")
-            if hasattr(FeatureExtractor, x[0])
-            else
-            getattr(pl.col(feat_values), x[0])(**x[1])
-            .alias(f"{x[0]}{''.join(f'_{param}_{val}' for param, val in x[1].items())}")
-            for x in self.features
-        ]
         self.X_features = (
             X
-            .group_by(
-                pl.col(id),
-                maintain_order=True
-            )
+            .group_by(pl.col(id), maintain_order=True)
             .agg(
-                feat_agg
+                [
+                    getattr(pl.col(feat_values).ts, x[0])(**x[1])
+                    .alias(
+                        f"{x[0]}{''.join(f'_{param}_{val}' for param, val in x[1].items())}"
+                    )
+                    if hasattr(FeatureExtractor, x[0])
+                    else getattr(pl.col(feat_values), x[0])(**x[1])
+                    .alias(
+                        f"{x[0]}{''.join(f'_{param}_{val}' for param, val in x[1].items())}"
+                    )
+                    for x in self.features
+                ]
             )
         )
-        print(self.X_features)
         return self.X_features
