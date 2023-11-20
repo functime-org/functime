@@ -53,7 +53,12 @@ class features_dim_reduction:
 
     def fit(self, X: pl.DataFrame, dim: int = 2, **kwargs):
         id = X.columns[0]
-        X_features = self.calculate_features(X).select(pl.exclude(id))
+        X_features = (
+            self.calculate_features(X)
+            .select(
+                pl.exclude(id)
+            )
+        )
         if self.model == "PCA":
             self.dimension_reducer.fit_pca(X_features, dim, **kwargs)
             return self.dimension_reducer.state_model
@@ -67,7 +72,12 @@ class features_dim_reduction:
 
     def fit_transform(self, X: pl.DataFrame, dim: int = 2, **kwargs) -> pl.DataFrame:
         id = X.columns[0]
-        X_features = self.calculate_features(X).select(pl.exclude(id))
+        X_features = (
+            self.calculate_features(X)
+            .select(
+                pl.exclude(id)
+            )
+        )
         if self.model == "PCA":
             self.dimension_reducer.fit_pca(X_features, dim, **kwargs)
             return self.dimension_reducer.state_model.transform(X_features)
