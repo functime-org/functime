@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = {version = "0.20.0", features = ["extension-module"]}
-pyo3-polars = {version = "0.8.0", features = ["derive"]}
+pyo3-polars = {version = "0.9.0", features = ["derive"]}
 polars = {version = "*", features = ["fmt", "performant", "chunked_ids", "lazy", "zip_with", "random"]}
 polars-core = "*"
 polars-lazy = "*"
