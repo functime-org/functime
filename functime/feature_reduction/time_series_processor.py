@@ -1,4 +1,5 @@
 import polars as pl
+import _static
 import logging
 import sys
 from functime.feature_reduction._feat_calculator import FeatureCalculator
@@ -8,21 +9,14 @@ logger = logging.getLogger(__name__)
 
 
 class features_dim_reduction:
-    def __init__(self, features: str = "", model: str = "PCA"):
+    def __init__(self, features: str = "all_small", model: str = "PCA"):
         self.feature_calculator = FeatureCalculator()
         self.dimension_reducer = DimensionReducer()
         self.model = model
 
-        if features == "default":
+        if features == "all_small":
             self.feature_calculator.add_multi_features(
-                [
-                    ["number_peaks", {"support": 2}],
-                    ["mean_n_absolute_max", {"n_maxima": 10}],
-                    ["root_mean_square", {}],
-                    ["count_above_mean", {}],
-                    ["first_location_of_minimum", {}],
-                    ["first_location_of_maximum", {}],
-                ]
+                _static.ALL_SMALL
             )
         elif features == "all":
             pass
@@ -90,25 +84,13 @@ class features_dim_reduction:
             sys.exit(1)
 
 
-# df = pl.read_parquet("data/sp500.parquet")
-# ts_proc = features_dim_reduction(model = "PCA")
+df = pl.read_parquet("data/sp500.parquet")
+ts_proc = features_dim_reduction(model = "PCA")
 
-# fitted_pca = (
-#     ts_proc
-#     .add_multi_features(
-#         [
-#             ["number_peaks", {"support": 2}],
-#             ["number_peaks", {"support": 2}],
-#             ["mean_n_absolute_max", {"n_maxima": 10}],
-#             ["max"]
-#         ]
-#     )
-#     .add_feature(
-#         feature="number_peaks",
-#         params = {"support": 4}
-#     )
-#     .fit(X = df, dim = 3)
-# )
+fitted_pca = (
+    ts_proc
+    .fit(X = df, dim = 3)
+)
 
 # print(fitted_pca)
 
