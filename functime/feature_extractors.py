@@ -2186,7 +2186,7 @@ class FeatureExtractor:
         -------
         An expression of the output
         """
-        return index_mass_quantile(self._expr)
+        return index_mass_quantile(self._expr, q)
 
     def large_standard_deviation(self, ratio: float = 0.25) -> pl.Expr:
         """
