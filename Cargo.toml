@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = {version = "0.20.0", features = ["extension-module"]}
 pyo3-polars = {version = "0.9.0", features = ["derive"]}
-polars = {version = "0.35.2", features = ["rolling_window", "fmt", "performant", "chunked_ids", "lazy", "zip_with", "random"]}
+polars = {version = "0.35.2", features = ["rolling_window", "fmt", "performant", "chunked_ids", "lazy", "zip_with", "random", "pct_change"]}
 faer = {version = "0.14.1", features = ["ndarray"]}
 ndarray = "0.15.6"
 numpy = "0.20.0"
