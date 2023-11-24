@@ -5,4 +5,4 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-from functime.feature_extractors import FeatureExtractors
+from functime.feature_extractors import FeatureExtractor
