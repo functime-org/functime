@@ -815,7 +815,7 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     -------
     float | Expr
     """
-    x_cumsum = x.abs().cumsum().set_sorted()
+    x_cumsum = x.abs().cum_sum().set_sorted()
     if isinstance(x, pl.Series):
         if x.is_integer():
             idx = x_cumsum.search_sorted(int(q * x_cumsum[-1]) + 1, "left")
@@ -1330,13 +1330,13 @@ def permutation_entropy(
             max_shift = -n_dims + 1
             return (
                 pl.concat_list(
-                    x.take_every(tau),
-                    *(x.shift(-i).take_every(tau) for i in range(1, n_dims)),
+                    x.gather_every(tau),
+                    *(x.shift(-i).gather_every(tau) for i in range(1, n_dims)),
                 )
                 .filter(  # This is the correct way to filter (with respect to tau) in this case.
                     pl.repeat(True, x.len())
                     .shift(max_shift, fill_value=False)
-                    .take_every(tau)
+                    .gather_every(tau)
                 )
                 .list.eval(
                     pl.element().arg_sort()
