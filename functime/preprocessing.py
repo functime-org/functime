@@ -549,7 +549,7 @@ def diff(order: int, sp: int = 1, fill_strategy: Optional[str] = None):
                 [
                     entity_col,
                     time_col,
-                    PL_NUMERIC_COLS(entity_col, time_col).cumsum().over(entity_col),
+                    PL_NUMERIC_COLS(entity_col, time_col).cum_sum().over(entity_col),
                 ]
             )
 
