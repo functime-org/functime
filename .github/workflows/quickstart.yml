@@ -31,4 +31,6 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install .
       - name: Run Quickstart
-        run: python docs/code/quickstart.py
+        run: |
+          python docs/code/quickstart.py
+          python docs/code/feature_engineering.py
