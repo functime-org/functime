@@ -9,7 +9,7 @@ Check out the [API reference](ref/feature-extraction.md) for a list of supported
 Every feature is easily accessible via `functime`'s custom `ts` (time-series) namespace, which works with any `Polars` Series or expression. To register the custom `ts` `Polars` namespace, you must first import `functime`.
 
 ```python
-import polar as pl
+import polars as pl
 import numpy as np
 import functime
 
