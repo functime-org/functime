@@ -1,40 +1,44 @@
 import polars as pl
-import _static
+import functime.feature_reduction._utils as _utils
 import logging
 import sys
 from functime.feature_reduction._feat_calculator import FeatureCalculator
 from functime.feature_reduction._dim_reducer import DimensionReducer
 
+
+
 logger = logging.getLogger(__name__)
 
 
 class features_dim_reduction:
-    def __init__(self, features: str = "all_small", model: str = "PCA"):
-        self.feature_calculator = FeatureCalculator()
+    def __init__(self, col_values: str, model: str = "PCA", precompute_feat: str = ""):
+        self.feature_calculator = FeatureCalculator(col_values)
         self.dimension_reducer = DimensionReducer()
         self.model = model
 
-        if features == "all_small":
+        if precompute_feat == "small":
             self.feature_calculator.add_multi_features(
-                _static.ALL_SMALL
+                _utils.get_small(col_values)
             )
-        elif features == "all":
-            pass
+        elif precompute_feat == "medium":
+            self.feature_calculator.add_multi_features(
+                _utils.get_medium(col_values)
+            )
+        elif precompute_feat == "large":
+            self.feature_calculator.add_multi_features(
+                _utils.get_large(col_values)
+            )
 
-    def add_feature(self, feature: str, params: dict = {}):
-        self.feature_calculator.add_feature(feature, params)
+    def add_feature(self, feature: pl.Expr | pl.Struct):
+        self.feature_calculator.add_feature(feature)
         return self
 
-    def add_multi_features(self, features: list[list[str, dict]]):
+    def add_multi_features(self, features: list[pl.Expr | pl.Struct]):
         self.feature_calculator.add_multi_features(features)
         return self
 
-    def rm_feature(self, feature: str):
-        self.feature_calculator.rm_feature(feature)
-        return self
-
     def calculate_features(self, X: pl.DataFrame) -> pl.DataFrame:
-        return self.feature_calculator.calculate_features(X=X)
+        return self.feature_calculator.calculate_features(X = X)
 
     def X_features(self):
         return self.feature_calculator.X_features
@@ -85,17 +89,17 @@ class features_dim_reduction:
 
 
 df = pl.read_parquet("data/sp500.parquet")
-ts_proc = features_dim_reduction(model = "PCA")
+ts_proc = features_dim_reduction(model = "PCA", col_values = "price", precompute_feat="small")
 
 fitted_pca = (
     ts_proc
     .fit(X = df, dim = 3)
 )
 
-# print(fitted_pca)
+print(fitted_pca)
 
-# # # Use sklearn parameters
-# print(fitted_pca.explained_variance_ratio_)
+# # Use sklearn parameters
+print(fitted_pca.explained_variance_ratio_)
 
 # # Get the X_reduced
 # X_reduced = ts_proc.X_reduced()
