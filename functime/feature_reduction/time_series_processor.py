@@ -4,7 +4,7 @@ import logging
 import sys
 from functime.feature_reduction._feat_calculator import FeatureCalculator
 from functime.feature_reduction._dim_reducer import DimensionReducer
-
+import plotly.express as px
 
 
 logger = logging.getLogger(__name__)
@@ -29,21 +29,21 @@ class features_dim_reduction:
                 _utils.get_large(col_values)
             )
 
-    def add_feature(self, feature: pl.Expr | pl.Struct):
+    def add_feature(self, feature: pl.Expr):
         self.feature_calculator.add_feature(feature)
         return self
 
-    def add_multi_features(self, features: list[pl.Expr | pl.Struct]):
+    def add_multi_features(self, features: list[pl.Expr]):
         self.feature_calculator.add_multi_features(features)
         return self
 
     def calculate_features(self, X: pl.DataFrame) -> pl.DataFrame:
         return self.feature_calculator.calculate_features(X = X)
 
-    def X_features(self):
+    def X_features(self)-> pl.DataFrame:
         return self.feature_calculator.X_features
 
-    def X_reduced(self):
+    def X_reduced(self)-> pl.DataFrame:
         id = self.feature_calculator.X_features.columns[0]
         return self.dimension_reducer.state_model.transform(
             self.feature_calculator.X_features.select(pl.exclude(id))
@@ -88,8 +88,15 @@ class features_dim_reduction:
             sys.exit(1)
 
 
-df = pl.read_parquet("data/sp500.parquet")
-ts_proc = features_dim_reduction(model = "PCA", col_values = "price", precompute_feat="small")
+df = pl.read_parquet("data/commodities.parquet").with_columns(
+    (pl.col("price")-pl.col("price").mean())/pl.col("price").std()
+).filter(
+    pl.col("commodity_type").is_in(["Tin", "Nickel", "Copper"]).not_()
+)
+
+
+print(df)
+ts_proc = features_dim_reduction(model = "PCA", col_values = "price", precompute_feat="medium")
 
 fitted_pca = (
     ts_proc
@@ -101,9 +108,22 @@ print(fitted_pca)
 # # Use sklearn parameters
 print(fitted_pca.explained_variance_ratio_)
 
-# # Get the X_reduced
-# X_reduced = ts_proc.X_reduced()
-# print(X_reduced)
+# Get the X_reduced
+X_reduced = ts_proc.X_reduced()
+print(X_reduced)
 
-# # Get the table of the features
-# print(ts_proc.X_features())
+# Get the table of the features
+X_feat = ts_proc.X_features()
+
+df_pca = pl.DataFrame({
+    "id": X_feat["commodity_type"],
+    "PC1": X_reduced[:, 0], 
+    "PC2": X_reduced[:, 1],
+    "PC3": X_reduced[:, 2]
+})
+
+fig = px.scatter_3d(df_pca, x='PC1', y='PC2', z='PC3', color='id', title='PCA 3D Plot with Tickers')
+
+fig.show()
+
+

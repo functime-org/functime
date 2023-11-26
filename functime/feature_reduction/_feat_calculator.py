@@ -13,13 +13,13 @@ class FeatureCalculator:
         self.X_features = None
         self.col_values = col_values
 
-    def add_feature(self, feature: pl.Expr | pl.Struct):
+    def add_feature(self, feature: pl.Expr):
         self.features.append(feature)
 
-    def add_multi_features(self, features: list[pl.Expr | pl.Struct]):
+    def add_multi_features(self, features: list[pl.Expr]):
         self.features += features
 
-    def calculate_features(self, X: pl.DataFrame):
+    def calculate_features(self, X: pl.DataFrame)-> pl.DataFrame:
         id = X.columns[0]
         self.X_features = (
             X
@@ -27,7 +27,7 @@ class FeatureCalculator:
             .agg(
                 self.features
             )
-        )
+        ).cast({cs.numeric(): pl.Float64, cs.by_dtype(pl.Boolean): pl.Float64})
         ## Need to add postprocessing steps because explode() doesn't within group_by
-        #print(self.X_features.unnest(~cs.numeric() & ~cs.string() & ~cs.by_dtype(pl.Boolean)))
+        #self.X_features.unnest(~cs.numeric() & ~cs.string() & ~cs.by_dtype(pl.Boolean))
         return self.X_features
