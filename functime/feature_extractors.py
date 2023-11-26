@@ -2707,7 +2707,7 @@ class FeatureExtractor:
         """
         return ratio_n_unique_to_length(self._expr)
 
-    def cusum_filter(
+    def cusum(
         self,
         threshold: float,
         warmup_period: int,
@@ -2741,7 +2741,7 @@ class FeatureExtractor:
         """
         return self._expr.register_plugin(
             lib=lib,
-            symbol="cusum_filter",
+            symbol="cusum",
             kwargs={
                 "threshold": threshold,
                 "drift": drift,
