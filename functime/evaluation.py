@@ -72,7 +72,7 @@ def acf_formula(x: pl.Expr, max_lags: int) -> List[pl.Expr]:
 
 def acf_confint_formula(acf: pl.Expr, length: pl.Expr, ppf: float) -> pl.Expr:
     # Calculate variance using Bartlett's formula
-    var_acf = (1 + 2 * (acf**2).cumsum()).alias("var")
+    var_acf = (1 + 2 * (acf**2).cum_sum()).alias("var")
     intervals = ppf * ((1.0 / length) * var_acf).sqrt().cast(pl.Float32)
     return intervals.alias("interval")
 
@@ -148,7 +148,7 @@ def ljung_box_test(X: pl.DataFrame, max_lags: int):
         return [*acf_sqr_ratio, n.alias("length")]
 
     def _qstat_ljung_box(acf: pl.Expr, length: pl.Expr):
-        qstats = length * (length + 2) * acf.cumsum()
+        qstats = length * (length + 2) * acf.cum_sum()
         return qstats.alias("qstats")
 
     entity_col, _, target_col = X.columns[:3]

@@ -106,7 +106,7 @@ Every feature is easily accessible via `functime`'s custom `ts` (time-series) na
 To register the custom `ts` `Polars` namespace, you must first import `functime`!
 
 ```python
-import polar as pl
+import polars as pl
 import numpy as np
 import functime
 

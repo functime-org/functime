@@ -290,7 +290,7 @@ def plot_backtests(
             col=col,
         )
 
-    template = kwargs.pop("template", "plotly_white")
+    template = kwargs.pop("template", "plotly_white")  # noqa: F841
 
     fig.update_layout(**kwargs)
     fig = _remove_legend_duplicates(fig)

@@ -30,7 +30,7 @@ struct CusumKwargs {
 /// This function will return an error if the inputs cannot be converted to a f64 series.
 ///
 #[polars_expr(output_type=Int32)]
-pub fn cusum_filter(inputs: &[Series], kwargs: CusumKwargs) -> PolarsResult<Series> {
+pub fn cusum(inputs: &[Series], kwargs: CusumKwargs) -> PolarsResult<Series> {
     let values = inputs[0].f64()?;
 
     let mut events: Vec<i32> = Vec::with_capacity(values.len());

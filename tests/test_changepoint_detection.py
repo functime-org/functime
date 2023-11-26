@@ -3,14 +3,14 @@ import polars as pl
 
 
 def test__cusum_filter():
-    vals = list(np.random.default_rng().normal(0.0, 0.1, 150))
-    vals_2 = list(np.random.default_rng().normal(0.2, 0.2, 50))
+    vals = list(np.random.default_rng(seed=0).normal(0.0, 0.1, 150))
+    vals_2 = list(np.random.default_rng(seed=0).normal(0.2, 0.2, 50))
 
     df = pl.DataFrame({"data": vals + vals_2})
 
     df = df.with_columns(
         pl.col("data")
-        .ts.cusum_filter(threshold=8.0, drift=1.0, warmup_period=50)
+        .ts.cusum(threshold=5.0, drift=1.0, warmup_period=50)
         .alias("cusum_event")
     )
     changepoint = (

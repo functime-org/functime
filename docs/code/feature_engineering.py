@@ -1,14 +1,3 @@
-# Feature Extraction
-
-`functime` has over 100+ time-series feature extractors (e.g. `binned_entropy`, `longest_streak_above_mean`) available for any `Polars` Series. Approximately 85% of the implementations are optimized lazy queries and works on both `polars.Series` and `polars.Expr`.
-
-Check out the [API reference](ref/feature-extraction.md) for a list of supported feature extractors.
-
-## Usage Examples
-
-Every feature is easily accessible via `functime`'s custom `ts` (time-series) namespace, which works with any `Polars` Series or expression. To register the custom `ts` `Polars` namespace, you must first import `functime`.
-
-```python
 import polars as pl
 import numpy as np
 import functime
@@ -64,5 +53,3 @@ features = (
         pl.col("value").ts.longest_streak_above_mean(),
     )
 )
-
-```
