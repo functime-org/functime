@@ -5,8 +5,8 @@ from typing import Dict, List, Mapping
 from typing_extensions import Literal
 
 try:
-    import openai
     import tiktoken
+    from openai import OpenAI
     from tenacity import retry, stop_after_attempt, wait_random_exponential
 except ModuleNotFoundError as e:
     raise ImportError(
@@ -14,11 +14,12 @@ except ModuleNotFoundError as e:
     ) from e
 
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
-if openai.api_key is None:
+openai_key = os.getenv("OPENAI_API_KEY")
+if openai_key is None:
     raise ValueError(
         "OPENAI_API_KEY environment variable must be set to use the `llm` feature."
     )
+client = OpenAI(api_key=openai_key)
 
 MODEL_T = Literal["gpt-3.5-turbo", "gpt-4", "gpt-3.5-turbo-16k", "gpt-4-32k"]
 
@@ -75,10 +76,10 @@ def openai_call(
             f"Prompt exceeds token limit for model {model}. Checking with larger model..."
         )
         model = next_model
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model=model, messages=messages, temperature=temperature, **kwargs
     )
-    return response["choices"][0]["message"]["content"].strip()
+    return response.choices[0].message.content.strip()
 
 
 def _openai_count_tokens(
