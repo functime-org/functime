@@ -35,7 +35,18 @@ jobs:
             ${{ runner.os }}-lfs-
 
       - name: Git LFS Pull
-        run: git lfs pull
+        run: >
+          git lfs pull
+            --include=m5_y_train_sample.parquet
+            --include=m5_X_train_sample.parquet
+            --include=m5_y_test_sample.parquet
+            --include=m5_X_test_sample.parquet
+            --include=m4_1d_train.parquet
+            --include=m4_1d_test.parquet
+            --include=m4_1w_train.parquet
+            --include=m4_1w_test.parquet
+            --include=m4_3mp_train.parquet
+            --include=m4_3mo_test.parquet
 
       - name: Set up Rust
         run: rustup show
