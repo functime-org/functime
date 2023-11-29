@@ -239,10 +239,10 @@ def m5_dataset():
     n_samples = 30
 
     # Load data
-    y_train = pl.read_parquet("data/m5_y_train.parquet")
-    X_train = pl.read_parquet("data/m5_X_train.parquet")
-    y_test = pl.read_parquet("data/m5_y_test.parquet")
-    X_test = pl.read_parquet("data/m5_X_test.parquet")
+    y_train = pl.read_parquet("data/m5_y_train_sample.parquet")
+    X_train = pl.read_parquet("data/m5_X_train_sample.parquet")
+    y_test = pl.read_parquet("data/m5_y_test_sample.parquet")
+    X_test = pl.read_parquet("data/m5_X_test_sample.parquet")
 
     # Check series lengths
     entity_col, time_col, value_col = y_train.columns[:3]
