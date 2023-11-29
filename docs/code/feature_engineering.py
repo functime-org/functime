@@ -1,6 +1,6 @@
 import polars as pl
 import numpy as np
-import functime
+from functime.feature_extractors import FeatureExtractor
 
 # Load commodities price data
 y = pl.read_parquet("https://github.com/neocortexdb/functime/raw/main/data/commodities.parquet")
