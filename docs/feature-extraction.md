@@ -11,7 +11,7 @@ Every feature is easily accessible via `functime`'s custom `ts` (time-series) na
 ```python
 import polars as pl
 import numpy as np
-from functime.feature_extractors import FeatureExtractor
+from functime.feature_extractors import FeatureExtractor, binned_entropy
 
 # Load commodities price data
 y = pl.read_parquet("https://github.com/TracecatHQ/functime/raw/main/data/commodities.parquet")
@@ -20,9 +20,9 @@ y = pl.read_parquet("https://github.com/TracecatHQ/functime/raw/main/data/commod
 entity_col, time_col, value_col = y.columns
 
 # Extract a single feature from a single time-series
-binned_entropy = (
-    pl.Series(np.random.normal(0, 1, size=10))
-    .ts.binned_entropy(bin_count=10)
+binned_entropy = binned_entropy(
+    pl.Series(np.random.normal(0, 1, size=10)),
+    bin_count=10
 )
 
 # 🔥 Also works on LazyFrames with query optimization
@@ -36,6 +36,7 @@ features = (
         pl.col("value").ts.lempel_ziv_complexity(threshold=3),
         pl.col("value").ts.longest_streak_above_mean(),
     )
+    .collect()
 )
 
 # 🚄 Extract features blazingly fast on many
