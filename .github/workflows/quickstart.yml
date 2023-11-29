@@ -47,5 +47,6 @@ jobs:
           python3 -m pip install --upgrade pip
       - name: Run Quickstart
         run: |
+          source venv/bin/activate
           python docs/code/quickstart.py
           python docs/code/feature_engineering.py
