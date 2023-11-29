@@ -3,7 +3,7 @@ import numpy as np
 from functime.feature_extractors import FeatureExtractor
 
 # Load commodities price data
-y = pl.read_parquet("https://github.com/neocortexdb/functime/raw/main/data/commodities.parquet")
+y = pl.read_parquet("https://github.com/TracecatHQ/functime/raw/main/data/commodities.parquet")
 
 # Get column names ("commodity_type", "time", "price")
 entity_col, time_col, value_col = y.columns

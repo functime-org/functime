@@ -33,7 +33,7 @@ from functime.seasonality import add_calendar_effects
 
 
 # Load data
-y = pl.read_parquet("https://github.com/neocortexdb/functime/raw/main/data/commodities.parquet")
+y = pl.read_parquet("https://github.com/TracecatHQ/functime/raw/main/data/commodities.parquet")
 entity_col, time_col = y.columns[:2]
 X = (
     y.select([entity_col, time_col])
