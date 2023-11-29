@@ -129,10 +129,11 @@ features = (
         "value": np.random.normal(0, 1, size=10)
     })
     .select(
-        pl.col("value").ts.binned_entropy(bin_count=10),
-        pl.col("value").ts.lempel_ziv_complexity(threshold=3),
-        pl.col("value").ts.longest_streak_above_mean(),
+        binned_entropy=pl.col("value").ts.binned_entropy(bin_count=10),
+        lempel_ziv_complexity=pl.col("value").ts.lempel_ziv_complexity(threshold=3),
+        longest_streak_above_mean=pl.col("value").ts.longest_streak_above_mean(),
     )
+    .collect()
 )
 
 # 🚄 Extract features blazingly fast on many
@@ -140,11 +141,10 @@ features = (
 features = (
     y.group_by(entity_col)
     .agg(
-        pl.col(value_col).ts.binned_entropy(bin_count=10),
-        pl.col(value_col).ts.lempel_ziv_complexity(threshold=3),
-        pl.col(value_col).ts.longest_streak_above_mean(),
+        binned_entropy=pl.col(value_col).ts.binned_entropy(bin_count=10),
+        lempel_ziv_complexity=pl.col(value_col).ts.lempel_ziv_complexity(threshold=3),
+        longest_streak_above_mean=pl.col(value_col).ts.longest_streak_above_mean(),
     )
-    .collect()
 )
 
 # 🚄 Extract features blazingly fast on windows
@@ -156,10 +156,10 @@ features = (
         every="12mo",
         by=entity_col,
     )
-    .select(
-        pl.col(value_col).ts.binned_entropy(bin_count=10),
-        pl.col(value_col).ts.lempel_ziv_complexity(threshold=3),
-        pl.col(value_col).ts.longest_streak_above_mean(),
+    .agg(
+        binned_entropy=pl.col(value_col).ts.binned_entropy(bin_count=10),
+        lempel_ziv_complexity=pl.col(value_col).ts.lempel_ziv_complexity(threshold=3),
+        longest_streak_above_mean=pl.col(value_col).ts.longest_streak_above_mean(),
     )
 )
 
