@@ -48,8 +48,8 @@ features = (
         by=entity_col,
     )
     .select(
-        pl.col("value").ts.binned_entropy(bin_count=10),
-        pl.col("value").ts.lempel_ziv_complexity(threshold=3),
-        pl.col("value").ts.longest_streak_above_mean(),
+        pl.col(value_col).ts.binned_entropy(bin_count=10),
+        pl.col(value_col).ts.lempel_ziv_complexity(threshold=3),
+        pl.col(value_col).ts.longest_streak_above_mean(),
     )
 )
