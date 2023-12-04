@@ -320,7 +320,7 @@ def pd_fractional_diff(df, d, thres):
     )
 
 
-def test_fractional_diff(pd_X):
+def test_fractional_diff_plugin(pd_X):
     if len(pd_X) > 250:
         assert True
     else:
@@ -331,6 +331,26 @@ def test_fractional_diff(pd_X):
         X_new = X.with_columns(
             pl.col(feat_cols).ts.frac_diff(d=0.5, min_weight=1e-3).over(entity_col)
         ).collect()
+        expected = (
+            pd_fractional_diff(pd_X, d=0.5, thres=1e-3)
+            .reset_index()
+            .drop(columns="level_1")
+        )
+        assert_frame_equal(
+            X_new.drop_nulls().sort(entity_col, time_col),
+            pl.DataFrame(expected).drop_nulls().sort(entity_col, time_col),
+        )
+
+
+def test_fractional_diff(pd_X):
+    if len(pd_X) > 250:
+        assert True
+    else:
+        X = pl.from_pandas(pd_X.reset_index()).lazy()
+        entity_col = pd_X.index.names[0]
+        time_col = pd_X.index.names[1]
+        transformer = fractional_diff(d=0.5, min_weight=1e-3)
+        X_new = X.pipe(transformer).collect()
         expected = (
             pd_fractional_diff(pd_X, d=0.5, thres=1e-3)
             .reset_index()
