@@ -77,7 +77,10 @@ def evaluate_windows(
     results = []
     for i in range(n_splits):
         y_train, y_test = y_splits[i]
-        X_train, X_test = X_splits[i] if X_splits is not None else None, None
+        X_train = None
+        X_test = None
+        if X_splits is not None:
+            X_train, X_test = X_splits[i]
         result = evaluate_window(
             y_train=y_train,
             y_test=y_test,

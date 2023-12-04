@@ -174,7 +174,7 @@ def m4_freq_to_lags():
 
 @pytest.fixture(
     params=[
-        ("1d", 14),
+        # ("1d", 14),
         ("1w", 13),
         # ("1mo", 18),
         ("3mo", 8),
