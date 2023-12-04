@@ -163,7 +163,7 @@ def trim(direction: Literal["both", "left", "right"] = "both"):
 
 
 @transformer
-def lag(lags: List[int], is_sorted:bool=False):
+def lag(lags: List[int], is_sorted: bool = False):
     """Applies lag transformation to a LazyFrame. The time series is assumed to have no null values.
 
     Parameters
@@ -191,18 +191,14 @@ def lag(lags: List[int], is_sorted:bool=False):
         )
         if is_sorted:
             X_new = X
-        else: # Pre-sorting seems to improve performance by ~20%
+        else:  # Pre-sorting seems to improve performance by ~20%
             X_new = X.sort(by=[entity_col, time_col])
 
-        X_new = (
-            X_new.select(
-                pl.col(entity_col).set_sorted(),
-                pl.col(time_col).set_sorted(),
-                *lagged_series,
-            ).filter(
-                pl.col(time_col).arg_sort().over(entity_col) >= max_lag
-            )
-        )
+        X_new = X_new.select(
+            pl.col(entity_col).set_sorted(),
+            pl.col(time_col).set_sorted(),
+            *lagged_series,
+        ).filter(pl.col(time_col).arg_sort().over(entity_col) >= max_lag)
 
         artifacts = {"X_new": X_new}
         return artifacts
@@ -1047,7 +1043,7 @@ def fractional_diff(
         X_new = (
             X.sort(time_col)
             .with_columns(
-                pl.col(time_col).cumcount().over(entity_col).alias("__FT_time_ind"),
+                pl.col(time_col).cum_count().over(entity_col).alias("__FT_time_ind"),
             )
             .with_columns(
                 *[

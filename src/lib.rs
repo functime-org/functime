@@ -1,13 +1,13 @@
 use faer::IntoFaer;
-use numpy::{PyReadonlyArray2, PyArray2, ToPyArray};
+use numpy::{PyArray2, PyReadonlyArray2, ToPyArray};
 use pyo3::prelude::*;
 mod feature_extraction;
 pub mod linalg;
+mod preprocessing;
 use linalg::lstsq_solver1;
 
 #[pymodule]
 fn _functime_rust(_py: Python, m: &PyModule) -> PyResult<()> {
-
     // Normal Rust function interop
     // m.add_function(wrap_pyfunction!(rs_lempel_ziv_complexity, m)?)?;
 

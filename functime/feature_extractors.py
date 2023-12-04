@@ -602,6 +602,7 @@ def cwt_coefficients(
         )
         NotImplemented
 
+
 def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     """
     Calculates sum of squares over the whole series for `n_chunks` equally segmented parts of the time-series.
@@ -697,8 +698,6 @@ def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
             "technical difficulty regarding Polars Expression Plugins."
         )
         return NotImplemented
-
-    
 
 
 def friedrich_coefficients(
@@ -2707,3 +2706,41 @@ class FeatureExtractor:
         An expression of the output
         """
         return ratio_n_unique_to_length(self._expr)
+
+    def frac_diff(
+        self,
+        d: float,
+        min_weight: Optional[float] = None,
+        window_size: Optional[int] = None,
+    ) -> pl.Expr:
+        """
+        Calculate the fractionally differentiated series.
+
+        Parameters
+        ----------
+        d : float
+            The order of differentiation.
+        min_weight : float
+            The minimum weight for the window.
+        window_size : int
+            The size of the window.
+
+        Returns
+        -------
+        An expression of the output
+        """
+        if min_weight is None and window_size is None:
+            raise ValueError("Either min_weight or window_size must be set")
+        if min_weight is not None and window_size is not None:
+            raise ValueError("Only one of min_weight or window_size can be set")
+        return self._expr.fill_null(strategy="forward").register_plugin(
+            lib=lib,
+            symbol="frac_diff",
+            kwargs={
+                "d": d,
+                "min_weight": min_weight,
+                "window_size": window_size,
+            },
+            is_elementwise=False,
+            returns_scalar=False,
+        )
