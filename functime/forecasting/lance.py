@@ -1,10 +1,9 @@
-from typing import Optional
+from typing import Literal, Optional
 
 import lance
 import numpy as np
 import polars as pl
 from tqdm import tqdm
-from typing_extensions import Literal
 
 from functime.base import Forecaster
 from functime.forecasting._ar import fit_autoreg

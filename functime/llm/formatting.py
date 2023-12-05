@@ -1,7 +1,6 @@
-from typing import Mapping, Tuple, Union
+from typing import Literal, Mapping, Tuple, Union
 
 import polars as pl
-from typing_extensions import Literal
 
 FORMAT_T = Literal["markdown_bullet_list", "freeform"]
 

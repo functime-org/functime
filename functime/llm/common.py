@@ -1,8 +1,6 @@
 import logging
 import os
-from typing import Dict, List, Mapping
-
-from typing_extensions import Literal
+from typing import Dict, List, Literal, Mapping
 
 try:
     import tiktoken

@@ -1,8 +1,7 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 import polars as pl
 from holidays import country_holidays
-from typing_extensions import Literal
 
 from functime.base import transformer
 from functime.ranges import make_future_ranges

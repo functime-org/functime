@@ -1,9 +1,9 @@
 import logging
 from dataclasses import dataclass
-from typing import Callable, List, Mapping, Optional, Tuple, TypeVar, Union
+from typing import Callable, List, Literal, Mapping, Optional, Tuple, TypeVar, Union
 
 import polars as pl
-from typing_extensions import Literal, ParamSpec
+from typing_extensions import ParamSpec
 
 from functime.base.model import Model, ModelState
 from functime.base.transformer import Transformer

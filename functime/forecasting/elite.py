@@ -1,11 +1,10 @@
 from functools import partial
-from typing import Any, Mapping, Optional, Union
+from typing import Any, Literal, Mapping, Optional, Union
 
 import polars as pl
 import polars.selectors as cs
 from sklearn.linear_model import LassoLarsIC
 from tqdm import tqdm
-from typing_extensions import Literal
 
 from functime.backtesting import backtest
 from functime.base.forecaster import Forecaster

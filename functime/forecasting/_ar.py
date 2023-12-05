@@ -1,10 +1,9 @@
 import logging
-from typing import Any, Callable, List, Mapping, Optional, Union
+from typing import Any, Callable, List, Literal, Mapping, Optional, Union
 
 import numpy as np
 import polars as pl
 from tqdm import tqdm, trange
-from typing_extensions import Literal
 
 from functime.cross_validation import expanding_window_split
 from functime.forecasting._evaluate import evaluate
