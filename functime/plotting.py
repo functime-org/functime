@@ -292,7 +292,7 @@ def plot_backtests(
 
     template = kwargs.pop("template", "plotly_white")
 
-    fig.update_layout(**kwargs)
+    fig.update_layout(template=template, **kwargs)
     fig = _remove_legend_duplicates(fig)
     return fig
 
