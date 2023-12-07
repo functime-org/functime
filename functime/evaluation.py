@@ -1,10 +1,9 @@
 from functools import partial
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 import polars as pl
 import polars.selectors as cs
 from scipy.stats import norm, normaltest
-from typing_extensions import Literal
 
 from functime.base.metric import METRIC_TYPE
 from functime.metrics import (

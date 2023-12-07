@@ -1,13 +1,18 @@
 import logging
+import sys
 from dataclasses import dataclass
-from typing import Callable, List, Mapping, Optional, Tuple, TypeVar, Union
+from typing import Callable, List, Literal, Mapping, Optional, Tuple, TypeVar, Union
 
 import polars as pl
-from typing_extensions import Literal, ParamSpec
 
 from functime.base.model import Model, ModelState
 from functime.base.transformer import Transformer
 from functime.ranges import make_future_ranges
+
+if sys.version_info < (3, 10):
+    from typing_extensions import ParamSpec
+else:
+    from typing import ParamSpec
 
 # The parameters of the Model
 P = ParamSpec("P")

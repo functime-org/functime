@@ -1,10 +1,9 @@
 from abc import abstractmethod
 from functools import partial
-from typing import Any, Mapping, Optional, Union
+from typing import Any, Literal, Mapping, Optional, Union
 
 import polars as pl
 from flaml import tune
-from typing_extensions import Literal
 
 from functime.base.forecaster import FORECAST_STRATEGIES, SUPPORTED_FREQ, Forecaster
 from functime.base.transformer import Transformer
