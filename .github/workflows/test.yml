@@ -38,7 +38,8 @@ jobs:
         run: git lfs pull -I
           "m4_1w_train.parquet,m4_1w_test.parquet,
            m4_3mo_train.parquet,m4_3mo_test.parquet,
-           m5_X_train_sample.parquet,m5_X_test_sample.parquet"
+           m5_X_train_sample.parquet,m5_X_test_sample.parquet,
+           commodities.parquet"
 
       - name: Set up Rust
         run: rustup show
