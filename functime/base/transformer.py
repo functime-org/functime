@@ -1,11 +1,17 @@
 import inspect
+import sys
 from functools import cached_property, wraps
 from typing import Callable, Tuple, TypeVar, Union
 
 import polars as pl
-from typing_extensions import ParamSpec
 
 from functime.base.model import ModelState
+
+if sys.version_info < (3, 10):
+    from typing_extensions import ParamSpec
+else:
+    from typing import ParamSpec
+
 
 P = ParamSpec("P")  # The parameters of the Model
 R = TypeVar("R")

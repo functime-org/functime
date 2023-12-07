@@ -38,7 +38,7 @@ dependencies = [
   "scikit-learn<2,>=1.2.2",
   "scipy",
   "tqdm",
-  "typing-extensions",
+  'typing-extensions; python_version < "3.10"',
   "zarr",
 ]
 [project.optional-dependencies]

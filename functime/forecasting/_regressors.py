@@ -2,12 +2,11 @@
 Fit-predict regressors with special needs.
 """
 
-from typing import Callable, Optional, Union
+from typing import Callable, Literal, Optional, Union
 
 import numpy as np
 import polars as pl
 import sklearn
-from typing_extensions import Literal
 
 from functime.conversion import X_to_numpy, y_to_numpy
 from functime.preprocessing import PL_NUMERIC_COLS

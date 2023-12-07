@@ -3,10 +3,9 @@
 
 from dataclasses import dataclass
 from functools import partial, reduce
-from typing import Optional
+from typing import Literal, Optional
 
 import polars as pl
-from typing_extensions import Literal
 
 from functime.metrics import (
     mae,
