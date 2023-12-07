@@ -3,6 +3,6 @@ __version__ = "0.9.3"
 
 import logging
 
-logging.basicConfig(level=logging.INFO)
+from functime.feature_extractors import FeatureExtractor  # noqa: F401
 
-from functime.feature_extractors import FeatureExtractor
+logging.basicConfig(level=logging.INFO)
