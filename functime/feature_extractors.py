@@ -602,6 +602,7 @@ def cwt_coefficients(
         )
         NotImplemented
 
+
 def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
     """
     Calculates sum of squares over the whole series for `n_chunks` equally segmented parts of the time-series.
@@ -697,8 +698,6 @@ def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
             "technical difficulty regarding Polars Expression Plugins."
         )
         return NotImplemented
-
-    
 
 
 def friedrich_coefficients(
@@ -2707,3 +2706,47 @@ class FeatureExtractor:
         An expression of the output
         """
         return ratio_n_unique_to_length(self._expr)
+
+    def cusum(
+        self,
+        threshold: float,
+        warmup_period: int,
+        drift: float = 0.0,
+    ) -> pl.Expr:
+        """
+        Cumulative sum (CUSUM) filter to detect abrupt changes in data.
+
+        The CUSUM filter is a quality control method, designed to detect a shift in the
+        mean value of the measured quantity away from a target value.
+
+        The general formula for the CUSUM filter can be found here:
+        https://en.wikipedia.org/wiki/CUSUM
+
+        And the original paper that introduces it can be found here:
+        https://www.tandfonline.com/doi/abs/10.1080/00401706.1961.10489922
+
+        Parameters
+        ----------
+        threshold : float
+            The threshold for the change (x_t+1 - x_t) to be counted
+        warmup_period : int
+            The number of observations which are used to estimate the mean and standard
+            deviation of the data.
+        drift : float
+            The drift coefficient for the CUSUM filter. Default value is 0.
+
+        Returns
+        -------
+        An expression of the output
+        """
+        return self._expr.register_plugin(
+            lib=lib,
+            symbol="cusum",
+            kwargs={
+                "threshold": threshold,
+                "drift": drift,
+                "warmup_period": warmup_period,
+            },
+            is_elementwise=False,
+            cast_to_supertypes=True,
+        )
