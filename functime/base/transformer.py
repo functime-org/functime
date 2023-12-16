@@ -1,7 +1,7 @@
 import inspect
 import sys
 from functools import cached_property, wraps
-from typing import Callable, Tuple, TypeVar, Union
+from typing import Callable, TypeVar, Union
 
 import polars as pl
 
@@ -50,7 +50,7 @@ class Transformer:
 
     @cached_property
     def is_invertible(self):
-        return isinstance(self.func, Tuple)
+        return isinstance(self.func, tuple)
 
     def transform(self, X: DF_TYPE) -> pl.LazyFrame:
         X = X.lazy()

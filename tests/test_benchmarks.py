@@ -1,6 +1,6 @@
 import logging
+from collections.abc import Mapping
 from functools import partial
-from typing import List, Mapping
 
 import numpy as np
 import polars as pl
@@ -115,7 +115,7 @@ def score_forecasts(
     y_true: pl.DataFrame,
     y_pred: pl.DataFrame,
     y_train: pl.DataFrame,
-) -> Mapping[str, List[float]]:
+) -> Mapping[str, list[float]]:
     """Return mapping of metric name to scores across time-series."""
 
     # Defensive sort and coerce time column

@@ -1,5 +1,6 @@
+from collections.abc import Mapping
 from functools import partial
-from typing import Any, Literal, Mapping, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 import polars as pl
 import polars.selectors as cs

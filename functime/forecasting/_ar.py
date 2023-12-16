@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Callable, List, Literal, Mapping, Optional, Union
+from collections.abc import Mapping
+from typing import Any, Callable, Literal, Optional, Union
 
 import numpy as np
 import polars as pl
@@ -122,7 +123,7 @@ def fit_cv(  # noqa: Ruff too complex
     n_splits: int = 5,
     time_budget: int = 5,
     search_space: Optional[Mapping[str, Domain]] = None,
-    points_to_evaluate: Optional[List[Mapping[str, Any]]] = None,
+    points_to_evaluate: Optional[list[Mapping[str, Any]]] = None,
     low_cost_partial_config: Optional[Mapping[str, Any]] = None,
     num_samples: int = -1,
     cv: Optional[

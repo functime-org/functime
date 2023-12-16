@@ -1,5 +1,5 @@
 from functools import partial
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 
 import polars as pl
 import polars.selectors as cs
@@ -57,7 +57,7 @@ RESIDUALS_SORT_BY = Literal["bias", "abs_bias", "normality", "autocorr"]
 FVA_SORT_BY = Literal["naive", "snaive", "linear", "linear_scaled"]
 
 
-def acf_formula(x: pl.Expr, max_lags: int) -> List[pl.Expr]:
+def acf_formula(x: pl.Expr, max_lags: int) -> list[pl.Expr]:
     # NOTE: Unsure if lists of expressions are automatically vectorized by the Rust query engine...
     # Brute force adjusted ACF calculation (might be slow for long series and lags)
     n = x.len()

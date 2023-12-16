@@ -1,4 +1,5 @@
-from typing import Any, Callable, Mapping, Optional, Tuple
+from collections.abc import Mapping
+from typing import Any, Callable, Optional
 
 import numpy as np
 import polars as pl
@@ -23,7 +24,7 @@ def _residualize_autoreg(
         X_cp_train = X_y_train.select(pl.all().exclude(target_col))
         y_pred_arr = regressor.predict(X_cp_train)
         # Check if censored model
-        if isinstance(y_pred_arr, Tuple):
+        if isinstance(y_pred_arr, tuple):
             y_pred_arr, _ = y_pred_arr  # forecast, probabilities
         y_pred_cp = X_cp_train.select(idx_cols).with_columns(
             pl.lit(y_pred_arr).alias("y_pred")
@@ -46,7 +47,7 @@ def _residualize_autoreg(
             X_cp_train = X_y_train.select([*idx_cols, *feature_cols])
             y_pred_arr = regressors[i].predict(X_cp_train)
             # Check if censored model
-            if isinstance(y_pred_arr, Tuple):
+            if isinstance(y_pred_arr, tuple):
                 y_pred_arr, _ = y_pred_arr  # forecast, probabilities
             y_preds_cp.append(y_pred_arr)
         # NOTE: we just naively take the mean across all direct predictions
@@ -109,7 +110,7 @@ def backtest(
     cv: Callable[[pl.DataFrame], Mapping[int, pl.DataFrame]],
     X: Optional[pl.DataFrame] = None,
     residualize: bool = True,
-) -> Tuple[pl.DataFrame, pl.DataFrame]:
+) -> tuple[pl.DataFrame, pl.DataFrame]:
     pl.enable_string_cache()
     entity_col, time_col, target_col = y.columns[:3]
     if X is None:

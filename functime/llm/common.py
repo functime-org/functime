@@ -1,6 +1,7 @@
 import logging
 import os
-from typing import Dict, List, Literal, Mapping
+from collections.abc import Mapping
+from typing import Literal
 
 try:
     import tiktoken
@@ -81,7 +82,7 @@ def openai_call(
 
 
 def _openai_count_tokens(
-    messages: List[Dict[str, str]], model: str = "gpt-3.5-turbo-0613"
+    messages: list[dict[str, str]], model: str = "gpt-3.5-turbo-0613"
 ):
     """Return the number of tokens used by a list of messages.
 

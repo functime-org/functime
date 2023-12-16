@@ -1,7 +1,8 @@
 import logging
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Callable, List, Literal, Mapping, Optional, Tuple, TypeVar, Union
+from typing import Callable, Literal, Optional, TypeVar, Union
 
 import polars as pl
 
@@ -17,7 +18,7 @@ else:
 # The parameters of the Model
 P = ParamSpec("P")
 # The return type of the esimator's curried function
-R = Tuple[TypeVar("fit", bound=Callable), TypeVar("predict", bound=Callable)]
+R = tuple[TypeVar("fit", bound=Callable), TypeVar("predict", bound=Callable)]
 
 FORECAST_STRATEGIES = Optional[Literal["direct", "recursive", "naive"]]
 DF_TYPE = Union[pl.LazyFrame, pl.DataFrame]
@@ -83,7 +84,7 @@ class ForecastState(ModelState):
     target: str
     target_schema: Mapping[str, pl.DataType]
     strategy: Optional[str] = "naive"
-    features: Optional[List[str]] = None
+    features: Optional[list[str]] = None
 
 
 class Forecaster(Model):
@@ -115,8 +116,8 @@ class Forecaster(Model):
         lags: int,
         max_horizons: Optional[int] = None,
         strategy: FORECAST_STRATEGIES = None,
-        target_transform: Optional[Union[Transformer, List[Transformer]]] = None,
-        feature_transform: Optional[Union[Transformer, List[Transformer]]] = None,
+        target_transform: Optional[Union[Transformer, list[Transformer]]] = None,
+        feature_transform: Optional[Union[Transformer, list[Transformer]]] = None,
         **kwargs,
     ):
         if freq not in SUPPORTED_FREQ:
@@ -149,7 +150,7 @@ class Forecaster(Model):
     def _transform_y(self, y: DF_TYPE):
         fitted_transformers = []
         target_transform = self.target_transform
-        if not isinstance(target_transform, List):
+        if not isinstance(target_transform, list):
             target_transform = [target_transform]
         for transf in target_transform:
             y = y.pipe(transf)
@@ -164,7 +165,7 @@ class Forecaster(Model):
         feature_transform = self.feature_transform
         if X is None:
             X = y.select(y.columns[:2])
-        if not isinstance(feature_transform, List):
+        if not isinstance(feature_transform, list):
             feature_transform = [feature_transform]
         for transf in feature_transform:
             X = X.pipe(transf)
@@ -323,7 +324,7 @@ class Forecaster(Model):
         y: pl.DataFrame,
         X: Optional[DF_TYPE] = None,
         X_future: Optional[DF_TYPE] = None,
-        alphas: Optional[List[float]] = None,
+        alphas: Optional[list[float]] = None,
         test_size: int = 1,
         step_size: int = 1,
         n_splits: int = 5,

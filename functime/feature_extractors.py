@@ -1,6 +1,7 @@
 import logging
 import math
-from typing import List, Mapping, Optional, Sequence, Union
+from collections.abc import Mapping, Sequence
+from typing import Optional, Union
 
 # import bottleneck as bn
 import numpy as np
@@ -27,7 +28,7 @@ INT_EXPR = Union[int, pl.Expr]
 LIST_EXPR = Union[list, pl.Expr]
 BOOL_EXPR = Union[bool, pl.Expr]
 MAP_EXPR = Union[Mapping[str, float], pl.Expr]
-MAP_LIST_EXPR = Union[Mapping[str, List[float]], pl.Expr]
+MAP_LIST_EXPR = Union[Mapping[str, list[float]], pl.Expr]
 
 # from polars.type_aliases import IntoExpr
 
@@ -239,7 +240,7 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     return y1.dot(y2) / (var * range_)
 
 
-def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
+def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> list[float]:
     """
     Computes coefficients for an AR(`n_lags`) process. This only works for Series input
     right now. Caution: Any Null Value in Series will replaced by 0!
@@ -568,7 +569,7 @@ def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
 
 def cwt_coefficients(
     x: TIME_SERIES_T, widths: Sequence[int] = (2, 5, 10, 20), n_coefficients: int = 14
-) -> List[float]:
+) -> list[float]:
     """
     Calculates a Continuous wavelet transform for the Ricker wavelet.
 

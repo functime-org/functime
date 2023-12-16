@@ -1,4 +1,5 @@
-from typing import Literal, Mapping, Tuple, Union
+from collections.abc import Mapping
+from typing import Literal, Union
 
 import polars as pl
 
@@ -18,7 +19,7 @@ def format_dataframes(data: Union[pl.DataFrame, Mapping[str, pl.DataFrame]]) -> 
     return outer.format(inner)
 
 
-def format_instructions(format: FORMAT_T) -> Tuple[str, str]:
+def format_instructions(format: FORMAT_T) -> tuple[str, str]:
     if format == "markdown_bullet_list":
         return (
             "Analyze the following time series data in 8-10 bulletpoints.",

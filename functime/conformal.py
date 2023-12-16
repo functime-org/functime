@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 import polars as pl
 
@@ -6,7 +6,7 @@ import polars as pl
 def enbpi(
     y_pred: pl.LazyFrame,
     y_resid: pl.LazyFrame,
-    alphas: List[float],
+    alphas: list[float],
 ) -> pl.DataFrame:
     """Compute prediction intervals using ensemble batch prediction intervals (ENBPI)."""
 
@@ -42,7 +42,7 @@ def conformalize(
     y_pred: pl.DataFrame,
     y_preds: pl.DataFrame,
     y_resids: pl.DataFrame,
-    alphas: Optional[List[float]] = None,
+    alphas: Optional[list[float]] = None,
 ) -> pl.DataFrame:
     """Compute prediction intervals using ensemble batch prediction intervals (ENBPI)."""
 

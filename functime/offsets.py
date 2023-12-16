@@ -1,9 +1,9 @@
-from typing import List, Tuple, Union
+from typing import Union
 
 OFFSET_ALIASES = {"s", "m", "h", "d", "w", "mo", "y", "i"}
 
 
-def _strip_freq_alias(freq: str) -> Tuple[int, str]:
+def _strip_freq_alias(freq: str) -> tuple[int, str]:
     """Return (index count, offset string) given Polars offset alias.
 
     For example, `freq = "3mo"` returns `(3, "mo")`.
@@ -16,7 +16,7 @@ def _strip_freq_alias(freq: str) -> Tuple[int, str]:
             return offset_n, offset_alias
 
 
-def freq_to_sp(freq: str) -> Union[List[int], List[float]]:
+def freq_to_sp(freq: str) -> Union[list[int], list[float]]:
     """Return seasonal periods given offset alias.
 
     Reference: https://robjhyndman.com/hyndsight/seasonal-periods/

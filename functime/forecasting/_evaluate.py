@@ -1,6 +1,7 @@
 import logging
+from collections.abc import Mapping
 from functools import partial
-from typing import Any, Callable, List, Mapping, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Union
 
 import polars as pl
 
@@ -70,8 +71,8 @@ def evaluate_windows(
     strategy: str,
     freq: str,
     forecaster_cls: Callable,
-    y_splits: Mapping[int, Tuple[pl.DataFrame, pl.DataFrame]],
-    X_splits: Optional[Mapping[int, Tuple[pl.DataFrame, pl.DataFrame]]],
+    y_splits: Mapping[int, tuple[pl.DataFrame, pl.DataFrame]],
+    X_splits: Optional[Mapping[int, tuple[pl.DataFrame, pl.DataFrame]]],
 ):
     # Get average mae across splits
     results = []
@@ -109,7 +110,7 @@ def evaluate(
     lags: int,
     n_splits: int,
     time_budget: int,
-    points_to_evaluate: List[Mapping[str, Any]],
+    points_to_evaluate: list[Mapping[str, Any]],
     num_samples: int,
     low_cost_partial_config: Mapping[str, Any],
     test_size: int,
@@ -117,8 +118,8 @@ def evaluate(
     strategy: str,
     freq: str,
     forecaster_cls: Callable,
-    y_splits: Mapping[int, Tuple[pl.DataFrame, pl.DataFrame]],
-    X_splits: Optional[Mapping[int, Tuple[pl.DataFrame, pl.DataFrame]]],
+    y_splits: Mapping[int, tuple[pl.DataFrame, pl.DataFrame]],
+    X_splits: Optional[Mapping[int, tuple[pl.DataFrame, pl.DataFrame]]],
     search_space: Optional[Mapping[str, Domain]] = None,
     include_best_params: bool = False,
 ):

@@ -1,4 +1,5 @@
-from typing import Any, List, Literal, Mapping, Optional, Union
+from collections.abc import Mapping
+from typing import Any, Literal, Optional, Union
 
 import cloudpickle
 import numpy as np
@@ -162,7 +163,7 @@ def trim(direction: Literal["both", "left", "right"] = "both"):
 
 
 @transformer
-def lag(lags: List[int], is_sorted: bool = False):
+def lag(lags: list[int], is_sorted: bool = False):
     """Applies lag transformation to a LazyFrame. The time series is assumed to have no null values.
 
     Parameters
@@ -251,8 +252,8 @@ def one_hot_encode(drop_first: bool = False):
 
 @transformer
 def roll(
-    window_sizes: List[int],
-    stats: List[Literal["mean", "min", "max", "mlm", "sum", "std", "cv"]],
+    window_sizes: list[int],
+    stats: list[Literal["mean", "min", "max", "mlm", "sum", "std", "cv"]],
     freq: str,
     fill_strategy: Optional[str] = None,
 ):

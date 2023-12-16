@@ -1,4 +1,5 @@
-from typing import Mapping, Optional, Tuple
+from collections.abc import Mapping
+from typing import Optional
 
 import numpy as np
 import polars as pl
@@ -6,7 +7,7 @@ import polars as pl
 
 def train_test_split(
     test_size: int, eager: bool = False
-) -> Tuple[pl.LazyFrame, pl.LazyFrame]:
+) -> tuple[pl.LazyFrame, pl.LazyFrame]:
     """Return a time-ordered train set and test set given `test_size`.
 
     Parameters
@@ -48,7 +49,7 @@ def _window_split(
     n_splits: int,
     step_size: int,
     window_size: Optional[int] = None,
-) -> Mapping[int, Tuple[pl.LazyFrame, pl.LazyFrame]]:
+) -> Mapping[int, tuple[pl.LazyFrame, pl.LazyFrame]]:
     X = X.lazy()  # Defensive
     backward_steps = np.arange(1, n_splits) * step_size + test_size
     cutoffs = np.flip(np.concatenate([np.array([test_size]), backward_steps]))
