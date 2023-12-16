@@ -5,7 +5,7 @@
 ![functime](https://github.com/TracecatHQ/functime/raw/main/docs/img/banner_dark_bg.png)
 [![Python](https://img.shields.io/pypi/pyversions/functime)](https://pypi.org/project/functime/)
 [![PyPi](https://img.shields.io/pypi/v/functime?color=blue)](https://pypi.org/project/functime/)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![GitHub Publish to PyPI](https://github.com/TracecatHQ/functime/actions/workflows/publish.yml/badge.svg)](https://github.com/TracecatHQ/functime/actions/workflows/publish.yml)
 [![GitHub Run Quickstart](https://github.com/TracecatHQ/functime/actions/workflows/quickstart.yml/badge.svg)](https://github.com/TracecatHQ/functime/actions/workflows/quickstart.yml)
 [![Discord](https://img.shields.io/discord/1145819725276917782)](https://discord.gg/JKMrZKjEwN)
