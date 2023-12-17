@@ -4,8 +4,26 @@ catboost_info
 bin/
 .data
 
-# Created by https://www.toptal.com/developers/gitignore/api/macos,windows,pycharm,visual-studio-code,python,rust
-# Edit at https://www.toptal.com/developers/gitignore?templates=macos,windows,pycharm,visual-studio-code,python,rust
+# Created by https://www.toptal.com/developers/gitignore/api/visualstudiocode,pycharm,macos,windows,python,rust,linux,asdf
+# Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,pycharm,macos,windows,python,rust,linux,asdf
+
+### asdf ###
+/.tool-versions
+
+### Linux ###
+*~
+
+# temporary files which can be created if a process still has a handle open of a deleted file
+.fuse_hidden*
+
+# KDE directory preferences
+.directory
+
+# Linux trash folder which might appear on any partition or disk
+.Trash-*
+
+# .nfs files are created when an open file is removed but is still being accessed
+.nfs*
 
 ### macOS ###
 # General
@@ -175,7 +193,6 @@ parts/
 sdist/
 var/
 wheels/
-pip-wheel-metadata/
 share/python-wheels/
 *.egg-info/
 .installed.cfg
@@ -264,7 +281,8 @@ ipython_config.py
 #   in version control.
 #   https://pdm.fming.dev/#use-with-ide
 .pdm.toml
-.pdm-version
+.pdm-python
+.pdm-build/
 
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
 __pypackages__/
@@ -341,7 +359,24 @@ Cargo.lock
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 
-#!! ERROR: visual-studio-code is undefined. Use list command to see defined gitignore types !!#
+### VisualStudioCode ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# Local History for Visual Studio Code
+.history/
+
+# Built Visual Studio Code Extensions
+*.vsix
+
+### VisualStudioCode Patch ###
+# Ignore all local history of files
+.history
+.ionide
 
 ### Windows ###
 # Windows thumbnail cache files
@@ -369,5 +404,4 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-### asdf ###
-.tool-versions
+# End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,pycharm,macos,windows,python,rust,linux,asdf
