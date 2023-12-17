@@ -110,7 +110,7 @@ def backtest(
     X: Optional[pl.DataFrame] = None,
     residualize: bool = True,
 ) -> Tuple[pl.DataFrame, pl.DataFrame]:
-    pl.enable_string_cache(True)
+    pl.enable_string_cache()
     entity_col, time_col, target_col = y.columns[:3]
     if X is None:
         splits = cv(y)
@@ -177,7 +177,7 @@ def backtest(
             max_horizons=forecaster.max_horizons,
             artifacts=full_forecaster.state.artifacts,
         )
-        pl.enable_string_cache(False)
+        pl.disable_string_cache()
         return y_preds, y_resids
-    pl.enable_string_cache(False)
+    pl.disable_string_cache()
     return y_preds

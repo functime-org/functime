@@ -772,7 +772,7 @@ def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
             }
         elif method == "mean":
             _mean = X.group_by(entity_col).agg(
-                pl.col(X.columns[2:]).mean().suffix("__mean")
+                pl.col(X.columns[2:]).mean().name.suffix("__mean")
             )
             X_new = X.with_columns(
                 pl.col(X.columns[2:]) - pl.col(X.columns[2:]).mean().over(entity_col)
@@ -1042,7 +1042,7 @@ def fractional_diff(
         X_new = (
             X.sort(time_col)
             .with_columns(
-                pl.col(time_col).cumcount().over(entity_col).alias("__FT_time_ind"),
+                pl.col(time_col).cum_count().over(entity_col).alias("__FT_time_ind"),
             )
             .with_columns(
                 *[

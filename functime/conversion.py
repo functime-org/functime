@@ -44,7 +44,7 @@ def X_to_numpy(X: pl.DataFrame) -> np.ndarray:
             pl.when(pl.all().is_infinite() | pl.all().is_nan())
             .then(None)
             .otherwise(pl.all())
-            .keep_name()
+            .name.keep()
         )
         # TODO: Support custom group_by imputation
         .fill_null(strategy="mean")  # Do not fill backward (data leak)
@@ -62,7 +62,7 @@ def y_to_numpy(y: pl.DataFrame) -> np.ndarray:
             pl.when(pl.all().is_infinite() | pl.all().is_nan())
             .then(None)
             .otherwise(pl.all())
-            .keep_name()
+            .name.keep()
         )
         # TODO: Support custom group_by imputation
         .fill_null(strategy="mean")  # Do not fill backward (data leak)
