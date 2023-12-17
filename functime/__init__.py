@@ -1,5 +1,6 @@
 "functime: Time-series machine learning at scale."
-__version__ = "0.9.3"
+
+__version__ = "0.9.4"
 
 import logging
 
