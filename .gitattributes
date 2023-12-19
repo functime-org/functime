@@ -1,3 +1,2 @@
-*.parquet filter=lfs diff=lfs merge=lfs -text
 *.html linguist-vendored
 *.ipynb linguist-vendored
