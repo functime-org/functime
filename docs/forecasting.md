@@ -343,8 +343,8 @@ Most real-world datasets in e-commerce and logistics contain zeros in the target
 from functime.forecasting import censored_model
 
 # Load the M5 competition Walmart dataset
-y_train = pl.read_parquet("data/m5_y_train.parquet")
-X_train = pl.read_parquet("data/m5_X_train.parquet")
+y_train = pl.read_parquet("data/m5_y_train_sample.parquet")
+X_train = pl.read_parquet("data/m5_X_train_sample.parquet")
 
 # Fit-predict given threshold = 0.0
 y_pred = censored_model(lags=3, threshold=0.0, freq="1d")(
