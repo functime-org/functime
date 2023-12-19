@@ -48,6 +48,84 @@ def pl_y(pd_y):
     return pl.from_pandas(pd_y.reset_index()).lazy()
 
 
+@pytest.fixture
+def m4_freq_to_sp():
+    return {
+        "1d": freq_to_sp("1d")[0],
+        "1w": freq_to_sp("1w")[0],
+        "1mo": freq_to_sp("1mo")[0],
+        "3mo": freq_to_sp("3mo")[0],
+        "1y": freq_to_sp("1y")[0],
+    }
+
+
+@pytest.fixture
+def m4_freq_to_lags():
+    return {
+        "1d": 30,
+        "1w": 14,
+        "1mo": 12,
+        "3mo": 6,
+        "1y": 3,
+    }
+
+
+@pytest.fixture(
+    params=[
+        ("1d", 14, "data/m4_1d_train.parquet/*/*", "data/m4_1d_test.parquet"),
+        ("1w", 13, "data/m4_1w_train.parquet", "data/m4_1w_test.parquet"),
+        ("1mo", 18, "data/m4_1mo_train.parquet/*/*", "data/m4_1mo_test.parquet"),
+        ("3mo", 8, "data/m4_3mo_train.parquet", "data/m4_3mo_test.parquet"),
+        ("1y", 6, "data/m4_1y_train.parquet", "data/m4_1y_test.parquet"),
+    ],
+    ids=lambda x: f"freq_{x[0]}-fh_{x[1]}",
+    scope="module",
+)
+def m4_dataset(request):
+    def load_panel_data(path: str) -> pl.LazyFrame:
+        return (
+            pl.read_parquet(path)
+            .pipe(
+                lambda df: df.select(
+                    [
+                        pl.col("series").cast(pl.Categorical),
+                        pl.col("time").cast(pl.Int16),
+                        pl.col(df.columns[2]).cast(pl.Float32),
+                    ]
+                )
+            )
+            .with_columns(pl.col("series").str.replace(" ", ""))
+            .sort(["series", "time"])
+            .set_sorted(["series", "time"])
+        )
+
+    def update_test_time_ranges(y_train, y_test):
+        entity_col, time_col = y_train.columns[:2]
+        cutoffs = y_train.group_by(entity_col).agg(
+            pl.col(time_col).last().alias("cutoff")
+        )
+        y_test = (
+            y_test.join(cutoffs, on=entity_col, how="left")
+            .with_columns(pl.col(time_col) + pl.col("cutoff").alias(time_col))
+            .drop("cutoff")
+        )
+        return y_test
+
+    freq, fh, train_path, test_path = request.param
+    y_train = load_panel_data(train_path)
+    y_test = load_panel_data(test_path)
+    y_test = update_test_time_ranges(y_train, y_test)
+
+    # Check m4 dataset RAM usage
+    logging.info("y_train mem: %s", f'{y_train.estimated_size("mb"):.4f} mb')
+    logging.info("y_test mem: %s", f'{y_test.estimated_size("mb"):.4f} mb')
+    # Preview
+    logging.info("y_train preview: %s", y_train)
+    logging.info("y_test preview: %s", y_test)
+
+    return y_train.lazy(), y_test.lazy(), fh, freq
+
+
 def prepare_m5_dataset(m5_train: pl.LazyFrame, m5_test: pl.LazyFrame):
     def filter_most_recent(
         X: pl.LazyFrame, max_eval_period: int, train_periods: int
@@ -148,84 +226,6 @@ def prepare_m5_dataset(m5_train: pl.LazyFrame, m5_test: pl.LazyFrame):
     X_test = X_y_test.select(exog_cols)
 
     return y_train, X_train, y_test, X_test
-
-
-@pytest.fixture
-def m4_freq_to_sp():
-    return {
-        "1d": freq_to_sp("1d")[0],
-        "1w": freq_to_sp("1w")[0],
-        "1mo": freq_to_sp("1mo")[0],
-        "3mo": freq_to_sp("3mo")[0],
-        "1y": freq_to_sp("1y")[0],
-    }
-
-
-@pytest.fixture
-def m4_freq_to_lags():
-    return {
-        "1d": 30,
-        "1w": 14,
-        "1mo": 12,
-        "3mo": 6,
-        "1y": 3,
-    }
-
-
-@pytest.fixture(
-    params=[
-        # ("1d", 14),
-        ("1w", 13),
-        # ("1mo", 18),
-        ("3mo", 8),
-        # ("1y", 6),
-    ],
-    ids=lambda x: f"freq_{x[0]}-fh_{x[1]}",
-    scope="module",
-)
-def m4_dataset(request):
-    def load_panel_data(path: str) -> pl.LazyFrame:
-        return (
-            pl.read_parquet(path)
-            .pipe(
-                lambda df: df.select(
-                    [
-                        pl.col("series").cast(pl.Categorical),
-                        pl.col("time").cast(pl.Int16),
-                        pl.col(df.columns[-1]).cast(pl.Float32),
-                    ]
-                )
-            )
-            .with_columns(pl.col("series").str.replace(" ", ""))
-            .sort(["series", "time"])
-            .set_sorted(["series", "time"])
-        )
-
-    def update_test_time_ranges(y_train, y_test):
-        entity_col, time_col = y_train.columns[:2]
-        cutoffs = y_train.group_by(entity_col).agg(
-            pl.col(time_col).last().alias("cutoff")
-        )
-        y_test = (
-            y_test.join(cutoffs, on=entity_col, how="left")
-            .with_columns(pl.col(time_col) + pl.col("cutoff").alias(time_col))
-            .drop("cutoff")
-        )
-        return y_test
-
-    freq, fh = request.param
-    y_train = load_panel_data(f"data/m4_{freq}_train.parquet")
-    y_test = load_panel_data(f"data/m4_{freq}_test.parquet")
-    y_test = update_test_time_ranges(y_train, y_test)
-
-    # Check m4 dataset RAM usage
-    logging.info("y_train mem: %s", f'{y_train.estimated_size("mb"):.4f} mb')
-    logging.info("y_test mem: %s", f'{y_test.estimated_size("mb"):.4f} mb')
-    # Preview
-    logging.info("y_train preview: %s", y_train)
-    logging.info("y_test preview: %s", y_test)
-
-    return y_train.lazy(), y_test.lazy(), fh, freq
 
 
 @pytest.fixture
