@@ -23,24 +23,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Create LFS file list
-        run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id
-
-      - name: LFS Cache
-        uses: actions/cache@v3
-        with:
-          path: .git/lfs/objects
-          key: ${{ runner.os }}-lfs-${{ hashFiles('.lfs-assets-id') }}
-          restore-keys: |
-            ${{ runner.os }}-lfs-
-
-      - name: Git LFS Pull
-        run: git lfs pull -I
-          "m4_1w_train.parquet,m4_1w_test.parquet,
-           m4_3mo_train.parquet,m4_3mo_test.parquet,
-           m5_X_train_sample.parquet,m5_X_test_sample.parquet,
-           commodities.parquet"
-
       - name: Set up Rust
         run: rustup show
 

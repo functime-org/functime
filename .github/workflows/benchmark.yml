@@ -18,11 +18,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Pull datasets in LFS
-        run: |
-          git config lfs.fetchinclude "data/m4_*,data/m5_*"
-          git lfs pull
-
       - name: Set up Python 3
         uses: actions/setup-python@v3
         with:
