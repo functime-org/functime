@@ -1020,58 +1020,10 @@ def fractional_diff(
         entity_col = idx_cols[0]
         time_col = idx_cols[1]
 
-        def get_ffd_weights(
-            d: float,
-            threshold: Optional[float] = None,
-            window_size: Optional[int] = None,
-        ):
-            w, k = [1.0], 1
-            while True:
-                w_ = -w[-1] / k * (d - k + 1)
-                if threshold is not None and abs(w_) < threshold:
-                    break
-                if window_size is not None and k >= window_size:
-                    break
-                w.append(w_)
-                k += 1
-            return w
-
-        weights = get_ffd_weights(d, min_weight, window_size)
-
-        num_cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).columns
-        X_new = (
-            X.sort(time_col)
-            .with_columns(
-                pl.col(time_col).cum_count().over(entity_col).alias("__FT_time_ind"),
-            )
-            .with_columns(
-                *[
-                    pl.col(f"{col}")
-                    .shift(i)
-                    .over(entity_col)
-                    .alias(f"__FT_{col}_t-{i}")
-                    for i in range(len(weights))
-                    for col in num_cols
-                ]
-            )
-            .with_columns(
-                *[
-                    pl.sum_horizontal(
-                        [pl.col(f"__FT_{col}_t-{i}") * w for i, w in enumerate(weights)]
-                    ).alias(col)
-                    for col in num_cols
-                ]
-            )
-            .with_columns(
-                *[
-                    pl.when(pl.col("__FT_time_ind") < (len(weights) - 1))
-                    .then(None)
-                    .otherwise(pl.col(f"{col}"))
-                    .alias(f"{col}")
-                    for col in num_cols
-                ],
-            )
-            .select(~cs.contains("__FT_"))
+        X_new = X.with_columns(
+            PL_NUMERIC_COLS(entity_col, time_col)
+            .ts.frac_diff(d, min_weight, window_size)
+            .over(entity_col)
         )
         return {"X_new": X_new}
 

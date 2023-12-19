@@ -5,6 +5,7 @@ mod changepoint_detection;
 mod feature_extraction;
 pub mod linalg;
 use linalg::lstsq_solver1;
+mod preprocessing;
 
 #[pymodule]
 fn _functime_rust(_py: Python, m: &PyModule) -> PyResult<()> {

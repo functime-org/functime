@@ -3,6 +3,7 @@ functime_embs
 catboost_info
 bin/
 .data
+pdm.lock
 
 # Created by https://www.toptal.com/developers/gitignore/api/visualstudiocode,pycharm,macos,windows,python,rust,linux,asdf
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,pycharm,macos,windows,python,rust,linux,asdf

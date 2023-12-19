@@ -2750,3 +2750,52 @@ class FeatureExtractor:
             is_elementwise=False,
             cast_to_supertypes=True,
         )
+
+    def frac_diff(
+        self,
+        d: float,
+        min_weight: Optional[float] = None,
+        window_size: Optional[int] = None,
+    ) -> pl.Expr:
+        """Compute the fractional differential of a time series.
+
+        This particular functionality is referenced in Advances in Financial Machine
+        Learning by Marcos Lopez de Prado (2018).
+
+        For feature creation purposes, it is suggested that the minimum value of d
+        is used that removes stationarity from the time series. This can be achieved
+        by running the augmented dickey-fuller test on the time series for different
+        values of d and selecting the minimum value that makes the time series
+        stationary.
+
+        Parameters
+        ----------
+        d : float
+            The fractional order of the differencing operator.
+        min_weight : float, optional
+            The minimum weight to use for calculations. If specified, the window size is
+            computed from this value and not needed.
+        window_size : int, optional
+            The window size of the fractional differencing operator.
+            If specified, the minimum weight is not needed.
+        """
+
+        # Assert only one of min_weight or window_size is specified
+        if min_weight is not None and window_size is not None:
+            raise ValueError("Only one of min_weight or window_size can be specified.")
+
+        # Assert either min_weight or window_size is specified
+        if min_weight is None and window_size is None:
+            raise ValueError("Either min_weight or window_size must be specified.")
+
+        return self._expr.register_plugin(
+            lib=lib,
+            symbol="frac_diff",
+            kwargs={
+                "d": d,
+                "min_weight": min_weight,
+                "window_size": window_size,
+            },
+            is_elementwise=False,
+            cast_to_supertypes=True,
+        )
