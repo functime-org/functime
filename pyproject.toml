@@ -95,6 +95,7 @@ xgb = [
 [tool.maturin]
 module-name = "functime._functime_rust"
 features = ["pyo3/extension-module"]
+exclude = ["docs/**, data/**", "tests/**", ".pre-commit-config.yaml"]
 
 [tool.ruff]
 include = ["*.py", "*.pyi", "**/pyproject.toml", "*.ipynb"]
