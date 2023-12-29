@@ -300,11 +300,14 @@ def roll(
                 .group_by_dynamic(
                     index_column=time_col,
                     by=entity_col,
-                    every=freq,
+                    offset=f"{w}{offset_alias}",
+                    every=f"1{offset_alias}",
                     period=f"{offset_n * w}{offset_alias}",
+                    start_by="datapoint",
                 )
                 .agg([stat_exprs[stat](w) for stat in stats])
-                # NOTE: Must lag by 1 to avoid data leakage
+                # NOTE: Must lag by 1 to avoid data leakage.
+                # But given the current configuration, shift by w is what we want to do
                 .select([entity_col, time_col, values.shift(w).over(entity_col)])
             )
             for w in window_sizes
@@ -312,14 +315,14 @@ def roll(
         # Join all window lazy operations
         X_rolling = X_all[0]
         for X_window in X_all[1:]:
-            X_rolling = X_rolling.join(X_window, on=[entity_col, time_col], how="outer")
+            X_rolling = X_rolling.join(X_window, on=[entity_col, time_col], how="inner")
         # Defensive join to match original X index
-        X_new = X.join(X_rolling, on=[entity_col, time_col], how="left").select(
-            X_rolling.columns
-        )
+        # X_new = X.join(X_rolling, on=[entity_col, time_col], how="left").select(
+        #     X_rolling.columns
+        # )
         if fill_strategy:
-            X_new = X_new.fill_null(strategy=fill_strategy)
-        artifacts = {"X_new": X_new}
+            X_rolling = X_X_rolling.fill_null(strategy=fill_strategy)
+        artifacts = {"X_new": X_rolling}
         return artifacts
 
     return transform
@@ -734,41 +737,53 @@ def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
         if method == "linear":
-            x = pl.col(time_col).arg_sort()
-            betas = [
-                (pl.cov(col, x) / x.var()).over(entity_col).alias(f"{col}__beta")
-                for col in X.columns[2:]
-            ]
-            alphas = [
-                (
-                    pl.col(col).mean().over(entity_col)
-                    - pl.col(f"{col}__beta") * x.mean()
-                ).alias(f"{col}__alpha")
-                for col in X.columns[2:]
-            ]
-            residuals = [
-                (
-                    pl.col(col) - pl.col(f"{col}__alpha") - pl.col(f"{col}__beta") * x
-                ).alias(col)
-                for col in X.columns[2:]
-            ]
-            X_new = (
-                X.with_columns(betas)
-                .with_columns(alphas)
-                .with_columns(residuals)
-                .cache()
+            cols = X.columns
+            X_new_temp = (
+                X.with_columns(
+                    pl.col(time_col).arg_sort().over(entity_col).alias("__x")
+                )
+                .with_columns(
+                    *[
+                        (pl.cov(pl.col(c), pl.col("__x")) / pl.col("__x").var())
+                        .over(entity_col)
+                        .name.suffix("__beta")
+                        for c in X.columns[2:]
+                    ],
+                    *[
+                        pl.col(c).mean().over(entity_col).name.suffix("__mean")
+                        for c in X.columns[2:]
+                    ],
+                )
+                .with_columns(
+                    (pl.col(c + "__mean") - pl.col(c + "__beta") * (pl.count() - 1) / 2)
+                    .over(entity_col)
+                    .alias(c + "__alpha")
+                    for c in X.columns[2:]
+                )
+                .with_columns(
+                    (
+                        pl.col(c)
+                        - pl.col(c + "__beta") * pl.col("__x")
+                        - pl.col(c + "__alpha")
+                    ).alias(c)
+                    for c in X.columns[2:]
+                )
+                .collect()
             )
+
+            X_new = X_new_temp.select(cols)
+
             artifacts = {
-                "_beta": X_new.select([entity_col, cs.ends_with("__beta")])
-                .unique()
-                .collect(streaming=True),
-                "_alpha": X_new.select([entity_col, cs.ends_with("__alpha")])
-                .unique()
-                .collect(streaming=True),
-                "X_new": X_new.select(X.columns),
-                "_firsts": X_new.group_by(entity_col)
-                .agg(pl.col(time_col).first().alias("first"))
-                .collect(streaming=True),
+                "_beta": X_new_temp.select(entity_col, cs.ends_with("__beta")).unique(
+                    subset=[entity_col]
+                ),
+                "_alpha": X_new_temp.select(entity_col, cs.ends_with("__alpha")).unique(
+                    subset=[entity_col]
+                ),
+                "X_new": X_new.lazy(),
+                "_firsts": X_new_temp.group_by(entity_col).agg(
+                    pl.col(time_col).min().alias("first_fitted")
+                ),
             }
         elif method == "mean":
             _mean = X.group_by(entity_col).agg(
@@ -787,48 +802,76 @@ def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
 
     def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
+        offset_n, offset_alias = _strip_freq_alias(freq)
         if method == "linear":
             _beta = state.artifacts["_beta"]
             _alpha = state.artifacts["_alpha"]
             firsts = state.artifacts["_firsts"]
-            if freq.endswith("i"):
+            if offset_alias == "i":
                 offset_expr = (
-                    pl.int_ranges(
-                        start=pl.col("first"), end=pl.col("last"), step=int(freq[:-1])
-                    )
-                    .len()
-                    .alias("offset")
-                )
+                    (pl.col("first") - pl.col("first_fitted")) // offset_n
+                ).alias("offset")
+            elif offset_alias == "d":
+                offset_expr = (
+                    (pl.col("first") - pl.col("first_fitted")).dt.total_days()
+                    // offset_n
+                ).alias("offset")
+            elif offset_alias == "ms":
+                offset_expr = (
+                    (pl.col("first") - pl.col("first_fitted")).dt.total_milliseconds()
+                    // offset_n
+                ).alias("offset")
+            elif offset_alias == "us":
+                offset_expr = (
+                    (pl.col("first") - pl.col("first_fitted")).dt.total_microseconds()
+                    // offset_n
+                ).alias("offset")
+            elif offset_alias == "m":
+                offset_expr = (
+                    (pl.col("first") - pl.col("first_fitted")).dt.total_minutes()
+                    // offset_n
+                ).alias("offset")
+            elif offset_alias == "s":
+                offset_expr = (
+                    (pl.col("first") - pl.col("first_fitted")).dt.total_seconds()
+                    // offset_n
+                ).alias("offset")
+            elif offset_alias == "ns":
+                offset_expr = (
+                    (pl.col("first") - pl.col("first_fitted")).dt.total_nanoseconds()
+                    // offset_n
+                ).alias("offset")
             else:
-                offset_expr = (
-                    pl.date_ranges(
-                        start=pl.col("first"), end=pl.col("last"), interval=freq
-                    )
-                    .len()
-                    .alias("offset")
+                raise ValueError(
+                    f"Currently, the offset alias {offset_alias} is not supported in .invert()."
                 )
-            x = pl.col(time_col).arg_sort() + pl.col("offset")
-            offsets = (
+
+            grouped = (
                 X.group_by(entity_col)
-                .agg(pl.col(time_col).last().alias("last"))
-                .join(firsts.lazy(), on=entity_col)
-                .with_columns(offset_expr)
-                .collect(streaming=True)
+                .agg(pl.col(time_col).min().alias("first"))
+                .collect()
             )
+            offsets = grouped.join(firsts, on=entity_col).with_columns(offset_expr)
+            # Note : pl.col(offset) here is generated above, then left joined to X.
+            # So there is no need to do over.
+            # In the code below, alpha, beta are all constant over entity because
+            # of the left join
+            x = pl.col(time_col).arg_sort().over(entity_col) + pl.col("offset")
             X_new = (
                 X.join(offsets.lazy(), on=entity_col, how="left")
                 .join(_beta.lazy(), on=entity_col, how="left")
                 .join(_alpha.lazy(), on=entity_col, how="left")
                 .with_columns(
                     [
-                        pl.col(col)
-                        + pl.col(f"{col}__alpha")
-                        + pl.col(f"{col}__beta") * x
+                        (
+                            pl.col(col)
+                            + pl.col(f"{col}__alpha")
+                            + pl.col(f"{col}__beta") * x
+                        )
                         for col in X.columns[2:]
                     ]
                 )
                 .select(X.columns)
-                .lazy()
             )
         else:
             X_new = (

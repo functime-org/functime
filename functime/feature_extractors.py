@@ -16,6 +16,8 @@ from scipy.spatial import KDTree
 from functime._functime_rust import rs_faer_lstsq1
 from functime._utils import UseAtOwnRisk
 
+from .type_alias import DetrendMethod
+
 # from functime.feature_extractor import FeatureExtractor  # noqa: F401
 
 logger = logging.getLogger(__name__)
@@ -28,6 +30,7 @@ LIST_EXPR = Union[list, pl.Expr]
 BOOL_EXPR = Union[bool, pl.Expr]
 MAP_EXPR = Union[Mapping[str, float], pl.Expr]
 MAP_LIST_EXPR = Union[Mapping[str, List[float]], pl.Expr]
+
 
 # from polars.type_aliases import IntoExpr
 
@@ -1076,14 +1079,12 @@ def mean_change(x: TIME_SERIES_T) -> FLOAT_EXPR:
     float | Expr
     """
     if isinstance(x, pl.Series):
-        if len(x) < 1:
-            return None
-        elif len(x) == 1:
+        if len(x) <= 1:
             return 0
         return (x[-1] - x[0]) / (x.len() - 1)
     else:
         return (
-            pl.when(x.len() - 1 > 0)
+            pl.when(x.len() > 1)
             .then((x.last() - x.first()) / (x.len() - 1))
             .otherwise(0)
         )
@@ -1765,7 +1766,7 @@ def streak_length_stats(x: TIME_SERIES_T, above: bool, threshold: float) -> MAP_
         }
     else:
         return pl.struct(
-            y.min().clip_min(0).alias("min"),
+            pl.max_horizontal(y.min(), 0).alias("min"),
             y.max().alias("max"),
             y.mean().alias("mean"),
             y.std().alias("std"),
@@ -2273,6 +2274,32 @@ class FeatureExtractor:
         An expression of the output
         """
         return linear_trend(self._expr)
+
+    def detrend(self, method: DetrendMethod = "linear") -> pl.Expr:
+        """
+        Detrends the time series by either removing a fitted linear regression or by
+        removing the mean. This assumes that data is in order.
+
+        Parameters
+        ----------
+        method
+            Either `linear` or `mean`
+
+        Returns
+        -------
+        An expression representing detrend-ed column
+        """
+
+        if method == "linear":
+            N = self._expr.count()
+            x = pl.int_range(0, N, dtype=pl.Float64, eager=False)
+            coeff = pl.cov(self._expr, x) / x.var()
+            const = self._expr.mean() - coeff * (N - 1) / 2
+            return self._expr - x * coeff - const
+        elif method == "mean":
+            return self._expr - self._expr.mean()
+        else:
+            raise ValueError(f"Unknown detrend method: {method}")
 
     def longest_streak_above_mean(self) -> pl.Expr:
         """

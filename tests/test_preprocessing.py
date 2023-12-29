@@ -267,6 +267,7 @@ def test_yeojohnson(pd_X):
 
 @pytest.mark.parametrize("method", ["linear", "mean"])
 def test_detrend(method, pd_X):
+    X_original = pl.DataFrame(pd_X.reset_index())
     entity_col = pd_X.index.names[0]
     expected = pd_X.groupby(entity_col).transform(
         signal.detrend, type=method if method == "linear" else "constant"
@@ -274,9 +275,10 @@ def test_detrend(method, pd_X):
     X = pl.from_pandas(pd_X.reset_index()).lazy()
     transformer = detrend(method=method, freq="1d")
     X_new = X.pipe(transformer).collect()
-    assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()))
-    X_original = X_new.pipe(transformer.invert)
-    assert_frame_equal(X_original, X, check_dtype=False)
+    assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()), rtol=1e-10)
+
+    X_inverted = X_new.pipe(transformer.invert).collect()
+    assert_frame_equal(X_original, X_inverted, check_dtype=False, rtol=1e-10)
 
 
 def pd_fractional_diff(df, d, thres):
@@ -338,7 +340,7 @@ def test_fractional_diff(pd_X):
 
 
 ### Temporarily commented out. Uncomment when benchmarking is ready. ###
-# @pytest.mark.benchmark(group="fractional_diff")
+# #@pytest.mark.benchmark(group="fractional_diff")
 # def test_fractional_diff_benchmark_functime(pd_X, benchmark):
 #     X = pl.from_pandas(pd_X.reset_index()).lazy()
 #     entity_col = pd_X.index.names[0]
@@ -348,6 +350,6 @@ def test_fractional_diff(pd_X):
 #     benchmark(X_new.collect)
 
 
-# @pytest.mark.benchmark(group="fractional_diff")
+# #@pytest.mark.benchmark(group="fractional_diff")
 # def test_fractional_diff_benchmark_pd(pd_X, benchmark):
 #     benchmark(pd_fractional_diff, pd_X, d=0.5, thres=1e-3)
