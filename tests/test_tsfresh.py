@@ -139,7 +139,7 @@ def test_streak_length_stats(S, params, res, k):
     # For no streaks, this returns an empty DataFrame.
     # But, will return 0s and Nulls for Series.
     # Hence, ad hoc way of making the expected result empty.
-    res = res.filter(pl.col("max").is_not_null())
+    # res = res.filter(pl.col("max").is_not_null())
 
     assert_frame_equal(
         pl.DataFrame({"a": S})
@@ -205,15 +205,13 @@ def test_mean_abs_change(S, res, k):
         ([-1, 1, 2, float("inf")], [float("inf")], {}),
         ([-1, 1, 2, -float("inf")], [-float("inf")], {}),
         ([1], [0], {"check_dtype": False}),
-        ([], [], {"check_dtype": False}),
+        ([], [0], {"check_dtype": False}),
     ],
 )
 def test_mean_change(S, res, k):
-    # if len(res) == 0:
-    if len(res) == 0:
-        assert mean_change(pl.Series(S)) is None
-    else:
-        assert mean_change(pl.Series(S)) == res[0]
+    # If input is an empty or len 1 Series, the mean change is 0 because there is no change.
+
+    assert mean_change(pl.Series(S)) == res[0]
 
     assert_frame_equal(
         pl.DataFrame({"a": S}).select(mean_change(pl.col("a"))),

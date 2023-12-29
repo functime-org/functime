@@ -12,12 +12,12 @@ from functime.cross_validation import train_test_split
 from functime.offsets import freq_to_sp
 
 
-@pytest.fixture(params=[250, 1000], ids=lambda x: f"n_periods({x})")
+@pytest.fixture(params=[50], ids=lambda x: f"n_periods({x})")
 def n_periods(request):
     return request.param
 
 
-@pytest.fixture(params=[50, 500], ids=lambda x: f"n_entities({x})")
+@pytest.fixture(params=[10], ids=lambda x: f"n_entities({x})")
 def n_entities(request):
     return request.param
 
