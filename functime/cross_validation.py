@@ -1,12 +1,19 @@
-from typing import Mapping, Optional, Tuple
+from functools import partial
+from typing import TYPE_CHECKING, overload
 
 import numpy as np
 import polars as pl
 
+if TYPE_CHECKING:
+    from typing import Callable, Literal, Mapping, Optional, Tuple
+
 
 def train_test_split(
-    test_size: int, eager: bool = False
-) -> Tuple[pl.LazyFrame, pl.LazyFrame]:
+    test_size: int, *, eager: bool = False
+) -> Callable[
+    [pl.LazyFrame | pl.DataFrame],
+    Tuple[pl.LazyFrame, pl.LazyFrame] | Tuple[pl.DataFrame, pl.DataFrame],
+]:
     """Return a time-ordered train set and test set given `test_size`.
 
     Parameters
@@ -18,12 +25,37 @@ def train_test_split(
 
     Returns
     -------
-    splitter : Callable[pl.LazyFrame, Tuple[pl.LazyFrame, pl.LazyFrame]]
-        Function that takes a panel LazyFrame and returns tuple of train / test LazyFrames.
+    splitter : Callable[pl.LazyFrame | pl.DataFrame, Tuple[pl.LazyFrame, pl.LazyFrame]]
+        Function that takes a panel DataFrame or LazyFrame and returns tuple of train/test DataFrame or LazyFrame.
     """
 
-    def split(X: pl.LazyFrame) -> pl.LazyFrame:
-        X = X.lazy()  # Defensive
+    @overload
+    def splitter(
+        X: pl.LazyFrame | pl.DataFrame,
+        test_size: int,
+        *,
+        eager: Literal[False],
+    ) -> Tuple[pl.LazyFrame, pl.LazyFrame]:
+        ...
+
+    @overload
+    def splitter(
+        X: pl.LazyFrame | pl.DataFrame,
+        test_size: int,
+        *,
+        eager: Literal[True],
+    ) -> Tuple[pl.DataFrame, pl.DataFrame]:
+        ...
+
+    def splitter(
+        X: pl.LazyFrame | pl.DataFrame,
+        test_size: int,
+        *,
+        eager: bool,
+    ) -> Tuple[pl.LazyFrame, pl.LazyFrame] | Tuple[pl.DataFrame, pl.DataFrame]:
+        if isinstance(X, pl.DataFrame):
+            X = X.lazy()  # Defensive
+
         entity_col = X.columns[0]
         train_split = (
             X.group_by(entity_col)
@@ -37,9 +69,10 @@ def train_test_split(
         )
         if eager:
             train_split, test_split = pl.collect_all([train_split, test_split])
+            return train_split, test_split
         return train_split, test_split
 
-    return split
+    return partial(splitter, **{"test_size": test_size, "eager": eager})
 
 
 def _window_split(
