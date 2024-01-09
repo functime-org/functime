@@ -11,8 +11,8 @@ def train_test_split(
 
     Parameters
     ----------
-    test_size : int
-        Number of test samples.
+    test_size : int | float
+        Number or fracetion of test samples.
     eager : bool
         If True, evaluate immediately and returns tuple of train-test `DataFrame`.
 
@@ -21,6 +21,14 @@ def train_test_split(
     splitter : Callable[pl.LazyFrame, Tuple[pl.LazyFrame, pl.LazyFrame]]
         Function that takes a panel LazyFrame and returns tuple of train / test LazyFrames.
     """
+    if isinstance(test_size, float):
+        if test_size < 0 or test_size > 1:
+            raise ValueError("`test_size` must be between 0 and 1")
+    elif isinstance(test_size, int):
+        if test_size < 0:
+            raise ValueError("`test_size` must be greater than 0")
+    else:
+        raise TypeError("`test_size` must be int or float")
 
     def split(X: pl.LazyFrame) -> pl.LazyFrame:
         train_length = (
