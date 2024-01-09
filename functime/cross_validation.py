@@ -1,11 +1,11 @@
-from typing import Mapping, Optional, Tuple
+from typing import Mapping, Optional, Tuple, Union
 
 import numpy as np
 import polars as pl
 
 
 def train_test_split(
-    test_size: int, eager: bool = False
+    test_size: Union[int, float], eager: bool = False
 ) -> Tuple[pl.LazyFrame, pl.LazyFrame]:
     """Return a time-ordered train set and test set given `test_size`.
 
@@ -23,16 +23,23 @@ def train_test_split(
     """
 
     def split(X: pl.LazyFrame) -> pl.LazyFrame:
+        train_length = (
+            pl.count() - test_size
+            if isinstance(test_size, int)
+            else (pl.count() * (1 - test_size)).cast(int)
+        )
+        test_length = pl.count() - train_length
+
         X = X.lazy()  # Defensive
         entity_col = X.columns[0]
         train_split = (
             X.group_by(entity_col)
-            .agg(pl.all().slice(0, pl.count() - test_size))
+            .agg(pl.all().slice(offset=0, length=train_length))
             .explode(pl.all().exclude(entity_col))
         )
         test_split = (
             X.group_by(entity_col)
-            .agg(pl.all().slice(-1 * test_size, test_size))
+            .agg(pl.all().slice(offset=train_length, length=test_length))
             .explode(pl.all().exclude(entity_col))
         )
         if eager:
