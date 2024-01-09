@@ -12,7 +12,7 @@ def train_test_split(
     Parameters
     ----------
     test_size : int | float
-        Number or fracetion of test samples.
+        Number or fraction of test samples.
     eager : bool
         If True, evaluate immediately and returns tuple of train-test `DataFrame`.
 
