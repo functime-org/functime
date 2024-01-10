@@ -27,7 +27,7 @@ def train_test_split(
 
     Returns
     -------
-    splitter : Callable[pl.LazyFrame | pl.DataFrame, Tuple[pl.LazyFrame, pl.LazyFrame]]
+    splitter : Callable[[pl.LazyFrame | pl.DataFrame], Tuple[pl.LazyFrame, pl.LazyFrame] | Tuple[pl.DataFrame, pl.DataFrame]]
         Function that takes a panel DataFrame or LazyFrame and returns tuple of train/test DataFrame or LazyFrame.
     """
 
