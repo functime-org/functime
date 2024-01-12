@@ -58,7 +58,7 @@ X_train, X_test = train_test_split(test_size)(X)
 ## Fit / Predict / Score
 
 `functime` forecasters expose sklearn-compatible `.fit` and `.predict` methods.
-`functime.metrics` contains a comprehensive range of scoring functions for both point and probablistic forecasts.
+`functime.metrics` contains a comprehensive range of scoring functions for both point and probabilistic forecasts.
 
 ??? info "Supported Forecast Metrics"
 
@@ -250,7 +250,7 @@ from functime.preprocessing import diff, scale, boxcox
 # Apply first differences
 forecaster = linear_model(freq="1mo", lags=12, target_transform=diff(order=1, fill_strategy="backward"))
 
-# Or local standarization
+# Or local standardization
 forecaster = linear_model(freq="1mo", lags=12, target_transform=scale())
 
 # Or Box-cox
@@ -489,7 +489,7 @@ y_preds, y_resids = forecaster.backtest(
 )
 ```
 
-## Probablistic Forecasts
+## Probabilistic Forecasts
 
 `functime` supports two methods for generating prediction intervals.
 

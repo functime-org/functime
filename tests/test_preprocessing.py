@@ -66,7 +66,7 @@ def test_sklearn_impute(strategy, pd_X, benchmark):
 
 @pytest.mark.benchmark
 def test_sklearn_boxcox(pd_X, benchmark):
-    # All values must be stricty positive
+    # All values must be strictly positive
     X = pd_X.abs() + 0.001
     transformer = PowerTransformer(method="box-cox", standardize=False)
     benchmark(pd_gb_transform, X, transformer)
