@@ -58,7 +58,7 @@ class ANNRegressor:
             metric=self.metric,
             num_partitions=self.num_partitions,
             ivf_centroids=self.ivf_centroids,
-            # Must satisfy contraints:
+            # Must satisfy constraints:
             # 1. (n_dims / num_sub_vectors) % 8 == 0
             # 2. n_dims % num_sub_vectors == 0
             num_sub_vectors=self.num_sub_vectors or n_dims // 8,

@@ -63,14 +63,14 @@ Check out this [guide](installation.md) to install functime. Requires Python 3.8
 
 ### Forecasting
 
-Point and probablistic forecasts using machine learning.
+Point and probabilistic forecasts using machine learning.
 Includes utilities to support the full forecasting lifecycle: preprocessing, feature extraction, time-series cross-validation / splitters, backtesting, automated hyperparameter tuning, and scoring.
 
 - Every forecaster supports **exogenous features**
 - **Seasonality** effects using [calendar, Fourier, and holiday features](https://docs.functime.ai/seasonality/)
 - **Backtesting** with [expanding window and sliding window splitters](https://docs.functime.ai/ref/cross-validation/)
 - **Automated lags and hyperparameter tuning** using [`FLAML`](https://github.com/microsoft/FLAML)
-- **Probablistic forecasts** via quantile regression and conformal prediction
+- **Probabilistic forecasts** via quantile regression and conformal prediction
 - **Forecast metrics** (e.g. MASE, SMAPE, CRPS) for scoring in parallel
 - Supports **recursive and direct** forecast strategies
 - **Censored model** for zero-inflated forecasts

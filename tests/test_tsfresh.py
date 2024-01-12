@@ -391,7 +391,7 @@ def test_linear_trend(S, res, k):
         ([1], [1]),
     ],
 )
-def test_abolute_energy(S, res):
+def test_absolute_energy(S, res):
     assert_frame_equal(
         pl.DataFrame({"a": S}).select(absolute_energy(pl.col("a"))),
         pl.DataFrame(pl.Series("a", res)),
@@ -879,7 +879,7 @@ def test_benford_correlation():
     # Nan, division by 0
     X_uniform = pl.DataFrame({"a": [1, 2, 3, 4, 5, 6, 7, 8, 9]})
     X_uniform_lazy = pl.LazyFrame({"a": [1, 2, 3, 4, 5, 6, 7, 8, 9]})
-    # Random serie
+    # Random series
     X_random = pl.DataFrame(
         {"a": [26.24, 3.03, -2.92, 3.5, -0.07, 0.35, 0.10, 0.51, -0.43]}
     )
@@ -1170,7 +1170,7 @@ def test_percent_reoccuring_values(S, res):  # noqa
         ([1.111, -2.45, 1.111, 2.45], [2.222]),
     ],
 )
-def test_sum_reocurring_points(S, res):
+def test_sum_reoccurring_points(S, res):
     assert_frame_equal(
         pl.DataFrame({"a": S}).select(sum_reoccurring_points(pl.col("a"))),
         pl.DataFrame(pl.Series("a", res)),
@@ -1190,7 +1190,7 @@ def test_sum_reocurring_points(S, res):
         ([1.111, -2.45, 1.111, 2.45], [1.111]),
     ],
 )
-def test_sum_reocurring_values(S, res):
+def test_sum_reoccurring_values(S, res):
     assert_frame_equal(
         pl.DataFrame({"a": S}).select(sum_reoccurring_values(pl.col("a"))),
         pl.DataFrame(pl.Series("a", res)),
@@ -1211,7 +1211,7 @@ def test_sum_reocurring_values(S, res):
         ([], [np.nan]),
     ],
 )
-def test_percent_reocurring_points(S, res):
+def test_percent_reoccurring_points(S, res):
     assert_frame_equal(
         pl.DataFrame({"a": S}).select(percent_reoccurring_points(pl.col("a"))),
         pl.DataFrame(pl.Series("literal", res, dtype=pl.Float64)),
@@ -1653,7 +1653,7 @@ def test_permutation_entropy(S, t, d, b, res):
 )
 def test_sample_entropy(S, res):
     # Test 1's answer comes from comparing result with Tsfresh
-    # Thest 2's answer comes from running this using the Python code on Wikipedia
+    # Test 2's answer comes from running this using the Python code on Wikipedia
     # Test 3 is an edge case. Should get nan.
     x = pl.Series(S)
     res_series = sample_entropy(x)

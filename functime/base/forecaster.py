@@ -16,7 +16,7 @@ else:
 
 # The parameters of the Model
 P = ParamSpec("P")
-# The return type of the esimator's curried function
+# The return type of the estimator's curried function
 R = Tuple[TypeVar("fit", bound=Callable), TypeVar("predict", bound=Callable)]
 
 FORECAST_STRATEGIES = Optional[Literal["direct", "recursive", "naive"]]

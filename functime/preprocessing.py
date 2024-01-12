@@ -68,7 +68,7 @@ def coerce_dtypes(schema: Mapping[str, pl.DataType]):
 def time_to_arange(eager: bool = False):
     """Coerces time column into arange per entity.
 
-    Assumes even-spaced time-series and homogenous start dates.
+    Assumes even-spaced time-series and homogeneous start dates.
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
