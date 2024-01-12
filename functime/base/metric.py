@@ -33,7 +33,7 @@ def metric(score: Callable):
             _set_string_cache
         )
         y_pred = y_pred.pipe(_enforce_string_cache, string_cache=string_cache)
-        # Coerce columnn names and dtypes
+        # Coerce column names and dtypes
         cols = y_true.columns
         y_pred = y_pred.rename({x: y for x, y in zip(y_pred.columns, cols)}).select(
             [pl.col(col).cast(dtype) for col, dtype in y_true.schema.items()]
