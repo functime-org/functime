@@ -5,15 +5,15 @@ import polars as pl
 
 
 def train_test_split(
-    test_size: Union[int, float], eager: bool = False
+    test_size: Union[int, float] = 0.25, eager: bool = False
 ) -> Tuple[pl.LazyFrame, pl.LazyFrame]:
     """Return a time-ordered train set and test set given `test_size`.
 
     Parameters
     ----------
-    test_size : int | float
+    test_size : int | float, default=0.25
         Number or fraction of test samples.
-    eager : bool
+    eager : bool, default=False
         If True, evaluate immediately and returns tuple of train-test `DataFrame`.
 
     Returns
@@ -31,6 +31,21 @@ def train_test_split(
         raise TypeError("`test_size` must be int or float")
 
     def split(X: pl.LazyFrame) -> pl.LazyFrame:
+        X = X.lazy()  # Defensive
+        entity_col = X.columns[0]
+
+        max_size = (
+            X.group_by(entity_col)
+            .agg(pl.count())
+            .select(pl.min("count"))
+            .collect()
+            .item()
+        )
+        if isinstance(test_size, int) and test_size > max_size:
+            raise ValueError(
+                "`test_size` must be less than the number of samples of the smallest entity"
+            )
+
         train_length = (
             pl.count() - test_size
             if isinstance(test_size, int)
@@ -38,8 +53,6 @@ def train_test_split(
         )
         test_length = pl.count() - train_length
 
-        X = X.lazy()  # Defensive
-        entity_col = X.columns[0]
         train_split = (
             X.group_by(entity_col)
             .agg(pl.all().slice(offset=0, length=train_length))
