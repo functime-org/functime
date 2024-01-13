@@ -2,13 +2,13 @@
     <h1>Time-series machine learning at scale</h1>
 <br />
 
-![functime](https://github.com/TracecatHQ/functime/raw/main/docs/img/banner_dark_bg.png)
+![functime](https://github.com/functime-org/functime/raw/main/docs/img/banner_dark_bg.png)
 [![Python](https://img.shields.io/pypi/pyversions/functime)](https://pypi.org/project/functime/)
 [![PyPi](https://img.shields.io/pypi/v/functime?color=blue)](https://pypi.org/project/functime/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![GitHub Publish to PyPI](https://github.com/TracecatHQ/functime/actions/workflows/publish.yml/badge.svg)](https://github.com/TracecatHQ/functime/actions/workflows/publish.yml)
-[![GitHub Run Quickstart](https://github.com/TracecatHQ/functime/actions/workflows/quickstart.yml/badge.svg)](https://github.com/TracecatHQ/functime/actions/workflows/quickstart.yml)
-[![Discord](https://img.shields.io/discord/1145819725276917782)](https://discord.gg/JKMrZKjEwN)
+[![GitHub Publish to PyPI](https://github.com/functime-org/functime/actions/workflows/publish.yml/badge.svg)](https://github.com/functime-org/functime/actions/workflows/publish.yml)
+[![GitHub Run Quickstart](https://github.com/functime-org/functime/actions/workflows/quickstart.yml/badge.svg)](https://github.com/functime-org/functime/actions/workflows/quickstart.yml)
+[![Discord](https://img.shields.io/discord/1145819725276917782)](https://discord.gg/invite/JKMrZKjEwN)
 
 </div>
 
@@ -17,11 +17,11 @@
 
 **functime** also comes with time-series [preprocessing](https://docs.functime.ai/ref/preprocessing/) (box-cox, differencing etc), cross-validation [splitters](https://docs.functime.ai/ref/cross-validation/) (expanding and sliding window), and forecast [metrics](https://docs.functime.ai/ref/metrics/) (MASE, SMAPE etc). All optimized as [lazy Polars](https://pola-rs.github.io/polars-book/user-guide/lazy/using/) transforms.
 
-Join us on [Discord](https://discord.gg/JKMrZKjEwN)!
+Join us on [Discord](https://discord.com/invite/JKMrZKjEwN)!
 
 ## Highlights
 - **Fast:** Forecast and extract features (e.g. tsfresh, Catch22) across 100,000 time series in seconds *on your laptop*
-- **Efficient:** Embarrassingly parallel feature engineering for time-series using [`Polars`](https://www.pola.rs/)
+- **Efficient:** Embarrassingly parallel feature engineering for time-series using [`Polars`](https://pola.rs/)
 - **Battle-tested:** Machine learning algorithms that deliver real business impact and win competitions
 - **Exogenous features:** supported by every forecaster
 - **Backtesting** with expanding window and sliding window splitters
@@ -31,7 +31,7 @@ Join us on [Discord](https://discord.gg/JKMrZKjEwN)!
 `functime` comes with a specialized LLM agent to analyze, describe, and compare your forecasts. Check out the walkthrough [here](https://docs.functime.ai/notebooks/llm/).
 
 ## Getting Started
-Install `functime` via the [pip](https://pypi.org/project/functime) package manager.
+Install `functime` via the [pip](https://pypi.org/project/functime/) package manager.
 ```bash
 pip install functime
 ```
@@ -58,7 +58,7 @@ from functime.preprocessing import scale
 from functime.metrics import mase
 
 # Load commodities price data
-y = pl.read_parquet("https://github.com/TracecatHQ/functime/raw/main/data/commodities.parquet")
+y = pl.read_parquet("https://github.com/functime-org/functime/raw/main/data/commodities.parquet")
 entity_col, time_col = y.columns[:2]
 
 # Time series split
@@ -111,7 +111,7 @@ import numpy as np
 from functime.feature_extractors import FeatureExtractor, binned_entropy
 
 # Load commodities price data
-y = pl.read_parquet("https://github.com/TracecatHQ/functime/raw/main/data/commodities.parquet")
+y = pl.read_parquet("https://github.com/functime-org/functime/raw/main/data/commodities.parquet")
 
 # Get column names ("commodity_type", "time", "price")
 entity_col, time_col, value_col = y.columns

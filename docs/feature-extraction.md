@@ -14,7 +14,7 @@ import numpy as np
 from functime.feature_extractors import FeatureExtractor, binned_entropy
 
 # Load commodities price data
-y = pl.read_parquet("https://github.com/TracecatHQ/functime/raw/main/data/commodities.parquet")
+y = pl.read_parquet("https://github.com/functime-org/functime/raw/main/data/commodities.parquet")
 
 # Get column names ("commodity_type", "time", "price")
 entity_col, time_col, value_col = y.columns

@@ -13,7 +13,7 @@ start_time = default_timer()
 
 # Load data
 y = pl.read_parquet(
-    "https://github.com/TracecatHQ/functime/raw/main/data/commodities.parquet"
+    "https://github.com/functime-org/functime/raw/main/data/commodities.parquet"
 )
 entity_col, time_col = y.columns[:2]
 X = y.select([entity_col, time_col]).pipe(add_fourier_terms(sp=12, K=6)).collect()

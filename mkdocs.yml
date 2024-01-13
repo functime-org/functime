@@ -1,7 +1,7 @@
 site_name: functime
 site_url: https://docs.functime.ai/
-repo_url: https://github.com/TracecatHQ/functime
-repo_name: TracecatHQ/functime
+repo_url: https://github.com/functime-org/functime
+repo_name: functime-org/functime
 
 theme:
   name: "material"

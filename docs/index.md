@@ -8,7 +8,7 @@
 
 - **Fully-featured:** Powerful and easy-to-use API for [forecasting](#forecasting-highlights) and [feature engineering](#feature-engineering-highlights) (tsfresh, Catch22).
 - **Fast:** Forecast [100,000 time series](#global-forecasting) in seconds *on your laptop*
-- **Efficient:** Extract 100s of time-series features in parallel using [Polars](https://www.pola.rs/) *
+- **Efficient:** Extract 100s of time-series features in parallel using [Polars](https://pola.rs/) *
 - **Battle-tested:** Algorithms that deliver real business impact and win competitions
 
 ## Installation
