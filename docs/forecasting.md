@@ -239,7 +239,7 @@ Every forecaster has two optional parameters `target_transform` and `feature_tra
   - `feature_transform` applies a transformation on `X` before fit and predict.
 
 We recommend using `target_transform` and `feature_transform` to avoid common pitfalls such as inconsistent feature engineering and data leakage.
-Check out the API reference for [preprocessing](/ref/preprocessing/) and [feature_extraction](/ref/feature-extraction/) for a list of supported transformations.
+Check out the API reference for [preprocessing](/ref/preprocessing/) and [feature_extraction](/ref/feature-extractors/) for a list of supported transformations.
 
 ### Target Transform
 
