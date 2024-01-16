@@ -51,6 +51,7 @@ cat = [
 ]
 dev = [
   "pre-commit",
+  "functime[doc,plot,test]"
 ]
 doc = [
   "jupyterlab",
@@ -121,7 +122,12 @@ ignore = [
 keep-runtime-typing = true
 
 [tool.pytest.ini_options]
-addopts = ["--strict-config", "--strict-markers"]
+addopts = [
+"--strict-config",
+"--strict-markers",
+"-m not benchmark and not slow",
+"--benchmark-disable",
+]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "benchmark: marks tests as part of benchmarking",
