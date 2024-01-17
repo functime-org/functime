@@ -2,7 +2,6 @@ import logging
 import math
 from typing import List, Mapping, Optional, Sequence, Union
 
-# import bottleneck as bn
 import numpy as np
 import polars as pl
 from polars.type_aliases import ClosedInterval
