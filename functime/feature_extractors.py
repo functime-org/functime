@@ -354,7 +354,7 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
 #         .append(pl.int_range(1, 10, eager=False))
 #         .value_counts()
 #         .sort()
-#         .struct.field("counts")
+#         .struct.field("count")
 #     )
 #     return pl.corr(counts - 1, pl.lit(_BENFORD_DIST_SERIES))
 
@@ -385,7 +385,7 @@ def binned_entropy(x: TIME_SERIES_T, bin_count: int = 10) -> FLOAT_EXPR:
             .floordiv(pl.lit(1e-12) + (x.max() - x.min()) / pl.lit(bin_count))
             .drop_nulls()
             .value_counts()
-            .struct.field("counts")
+            .struct.field("count")
             .entropy()
         )
 
@@ -1322,7 +1322,7 @@ def permutation_entropy(
                 .head(x.len() - n_dims + 1)
                 .list.eval(pl.element().arg_sort())
                 .value_counts()  # groupby and count, but returns a struct
-                .struct.field("counts")  # extract the field named "counts"
+                .struct.field("count")  # extract the field named "count"
                 .entropy(base=base, normalize=True)
             )
         else:
@@ -1341,7 +1341,7 @@ def permutation_entropy(
                     pl.element().arg_sort()
                 )  # for each inner list, do an argsort
                 .value_counts()  # groupby and count, but returns a struct
-                .struct.field("counts")  # extract the field named "counts"
+                .struct.field("count")  # extract the field named "count"
                 .entropy(base=base, normalize=True)
             )
 
@@ -1578,11 +1578,11 @@ def sum_reoccurring_values(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
     """
     if isinstance(x, pl.Series):
         vc = x.value_counts()
-        return vc.filter(pl.col("counts") > 1).select(pl.col(x.name).sum()).item(0, 0)
+        return vc.filter(pl.col("count") > 1).select(pl.col(x.name).sum()).item(0, 0)
     else:
         name = x.meta.output_name() or "_"
         vc = x.value_counts(sort=True)
-        return vc.filter(vc.struct.field("counts") > 1).struct.field(name).sum()
+        return vc.filter(vc.struct.field("count") > 1).struct.field(name).sum()
 
 
 def symmetry_looking(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
