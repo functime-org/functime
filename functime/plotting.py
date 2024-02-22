@@ -66,6 +66,9 @@ def plot_entities(
 
 def plot_panel(
     y: Union[pl.DataFrame, pl.LazyFrame],
+    *,
+    n_series: int = 10,
+    seed: int | None = None,
     n_cols: int = 2,
     last_n: int = DEFAULT_LAST_N,
     **kwargs,
@@ -73,13 +76,16 @@ def plot_panel(
     """Given panel DataFrames of observed values `y`,
     returns subplots for each individual entity / time-series.
 
-    Note: if you have over 10 entities / time-series, we recommend using
-    the `rank_` functions in `functime.evaluation` then `df.head()` before plotting.
-
     Parameters
     ----------
     y : Union[pl.DataFrame, pl.LazyFrame]
         Panel DataFrame of observed values.
+    n_series : int
+        Number of entities / time-series to plot.
+        Defaults to 10.
+    seed : int | None
+        Random seed for sampling entities / time-series.
+        Defaults to None.
     n_cols : int
         Number of columns to arrange subplots.
         Defaults to 2.
@@ -97,17 +103,24 @@ def plot_panel(
     if isinstance(y, pl.DataFrame):
         y = y.lazy()
 
+    entities = y.select(pl.col(entity_col).unique(maintain_order=True)).collect()
+
+    entities_sample = entities.to_series().sample(n_series, seed=seed)
+
     # Get most recent observations
-    y = y.group_by(entity_col).tail(last_n).collect()
+    y = (
+        y.filter(pl.col(entity_col).is_in(entities_sample))
+        .group_by(entity_col)
+        .tail(last_n)
+        .collect()
+    )
 
     # Organize subplots
-    n_series = y.get_column(entity_col).n_unique()
-    n_rows = int(np.ceil(n_series / n_cols))
+    n_rows = n_series // n_cols
     row_idx = np.repeat(range(n_rows), n_cols)
-    entity_ids = sorted(y.get_column(entity_col).unique())
-    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entity_ids)
+    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities)
 
-    for i, entity_id in enumerate(entity_ids):
+    for i, entity_id in enumerate(entities):
         ts = y.filter(pl.col(entity_col) == entity_id)
         row = row_idx[i] + 1
         col = i % n_cols + 1
@@ -134,6 +147,9 @@ def plot_panel(
 def plot_forecasts(
     y_true: Union[pl.DataFrame, pl.LazyFrame],
     y_pred: pl.DataFrame,
+    *,
+    n_series: int = 10,
+    seed: int | None = None,
     n_cols: int = 2,
     last_n: int = DEFAULT_LAST_N,
     **kwargs,
@@ -141,15 +157,18 @@ def plot_forecasts(
     """Given panel DataFrames of observed values `y` and forecasts `y_pred`,
     returns subplots for each individual entity / time-series.
 
-    Note: if you have over 10 entities / time-series, we recommend using
-    the `rank_` functions in `functime.evaluation` then `df.head()` before plotting.
-
     Parameters
     ----------
     y_true : Union[pl.DataFrame, pl.LazyFrame]
         Panel DataFrame of observed values.
     y_pred : pl.DataFrame
         Panel DataFrame of forecasted values.
+    n_series : int
+        Number of entities / time-series to plot.
+        Defaults to 10.
+    seed : int | None
+        Random seed for sampling entities / time-series.
+        Defaults to None.
     n_cols : int
         Number of columns to arrange subplots.
         Defaults to 2.
@@ -168,16 +187,24 @@ def plot_forecasts(
         y_true = y_true.lazy()
 
     # Get most recent observations
-    y = y_true.group_by(entity_col).tail(last_n).collect()
+    entities = y_true.select(pl.col(entity_col).unique(maintain_order=True)).collect()
+
+    entities_sample = entities.to_series().sample(n_series, seed=seed)
+
+    # Get most recent observations
+    y = (
+        y_true.filter(pl.col(entity_col).is_in(entities_sample))
+        .group_by(entity_col)
+        .tail(last_n)
+        .collect()
+    )
 
     # Organize subplots
-    n_series = y.get_column(entity_col).n_unique()
-    n_rows = int(np.ceil(n_series / n_cols))
+    n_rows = n_series // n_cols
     row_idx = np.repeat(range(n_rows), n_cols)
-    entity_ids = y.get_column(entity_col).unique(maintain_order=True)
-    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entity_ids)
+    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities)
 
-    for i, entity_id in enumerate(entity_ids):
+    for i, entity_id in enumerate(entities):
         ts = y.filter(pl.col(entity_col) == entity_id)
         ts_pred = y_pred.filter(pl.col(entity_col) == entity_id)
         row = row_idx[i] + 1
@@ -217,6 +244,9 @@ def plot_forecasts(
 def plot_backtests(
     y_true: Union[pl.DataFrame, pl.LazyFrame],
     y_preds: pl.DataFrame,
+    *,
+    n_series: int = 10,
+    seed: int | None = None,
     n_cols: int = 2,
     last_n: int = DEFAULT_LAST_N,
     **kwargs,
@@ -224,15 +254,18 @@ def plot_backtests(
     """Given panel DataFrame of observed values `y` and backtests across splits `y_pred`,
     returns subplots for each individual entity / time-series.
 
-    Note: if you have over 10 entities / time-series, we recommend using
-    the `rank_` functions in `functime.evaluation` then `df.head()` before plotting.
-
     Parameters
     ----------
     y_true : Union[pl.DataFrame, pl.LazyFrame]
         Panel DataFrame of observed values.
     y_preds : pl.DataFrame
         Panel DataFrame of backtested values.
+    n_series : int
+        Number of entities / time-series to plot.
+        Defaults to 10.
+    seed : int | None
+        Random seed for sampling entities / time-series.
+        Defaults to None.
     n_cols : int
         Number of columns to arrange subplots.
         Defaults to 2.
@@ -251,16 +284,24 @@ def plot_backtests(
         y_true = y_true.lazy()
 
     # Get most recent observations
-    y = y_true.group_by(entity_col).tail(last_n).collect()
+    entities = y_true.select(pl.col(entity_col).unique(maintain_order=True)).collect()
+
+    entities_sample = entities.to_series().sample(n_series, seed=seed)
+
+    # Get most recent observations
+    y = (
+        y_true.filter(pl.col(entity_col).is_in(entities_sample))
+        .group_by(entity_col)
+        .tail(last_n)
+        .collect()
+    )
 
     # Organize subplots
-    n_series = y.get_column(entity_col).n_unique()
     n_rows = n_series // n_cols
     row_idx = np.repeat(range(n_rows), n_cols)
-    entity_ids = y.get_column(entity_col).unique(maintain_order=True)
-    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entity_ids)
+    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities)
 
-    for i, entity_id in enumerate(entity_ids):
+    for i, entity_id in enumerate(entities):
         ts = y.filter(pl.col(entity_col) == entity_id)
         ts_pred = y_preds.filter(pl.col(entity_col) == entity_id)
         row = row_idx[i] + 1
