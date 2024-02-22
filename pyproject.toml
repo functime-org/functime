@@ -29,6 +29,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
+  "cloudpickle",
   "flaml<3,>=2.0.2",
   "holidays",
   "numpy",
