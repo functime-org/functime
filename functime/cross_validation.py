@@ -1,19 +1,19 @@
-from typing import Mapping, Optional, Tuple
+from typing import Mapping, Optional, Tuple, Union
 
 import numpy as np
 import polars as pl
 
 
 def train_test_split(
-    test_size: int, eager: bool = False
+    test_size: Union[int, float] = 0.25, eager: bool = False
 ) -> Tuple[pl.LazyFrame, pl.LazyFrame]:
     """Return a time-ordered train set and test set given `test_size`.
 
     Parameters
     ----------
-    test_size : int
-        Number of test samples.
-    eager : bool
+    test_size : int | float, default=0.25
+        Number or fraction of test samples.
+    eager : bool, default=False
         If True, evaluate immediately and returns tuple of train-test `DataFrame`.
 
     Returns
@@ -21,18 +21,46 @@ def train_test_split(
     splitter : Callable[pl.LazyFrame, Tuple[pl.LazyFrame, pl.LazyFrame]]
         Function that takes a panel LazyFrame and returns tuple of train / test LazyFrames.
     """
+    if isinstance(test_size, float):
+        if test_size < 0 or test_size > 1:
+            raise ValueError("`test_size` must be between 0 and 1")
+    elif isinstance(test_size, int):
+        if test_size < 0:
+            raise ValueError("`test_size` must be greater than 0")
+    else:
+        raise TypeError("`test_size` must be int or float")
 
     def split(X: pl.LazyFrame) -> pl.LazyFrame:
         X = X.lazy()  # Defensive
         entity_col = X.columns[0]
+
+        max_size = (
+            X.group_by(entity_col)
+            .agg(pl.count())
+            .select(pl.min("count"))
+            .collect()
+            .item()
+        )
+        if isinstance(test_size, int) and test_size > max_size:
+            raise ValueError(
+                "`test_size` must be less than the number of samples of the smallest entity"
+            )
+
+        train_length = (
+            pl.count() - test_size
+            if isinstance(test_size, int)
+            else (pl.count() * (1 - test_size)).cast(int)
+        )
+        test_length = pl.count() - train_length
+
         train_split = (
             X.group_by(entity_col)
-            .agg(pl.all().slice(0, pl.count() - test_size))
+            .agg(pl.all().slice(offset=0, length=train_length))
             .explode(pl.all().exclude(entity_col))
         )
         test_split = (
             X.group_by(entity_col)
-            .agg(pl.all().slice(-1 * test_size, test_size))
+            .agg(pl.all().slice(offset=train_length, length=test_length))
             .explode(pl.all().exclude(entity_col))
         )
         if eager:
