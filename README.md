@@ -6,7 +6,6 @@
 [![Python](https://img.shields.io/pypi/pyversions/functime)](https://pypi.org/project/functime/)
 [![PyPi](https://img.shields.io/pypi/v/functime?color=blue)](https://pypi.org/project/functime/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![GitHub Publish to PyPI](https://github.com/functime-org/functime/actions/workflows/publish.yml/badge.svg)](https://github.com/functime-org/functime/actions/workflows/publish.yml)
 [![GitHub Run Quickstart](https://github.com/functime-org/functime/actions/workflows/quickstart.yml/badge.svg)](https://github.com/functime-org/functime/actions/workflows/quickstart.yml)
 [![Discord](https://img.shields.io/discord/1145819725276917782)](https://discord.com/invite/JKMrZKjEwN)
 
