@@ -39,6 +39,6 @@ def y_to_numpy(y: pl.DataFrame) -> np.ndarray:
         .fill_null(strategy="mean")  # Do not fill backward (data leak)
         .collect(streaming=True)
         .get_column(y.columns[-1])
-        .to_numpy(zero_copy_only=True)
+        .to_numpy()  # TODO: Cannot require zero-copy array?
     )
     return y_arr
