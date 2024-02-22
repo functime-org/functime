@@ -23,7 +23,7 @@ Want to go straight into code? Run through every forecasting example with the fo
 
 ## Prepare Data
 
-Load a collection of time series, also known as panel data, into a [`polars.LazyFrame`](https://pola-rs.github.io/polars/py-polars/html/reference/lazyframe/index.html) (recommended) or `polars.DataFrame` and split them into train/test subsets.
+Load a collection of time series, also known as panel data, into a [`polars.LazyFrame`](https://docs.pola.rs/py-polars/html/reference/lazyframe/index.html) (recommended) or `polars.DataFrame` and split them into train/test subsets.
 
 ```python
 import polars as pl
@@ -33,7 +33,7 @@ from functime.seasonality import add_calendar_effects
 
 
 # Load data
-y = pl.read_parquet("https://github.com/TracecatHQ/functime/raw/main/data/commodities.parquet")
+y = pl.read_parquet("https://github.com/functime-org/functime/raw/main/data/commodities.parquet")
 entity_col, time_col = y.columns[:2]
 X = (
     y.select([entity_col, time_col])
@@ -239,7 +239,7 @@ Every forecaster has two optional parameters `target_transform` and `feature_tra
   - `feature_transform` applies a transformation on `X` before fit and predict.
 
 We recommend using `target_transform` and `feature_transform` to avoid common pitfalls such as inconsistent feature engineering and data leakage.
-Check out the API reference for [preprocessing](/ref/preprocessing/) and [feature_extraction](/ref/feature-extraction/) for a list of supported transformations.
+Check out the API reference for [preprocessing](/ref/preprocessing/) and [feature_extraction](/ref/feature-extractors/) for a list of supported transformations.
 
 ### Target Transform
 

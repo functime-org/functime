@@ -2,7 +2,7 @@
 
 `functime` has over 100+ time-series feature extractors (e.g. `binned_entropy`, `longest_streak_above_mean`) available for any `Polars` Series. Approximately 85% of the implementations are optimized lazy queries and works on both `polars.Series` and `polars.Expr`.
 
-Check out the [API reference](ref/feature-extraction.md) for a list of supported feature extractors.
+Check out the [API reference](ref/feature-extractors) for a list of supported feature extractors.
 
 ## Usage Examples
 
@@ -14,7 +14,7 @@ import numpy as np
 from functime.feature_extractors import FeatureExtractor, binned_entropy
 
 # Load commodities price data
-y = pl.read_parquet("https://github.com/TracecatHQ/functime/raw/main/data/commodities.parquet")
+y = pl.read_parquet("https://github.com/functime-org/functime/raw/main/data/commodities.parquet")
 
 # Get column names ("commodity_type", "time", "price")
 entity_col, time_col, value_col = y.columns
