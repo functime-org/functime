@@ -4,11 +4,11 @@
 
 ## Production-ready time series models
 
-**functime** is a machine learning library for time-series predictions that [just works](https://www.functime.ai/).
+**functime** is a machine learning library for time-series predictions that [just works](https://functime.ai/).
 
 - **Fully-featured:** Powerful and easy-to-use API for [forecasting](#forecasting-highlights) and [feature engineering](#feature-engineering-highlights) (tsfresh, Catch22).
 - **Fast:** Forecast [100,000 time series](#global-forecasting) in seconds *on your laptop*
-- **Efficient:** Extract 100s of time-series features in parallel using [Polars](https://www.pola.rs/) *
+- **Efficient:** Extract 100s of time-series features in parallel using [Polars](https://pola.rs/) *
 - **Battle-tested:** Algorithms that deliver real business impact and win competitions
 
 ## Installation
@@ -89,7 +89,7 @@ View the [full walkthrough](forecasting.md) on forecasting with `functime`.
 - Supports feature extraction across many time-series (via `group_by`)
 - Supports feature extraction across windows (via `group_by_dynamic`)
 
-View the [full walkthrough](feature_extraction.md) on forecasting with `functime`.
+View the [full walkthrough](feature-extraction.md) on forecasting with `functime`.
 
 ### Preprocessing
 View API reference for [`functime.preprocessing`](https://docs.functime.ai/preprocessing/).

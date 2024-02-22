@@ -42,9 +42,9 @@ class AutoForecaster(Forecaster):
     time_budget : int
         Maximum time budgeted to train each forecaster per window and set of hyperparameters.
     search_space : Optional[dict]
-        Equivalent to `config` in [FLAML](https://microsoft.github.io/FLAML/docs/Use-Cases/Tune-User-Defined-Function#search-space)
+        Equivalent to `config` in [FLAML](https://microsoft.github.io/FLAML/docs/Use-Cases/Tune-User-Defined-Function/#search-space)
     points_to_evaluate : Optional[dict]
-        Equivalent to `points_to_evaluate` in [FLAML](https://microsoft.github.io/FLAML/docs/Use-Cases/Tune-User-Defined-Function#warm-start)
+        Equivalent to `points_to_evaluate` in [FLAML](https://microsoft.github.io/FLAML/docs/Use-Cases/Tune-User-Defined-Function/#warm-start)
     num_samples : int
         Number of hyper-parameter sets to test. -1 means unlimited (until `time_budget` is exhausted.)
     target_transform : Optional[Transformer]

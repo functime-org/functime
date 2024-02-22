@@ -3,7 +3,7 @@ Thanks for contributing a pull request! Please ensure you have taken a look at
 the contribution guidelines: https://github.com/functime-org/functime/blob/main/CONTRIBUTING.md
 
 👋 The best way to engage with us is to join our Discord channel:
-https://discord.gg/JKMrZKjEwN
+https://discord.com/invite/JKMrZKjEwN
 -->
 
 ## Reference Issues/PRs
