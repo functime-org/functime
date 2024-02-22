@@ -340,16 +340,16 @@ def test_fractional_diff(pd_X):
 
 
 ### Temporarily commented out. Uncomment when benchmarking is ready. ###
-# #@pytest.mark.benchmark(group="fractional_diff")
-# def test_fractional_diff_benchmark_functime(pd_X, benchmark):
-#     X = pl.from_pandas(pd_X.reset_index()).lazy()
-#     entity_col = pd_X.index.names[0]
-#     time_col = pd_X.index.names[1]
-#     transformer = fractional_diff(d=0.5, min_weight=1e-3)
-#     X_new = X.pipe(transformer)
-#     benchmark(X_new.collect)
+@pytest.mark.benchmark(group="fractional_diff")
+def test_fractional_diff_benchmark_functime(pd_X, benchmark):
+    X = pl.from_pandas(pd_X.reset_index()).lazy()
+    entity_col = pd_X.index.names[0]
+    time_col = pd_X.index.names[1]
+    transformer = fractional_diff(d=0.5, min_weight=1e-3)
+    X_new = X.pipe(transformer)
+    benchmark(X_new.collect)
 
 
-# #@pytest.mark.benchmark(group="fractional_diff")
-# def test_fractional_diff_benchmark_pd(pd_X, benchmark):
-#     benchmark(pd_fractional_diff, pd_X, d=0.5, thres=1e-3)
+@pytest.mark.benchmark(group="fractional_diff")
+def test_fractional_diff_benchmark_pd(pd_X, benchmark):
+    benchmark(pd_fractional_diff, pd_X, d=0.5, thres=1e-3)
