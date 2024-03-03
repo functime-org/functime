@@ -186,12 +186,12 @@ def plot_forecasts(
     if isinstance(y_true, pl.DataFrame):
         y_true = y_true.lazy()
 
-    # Get most recent observations
+    # Get the unique entities
     entities = y_true.select(pl.col(entity_col).unique(maintain_order=True)).collect()
-
+    # Get sampled entities
     entities_sample = entities.to_series().sample(n_series, seed=seed)
 
-    # Get most recent observations
+    # Get the most recent observations for the sampled entities
     y = (
         y_true.filter(pl.col(entity_col).is_in(entities_sample))
         .group_by(entity_col)
@@ -200,11 +200,11 @@ def plot_forecasts(
     )
 
     # Organize subplots
-    n_rows = n_series // n_cols
+    n_rows = n_series // n_cols + (n_series % n_cols > 0)
     row_idx = np.repeat(range(n_rows), n_cols)
-    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities)
+    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities_sample)
 
-    for i, entity_id in enumerate(entities):
+    for i, entity_id in enumerate(entities_sample):
         ts = y.filter(pl.col(entity_col) == entity_id)
         ts_pred = y_pred.filter(pl.col(entity_col) == entity_id)
         row = row_idx[i] + 1
