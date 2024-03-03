@@ -23,6 +23,45 @@ def _remove_legend_duplicates(fig: go.Figure) -> go.Figure:
     return fig
 
 
+def _set_subplot_default_kwargs(kwargs: dict, n_rows: int, n_cols: int) -> dict:
+    """
+    Sets or adjusts plot layout properties based on the number of rows and columns in subplots,
+    ensuring a fixed size for subplots and additional space for titles and other elements.
+    Default values are applied only if not already specified by the user.
+
+    Parameters:
+    - kwargs (dict): The original keyword arguments dictionary passed to the plotting function.
+    - n_rows (int): Number of rows in the subplot.
+    - n_cols (int): Number of columns in the subplot.
+
+    Returns:
+    - dict: Updated keyword arguments with adjusted layout properties.
+
+    The function ensures the following:
+    - A fixed size for each subplot.
+    - Additional space for plot titles and other elements.
+    - The overall figure size is dynamically adjusted based on the subplot configuration.
+    """
+    # Fixed size for each subplot
+    subplot_width = 250  # width for each subplot column
+    subplot_height = 200 # height for each subplot row
+
+    # Additional space for titles and other elements
+    additional_space_vertical = 100   # space for titles, labels, etc.
+    additional_space_horizontal = 100 # additional horizontal space if needed
+
+    # Calculate total width and height
+    total_width = subplot_width * n_cols + additional_space_horizontal
+    total_height = subplot_height * n_rows + additional_space_vertical
+
+    # Apply defaults if not already specified by the user
+    kwargs.setdefault("width", total_width)
+    kwargs.setdefault("height", total_height)
+    kwargs.setdefault("template", "plotly_white")
+
+    return kwargs
+
+
 def plot_entities(
     y: Union[pl.DataFrame, pl.LazyFrame],
     **kwargs,
@@ -116,11 +155,11 @@ def plot_panel(
     )
 
     # Organize subplots
-    n_rows = n_series // n_cols
+    n_rows = n_series // n_cols + (n_series % n_cols > 0)
     row_idx = np.repeat(range(n_rows), n_cols)
-    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities)
+    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities_sample)
 
-    for i, entity_id in enumerate(entities):
+    for i, entity_id in enumerate(entities_sample):
         ts = y.filter(pl.col(entity_col) == entity_id)
         row = row_idx[i] + 1
         col = i % n_cols + 1
@@ -137,10 +176,13 @@ def plot_panel(
             col=col,
         )
 
-    template = kwargs.pop("template", "plotly_white")
+    # Set default kwargs for plotting if user did not provide these
+    kwargs = _set_subplot_default_kwargs(kwargs=kwargs, n_rows=n_rows, n_cols=n_cols)
 
-    fig.update_layout(template=template, **kwargs)
+    # Tidy up the plot
+    fig.update_layout(**kwargs)
     fig = _remove_legend_duplicates(fig)
+
     return fig
 
 
@@ -234,9 +276,11 @@ def plot_forecasts(
             col=col,
         )
 
-    template = kwargs.pop("template", "plotly_white")
+    # Set default kwargs for plotting if user did not provide these
+    kwargs = _set_subplot_default_kwargs(kwargs=kwargs, n_rows=n_rows, n_cols=n_cols)
 
-    fig.update_layout(template=template, **kwargs)
+    # Tidy up the plot
+    fig.update_layout(**kwargs)
     fig = _remove_legend_duplicates(fig)
     return fig
 
@@ -297,11 +341,11 @@ def plot_backtests(
     )
 
     # Organize subplots
-    n_rows = n_series // n_cols
+    n_rows = n_series // n_cols + (n_series % n_cols)
     row_idx = np.repeat(range(n_rows), n_cols)
-    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities)
+    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities_sample)
 
-    for i, entity_id in enumerate(entities):
+    for i, entity_id in enumerate(entities_sample):
         ts = y.filter(pl.col(entity_col) == entity_id)
         ts_pred = y_preds.filter(pl.col(entity_col) == entity_id)
         row = row_idx[i] + 1
@@ -331,9 +375,11 @@ def plot_backtests(
             col=col,
         )
 
-    template = kwargs.pop("template", "plotly_white")  # noqa: F841
+    # Set default kwargs for plotting if user did not provide these
+    kwargs = _set_subplot_default_kwargs(kwargs=kwargs, n_rows=n_rows, n_cols=n_cols)
 
-    fig.update_layout(template=template, **kwargs)
+    # Tidy up the plot
+    fig.update_layout(**kwargs)
     fig = _remove_legend_duplicates(fig)
     return fig
 
