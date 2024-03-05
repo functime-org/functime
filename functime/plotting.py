@@ -62,6 +62,14 @@ def _set_subplot_default_kwargs(kwargs: dict, n_rows: int, n_cols: int) -> dict:
     return kwargs
 
 
+def _calculate_subplot_n_rows(n_series: int, n_cols: int) -> int:
+    n_rows = n_series // n_cols
+    if n_series % n_cols != 0:
+        n_rows += 1
+
+    return n_rows
+
+
 def plot_entities(
     y: Union[pl.DataFrame, pl.LazyFrame],
     **kwargs,
@@ -142,8 +150,14 @@ def plot_panel(
     if isinstance(y, pl.DataFrame):
         y = y.lazy()
 
+    # Get all the unique entities
     entities = y.select(pl.col(entity_col).unique(maintain_order=True)).collect()
 
+    # If n_series is higher than max unique entities, use max entities
+    if entities.height < n_series:
+        n_series = entities.height
+
+    # Sample the entities
     entities_sample = entities.to_series().sample(n_series, seed=seed)
 
     # Get most recent observations
@@ -154,15 +168,15 @@ def plot_panel(
         .collect()
     )
 
-    # Organize subplots
-    n_rows = n_series // n_cols + (n_series % n_cols > 0)
-    row_idx = np.repeat(range(n_rows), n_cols)
+    # Define grid and make subplots
+    n_rows = _calculate_subplot_n_rows(n_series=n_series, n_cols=n_cols)
     fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities_sample)
 
+    # Loop and plot each sampled entity
     for i, entity_id in enumerate(entities_sample):
         ts = y.filter(pl.col(entity_col) == entity_id)
-        row = row_idx[i] + 1
-        col = i % n_cols + 1
+        # Get the subplot position for the ts 
+        row, col = (i // n_cols) + 1, (i % n_cols) + 1
         # Plot actual
         fig.add_trace(
             go.Scatter(
@@ -182,7 +196,6 @@ def plot_panel(
     # Tidy up the plot
     fig.update_layout(**kwargs)
     fig = _remove_legend_duplicates(fig)
-
     return fig
 
 
@@ -230,6 +243,11 @@ def plot_forecasts(
 
     # Get the unique entities
     entities = y_true.select(pl.col(entity_col).unique(maintain_order=True)).collect()
+
+    # If n_series is higher than max unique entities, use max entities
+    if entities.height < n_series:
+        n_series = entities.height
+
     # Get sampled entities
     entities_sample = entities.to_series().sample(n_series, seed=seed)
 
@@ -241,16 +259,15 @@ def plot_forecasts(
         .collect()
     )
 
-    # Organize subplots
-    n_rows = n_series // n_cols + (n_series % n_cols > 0)
-    row_idx = np.repeat(range(n_rows), n_cols)
+    # Define grid and make subplots
+    n_rows = _calculate_subplot_n_rows(n_series=n_series, n_cols=n_cols)
     fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities_sample)
 
     for i, entity_id in enumerate(entities_sample):
         ts = y.filter(pl.col(entity_col) == entity_id)
         ts_pred = y_pred.filter(pl.col(entity_col) == entity_id)
-        row = row_idx[i] + 1
-        col = i % n_cols + 1
+        # Get the subplot position for the ts 
+        row, col = (i // n_cols) + 1, (i % n_cols) + 1
         # Plot actual
         fig.add_trace(
             go.Scatter(
@@ -330,9 +347,14 @@ def plot_backtests(
     # Get most recent observations
     entities = y_true.select(pl.col(entity_col).unique(maintain_order=True)).collect()
 
+    # If n_series is higher than max unique entities, use max entities
+    if entities.height < n_series:
+        n_series = entities.height
+
+    # Get sampled entities
     entities_sample = entities.to_series().sample(n_series, seed=seed)
 
-    # Get most recent observations
+    # Get most recent observations for the sampled entities
     y = (
         y_true.filter(pl.col(entity_col).is_in(entities_sample))
         .group_by(entity_col)
@@ -340,16 +362,15 @@ def plot_backtests(
         .collect()
     )
 
-    # Organize subplots
-    n_rows = n_series // n_cols + (n_series % n_cols)
-    row_idx = np.repeat(range(n_rows), n_cols)
+    # Define grid and make subplots
+    n_rows = _calculate_subplot_n_rows(n_series=n_series, n_cols=n_cols)
     fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities_sample)
 
     for i, entity_id in enumerate(entities_sample):
         ts = y.filter(pl.col(entity_col) == entity_id)
         ts_pred = y_preds.filter(pl.col(entity_col) == entity_id)
-        row = row_idx[i] + 1
-        col = i % n_cols + 1
+        # Get the subplot position for the ts 
+        row, col = (i // n_cols) + 1, (i % n_cols) + 1
         # Plot actual
         fig.add_trace(
             go.Scatter(
