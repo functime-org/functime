@@ -2,7 +2,6 @@ from datetime import date
 
 import polars as pl
 import pytest
-from aeon.transformations.series.fourier import FourierFeatures
 from polars.testing import assert_frame_equal
 
 from functime.cross_validation import train_test_split
@@ -57,7 +56,10 @@ def test_fourier_with_dates(freq: str, sp: int):
     )
 
 
+@pytest.mark.benchmark
 def test_fourier_compare_with_aeon():
+    from aeon.transformations.series.fourier import FourierFeatures
+
     sp = 12
     K = 4
     y = pl.read_parquet("data/commodities.parquet")
