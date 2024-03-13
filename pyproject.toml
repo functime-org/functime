@@ -92,6 +92,7 @@ test = [
   "joblib",
   "mlforecast==0.8.1",
   "pandas",
+  "pyarrow",
   "pytest",
   "pytest-benchmark",
   "pytest-memray",
