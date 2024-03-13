@@ -1,4 +1,0 @@
-pytest
-pytest-benchmark
-pandas
-pyarrow
