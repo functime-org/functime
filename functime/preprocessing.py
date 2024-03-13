@@ -321,7 +321,7 @@ def roll(
         #     X_rolling.columns
         # )
         if fill_strategy:
-            X_rolling = X_X_rolling.fill_null(strategy=fill_strategy)
+            X_rolling = X_rolling.fill_null(strategy=fill_strategy)
         artifacts = {"X_new": X_rolling}
         return artifacts
 
