@@ -106,7 +106,9 @@ features = ["pyo3/extension-module"]
 exclude = ["docs/**, data/**", "tests/**", ".pre-commit-config.yaml"]
 
 [tool.ruff]
-include = ["*.py", "*.pyi", "**/pyproject.toml", "*.ipynb"]
+extend-include = ["*.ipynb"]
+
+[tool.ruff.lint]
 select = [
   "E",  # pycodestyle errors
   "W",  # pycodestyle warnings
@@ -124,7 +126,7 @@ ignore = [
   "F821", # Undefined name
 ]
 
-[tool.ruff.pyupgrade]
+[tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.
 keep-runtime-typing = true
 
