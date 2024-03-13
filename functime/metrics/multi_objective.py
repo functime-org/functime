@@ -1,5 +1,4 @@
-"""Module with functions to compute, compare, and optimize multi-objective forecasts.
-"""
+"""Module with functions to compute, compare, and optimize multi-objective forecasts."""
 
 from dataclasses import dataclass
 from functools import partial, reduce
