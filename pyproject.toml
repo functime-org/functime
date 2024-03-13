@@ -10,11 +10,13 @@ version = "0.9.5"
 description = "Time-series machine learning at scale."
 readme = "README.md"
 authors = [
-    { name = "functime Team", email = "team@functime.ai" },
-    { name = "Chris Lo", email = "chris@functime.ai" },
-    { name = "Daryl Lim", email = "daryl@functime.ai" },
+  { name = "Chris Lo", email = "chris@functime.ai" },
+  { name = "Daryl Lim", email = "daryl@functime.ai" },
 ]
-requires-python = ">=3.8"
+maintainers = [
+  { name = "functime Team", email = "team@functime.ai" },
+  { name = "Luca Baggi" }
+]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
@@ -28,6 +30,8 @@ classifiers = [
   "Topic :: Scientific/Engineering",
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+
+requires-python = ">=3.8"
 dependencies = [
   "cloudpickle",
   "flaml<3,>=2.0.2",
@@ -39,14 +43,38 @@ dependencies = [
   "tqdm",
   'typing-extensions; python_version < "3.10"',
 ]
+
 [project.optional-dependencies]
-ann = [
-  "pyarrow",
-  "pylance",
+plot = [
+  "kaleido==0.2.1",
+  "pandas",
+  "plotly",
 ]
 cat = [
   "catboost",
 ]
+lgb = [
+  "lightgbm",
+]
+xgb = [
+  "pyarrow",
+  "xgboost",
+]
+ann = [
+  "pyarrow",
+  "pylance",
+]
+tree = [
+  "functime[cat,lgb,xgb]"
+]
+llm = [
+  "openai",
+  "tabulate",
+  "tenacity",
+  "tiktoken",
+]
+
+# provisionally here until PEP 735 is approved: https://peps.python.org/pep-0735/
 dev = [
   "pre-commit",
   "functime[doc,plot,test]"
@@ -57,20 +85,6 @@ doc = [
   "mkdocs-jupyter",
   "mkdocs-material",
   "mkdocstrings-python",
-]
-lgb = [
-  "lightgbm",
-]
-llm = [
-  "openai",
-  "tabulate",
-  "tenacity",
-  "tiktoken",
-]
-plot = [
-  "kaleido==0.2.1",
-  "pandas",
-  "plotly",
 ]
 test = [
   "aeon<0.5.0",
@@ -85,10 +99,6 @@ test = [
   "statsmodels",
   "tsfresh",
 ]
-xgb = [
-  "pyarrow",
-  "xgboost",
-]
 
 [tool.maturin]
 module-name = "functime._functime_rust"
@@ -98,20 +108,20 @@ exclude = ["docs/**, data/**", "tests/**", ".pre-commit-config.yaml"]
 [tool.ruff]
 include = ["*.py", "*.pyi", "**/pyproject.toml", "*.ipynb"]
 select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "UP", # pyupgrade
-    "I",  # isort
+  "E",  # pycodestyle errors
+  "W",  # pycodestyle warnings
+  "F",  # pyflakes
+  "I",  # isort
+  "B",  # flake8-bugbear
+  "UP", # pyupgrade
+  "I",  # isort
 ]
 ignore = [
-    "E501", # line too long, handled by black
-    "B008", # do not perform function calls in argument defaults
-    "B905", # `zip()` without an explicit `strict=` parameter
-    "B018", # Found useless expression.
-    "F821", # Undefined name
+  "E501", # line too long, handled by black
+  "B008", # do not perform function calls in argument defaults
+  "B905", # `zip()` without an explicit `strict=` parameter
+  "B018", # Found useless expression.
+  "F821", # Undefined name
 ]
 
 [tool.ruff.pyupgrade]
@@ -120,15 +130,15 @@ keep-runtime-typing = true
 
 [tool.pytest.ini_options]
 addopts = [
-"--strict-config",
-"--strict-markers",
-"-m not benchmark and not slow",
-"--benchmark-disable",
+  "--strict-config",
+  "--strict-markers",
+  "-m not benchmark and not slow",
+  "--benchmark-disable",
 ]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "benchmark: marks tests as part of benchmarking",
-    "multivariate: marks multivariate forecast test",
+  "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+  "benchmark: marks tests as part of benchmarking",
+  "multivariate: marks multivariate forecast test",
 ]
 xfail_strict = true
 
