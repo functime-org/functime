@@ -29,13 +29,18 @@ def _set_subplot_default_kwargs(kwargs: dict, n_rows: int, n_cols: int) -> dict:
     ensuring a fixed size for subplots and additional space for titles and other elements.
     Default values are applied only if not already specified by the user.
 
-    Parameters:
-    - kwargs (dict): The original keyword arguments dictionary passed to the plotting function.
-    - n_rows (int): Number of rows in the subplot.
-    - n_cols (int): Number of columns in the subplot.
+    Parameters
+    ----------
+    kwargs : dict
+        The original keyword arguments dictionary passed to the plotting function.
+    n_rows : int
+        Number of rows in the subplot.
+    n_cols : int
+        Number of columns in the subplot.
 
-    Returns:
-    - dict: Updated keyword arguments with adjusted layout properties.
+    Returns
+    --------
+    dict : Updated keyword arguments with adjusted layout properties.
 
     The function ensures the following:
     - A fixed size for each subplot.
