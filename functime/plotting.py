@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional, Union, Any, Dict
 
 import numpy as np
 import plotly.express as px
@@ -75,7 +75,7 @@ def _calculate_subplot_n_rows(n_series: int, n_cols: int) -> int:
     return n_rows
 
 
-def _prepare_data_for_plotting(y: Union[pl.DataFrame, pl.LazyFrame], n_series: int, last_n: int, seed: int | None = None):
+def _prepare_data_for_subplots(y: Union[pl.DataFrame, pl.LazyFrame], n_series: int, last_n: int, seed: int | None = None):
     """
     Prepares data for plotting by selecting and sampling entities and getting the recent observations for plotting.
 
@@ -119,6 +119,61 @@ def _prepare_data_for_plotting(y: Union[pl.DataFrame, pl.LazyFrame], n_series: i
     )
 
     return entities_sample, n_series, y_filtered
+
+
+def _add_scatter_traces_to_subplots(fig: go.Figure, 
+                          ts: Union[pl.DataFrame, pl.LazyFrame], 
+                          ts_pred: Union[pl.DataFrame, pl.LazyFrame, None], 
+                          entity_id: Any, 
+                          row: int, 
+                          col: int, 
+                          plot_params: Dict[str, Any]) -> None:
+    """
+    Adds traces to a specific subplot in the figure for actual and optionally predicted data.
+
+    Parameters
+    ----------
+    fig : go.Figure
+        The Plotly figure object containing the subplots.
+    ts : Union[pl.DataFrame, pl.LazyFrame]
+        The primary time series data to plot.
+    ts_pred : Union[pl.DataFrame, pl.LazyFrame, None]
+        The secondary time series data to plot (e.g., predictions or backtests).
+        If None, only ts is plotted.
+    entity_id : Any
+        The identifier for the current entity being plotted.
+    row : int
+        The row position in the subplot grid.
+    col : int
+        The column position in the subplot grid.
+    plot_params : Dict[str, Any]
+        Dictionary containing parameters for plotting, such as color and name.
+
+    Returns
+    -------
+    None
+    """
+    entity_col, time_col, target_col = ts.columns[:3]
+
+    ts_trace = go.Scatter(
+        x=ts.filter(pl.col(entity_col) == entity_id).get_column(time_col),
+        y=ts.filter(pl.col(entity_col) == entity_id).get_column(target_col),
+        name=plot_params.get("ts_name", "Actual"),
+        legendgroup=plot_params.get("ts_name", "Actual"),
+        line=dict(color=plot_params.get("ts_color", "blue")),
+    )
+
+    fig.add_trace(ts_trace, row=row, col=col)
+
+    if ts_pred is not None:
+        ts_pred_trace = go.Scatter(
+            x=ts_pred.filter(pl.col(entity_col) == entity_id).get_column(time_col),
+            y=ts_pred.filter(pl.col(entity_col) == entity_id).get_column(target_col),
+            name=plot_params.get("ts_pred_name", "Forecast"),
+            legendgroup=plot_params.get("ts_pred_name", "Forecast"),
+            line=dict(color=plot_params.get("ts_pred_color", "red"), dash="dash"),
+        )
+        fig.add_trace(ts_pred_trace, row=row, col=col)
 
 
 def plot_entities(
@@ -196,11 +251,11 @@ def plot_panel(
     figure : plotly.graph_objects.Figure
         Plotly subplots.
     """
-    entity_col, time_col, target_col = y.columns[:3]
+    entity_col = y.columns[0]
 
     # Get sampled entities, check validity of n_series
     # and filter the y df to contain last_n values
-    entities_sample, n_series, y_filtered = _prepare_data_for_plotting(
+    entities_sample, n_series, y_filtered = _prepare_data_for_subplots(
         y=y,
         n_series=n_series,
         last_n=last_n,
@@ -211,22 +266,26 @@ def plot_panel(
     n_rows = _calculate_subplot_n_rows(n_series=n_series, n_cols=n_cols)
     fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities_sample)
 
+    # Define default names and colors to be used
+    plot_params = {
+    "ts_name": "Time-series",
+    "ts_color": COLOR_PALETTE["actual"],
+    }
+
     # Loop and plot each sampled entity
     for i, entity_id in enumerate(entities_sample):
         ts = y_filtered.filter(pl.col(entity_col) == entity_id)
         # Get the subplot position for the ts 
         row, col = (i // n_cols) + 1, (i % n_cols) + 1
-        # Plot actual
-        fig.add_trace(
-            go.Scatter(
-                x=ts.get_column(time_col),
-                y=ts.get_column(target_col),
-                name="Time-series",
-                legendgroup="Time-series",
-                line=dict(color=COLOR_PALETTE["forecast"]),
-            ),
+        # Plot trace(s) for the timeseries
+        _add_scatter_traces_to_subplots(
+            fig=fig,
+            ts=ts,
+            ts_pred=None,
+            entity_id=entity_id,
             row=row,
             col=col,
+            plot_params=plot_params,
         )
 
     # Set default kwargs for plotting if user did not provide these
@@ -279,7 +338,7 @@ def plot_forecasts(
 
     # Get sampled entities, check validity of n_series
     # and filter the y df to contain last_n values
-    entities_sample, n_series, y_filtered = _prepare_data_for_plotting(
+    entities_sample, n_series, y_filtered = _prepare_data_for_subplots(
         y=y_true,
         n_series=n_series,
         last_n=last_n,
@@ -290,34 +349,27 @@ def plot_forecasts(
     n_rows = _calculate_subplot_n_rows(n_series=n_series, n_cols=n_cols)
     fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities_sample)
 
+    plot_params = {
+        "ts_name": "Actual",
+        "ts_color": COLOR_PALETTE["actual"],
+        "ts_pred_name": "Forecast",
+        "ts_pred_color": COLOR_PALETTE["forecast"]
+    }
+
     for i, entity_id in enumerate(entities_sample):
         ts = y_filtered.filter(pl.col(entity_col) == entity_id)
         ts_pred = y_pred.filter(pl.col(entity_col) == entity_id)
         # Get the subplot position for the ts 
         row, col = (i // n_cols) + 1, (i % n_cols) + 1
-        # Plot actual
-        fig.add_trace(
-            go.Scatter(
-                x=ts.get_column(time_col),
-                y=ts.get_column(target_col),
-                name="Actual",
-                legendgroup="Actual",
-                line=dict(color=COLOR_PALETTE["actual"]),
-            ),
+        # Plot trace(s) for the timeseries
+        _add_scatter_traces_to_subplots(
+            fig=fig,
+            ts=ts,
+            ts_pred=ts_pred,
+            entity_id=entity_id,
             row=row,
             col=col,
-        )
-        # Plot forecast
-        fig.add_trace(
-            go.Scatter(
-                x=ts_pred.get_column(time_col),
-                y=ts_pred.get_column(target_col),
-                name="Forecast",
-                legendgroup="Forecast",
-                line=dict(color=COLOR_PALETTE["forecast"], dash="dash"),
-            ),
-            row=row,
-            col=col,
+            plot_params=plot_params,
         )
 
     # Set default kwargs for plotting if user did not provide these
@@ -370,7 +422,7 @@ def plot_backtests(
 
     # Get sampled entities, check validity of n_series
     # and filter the y df to contain last_n values
-    entities_sample, n_series, y_filtered = _prepare_data_for_plotting(
+    entities_sample, n_series, y_filtered = _prepare_data_for_subplots(
         y=y_true,
         n_series=n_series,
         last_n=last_n,
@@ -381,34 +433,27 @@ def plot_backtests(
     n_rows = _calculate_subplot_n_rows(n_series=n_series, n_cols=n_cols)
     fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities_sample)
 
+    plot_params = {
+        "ts_name": "Actual",
+        "ts_color": COLOR_PALETTE["actual"],
+        "ts_pred_name": "Backtest",
+        "ts_pred_color": COLOR_PALETTE["backtest"]
+    }
+
     for i, entity_id in enumerate(entities_sample):
         ts = y_filtered.filter(pl.col(entity_col) == entity_id)
         ts_pred = y_preds.filter(pl.col(entity_col) == entity_id)
         # Get the subplot position for the ts 
         row, col = (i // n_cols) + 1, (i % n_cols) + 1
-        # Plot actual
-        fig.add_trace(
-            go.Scatter(
-                x=ts.get_column(time_col),
-                y=ts.get_column(target_col),
-                name="Actual",
-                legendgroup="Actual",
-                line=dict(color=COLOR_PALETTE["actual"]),
-            ),
+        # Plot trace(s) for the timeseries
+        _add_scatter_traces_to_subplots(
+            fig=fig,
+            ts=ts,
+            ts_pred=ts_pred,
+            entity_id=entity_id,
             row=row,
             col=col,
-        )
-        # Plot forecast
-        fig.add_trace(
-            go.Scatter(
-                x=ts_pred.get_column(time_col),
-                y=ts_pred.get_column(target_col),
-                name="Backtest",
-                legendgroup="Backtest",
-                line=dict(color=COLOR_PALETTE["backtest"], dash="dash"),
-            ),
-            row=row,
-            col=col,
+            plot_params=plot_params,
         )
 
     # Set default kwargs for plotting if user did not provide these
