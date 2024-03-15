@@ -68,11 +68,21 @@ def _set_subplot_default_kwargs(kwargs: dict, n_rows: int, n_cols: int) -> dict:
 
 
 def _calculate_subplot_n_rows(n_series: int, n_cols: int) -> int:
+    if n_series <= 0:
+        raise ValueError("n_series must be greater than 0.")
+    if n_cols <= 0:
+        raise ValueError("n_cols must be greater than 0.")
     n_rows = n_series // n_cols
     if n_series % n_cols != 0:
         n_rows += 1
 
     return n_rows
+
+
+def _get_subplot_grid_position(i, n_cols):
+    row = (i - 1) // n_cols + 1
+    col = (i - 1) % n_cols + 1
+    return row, col
 
 
 def _prepare_data_for_subplots(y: Union[pl.DataFrame, pl.LazyFrame], n_series: int, last_n: int, seed: int | None = None):
@@ -276,7 +286,7 @@ def plot_panel(
     for i, entity_id in enumerate(entities_sample):
         ts = y_filtered.filter(pl.col(entity_col) == entity_id)
         # Get the subplot position for the ts 
-        row, col = (i // n_cols) + 1, (i % n_cols) + 1
+        row, col = _get_subplot_grid_position(i, n_cols=n_cols)
         # Plot trace(s) for the timeseries
         _add_scatter_traces_to_subplots(
             fig=fig,
@@ -360,7 +370,7 @@ def plot_forecasts(
         ts = y_filtered.filter(pl.col(entity_col) == entity_id)
         ts_pred = y_pred.filter(pl.col(entity_col) == entity_id)
         # Get the subplot position for the ts 
-        row, col = (i // n_cols) + 1, (i % n_cols) + 1
+        row, col = _get_subplot_grid_position(i, n_cols=n_cols)
         # Plot trace(s) for the timeseries
         _add_scatter_traces_to_subplots(
             fig=fig,
@@ -444,7 +454,7 @@ def plot_backtests(
         ts = y_filtered.filter(pl.col(entity_col) == entity_id)
         ts_pred = y_preds.filter(pl.col(entity_col) == entity_id)
         # Get the subplot position for the ts 
-        row, col = (i // n_cols) + 1, (i % n_cols) + 1
+        row, col = _get_subplot_grid_position(i, n_cols=n_cols)
         # Plot trace(s) for the timeseries
         _add_scatter_traces_to_subplots(
             fig=fig,
