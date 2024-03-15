@@ -1,6 +1,5 @@
 from typing import Optional, Union, Any, Dict
 
-import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import polars as pl
@@ -80,8 +79,8 @@ def _calculate_subplot_n_rows(n_series: int, n_cols: int) -> int:
 
 
 def _get_subplot_grid_position(i, n_cols):
-    row = (i - 1) // n_cols + 1
-    col = (i - 1) % n_cols + 1
+    row = i // n_cols + 1
+    col = i % n_cols + 1
     return row, col
 
 
@@ -286,7 +285,7 @@ def plot_panel(
     for i, entity_id in enumerate(entities_sample):
         ts = y_filtered.filter(pl.col(entity_col) == entity_id)
         # Get the subplot position for the ts 
-        row, col = _get_subplot_grid_position(i, n_cols=n_cols)
+        row, col = _get_subplot_grid_position(i=i, n_cols=n_cols)
         # Plot trace(s) for the timeseries
         _add_scatter_traces_to_subplots(
             fig=fig,
@@ -344,7 +343,7 @@ def plot_forecasts(
     figure : plotly.graph_objects.Figure
         Plotly subplots.
     """
-    entity_col, time_col, target_col = y_true.columns[:3]
+    entity_col = y_true.columns[0]
 
     # Get sampled entities, check validity of n_series
     # and filter the y df to contain last_n values
@@ -370,7 +369,7 @@ def plot_forecasts(
         ts = y_filtered.filter(pl.col(entity_col) == entity_id)
         ts_pred = y_pred.filter(pl.col(entity_col) == entity_id)
         # Get the subplot position for the ts 
-        row, col = _get_subplot_grid_position(i, n_cols=n_cols)
+        row, col = _get_subplot_grid_position(i=i, n_cols=n_cols)
         # Plot trace(s) for the timeseries
         _add_scatter_traces_to_subplots(
             fig=fig,
@@ -428,7 +427,7 @@ def plot_backtests(
     figure : plotly.graph_objects.Figure
         Plotly subplots.
     """
-    entity_col, time_col, target_col = y_true.columns[:3]
+    entity_col = y_true.columns[0]
 
     # Get sampled entities, check validity of n_series
     # and filter the y df to contain last_n values
@@ -454,7 +453,7 @@ def plot_backtests(
         ts = y_filtered.filter(pl.col(entity_col) == entity_id)
         ts_pred = y_preds.filter(pl.col(entity_col) == entity_id)
         # Get the subplot position for the ts 
-        row, col = _get_subplot_grid_position(i, n_cols=n_cols)
+        row, col = _get_subplot_grid_position(i=i, n_cols=n_cols)
         # Plot trace(s) for the timeseries
         _add_scatter_traces_to_subplots(
             fig=fig,
