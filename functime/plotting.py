@@ -75,6 +75,52 @@ def _calculate_subplot_n_rows(n_series: int, n_cols: int) -> int:
     return n_rows
 
 
+def _prepare_data_for_plotting(y: Union[pl.DataFrame, pl.LazyFrame], n_series: int, last_n: int, seed: int | None = None):
+    """
+    Prepares data for plotting by selecting and sampling entities and getting the recent observations for plotting.
+
+    Parameters
+    ----------
+    y : Union[pl.DataFrame, pl.LazyFrame]
+        Panel DataFrame of observed values.
+    n_series : int
+        Number of entities / time-series to plot.
+    last_n : int
+        Plot `last_n` most recent values in `y`.
+    seed : int | None, optional
+        Random seed for sampling entities / time-series, by default None.
+
+    Returns
+    -------
+    Tuple
+        Sampled entities, n_series to plot, and filtered DataFrame.
+    """
+    entity_col = y.columns[0]
+
+    if isinstance(y, pl.DataFrame):
+        y = y.lazy()
+
+    # Get unique entities
+    entities = y.select(pl.col(entity_col).unique(maintain_order=True)).collect()
+
+    # If n_series is higher than max unique entities, use max entities
+    if entities.height < n_series:
+        n_series = entities.height
+
+    # Sample entities
+    entities_sample = entities.to_series().sample(n_series, seed=seed)
+
+    # Get most recent observations
+    y_filtered = (
+        y.filter(pl.col(entity_col).is_in(entities_sample))
+        .group_by(entity_col)
+        .tail(last_n)
+        .collect()
+    )
+
+    return entities_sample, n_series, y_filtered
+
+
 def plot_entities(
     y: Union[pl.DataFrame, pl.LazyFrame],
     **kwargs,
@@ -152,25 +198,13 @@ def plot_panel(
     """
     entity_col, time_col, target_col = y.columns[:3]
 
-    if isinstance(y, pl.DataFrame):
-        y = y.lazy()
-
-    # Get all the unique entities
-    entities = y.select(pl.col(entity_col).unique(maintain_order=True)).collect()
-
-    # If n_series is higher than max unique entities, use max entities
-    if entities.height < n_series:
-        n_series = entities.height
-
-    # Sample the entities
-    entities_sample = entities.to_series().sample(n_series, seed=seed)
-
-    # Get most recent observations
-    y = (
-        y.filter(pl.col(entity_col).is_in(entities_sample))
-        .group_by(entity_col)
-        .tail(last_n)
-        .collect()
+    # Get sampled entities, check validity of n_series
+    # and filter the y df to contain last_n values
+    entities_sample, n_series, y_filtered = _prepare_data_for_plotting(
+        y=y,
+        n_series=n_series,
+        last_n=last_n,
+        seed=seed,
     )
 
     # Define grid and make subplots
@@ -179,7 +213,7 @@ def plot_panel(
 
     # Loop and plot each sampled entity
     for i, entity_id in enumerate(entities_sample):
-        ts = y.filter(pl.col(entity_col) == entity_id)
+        ts = y_filtered.filter(pl.col(entity_col) == entity_id)
         # Get the subplot position for the ts 
         row, col = (i // n_cols) + 1, (i % n_cols) + 1
         # Plot actual
@@ -243,25 +277,13 @@ def plot_forecasts(
     """
     entity_col, time_col, target_col = y_true.columns[:3]
 
-    if isinstance(y_true, pl.DataFrame):
-        y_true = y_true.lazy()
-
-    # Get the unique entities
-    entities = y_true.select(pl.col(entity_col).unique(maintain_order=True)).collect()
-
-    # If n_series is higher than max unique entities, use max entities
-    if entities.height < n_series:
-        n_series = entities.height
-
-    # Get sampled entities
-    entities_sample = entities.to_series().sample(n_series, seed=seed)
-
-    # Get the most recent observations for the sampled entities
-    y = (
-        y_true.filter(pl.col(entity_col).is_in(entities_sample))
-        .group_by(entity_col)
-        .tail(last_n)
-        .collect()
+    # Get sampled entities, check validity of n_series
+    # and filter the y df to contain last_n values
+    entities_sample, n_series, y_filtered = _prepare_data_for_plotting(
+        y=y_true,
+        n_series=n_series,
+        last_n=last_n,
+        seed=seed,
     )
 
     # Define grid and make subplots
@@ -269,7 +291,7 @@ def plot_forecasts(
     fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities_sample)
 
     for i, entity_id in enumerate(entities_sample):
-        ts = y.filter(pl.col(entity_col) == entity_id)
+        ts = y_filtered.filter(pl.col(entity_col) == entity_id)
         ts_pred = y_pred.filter(pl.col(entity_col) == entity_id)
         # Get the subplot position for the ts 
         row, col = (i // n_cols) + 1, (i % n_cols) + 1
@@ -346,25 +368,13 @@ def plot_backtests(
     """
     entity_col, time_col, target_col = y_true.columns[:3]
 
-    if isinstance(y_true, pl.DataFrame):
-        y_true = y_true.lazy()
-
-    # Get most recent observations
-    entities = y_true.select(pl.col(entity_col).unique(maintain_order=True)).collect()
-
-    # If n_series is higher than max unique entities, use max entities
-    if entities.height < n_series:
-        n_series = entities.height
-
-    # Get sampled entities
-    entities_sample = entities.to_series().sample(n_series, seed=seed)
-
-    # Get most recent observations for the sampled entities
-    y = (
-        y_true.filter(pl.col(entity_col).is_in(entities_sample))
-        .group_by(entity_col)
-        .tail(last_n)
-        .collect()
+    # Get sampled entities, check validity of n_series
+    # and filter the y df to contain last_n values
+    entities_sample, n_series, y_filtered = _prepare_data_for_plotting(
+        y=y_true,
+        n_series=n_series,
+        last_n=last_n,
+        seed=seed,
     )
 
     # Define grid and make subplots
@@ -372,7 +382,7 @@ def plot_backtests(
     fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities_sample)
 
     for i, entity_id in enumerate(entities_sample):
-        ts = y.filter(pl.col(entity_col) == entity_id)
+        ts = y_filtered.filter(pl.col(entity_col) == entity_id)
         ts_pred = y_preds.filter(pl.col(entity_col) == entity_id)
         # Get the subplot position for the ts 
         row, col = (i // n_cols) + 1, (i % n_cols) + 1
