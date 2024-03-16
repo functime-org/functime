@@ -175,6 +175,8 @@ def _add_scatter_traces_to_subplots(fig: go.Figure,
     fig.add_trace(ts_trace, row=row, col=col)
 
     if ts_pred is not None:
+        if isinstance(ts_pred, pl.LazyFrame):
+            ts_pred = ts_pred.collect()
         ts_pred_trace = go.Scatter(
             x=ts_pred.filter(pl.col(entity_col) == entity_id).get_column(time_col),
             y=ts_pred.filter(pl.col(entity_col) == entity_id).get_column(target_col),
@@ -213,17 +215,21 @@ def plot_entities(
     title = kwargs.pop("title", "Entities counts")
     template = kwargs.pop("template", "plotly_white")
 
-    return px.bar(
-        data_frame=entity_counts,
-        x="count",
-        y=entity_col,
-        orientation="h",
-    ).update_layout(
+    fig = go.Figure(
+        go.Bar(
+            x=entity_counts.get_column("count"),
+            y=entity_counts.get_column(entity_col),
+            orientation='h'
+        )
+    )
+    fig.update_layout(
         height=height,
         title=title,
         template=template,
         **kwargs,
     )
+
+    return fig
 
 
 def plot_panel(
@@ -504,7 +510,7 @@ def plot_residuals(
     y_resids = y_resids.with_columns(pl.col(target_col).alias("Residuals")).collect()
 
     fig = px.histogram(
-        y_resids,
+        y_resids.to_pandas(),
         x="Residuals",
         y="Residuals",
         color=entity_col,
@@ -560,7 +566,7 @@ def plot_comet(
     mean_score = scores.get_column(scores.columns[-1]).mean()
     mean_cv = cvs.get_column(cvs.columns[-1]).mean()
     fig = px.scatter(
-        comet, x=cvs.columns[-1], y=scores.columns[-1], hover_data=entity_col
+        comet.to_pandas(), x=cvs.columns[-1], y=scores.columns[-1], hover_data=entity_col
     )
     fig.add_hline(y=mean_score)
     fig.add_vline(x=mean_cv)
@@ -609,7 +615,7 @@ def plot_fva(
         how="left",
         on=scores.columns[0],
     )
-    fig = px.scatter(uplift, x=x_title, y=y_title, hover_data=entity_col)
+    fig = px.scatter(uplift.to_pandas(), x=x_title, y=y_title, hover_data=entity_col)
     deg45_line = {
         "type": "line",
         "yref": "paper",
