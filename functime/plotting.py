@@ -84,7 +84,7 @@ def _get_subplot_grid_position(i, n_cols):
     return row, col
 
 
-def _prepare_data_for_subplots(y: Union[pl.DataFrame, pl.LazyFrame], n_series: int, last_n: int, seed: int | None = None):
+def _prepare_data_for_subplots(y: Union[pl.DataFrame, pl.LazyFrame], n_series: int, last_n: int, seed: Union[int, None] = None):
     """
     Prepares data for plotting by selecting and sampling entities and getting the recent observations for plotting.
 
@@ -96,7 +96,7 @@ def _prepare_data_for_subplots(y: Union[pl.DataFrame, pl.LazyFrame], n_series: i
         Number of entities / time-series to plot.
     last_n : int
         Plot `last_n` most recent values in `y`.
-    seed : int | None, optional
+    seed : Union[int, None], optional
         Random seed for sampling entities / time-series, by default None.
 
     Returns
@@ -230,7 +230,7 @@ def plot_panel(
     y: Union[pl.DataFrame, pl.LazyFrame],
     *,
     n_series: int = 10,
-    seed: int | None = None,
+    seed: Union[int, None] = None,
     n_cols: int = 2,
     last_n: int = DEFAULT_LAST_N,
     **kwargs,
@@ -245,7 +245,7 @@ def plot_panel(
     n_series : int
         Number of entities / time-series to plot.
         Defaults to 10.
-    seed : int | None
+    seed : Union[int, None]
         Random seed for sampling entities / time-series.
         Defaults to None.
     n_cols : int
@@ -311,7 +311,7 @@ def plot_forecasts(
     y_pred: pl.DataFrame,
     *,
     n_series: int = 10,
-    seed: int | None = None,
+    seed: Union[int, None] = None,
     n_cols: int = 2,
     last_n: int = DEFAULT_LAST_N,
     **kwargs,
@@ -328,7 +328,7 @@ def plot_forecasts(
     n_series : int
         Number of entities / time-series to plot.
         Defaults to 10.
-    seed : int | None
+    seed : Union[int, None]
         Random seed for sampling entities / time-series.
         Defaults to None.
     n_cols : int
@@ -395,7 +395,7 @@ def plot_backtests(
     y_preds: pl.DataFrame,
     *,
     n_series: int = 10,
-    seed: int | None = None,
+    seed: Union[int, None] = None,
     n_cols: int = 2,
     last_n: int = DEFAULT_LAST_N,
     **kwargs,
@@ -412,7 +412,7 @@ def plot_backtests(
     n_series : int
         Number of entities / time-series to plot.
         Defaults to 10.
-    seed : int | None
+    seed : Union[int, None]
         Random seed for sampling entities / time-series.
         Defaults to None.
     n_cols : int
