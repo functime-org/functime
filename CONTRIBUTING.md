@@ -2,13 +2,18 @@ Thanks for taking the time to contribute! We appreciate all contributions, from 
 
 This guide covers the following:
 
-1. Reporting an issue or a feature request.
-2. Contributing to the code base.
-3. Contributing to the documentation.
+1. [Reporting an issue or a feature request](#opening-an-issue).
+2. [Contributing to the code base](#contributing-to-the-codebase).
+    * [Picking an issue](#picking-an-issue)
+    * [Set up your local environment](#set-up-your-local-environment)
+    * [While working on your issue](#while-working-on-your-issue)
+    * [Pull requests](#pull-requests)
+3. [Contributing to the documentation](#contributing-to-the-documentation).
+4. [Credits](#credits)
 
 # Opening an issue
 
-You can report any issue by opening a [new issue](https://github.com/functime-org/functime/issues/new/choose). 
+You can report any issue by opening a [new issue](https://github.com/functime-org/functime/issues/new/choose).
 
 **Bug reports** should include:
 
@@ -42,14 +47,14 @@ The CLI will prompt you to clone the fork locally.
 2. **Clone the repository locally**.
 
 ```bash
+# via gh CLI
+gh repo clone functime-org/functime
+
 # via https
 git clone https://github.com/<your-username>/functime
 
 # via ssh (safer)
 git clone git@github.com:functime-org/functime
-
-# via gh CLI
-gh repo clone functime-org/functime
 ```
 
 3. **Install Rust**. This is easily done with [`rustup`](https://rustup.rs/). Use the latest stable version.
