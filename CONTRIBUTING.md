@@ -13,7 +13,7 @@ You can report any issue by opening a [new issue](https://github.com/functime-or
 1. Your **OS, the Python version and `functime` version** you are using.
 2. A **minimal reproducible example (MRE)**, i.e. the code and some (fake) data that can be used to reproduce the error you encounter. It might take a bit more time on your side, but it greatly helps maintainers to solve your issue quickly.
 
-Feature request should also start from a dedicated issue, even if you plan to contribute to the feature yourself. In this way, maintainers can help you plan the design of the new feature and ease the development.
+**Feature requests** should also start from a dedicated issue, even if you plan to contribute to the feature yourself. In this way, maintainers can help you plan the design of the new feature and ease the development.
 
 # Contributing to the codebase
 
