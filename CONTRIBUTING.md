@@ -8,7 +8,9 @@ This guide covers the following:
 
 # Opening an issue
 
-You can report any issue by opening a [new issue](https://github.com/functime-org/functime/issues/new/choose). Bug reports should include:
+You can report any issue by opening a [new issue](https://github.com/functime-org/functime/issues/new/choose). 
+
+**Bug reports** should include:
 
 1. Your **OS, the Python version and `functime` version** you are using.
 2. A **minimal reproducible example (MRE)**, i.e. the code and some (fake) data that can be used to reproduce the error you encounter. It might take a bit more time on your side, but it greatly helps maintainers to solve your issue quickly.
