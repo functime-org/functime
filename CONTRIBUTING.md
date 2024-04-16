@@ -103,7 +103,7 @@ When you have resolved your issue, [open a pull request](https://docs.github.com
 * Add any relevant information to the description that you think may help the maintainers review your code.
 * Make sure your branch is [rebased](https://docs.github.com/en/get-started/using-git/about-git-rebase) against the latest version of the main branch.
 * Make sure all GitHub Actions checks pass.
-* After you have opened your pull request, a maintainer will review it and possibly leave some comments. Once all issues are resolved, the maintainer will merge your pull request, and your work will be part of the next Polars release!
+* After you have opened your pull request, a maintainer will review it and possibly leave some comments. Once all issues are resolved, the maintainer will merge your pull request, and your work will be part of the next functime release!
 
 Keep in mind that your work does not have to be perfect right away! If you are stuck or unsure about your solution, feel free to open a draft pull request and ask for help.
 
