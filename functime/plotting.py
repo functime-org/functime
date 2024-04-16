@@ -103,9 +103,11 @@ def plot_panel(
     if isinstance(y, pl.DataFrame):
         y = y.lazy()
 
-    entities = y.select(pl.col(entity_col).unique(maintain_order=True)).collect()
+    entities = (
+        y.select(pl.col(entity_col).unique(maintain_order=True)).collect().to_series()
+    )
 
-    entities_sample = entities.to_series().sample(n_series, seed=seed)
+    entities_sample = entities.sample(n_series, seed=seed)
 
     # Get most recent observations
     y = (
@@ -118,7 +120,7 @@ def plot_panel(
     # Organize subplots
     n_rows = n_series // n_cols
     row_idx = np.repeat(range(n_rows), n_cols)
-    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities)
+    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities.to_list())
 
     for i, entity_id in enumerate(entities):
         ts = y.filter(pl.col(entity_col) == entity_id)
@@ -187,9 +189,13 @@ def plot_forecasts(
         y_true = y_true.lazy()
 
     # Get most recent observations
-    entities = y_true.select(pl.col(entity_col).unique(maintain_order=True)).collect()
+    entities = (
+        y_true.select(pl.col(entity_col).unique(maintain_order=True))
+        .collect()
+        .to_series()
+    )
 
-    entities_sample = entities.to_series().sample(n_series, seed=seed)
+    entities_sample = entities.sample(n_series, seed=seed)
 
     # Get most recent observations
     y = (
@@ -202,7 +208,7 @@ def plot_forecasts(
     # Organize subplots
     n_rows = n_series // n_cols
     row_idx = np.repeat(range(n_rows), n_cols)
-    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities)
+    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities.to_list())
 
     for i, entity_id in enumerate(entities):
         ts = y.filter(pl.col(entity_col) == entity_id)
@@ -284,9 +290,13 @@ def plot_backtests(
         y_true = y_true.lazy()
 
     # Get most recent observations
-    entities = y_true.select(pl.col(entity_col).unique(maintain_order=True)).collect()
+    entities = (
+        y_true.select(pl.col(entity_col).unique(maintain_order=True))
+        .collect()
+        .to_series()
+    )
 
-    entities_sample = entities.to_series().sample(n_series, seed=seed)
+    entities_sample = entities.sample(n_series, seed=seed)
 
     # Get most recent observations
     y = (
@@ -299,7 +309,7 @@ def plot_backtests(
     # Organize subplots
     n_rows = n_series // n_cols
     row_idx = np.repeat(range(n_rows), n_cols)
-    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities)
+    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities.to_list())
 
     for i, entity_id in enumerate(entities):
         ts = y.filter(pl.col(entity_col) == entity_id)
