@@ -1,4 +1,4 @@
-Thanks for taking the time to contribute! We appreciate all contributions, from reporting bugs to implementing new features. If you're unclear on how to proceed after reading this guide, you can ask on [Discord](https://discord.gg/dNfGMUyPa8).
+Thanks for taking the time to contribute! We appreciate all contributions, from reporting bugs to implementing new features. If it's unclear on how to proceed after reading this guide, you can ask on [Discord](https://discord.gg/dNfGMUyPa8).
 
 This guide covers the following:
 
