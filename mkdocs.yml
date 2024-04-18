@@ -50,7 +50,9 @@ nav:
   - Preprocessing: preprocessing.md
   - Feature Extraction: feature-extraction.md
   - Seasonality: seasonality.md
-  - Developer Guide: develop.md
+  Developer Guide:
+    - Developer Guide: develop.md
+    - Contributing: CONTRIBUTING.md
   - Tutorials:
     - Preprocessing: notebooks/preprocessing.ipynb
     - Feature Extraction: notebooks/benchmarks.ipynb
