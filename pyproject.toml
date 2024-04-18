@@ -149,3 +149,10 @@ xfail_strict = true
 parallel = true
 source = ["tests", "functime"]
 context = '${CONTEXT}'
+
+[tool.pyright]
+exclude = [
+  ".venv"
+]
+venvPath = "."
+venv = ".venv"
