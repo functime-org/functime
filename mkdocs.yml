@@ -50,7 +50,7 @@ nav:
   - Preprocessing: preprocessing.md
   - Feature Extraction: feature-extraction.md
   - Seasonality: seasonality.md
-  Developer Guide:
+  Developer Guides:
     - Developer Guide: develop.md
     - Contributing: CONTRIBUTING.md
   - Tutorials:
