@@ -52,7 +52,7 @@ nav:
   - Seasonality: seasonality.md
   Developer Guides:
     - Developer Guide: develop.md
-    - Contributing: CONTRIBUTING.md
+    - Contributing: docs/CONTRIBUTING.md
   - Tutorials:
     - Preprocessing: notebooks/preprocessing.ipynb
     - Feature Extraction: notebooks/benchmarks.ipynb
