@@ -5,7 +5,7 @@ use pyo3_polars::{derive::polars_expr, export::polars_core::{series::Series, pre
 
 #[polars_expr(output_type=UInt32)]
 fn pl_lempel_ziv_complexity(inputs: &[Series]) -> PolarsResult<Series>  {
-    
+
     let input: &Series = &inputs[0];
     let name = input.name();
     let input = input.bool()?;
@@ -16,7 +16,7 @@ fn pl_lempel_ziv_complexity(inputs: &[Series]) -> PolarsResult<Series>  {
     let mut ind:usize = 0;
     let mut inc:usize = 1;
 
-    let mut sub_strings:HashSet<&[bool]> = HashSet::new(); 
+    let mut sub_strings:HashSet<&[bool]> = HashSet::new();
     while ind + inc <= bits.len() {
         let subseq: &[bool] = &bits[ind..ind+inc];
         if sub_strings.contains(subseq) {
@@ -66,7 +66,7 @@ fn pl_lempel_ziv_complexity(inputs: &[Series]) -> PolarsResult<Series>  {
 //                 },
 //                 _ => {
 //                     return PolarsError::ComputeError("Cannot convert autoregressive matrix to Faer matrix.")
-//                 } 
+//                 }
 //             };
 //             // Coeffs is a 2d array because Faer returns a matrix (the vector as a matrix)
 //             // coeffs.into_iter() traverses every element in order.
