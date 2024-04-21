@@ -2,7 +2,7 @@
 
 ## API Usage
 
-All individual forecasters (e.g. `lasso` / `xgboost`) have the same API. Use `**kwargs` to pass custom hyperparameters into the underlying regressor (e.g. sklearn's `LinearRegression` regressor in functime's `linear_model` forecaster). Forecasters with automated hyperparameter tuning (e.g. `auto_lasso` and `auto_xgboost`) follow a similar API design. View [API reference](/ref/forecasting/) for details and supported global forecasters.
+All individual forecasters (e.g. `lasso` / `xgboost`) have the same API. Use `**kwargs` to pass custom hyperparameters into the underlying regressor (e.g. sklearn's `LinearRegression` regressor in functime's `linear_model` forecaster). Forecasters with automated hyperparameter tuning (e.g. `auto_lasso` and `auto_xgboost`) follow a similar API design. View [API reference](../api-reference/forecasting.md) for details and supported global forecasters.
 
 `functime` also has the following benchmark models implemented as pure Polars queries.
 
@@ -239,7 +239,7 @@ Every forecaster has two optional parameters `target_transform` and `feature_tra
   - `feature_transform` applies a transformation on `X` before fit and predict.
 
 We recommend using `target_transform` and `feature_transform` to avoid common pitfalls such as inconsistent feature engineering and data leakage.
-Check out the API reference for [preprocessing](/ref/preprocessing/) and [feature_extraction](/ref/feature-extractors/) for a list of supported transformations.
+Check out the API reference for [preprocessing](../api-reference/preprocessing.md) and [feature_extraction](../api-reference/feature-extractors.md) for a list of supported transformations.
 
 ### Target Transform
 

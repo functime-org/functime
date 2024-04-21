@@ -1,19 +1,19 @@
 # functime
 
-![functime](img/banner.png)
+![functime](./img/banner.png)
 
 ## Production-ready time series models
 
 **functime** is a machine learning library for time-series predictions that [just works](https://functime.ai/).
 
-- **Fully-featured:** Powerful and easy-to-use API for [forecasting](#forecasting-highlights) and [feature engineering](#feature-engineering-highlights) (tsfresh, Catch22).
-- **Fast:** Forecast [100,000 time series](#global-forecasting) in seconds *on your laptop*
-- **Efficient:** Extract 100s of time-series features in parallel using [Polars](https://pola.rs/) *
+- **Fully-featured:** Powerful and easy-to-use API for forecasting and feature engineering (tsfresh, Catch22).
+- **Fast:** Forecast 100,000 time series in seconds *on your laptop*
+- **Efficient:** Extract 100s of time-series features in parallel using [Polars](https://pola.rs/)
 - **Battle-tested:** Algorithms that deliver real business impact and win competitions
 
 ## Installation
 
-Check out this [guide](installation.md) to install functime. Requires Python 3.8+.
+Check out this [guide](./installation.md) to install functime. Requires Python 3.8+.
 
 ## Supported Data Schemas
 
@@ -75,7 +75,7 @@ Includes utilities to support the full forecasting lifecycle: preprocessing, fea
 - Supports **recursive and direct** forecast strategies
 - **Censored model** for zero-inflated forecasts
 
-View the [full walkthrough](forecasting.md) on forecasting with `functime`.
+View the [full walkthrough](./user-guide/forecasting.md) on forecasting with `functime`.
 
 ### Feature Extraction
 `functime` has over 100+ time-series feature extractors (e.g. `binned_entropy`, `longest_streak_above_mean`) available for any `Polars` Series. Approximately 85% of the implementations are optimized lazy queries and works on both `polars.Series` and `polars.Expr`.
@@ -89,7 +89,7 @@ View the [full walkthrough](forecasting.md) on forecasting with `functime`.
 - Supports feature extraction across many time-series (via `group_by`)
 - Supports feature extraction across windows (via `group_by_dynamic`)
 
-View the [full walkthrough](feature-extraction.md) on forecasting with `functime`.
+View the [full walkthrough](./user-guide/feature-extraction.md) on forecasting with `functime`.
 
 ### Preprocessing
 View API reference for [`functime.preprocessing`](https://docs.functime.ai/preprocessing/).
@@ -109,4 +109,4 @@ X_new: pl.LazyFrame = (
 X_new: pl.DataFrame = X_new.collect(streaming=True)
 ```
 
-View [quick examples](preprocessing.md) of time-series preprocessing with `functime`.
+View [quick examples](./user-guide/preprocessing.md) of time-series preprocessing with `functime`.
