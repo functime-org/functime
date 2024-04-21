@@ -44,7 +44,7 @@ markdown_extensions:
       alternate_style: true
 
 nav:
-  - Quick Start: index.md
+  - Quick Start: quickstart.md
   - Installation: installation.md
   - Forecasting: forecasting.md
   - Preprocessing: preprocessing.md
