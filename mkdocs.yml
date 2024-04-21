@@ -46,14 +46,14 @@ markdown_extensions:
 nav:
   - Quick Start: quickstart.md
   - Installation: installation.md
-  Developer Guides:
-    - Developer Guide: develop.md
-    - Contributing: docs/CONTRIBUTING.md
   - User Guide:
     - Forecasting: user-guide/forecasting.md
     - Preprocessing: user-guide/preprocessing.md
     - Feature Extraction: user-guide/feature-extraction.md
     - Seasonality: user-guide/seasonality.md
+  - Developer Guides:
+    - Custom Forecasters and Transformers: developer-guide/develop.md
+    - Contributing: developer-guide/contributing.md
   - Tutorials:
     - Preprocessing: notebooks/preprocessing.ipynb
     - Feature Extraction: notebooks/benchmarks.ipynb

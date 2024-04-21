@@ -1,17 +1,8 @@
+# Contributing Guide
+
 Thanks for taking the time to contribute! We appreciate all contributions, from reporting bugs to implementing new features. If it's unclear on how to proceed after reading this guide, you can ask on [Discord](https://discord.gg/dNfGMUyPa8).
 
-This guide covers the following:
-
-1. [Reporting an issue or a feature request](#opening-an-issue).
-2. [Contributing to the code base](#contributing-to-the-codebase).
-    * [Picking an issue](#picking-an-issue)
-    * [Set up your local environment](#set-up-your-local-environment)
-    * [While working on your issue](#while-working-on-your-issue)
-    * [Pull requests](#pull-requests)
-3. [Contributing to the documentation](#contributing-to-the-documentation).
-4. [Credits](#credits)
-
-# Opening an issue
+## Opening an issue
 
 You can report any issue by opening a [new issue](https://github.com/functime-org/functime/issues/new/choose).
 
@@ -22,15 +13,15 @@ You can report any issue by opening a [new issue](https://github.com/functime-or
 
 **Feature requests** should also start from a dedicated issue, even if you plan to contribute to the feature yourself. In this way, maintainers can help you plan the design of the new feature and ease the development.
 
-# Contributing to the codebase
+## Contributing to the codebase
 
 Contributions should always start from an issue: even if you wish to contribute to `functime`'s  features, it is best to open a new issue so that the maintainers can help you through the design process.
 
-## Picking an issue
+### Picking an issue
 
 Pick an issue by going through the [issue tracker](https://github.com/functime-org/functime/issues) and finding an issue you would like to work on. To work on an issue, please leave a new message below the discussion to show your interest. We use the [`help wanted`](https://github.com/functime-org/functime/labels/help%20wanted) label to indicate issues that are high on our wishlist. However, if you are a first time contributor, you might want to look for issues labeled [`good first issue`](https://github.com/functime-org/functime/labels/good%20first%20issue).
 
-## Set up your local environment
+### Set up your local environment
 
 This might be slightly complex, because `functime` uses some Rust plugins to accelerate some features. In other words, you need to make sure you have installed both [Python](https://www.python.org/) and [Rust](https://www.rust-lang.org/) on your machine (see below).
 
@@ -43,9 +34,6 @@ gh repo fork functime-org/functime
 ```
 
 The CLI will prompt you to clone the fork locally.
-
-
-
 
 2. **Clone the repository locally**.
 
@@ -77,7 +65,7 @@ rye sync --features=dev
 rye run pre-commit install --install-hooks
 ```
 
-## While working on your issue
+### While working on your issue
 
 Create a new git branch from the `main` branch in your local repository, and start coding!
 
@@ -101,7 +89,7 @@ Two other things to keep in mind:
 * Add test to your code. If you haven't written tests before, the dev team will be glad to help you out. We will link some useful resources here too.
 * If you change the public API, update the documentation.
 
-## Pull requests
+### Pull requests
 
 When you have resolved your issue, [open a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork) in the repository. Please adhere to the following guidelines:
 
@@ -115,10 +103,10 @@ When you have resolved your issue, [open a pull request](https://docs.github.com
 
 Keep in mind that your work does not have to be perfect right away! If you are stuck or unsure about your solution, feel free to open a draft pull request and ask for help.
 
-# Contributing to the documentation
+## Contributing to the documentation
 
 *In progress...*
 
-# Credits
+## Credits
 
 This guide is inspired from [Polars User guide](https://docs.pola.rs/development/contributing/).
