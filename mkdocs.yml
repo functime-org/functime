@@ -44,29 +44,32 @@ markdown_extensions:
       alternate_style: true
 
 nav:
-  - Quick Start: index.md
+  - Quick Start: quickstart.md
   - Installation: installation.md
-  - Forecasting: forecasting.md
-  - Preprocessing: preprocessing.md
-  - Feature Extraction: feature-extraction.md
-  - Seasonality: seasonality.md
-  - Developer Guide: develop.md
+  - User Guide:
+    - Forecasting: user-guide/forecasting.md
+    - Preprocessing: user-guide/preprocessing.md
+    - Feature Extraction: user-guide/feature-extraction.md
+    - Seasonality: user-guide/seasonality.md
+  - Developer Guides:
+    - Custom Forecasters and Transformers: developer-guide/develop.md
+    - Contributing: developer-guide/contributing.md
   - Tutorials:
     - Preprocessing: notebooks/preprocessing.ipynb
     - Feature Extraction: notebooks/benchmarks.ipynb
     - Forecast Evaluation: notebooks/evaluation.ipynb
     - LLM Analysis: notebooks/llm.ipynb
   - API Reference:
-    - forecasting: ref/forecasting.md
-    - preprocessing: ref/preprocessing.md
-    - seasonality: ref/seasonality.md
-    - feature_extraction: ref/feature-extractors.md
-    - cross_validation: ref/cross-validation.md
-    - offsets: ref/offsets.md
-    - metrics: ref/metrics.md
-    - multi_objective: ref/multi-objective.md
-    - evaluation: ref/evaluation.md
-    - plotting: ref/plotting.md
+    - forecasting: api-reference/forecasting.md
+    - preprocessing: api-reference/preprocessing.md
+    - seasonality: api-reference/seasonality.md
+    - feature_extraction: api-reference/feature-extractors.md
+    - cross_validation: api-reference/cross-validation.md
+    - offsets: api-reference/offsets.md
+    - metrics: api-reference/metrics.md
+    - multi_objective: api-reference/multi-objective.md
+    - evaluation: api-reference/evaluation.md
+    - plotting: api-reference/plotting.md
 
 extra:
   analytics:

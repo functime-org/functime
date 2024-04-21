@@ -1,4 +1,4 @@
-# Developer Guide
+# Custom Forecasters and Transformers
 
 This guide shows you how to use `functime`'s primitives to create new `forecasters` and `transformers`. If you would like to add your custom implementation into the `functime` library, please open up an [draft pull request on GitHub](https://github.com/functime-org/functime/pulls)! All contributions are welcome.
 
