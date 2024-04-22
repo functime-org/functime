@@ -44,7 +44,7 @@ markdown_extensions:
       alternate_style: true
 
 nav:
-  - Quick Start: quickstart.md
+  - Quick Start: index.md
   - Installation: installation.md
   - User Guide:
     - Forecasting: user-guide/forecasting.md
