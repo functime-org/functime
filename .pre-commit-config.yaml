@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v4.6.0
     hooks:
       - id: check-added-large-files
         args: ['--maxkb=25000']
@@ -13,7 +13,7 @@ repos:
     hooks:
       - id: nbstripout
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.3.2
+    rev: v0.4.1
     hooks:
       - id: ruff
         types_or: [python, pyi, jupyter]
@@ -26,16 +26,12 @@ repos:
     hooks:
       - id: polars-upgrade
         args: [--target-version=0.19.15]
-  - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: 1.7.0
-    hooks:
-      - id: pyproject-fmt
   - repo: https://github.com/abravalheri/validate-pyproject
     rev: v0.16
     hooks:
       - id: validate-pyproject
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v3.18.3
+    rev: v3.24.0
     hooks:
       - id: commitizen-branch
         stages: [push]
