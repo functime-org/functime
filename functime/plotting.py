@@ -1,4 +1,4 @@
-from typing import Optional, Union, Any, Dict
+from typing import Any, Dict, Optional, Tuple, Union
 
 import plotly.express as px
 import plotly.graph_objects as go
@@ -48,11 +48,11 @@ def _set_subplot_default_kwargs(kwargs: dict, n_rows: int, n_cols: int) -> dict:
     """
     # Fixed size for each subplot
     subplot_width = 250  # width for each subplot column
-    subplot_height = 200 # height for each subplot row
+    subplot_height = 200  # height for each subplot row
 
     # Additional space for titles and other elements
-    additional_space_vertical = 100   # space for titles, labels, etc.
-    additional_space_horizontal = 100 # additional horizontal space if needed
+    additional_space_vertical = 100  # space for titles, labels, etc.
+    additional_space_horizontal = 100  # additional horizontal space if needed
 
     # Calculate total width and height
     total_width = subplot_width * n_cols + additional_space_horizontal
@@ -78,13 +78,18 @@ def _calculate_subplot_n_rows(n_series: int, n_cols: int) -> int:
     return n_rows
 
 
-def _get_subplot_grid_position(i, n_cols):
+def _get_subplot_grid_position(i: int, n_cols: int) -> Tuple[int, int]:
     row = i // n_cols + 1
     col = i % n_cols + 1
     return row, col
 
 
-def _prepare_data_for_subplots(y: Union[pl.DataFrame, pl.LazyFrame], n_series: int, last_n: int, seed: Union[int, None] = None):
+def _prepare_data_for_subplots(
+    y: Union[pl.DataFrame, pl.LazyFrame],
+    n_series: int,
+    last_n: int,
+    seed: Union[int, None] = None,
+) -> Tuple[pl.Series, int, pl.DataFrame]:
     """
     Prepares data for plotting by selecting and sampling entities and getting the recent observations for plotting.
 
@@ -101,7 +106,7 @@ def _prepare_data_for_subplots(y: Union[pl.DataFrame, pl.LazyFrame], n_series: i
 
     Returns
     -------
-    Tuple
+    Tuple[pl.Series, int, pl.DataFrame]
         Sampled entities, n_series to plot, and filtered DataFrame.
     """
     entity_col = y.columns[0]
@@ -130,13 +135,15 @@ def _prepare_data_for_subplots(y: Union[pl.DataFrame, pl.LazyFrame], n_series: i
     return entities_sample, n_series, y_filtered
 
 
-def _add_scatter_traces_to_subplots(fig: go.Figure, 
-                          ts: Union[pl.DataFrame, pl.LazyFrame], 
-                          ts_pred: Union[pl.DataFrame, pl.LazyFrame, None], 
-                          entity_id: Any, 
-                          row: int, 
-                          col: int, 
-                          plot_params: Dict[str, Any]) -> None:
+def _add_scatter_traces_to_subplots(
+    fig: go.Figure,
+    ts: Union[pl.DataFrame, pl.LazyFrame],
+    ts_pred: Union[pl.DataFrame, pl.LazyFrame, None],
+    entity_id: Any,
+    row: int,
+    col: int,
+    plot_params: Dict[str, Any],
+) -> None:
     """
     Adds traces to a specific subplot in the figure for actual and optionally predicted data.
 
@@ -219,7 +226,7 @@ def plot_entities(
         go.Bar(
             x=entity_counts.get_column("count"),
             y=entity_counts.get_column(entity_col),
-            orientation='h'
+            orientation="h",
         )
     )
     fig.update_layout(
@@ -283,14 +290,14 @@ def plot_panel(
 
     # Define default names and colors to be used
     plot_params = {
-    "ts_name": "Time-series",
-    "ts_color": COLOR_PALETTE["actual"],
+        "ts_name": "Time-series",
+        "ts_color": COLOR_PALETTE["actual"],
     }
 
     # Loop and plot each sampled entity
     for i, entity_id in enumerate(entities_sample):
         ts = y_filtered.filter(pl.col(entity_col) == entity_id)
-        # Get the subplot position for the ts 
+        # Get the subplot position for the ts
         row, col = _get_subplot_grid_position(i=i, n_cols=n_cols)
         # Plot trace(s) for the timeseries
         _add_scatter_traces_to_subplots(
@@ -368,13 +375,13 @@ def plot_forecasts(
         "ts_name": "Actual",
         "ts_color": COLOR_PALETTE["actual"],
         "ts_pred_name": "Forecast",
-        "ts_pred_color": COLOR_PALETTE["forecast"]
+        "ts_pred_color": COLOR_PALETTE["forecast"],
     }
 
     for i, entity_id in enumerate(entities_sample):
         ts = y_filtered.filter(pl.col(entity_col) == entity_id)
         ts_pred = y_pred.filter(pl.col(entity_col) == entity_id)
-        # Get the subplot position for the ts 
+        # Get the subplot position for the ts
         row, col = _get_subplot_grid_position(i=i, n_cols=n_cols)
         # Plot trace(s) for the timeseries
         _add_scatter_traces_to_subplots(
@@ -452,13 +459,13 @@ def plot_backtests(
         "ts_name": "Actual",
         "ts_color": COLOR_PALETTE["actual"],
         "ts_pred_name": "Backtest",
-        "ts_pred_color": COLOR_PALETTE["backtest"]
+        "ts_pred_color": COLOR_PALETTE["backtest"],
     }
 
     for i, entity_id in enumerate(entities_sample):
         ts = y_filtered.filter(pl.col(entity_col) == entity_id)
         ts_pred = y_preds.filter(pl.col(entity_col) == entity_id)
-        # Get the subplot position for the ts 
+        # Get the subplot position for the ts
         row, col = _get_subplot_grid_position(i=i, n_cols=n_cols)
         # Plot trace(s) for the timeseries
         _add_scatter_traces_to_subplots(
@@ -566,7 +573,10 @@ def plot_comet(
     mean_score = scores.get_column(scores.columns[-1]).mean()
     mean_cv = cvs.get_column(cvs.columns[-1]).mean()
     fig = px.scatter(
-        comet.to_pandas(), x=cvs.columns[-1], y=scores.columns[-1], hover_data=entity_col
+        comet.to_pandas(),
+        x=cvs.columns[-1],
+        y=scores.columns[-1],
+        hover_data=entity_col,
     )
     fig.add_hline(y=mean_score)
     fig.add_vline(x=mean_cv)
