@@ -79,7 +79,7 @@ scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
 
 !!! tip "functime ❤️ currying"
 
-    Every `transformer` and `splitter` are [curried functions](https://composingprograms.com/pages/16-higher-order-functions.html#currying).
+    Every `transformer` and `splitter` are [curried functions](https://www.composingprograms.com/pages/16-higher-order-functions.html#currying).
 
     ```python
     from functime.preprocessing import boxcox, impute
