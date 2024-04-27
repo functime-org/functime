@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Mapping, Optional, Tuple, Union
 
 import numpy as np
