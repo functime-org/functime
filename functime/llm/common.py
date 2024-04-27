@@ -119,7 +119,7 @@ def _openai_count_tokens(
         return _openai_count_tokens(messages, model="gpt-4-0613")
     else:
         raise NotImplementedError(
-            f"""_openai_count_tokens() is not implemented for model {model}. See https://github.com/openai/openai-python/blob/main/chatml.md for information on how messages are converted to tokens."""
+            f"""_openai_count_tokens() is not implemented for model {model}."""
         )
     num_tokens = 0
     for message in messages:
