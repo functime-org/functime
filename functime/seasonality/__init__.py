@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from functime.seasonality.calendar import (
     add_calendar_effects,
     add_holiday_effects,

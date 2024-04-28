@@ -1,6 +1,6 @@
-"""
-Fit-predict regressors with special needs.
-"""
+"""Fit-predict regressors with special needs."""
+
+from __future__ import annotations
 
 from typing import Callable, Literal, Optional, Union
 

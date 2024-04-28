@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 
 import cloudpickle
@@ -8,15 +10,11 @@ import pytest
 from functime.forecasting import (  # ann,
     auto_elastic_net,
     auto_lightgbm,
-    catboost,
     censored_model,
     elastic_net,
     elite,
-    flaml_lightgbm,
-    lightgbm,
     linear_model,
     naive,
-    xgboost,
     zero_inflated_model,
 )
 from functime.metrics import rmsse, smape, smape_original
