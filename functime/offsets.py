@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import List, Tuple, Union
 
 OFFSET_ALIASES = {"s", "m", "h", "d", "w", "mo", "y", "i"}

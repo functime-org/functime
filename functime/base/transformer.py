@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 import sys
 from functools import cached_property, wraps

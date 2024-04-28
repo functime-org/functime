@@ -1,4 +1,6 @@
-from typing import Any, Dict, Optional, Tuple, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import plotly.express as px
 import plotly.graph_objects as go
@@ -8,6 +10,8 @@ from plotly.subplots import make_subplots
 from functime.base.metric import METRIC_TYPE
 from functime.metrics import smape
 
+if TYPE_CHECKING:
+    from typing import Any, Dict, Optional, Tuple, Union
 COLOR_PALETTE = {"actual": "#B7B7B7", "forecast": "#1b57f1", "backtest": "#A76EF4"}
 DEFAULT_LAST_N = 64
 

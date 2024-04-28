@@ -1,5 +1,7 @@
 """Module with functions to compute, compare, and optimize multi-objective forecasts."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from functools import partial, reduce
 from typing import Literal, Optional

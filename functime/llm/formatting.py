@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Literal, Mapping, Tuple, Union
 
 import polars as pl
