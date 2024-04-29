@@ -1,3 +1,5 @@
+"""Type aliases."""
+
 from __future__ import annotations
 
 import sys
@@ -9,4 +11,5 @@ else:  # 3.9
     from typing_extensions import TypeAlias
 
 
+# feature extraction
 DetrendMethod: TypeAlias = Literal["linear", "mean"]
