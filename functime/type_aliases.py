@@ -7,7 +7,6 @@ from typing import (
     Callable,
     Literal,
     Tuple,
-    TypeAlias,
     Union,
 )
 
