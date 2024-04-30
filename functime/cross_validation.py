@@ -60,8 +60,10 @@ def train_test_split(
 
     Returns
     -------
-    splitter : Callable[pl.LazyFrame, Tuple[pl.LazyFrame, pl.LazyFrame]]
-        Function that takes a panel LazyFrame and returns tuple of train / test LazyFrames.
+    splitter : Union[EagerSplitter, LazySplitter]
+        Function that takes a panel DataFrame, or LazyFrame, and returns:
+        * A tuple of train / test LazyFrames, if `eager=False`.
+        * A tuple of train / test DataFrames, if `eager=True`.
     """
     if isinstance(test_size, float):
         if test_size < 0 or test_size > 1:
@@ -75,6 +77,8 @@ def train_test_split(
     def splitter(
         X: PolarsFrame,
     ) -> Union[Tuple[pl.DataFrame, pl.DataFrame], Tuple[pl.LazyFrame, pl.LazyFrame]]:
+        """Split the data into train and test sets."""
+
         return _splitter_train_test(
             X=X,
             test_size=test_size,
@@ -113,12 +117,15 @@ def _splitter_train_test(
     test_size: Union[int, float],
     eager: bool = False,
 ) -> Union[Tuple[pl.DataFrame, pl.DataFrame], Tuple[pl.LazyFrame, pl.LazyFrame]]:
-    X = X.lazy()  # Defensive
+    if isinstance(X, pl.DataFrame):
+        X = X.lazy()
+
     entity_col = X.columns[0]
 
     max_size = (
         X.group_by(entity_col).agg(pl.count()).select(pl.min("count")).collect().item()
     )
+
     if isinstance(test_size, int) and test_size > max_size:
         raise ValueError(
             "`test_size` must be less than the number of samples of the smallest entity"
