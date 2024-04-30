@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
     from typing import (
@@ -9,7 +9,6 @@ if TYPE_CHECKING:
         Optional,
         Tuple,
         Union,
-        overload,
     )
 
     from functime.type_aliases import EagerSplitter, LazySplitter, PolarsFrame
