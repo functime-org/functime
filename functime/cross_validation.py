@@ -1,14 +1,18 @@
 from __future__ import annotations
 
-from typing import (
-    Callable,
-    Literal,
-    Mapping,
-    Optional,
-    Tuple,
-    Union,
-    overload,
-)
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import (
+        Literal,
+        Mapping,
+        Optional,
+        Tuple,
+        Union,
+        overload,
+    )
+
+    from functime.type_aliases import EagerSplitter, LazySplitter, PolarsFrame
 
 import numpy as np
 import polars as pl
@@ -22,29 +26,29 @@ __all__ = [
 
 @overload
 def train_test_split(
-    test_size: int,
-    eager: Literal[True],
-) -> Callable[
-    [Union[pl.DataFrame, pl.LazyFrame]], Tuple[pl.DataFrame, pl.DataFrame]
-]: ...
+    test_size: Union[int, float] = ...,
+    eager: Literal[True] = ...,
+) -> EagerSplitter: ...
 
 
 @overload
 def train_test_split(
-    test_size: int,
-    eager: Literal[False],
-) -> Callable[
-    [Union[pl.DataFrame, pl.LazyFrame]], Tuple[pl.LazyFrame, pl.LazyFrame]
-]: ...
+    test_size: Union[int, float] = ...,
+    eager: Literal[False] = ...,
+) -> LazySplitter: ...
+
+
+@overload
+def train_test_split(
+    test_size: Union[int, float] = ...,
+    eager: bool = ...,
+) -> Union[EagerSplitter, LazySplitter]: ...
 
 
 def train_test_split(
     test_size: Union[int, float] = 0.25,
     eager: bool = False,
-) -> Callable[
-    [Union[pl.DataFrame, pl.LazyFrame]],
-    Union[Tuple[pl.DataFrame, pl.DataFrame], Tuple[pl.LazyFrame, pl.LazyFrame]],
-]:
+) -> Union[EagerSplitter, LazySplitter]:
     """Return a time-ordered train set and test set given `test_size`.
 
     Parameters
@@ -69,7 +73,7 @@ def train_test_split(
         raise TypeError("`test_size` must be int or float")
 
     def splitter(
-        X: Union[pl.DataFrame, pl.LazyFrame],
+        X: PolarsFrame,
     ) -> Union[Tuple[pl.DataFrame, pl.DataFrame], Tuple[pl.LazyFrame, pl.LazyFrame]]:
         return _splitter_train_test(
             X=X,
@@ -77,27 +81,35 @@ def train_test_split(
             eager=eager,
         )
 
-    return splitter
+    return splitter  # pyright: ignore[reportReturnType]
 
 
 @overload
 def _splitter_train_test(
-    X: Union[pl.DataFrame, pl.LazyFrame],
+    X: PolarsFrame,
     test_size: Union[int, float],
-    eager: Literal[True],
+    eager: Literal[True] = ...,
 ) -> Tuple[pl.DataFrame, pl.DataFrame]: ...
 
 
 @overload
 def _splitter_train_test(
-    X: Union[pl.DataFrame, pl.LazyFrame],
+    X: PolarsFrame,
     test_size: Union[int, float],
-    eager: Literal[False],
+    eager: Literal[False] = ...,
 ) -> Tuple[pl.LazyFrame, pl.LazyFrame]: ...
 
 
+@overload
 def _splitter_train_test(
-    X: Union[pl.DataFrame, pl.LazyFrame],
+    X: PolarsFrame,
+    test_size: Union[int, float],
+    eager: bool = ...,
+) -> Union[Tuple[pl.DataFrame, pl.DataFrame], Tuple[pl.LazyFrame, pl.LazyFrame]]: ...
+
+
+def _splitter_train_test(
+    X: PolarsFrame,
     test_size: Union[int, float],
     eager: bool = False,
 ) -> Union[Tuple[pl.DataFrame, pl.DataFrame], Tuple[pl.LazyFrame, pl.LazyFrame]]:
