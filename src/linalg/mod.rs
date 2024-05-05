@@ -1,6 +1,8 @@
+use faer::solvers::SolverCore;
 use ndarray::Array2;
-use faer::{IntoNdarray, Side, MatRef};
+use faer::{Side, MatRef};
 use faer::prelude::*;
+use faer_ext::{IntoFaer, IntoNdarray};
 
 #[inline]
 pub fn lstsq_solver1(
