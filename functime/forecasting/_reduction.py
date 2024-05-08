@@ -26,10 +26,13 @@ def make_reduction(
     y = y.lazy()
     X = X.lazy() if X is not None else X
     # Get lags
-    y_lag = y.pipe(lag(lags=list(range(1, lags + 1))))
-    X_y = y_lag.join(y, on=idx_cols, how="inner").select(
-        [*y.columns, *y_lag.columns[2:]]
-    )
+    if lags:
+        y_lag = y.pipe(lag(lags=list(range(1, lags + 1))))
+        X_y = y_lag.join(y, on=idx_cols, how="inner").select(
+            [*y.columns, *y_lag.columns[2:]]
+        )
+    else:
+        X_y = y.with_columns(pl.lit(None).alias(f"{y.columns[-1]}__lag_0"))
     # Exogenous features
     if X is not None:
         X_y = _join_X_y(X_y, X)

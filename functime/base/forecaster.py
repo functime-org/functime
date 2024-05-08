@@ -291,7 +291,7 @@ class Forecaster(Model):
 
         y = check_backtest_lengths(
             y,
-            max_lags=self.lags,
+            max_lags=self.lags if self.lags else 0,
             test_size=test_size,
             drop_short=drop_short,
             drop_tolerance=drop_tolerance,
