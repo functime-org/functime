@@ -114,7 +114,7 @@ class Forecaster(Model):
     def __init__(
         self,
         freq: Union[str, None],
-        lags: int,
+        lags: Optional[int],
         max_horizons: Optional[int] = None,
         strategy: FORECAST_STRATEGIES = None,
         target_transform: Optional[Union[Transformer, List[Transformer]]] = None,
