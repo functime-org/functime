@@ -1,6 +1,6 @@
-use pyo3::prelude::*;
-use numpy::{PyArray2, PyReadonlyArray2, ToPyArray};
 use faer_ext::IntoFaer;
+use numpy::{PyArray2, PyReadonlyArray2, ToPyArray};
+use pyo3::prelude::*;
 mod linalg;
 use linalg::lstsq_solver1;
 mod changepoint_detection;
@@ -10,7 +10,6 @@ mod preprocessing;
 #[pymodule]
 #[pyo3(name = "_functime_rust")]
 fn _functime_rust(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
-
     #[pyfn(m)]
     fn rs_faer_lstsq1<'py>(
         py: Python<'py>,
