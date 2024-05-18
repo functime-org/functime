@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
@@ -11,7 +12,7 @@ if TYPE_CHECKING:
         Union,
     )
 
-    from functime.type_aliases import EagerSplitter, LazySplitter, PolarsFrame
+    from functime.type_aliases import PolarsFrame
 
 import numpy as np
 import polars as pl
@@ -27,27 +28,33 @@ __all__ = [
 def train_test_split(
     test_size: Union[int, float] = ...,
     eager: Literal[True] = ...,
-) -> EagerSplitter: ...
+) -> Callable[[PolarsFrame], Tuple[pl.DataFrame, pl.DataFrame]]: ...
 
 
 @overload
 def train_test_split(
     test_size: Union[int, float] = ...,
     eager: Literal[False] = ...,
-) -> LazySplitter: ...
+) -> Callable[[PolarsFrame], Tuple[pl.DataFrame, pl.DataFrame]]: ...
 
 
 @overload
 def train_test_split(
     test_size: Union[int, float] = ...,
     eager: bool = ...,
-) -> Union[EagerSplitter, LazySplitter]: ...
+) -> Callable[
+    [PolarsFrame],
+    Union[Tuple[pl.DataFrame, pl.DataFrame], Tuple[pl.LazyFrame, pl.LazyFrame]],
+]: ...
 
 
 def train_test_split(
     test_size: Union[int, float] = 0.25,
     eager: bool = False,
-) -> Union[EagerSplitter, LazySplitter]:
+) -> Callable[
+    [PolarsFrame],
+    Union[Tuple[pl.DataFrame, pl.DataFrame], Tuple[pl.LazyFrame, pl.LazyFrame]],
+]:
     """Return a time-ordered train set and test set given `test_size`.
 
     Parameters
@@ -84,7 +91,7 @@ def train_test_split(
             eager=eager,
         )
 
-    return splitter  # pyright: ignore[reportReturnType]
+    return splitter
 
 
 @overload
