@@ -593,7 +593,9 @@ def cwt_coefficients(
         for i, width in enumerate(widths):
             points = np.min([10 * width, x.len()])
             wavelet_x = np.conj(ricker(points, width)[::-1])
-            convolution[i] = np.convolve(x.to_numpy(zero_copy_only=True), wavelet_x, mode="same")
+            convolution[i] = np.convolve(
+                x.to_numpy(zero_copy_only=True), wavelet_x, mode="same"
+            )
         coeffs = []
         for coeff_idx in range(min(n_coefficients, convolution.shape[1])):
             coeffs.extend(convolution[widths.index(w), coeff_idx] for w in widths)
