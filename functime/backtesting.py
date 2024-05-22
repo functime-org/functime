@@ -112,11 +112,6 @@ def backtest(
     X: Optional[pl.DataFrame] = None,
     residualize: bool = True,
 ) -> Tuple[pl.DataFrame, pl.DataFrame]:
-    if forecaster.lags is None and X is None:
-        raise ValueError(
-            "When `lags` is None, `X` must be provided since no other features are available."
-        )
-
     pl.enable_string_cache()
     entity_col, time_col, target_col = y.columns[:3]
     if X is None:
