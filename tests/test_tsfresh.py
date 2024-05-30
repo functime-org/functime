@@ -521,14 +521,16 @@ def test_autocorrelation_shortcut(S, res, n_lags):
 def test_binned_entropy(S, res, bin_count):
     # Doesn't work for lazy mode
     assert_frame_equal(
-        pl.DataFrame({"a": S}).select(binned_entropy(pl.col("a"), bin_count=bin_count).alias("a")),
-        pl.DataFrame({"a":pl.Series("counts", res)}),
+        pl.DataFrame({"a": S}).select(
+            binned_entropy(pl.col("a"), bin_count=bin_count).alias("a")
+        ),
+        pl.DataFrame({"a": pl.Series("counts", res)}),
     )
     assert_frame_equal(
         pl.LazyFrame({"a": S})
-        .select(binned_entropy(pl.col("a"), bin_count=bin_count).alias('a'))
+        .select(binned_entropy(pl.col("a"), bin_count=bin_count).alias("a"))
         .collect(),
-        pl.DataFrame({"a":pl.Series("counts", res)}),
+        pl.DataFrame({"a": pl.Series("counts", res)}),
     )
     assert binned_entropy(pl.Series(S), bin_count=bin_count) == res[0]
 
@@ -1115,8 +1117,6 @@ def test_mean_n_absolute_max(S, n_max, res):
 #         mean_n_absolute_max(x=pl.Series([12, 3]), n_maxima=0)
 #     with pytest.raises(ValueError):
 #         mean_n_absolute_max(x=pl.Series([12, 3]), n_maxima=-1)
-
-
 
 @pytest.mark.parametrize(
     "S, res",

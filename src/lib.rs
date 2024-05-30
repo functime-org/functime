@@ -1,6 +1,7 @@
-use pyo3::prelude::*;
-use numpy::{PyArray2, PyReadonlyArray2, ToPyArray};
+
 use faer_ext::IntoFaer;
+use numpy::{PyArray2, PyReadonlyArray2, ToPyArray};
+use pyo3::prelude::*;
 mod linalg;
 use linalg::lstsq_solver1;
 mod changepoint_detection;
