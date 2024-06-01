@@ -1118,7 +1118,6 @@ def test_mean_n_absolute_max(S, n_max, res):
 #     with pytest.raises(ValueError):
 #         mean_n_absolute_max(x=pl.Series([12, 3]), n_maxima=-1)
 
-
 @pytest.mark.parametrize(
     "S, res",
     [
