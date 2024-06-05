@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Optional, Sequence
 
 import polars as pl
 
@@ -8,7 +11,7 @@ import polars as pl
 def enbpi(
     y_pred: pl.LazyFrame,
     y_resid: pl.LazyFrame,
-    alphas: List[float],
+    alphas: Sequence[float],
 ) -> pl.DataFrame:
     """Compute prediction intervals using ensemble batch prediction intervals (ENBPI)."""
 
@@ -44,7 +47,7 @@ def conformalize(
     y_pred: pl.DataFrame,
     y_preds: pl.DataFrame,
     y_resids: pl.DataFrame,
-    alphas: Optional[List[float]] = None,
+    alphas: Optional[Sequence[float]] = None,
 ) -> pl.DataFrame:
     """Compute prediction intervals using ensemble batch prediction intervals (ENBPI)."""
 
