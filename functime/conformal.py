@@ -3,29 +3,29 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Optional, Sequence
+    from typing import Optional, Sequence, Union
 
 import polars as pl
 
 
 def conformalize(
     *,
-    y_pred: pl.DataFrame,
-    y_preds: pl.DataFrame,
-    y_resids: pl.DataFrame,
+    y_pred: Union[pl.DataFrame, pl.LazyFrame],
+    y_preds: Union[pl.DataFrame, pl.LazyFrame],
+    y_resids: Union[pl.DataFrame, pl.LazyFrame],
     alphas: Optional[Sequence[float]] = None,
 ) -> pl.DataFrame:
     """Compute prediction intervals using ensemble batch prediction intervals (ENBPI).
 
     Parameters
     ----------
-    y_pred : pl.DataFrame | pl.LazyFrame
+    y_pred : Union[pl.DataFrame, pl.LazyFrame]
         The predicted values.
-    y_preds : pl.DataFrame | pl.LazyFrame
+    y_preds : Union[pl.DataFrame, pl.LazyFrame]
         The predictions resulting from backtesting.
-    y_resids : pl.DataFrame | pl.LazyFrame
+    y_resids : Union[pl.DataFrame, pl.LazyFrame]
         The backtesting residuals.
-    alphas : Optional[Sequence[float]], optional
+    alphas : Optional[Sequence[float]]
         The quantile levels to use for the prediction intervals. Defaults to (0.1, 0.9).
         Quantiles must be two values between 0 and 1 (exclusive).
 
@@ -38,24 +38,22 @@ def conformalize(
 
     entity_col, time_col, target_col = y_pred.columns[:3]
     schema = y_pred.schema
-    y_preds = pl.concat(
+
+    _y_resids: pl.LazyFrame = y_resids.lazy().select(y_resids.columns[:3])
+    _y_preds: pl.LazyFrame = pl.concat(
         [
-            y_pred,
-            y_preds.select(
-                [
-                    entity_col,
-                    pl.col(time_col).cast(schema[time_col]),
-                    pl.col(target_col).cast(schema[target_col]),
-                ]
+            y_pred.lazy(),
+            y_preds.lazy().select(
+                entity_col,
+                pl.col(time_col).cast(schema[time_col]),
+                pl.col(target_col).cast(schema[target_col]),
             ),
         ]
     )
 
-    y_preds = y_preds.lazy()
-    y_resids = y_resids.select(y_resids.columns[:3]).lazy()
     y_pred_quantiles = _compute_enbpi(
-        y_preds=y_preds,
-        y_resids=y_resids,
+        y_preds=_y_preds,
+        y_resids=_y_resids,
         alphas=alphas,
     )
 
@@ -77,7 +75,6 @@ def _compute_enbpi(
 
     # 1. Group residuals by entity
     entity_col, time_col = y_preds.columns[:2]
-    y_resids = y_resids.collect()
 
     # 2. Forecast future prediction intervals: use constant residual quantile
     schema = y_preds.schema
@@ -99,8 +96,7 @@ def _compute_enbpi(
         )
         y_pred_qnts.append(y_pred_qnt)
 
-    y_pred_qnts = pl.concat(y_pred_qnts).sort([entity_col, time_col]).collect()
-    return y_pred_qnts
+    return pl.concat(y_pred_qnts).sort([entity_col, time_col]).collect()
 
 
 def _validate_alphas(alphas: Optional[Sequence[float]]) -> Sequence[float]:
