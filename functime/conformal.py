@@ -16,8 +16,8 @@ def conformalize(
     alphas: Optional[Sequence[float]] = None,
 ) -> pl.DataFrame:
     """Compute prediction intervals using ensemble batch prediction intervals (ENBPI)."""
+    alphas = _validate_alphas(alphas)
 
-    alphas = alphas or [0.1, 0.9]
     entity_col, time_col, target_col = y_pred.columns[:3]
     schema = y_pred.schema
     y_preds = pl.concat(
@@ -83,3 +83,13 @@ def _compute_enbpi(
 
     y_pred_qnts = pl.concat(y_pred_qnts).sort([entity_col, time_col]).collect()
     return y_pred_qnts
+
+
+def _validate_alphas(alphas: Optional[Sequence[float]]) -> Sequence[float]:
+    if alphas is None:
+        return (0.1, 0.9)
+    elif len(alphas) != 2:
+        raise ValueError("alphas must be a list of length 2")
+    elif not all(0 < alpha < 1 for alpha in alphas):
+        raise ValueError("alphas must be between 0 and 1")
+    return alphas
