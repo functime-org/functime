@@ -92,7 +92,7 @@ View the [full walkthrough](./user-guide/forecasting.md) on forecasting with `fu
 View the [full walkthrough](./user-guide/feature-extraction.md) on forecasting with `functime`.
 
 ### Preprocessing
-View API reference for [`functime.preprocessing`](https://docs.functime.ai/preprocessing/).
+View API reference for [`functime.preprocessing`](https://docs.functime.ai/user-guide/preprocessing/).
 Preprocessors take in a `polars.DataFrame` or `polars.LazyFrame` as input and **always returns a `polars.LazyFrame`**.
 No computation is run until the `.collect()` method is called on the LazyFrame.
 This allows Polars to [optimize the whole query](https://pola-rs.github.io/polars-book/user-guide/lazy/optimizations/) before execution.
