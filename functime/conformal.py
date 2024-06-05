@@ -15,7 +15,25 @@ def conformalize(
     y_resids: pl.DataFrame,
     alphas: Optional[Sequence[float]] = None,
 ) -> pl.DataFrame:
-    """Compute prediction intervals using ensemble batch prediction intervals (ENBPI)."""
+    """Compute prediction intervals using ensemble batch prediction intervals (ENBPI).
+
+    Parameters
+    ----------
+    y_pred : pl.DataFrame | pl.LazyFrame
+        The predicted values.
+    y_preds : pl.DataFrame | pl.LazyFrame
+        The predictions resulting from backtesting.
+    y_resids : pl.DataFrame | pl.LazyFrame
+        The backtesting residuals.
+    alphas : Optional[Sequence[float]], optional
+        The quantile levels to use for the prediction intervals. Defaults to (0.1, 0.9).
+        Quantiles must be two values between 0 and 1 (exclusive).
+
+    Returns
+    -------
+    pl.DataFrame
+        The prediction intervals.
+    """
     alphas = _validate_alphas(alphas)
 
     entity_col, time_col, target_col = y_pred.columns[:3]
