@@ -1,7 +1,7 @@
 [build-system]
 build-backend = "maturin"
 requires = [
-  "maturin<2,>=1.2.1",
+  "maturin<2,>=1.3.2",
 ]
 
 [project]
@@ -117,7 +117,7 @@ select = [
   "I",  # isort
   "B",  # flake8-bugbear
   "UP", # pyupgrade
-  "I",  # isort
+  "YTT", # flake8-2020
 ]
 ignore = [
   "E501", # line too long, handled by black
@@ -126,6 +126,14 @@ ignore = [
   "B018", # Found useless expression.
   "F821", # Undefined name
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["I002"]
+"docs/**" = ["I002"]
+"**.ipynb" = ["E402"]
+
+[tool.ruff.lint.isort]
+required-imports = ["from __future__ import annotations"]
 
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.

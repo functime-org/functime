@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import sys
 from dataclasses import dataclass
@@ -142,8 +144,7 @@ class Forecaster(Model):
         self.fit(y=y, X=X)
         return self.predict(fh=fh, X=X_future)
 
-    @property
-    def name(self):
+    def __repr__(self):
         return f"{self.__class__.__name__}(strategy={self.strategy})"
 
     def _transform_y(self, y: DF_TYPE):

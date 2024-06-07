@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import math
 from typing import List, Mapping, Optional, Sequence, Union
@@ -14,8 +16,7 @@ from scipy.spatial import KDTree
 
 from functime._functime_rust import rs_faer_lstsq1
 from functime._utils import UseAtOwnRisk
-
-from .type_alias import DetrendMethod
+from functime.type_aliases import DetrendMethod
 
 # from functime.feature_extractor import FeatureExtractor  # noqa: F401
 
@@ -592,10 +593,10 @@ def cwt_coefficients(
         for i, width in enumerate(widths):
             points = np.min([10 * width, x.len()])
             wavelet_x = np.conj(ricker(points, width)[::-1])
-            convolution[i] = np.convolve(x.to_numpy(allow_copy=False), wavelet_x)
+            convolution[i] = np.convolve(x.to_numpy(allow_copy=False), wavelet_x, mode="same")
         coeffs = []
         for coeff_idx in range(min(n_coefficients, convolution.shape[1])):
-            coeffs.extend(convolution[widths.index(), coeff_idx] for _ in widths)
+            coeffs.extend(convolution[widths.index(w), coeff_idx] for w in widths)
         return coeffs
     else:
         logger.info(

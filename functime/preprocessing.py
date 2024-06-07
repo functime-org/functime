@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any, List, Literal, Mapping, Optional, Union
 
 import cloudpickle
@@ -659,8 +661,10 @@ def yeojohnson(brack: tuple = (-2, 2)):
         # Step 1. Compute optimal lambdas
         lmbds = gb.agg(
             PL_NUMERIC_COLS(entity_col, time_col)
-            .map_elements(lambda x: yeojohnson_normmax(x, brack))
-            .cast(pl.Float64())
+            .map_elements(
+                lambda x: yeojohnson_normmax(x.to_numpy(), brack),
+                return_dtype=pl.Float64,
+            )
             .suffix("__lmbd")
         )
         # Step 2. Transform
