@@ -1,18 +1,17 @@
-use faer::IntoFaer;
+
+use faer_ext::IntoFaer;
 use numpy::{PyArray2, PyReadonlyArray2, ToPyArray};
 use pyo3::prelude::*;
+mod linalg;
+use linalg::lstsq_solver1;
 mod changepoint_detection;
 mod feature_extraction;
-pub mod linalg;
-use linalg::lstsq_solver1;
 mod preprocessing;
 
 #[pymodule]
-fn _functime_rust(_py: Python, m: &PyModule) -> PyResult<()> {
-    // Normal Rust function interop
-    // m.add_function(wrap_pyfunction!(rs_lempel_ziv_complexity, m)?)?;
+#[pyo3(name = "_functime_rust")]
+fn _functime_rust(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
-    // Functions that Requires NumPy Interop
     #[pyfn(m)]
     fn rs_faer_lstsq1<'py>(
         py: Python<'py>,
