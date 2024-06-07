@@ -401,17 +401,18 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
         return X
 
     def transform_new(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
-        artifacts = state.artifacts
         idx_cols = X.columns[:2]
-        numeric_cols = state.artifacts["numeric_cols"]
-        _mean = artifacts["_mean"]
-        _std = artifacts["_std"]
+        entity_col = idx_cols[0]
+        artifacts = state.artifacts
+        numeric_cols = artifacts["numeric_cols"]
         if use_mean:
-            X = X.join(_mean, on=idx_cols, how="left").select(
+            _mean = artifacts["_mean"]
+            X = X.join(_mean, on=entity_col, how="left").select(
                 idx_cols + [pl.col(col) - pl.col(f"{col}_mean") for col in numeric_cols]
             )
         if use_std:
-            X = X.join(_std, on=idx_cols, how="left").select(
+            _std = artifacts["_std"]
+            X = X.join(_std, on=entity_col, how="left").select(
                 idx_cols + [pl.col(col) / pl.col(f"{col}_std") for col in numeric_cols]
             )
         if rescale_bool:
