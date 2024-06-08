@@ -220,7 +220,7 @@ def plot_entities(
     if isinstance(y, pl.DataFrame):
         y = y.lazy()
 
-    entity_counts = y.group_by(entity_col).agg(pl.count()).collect()
+    entity_counts = y.group_by(entity_col).agg(pl.len()).collect()
 
     height = kwargs.pop("height", len(entity_counts) * 20)
     title = kwargs.pop("title", "Entities counts")
@@ -228,7 +228,7 @@ def plot_entities(
 
     fig = go.Figure(
         go.Bar(
-            x=entity_counts.get_column("count"),
+            x=entity_counts.get_column("len"),
             y=entity_counts.get_column(entity_col),
             orientation="h",
         )
