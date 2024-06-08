@@ -287,13 +287,17 @@ def roll(
         offset_n, offset_alias = _strip_freq_alias(freq)
         values = pl.all().exclude([entity_col, time_col])
         stat_exprs = {
-            "mean": lambda w: values.mean().suffix(f"__rolling_mean_{w}"),
-            "min": lambda w: values.min().suffix(f"__rolling_min_{w}"),
-            "max": lambda w: values.max().suffix(f"__rolling_max_{w}"),
-            "mlm": lambda w: (values.max() - values.min()).suffix(f"__rolling_mlm_{w}"),
-            "sum": lambda w: values.sum().suffix(f"__rolling_sum_{w}"),
-            "std": lambda w: values.std().suffix(f"__rolling_std_{w}"),
-            "cv": lambda w: (values.std() / values.mean()).suffix(f"__rolling_cv_{w}"),
+            "mean": lambda w: values.mean().name.suffix(f"__rolling_mean_{w}"),
+            "min": lambda w: values.min().name.suffix(f"__rolling_min_{w}"),
+            "max": lambda w: values.max().name.suffix(f"__rolling_max_{w}"),
+            "mlm": lambda w: (values.max() - values.min()).name.suffix(
+                f"__rolling_mlm_{w}"
+            ),
+            "sum": lambda w: values.sum().name.suffix(f"__rolling_sum_{w}"),
+            "std": lambda w: values.std().name.suffix(f"__rolling_std_{w}"),
+            "cv": lambda w: (values.std() / values.mean()).name.suffix(
+                f"__rolling_cv_{w}"
+            ),
         }
         # Degrees of freedom
         X_all = [
@@ -357,14 +361,14 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
         _std = None
         if use_mean:
             _mean = X.group_by(entity_col).agg(
-                PL_NUMERIC_COLS(entity_col, time_col).mean().suffix("_mean")
+                PL_NUMERIC_COLS(entity_col, time_col).mean().name.suffix("_mean")
             )
             X = X.join(_mean, on=entity_col).select(
                 idx_cols + [pl.col(col) - pl.col(f"{col}_mean") for col in numeric_cols]
             )
         if use_std:
             _std = X.group_by(entity_col).agg(
-                PL_NUMERIC_COLS(entity_col, time_col).std().suffix("_std")
+                PL_NUMERIC_COLS(entity_col, time_col).std().name.suffix("_std")
             )
             X = X.join(_std, on=entity_col).select(
                 idx_cols + [pl.col(col) / pl.col(f"{col}_std") for col in numeric_cols]
@@ -601,7 +605,7 @@ def boxcox(method: str = "mle"):
                 lambda x: boxcox_normmax(x, method=method, optimizer=optimizer)
             )
             .cast(pl.Float64())
-            .suffix("__lmbd")
+            .name.suffix("__lmbd")
         )
         # Step 2. Transform
         cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).columns
@@ -665,7 +669,7 @@ def yeojohnson(brack: tuple = (-2, 2)):
                 lambda x: yeojohnson_normmax(x.to_numpy(), brack),
                 return_dtype=pl.Float64,
             )
-            .suffix("__lmbd")
+            .name.suffix("__lmbd")
         )
         # Step 2. Transform
         cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).columns
