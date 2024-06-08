@@ -228,7 +228,7 @@ def plot_entities(
 
     fig = go.Figure(
         go.Bar(
-            x=entity_counts.get_column("count"),
+            x=entity_counts.get_column("len"),
             y=entity_counts.get_column(entity_col),
             orientation="h",
         )

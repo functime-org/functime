@@ -129,7 +129,7 @@ def _splitter_train_test(
     entity_col = X.columns[0]
 
     max_size = (
-        X.group_by(entity_col).agg(pl.len()).select(pl.min("count")).collect().item()
+        X.group_by(entity_col).agg(pl.len()).select(pl.min("len")).collect().item()
     )
 
     if isinstance(test_size, int) and test_size > max_size:
