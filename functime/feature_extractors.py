@@ -1324,8 +1324,8 @@ def permutation_entropy(
                 pl.concat_list(x, *(x.shift(-i) for i in range(1, n_dims)))
                 .head(x.len() - n_dims + 1)
                 .list.eval(pl.element().arg_sort())
-                .value_counts()  # groupby and count, but returns a struct
-                .struct.field("count")  # extract the field named "count"
+                .value_counts()
+                .struct.field("count")
                 .entropy(base=base, normalize=True)
             )
         else:
@@ -1335,16 +1335,14 @@ def permutation_entropy(
                     x.gather_every(tau),
                     *(x.shift(-i).gather_every(tau) for i in range(1, n_dims)),
                 )
-                .filter(  # This is the correct way to filter (with respect to tau) in this case.
+                .filter(  # This is the correct way to filter (with respect to tau)
                     pl.repeat(True, x.len())
                     .shift(max_shift, fill_value=False)
                     .gather_every(tau)
                 )
-                .list.eval(
-                    pl.element().arg_sort()
-                )  # for each inner list, do an argsort
-                .value_counts()  # groupby and count, but returns a struct
-                .struct.field("count")  # extract the field named "count"
+                .list.eval(pl.element().arg_sort())
+                .value_counts()
+                .struct.field("count")
                 .entropy(base=base, normalize=True)
             )
 

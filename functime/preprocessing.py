@@ -76,7 +76,7 @@ def time_to_arange(eager: bool = False):
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
         time_range_expr = (
-            pl.int_ranges(0, pl.col(time_col).count(), dtype=pl.UInt32)
+            pl.int_ranges(0, pl.count(time_col), dtype=pl.UInt32)
             .over(entity_col)
             .alias(time_col)
         )
@@ -759,7 +759,7 @@ def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
                     ],
                 )
                 .with_columns(
-                    (pl.col(c + "__mean") - pl.col(c + "__beta") * (pl.count() - 1) / 2)
+                    (pl.col(c + "__mean") - pl.col(c + "__beta") * (pl.len() - 1) / 2)
                     .over(entity_col)
                     .alias(c + "__alpha")
                     for c in X.columns[2:]

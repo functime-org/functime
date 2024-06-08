@@ -40,12 +40,10 @@ def test_train_test_split_int_size(test_size, pl_y, benchmark):
 
     # Check train window lengths
     ts_lengths = (
-        pl_y.group_by(entity_col, maintain_order=True)
-        .agg(pl.col(time_col).count())
-        .collect()
+        pl_y.group_by(entity_col, maintain_order=True).agg(pl.count(time_col)).collect()
     )
     train_lengths = y_train.group_by(entity_col, maintain_order=True).agg(
-        pl.col(time_col).count()
+        pl.count(time_col)
     )
     assert (
         ((ts_lengths.select("time") - train_lengths.select("time")) == test_size)
@@ -54,7 +52,7 @@ def test_train_test_split_int_size(test_size, pl_y, benchmark):
     )
 
     # Check test window lengths
-    test_lengths = y_test.group_by(entity_col).agg(pl.col(time_col).count())
+    test_lengths = y_test.group_by(entity_col).agg(pl.count(time_col))
     assert (test_lengths.select("time") == test_size).to_series().all()
 
 
@@ -81,13 +79,13 @@ def test_train_test_split_float_size(pl_y, float_test_size, context):
         # Check train window lengths
         ts_lengths = (
             pl_y.group_by(entity_col, maintain_order=True)
-            .agg(pl.col(time_col).count())
+            .agg(pl.count(time_col))
             .collect()
         )
 
         test_lengths = (
             y_test.group_by(entity_col, maintain_order=True)
-            .agg(pl.col(time_col).count())
+            .agg(pl.count(time_col))
             .collect()
         )
 
@@ -116,7 +114,7 @@ def test_expanding_window_split(test_size, n_splits, step_size, pl_y, benchmark)
         _, y_test = split
         # Check test window lengths
         test_lengths = y_test.group_by(entity_col, maintain_order=True).agg(
-            pl.col(time_col).count()
+            pl.count(time_col)
         )
         assert (test_lengths.select("time") == test_size).select(pl.all().all())[0, 0]
 
@@ -138,6 +136,6 @@ def test_sliding_window_split(test_size, n_splits, step_size, pl_y, benchmark):
         _, y_test = split
         # Check test window lengths
         test_lengths = y_test.group_by(entity_col, maintain_order=True).agg(
-            pl.col(time_col).count()
+            pl.count(time_col)
         )
         assert (test_lengths.select("time") == test_size).select(pl.all().all())[0, 0]

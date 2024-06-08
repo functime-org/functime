@@ -250,7 +250,7 @@ def m5_dataset():
     entity_col, time_col, value_col = y_train.columns[:3]
     short_ts_counts = (
         y_train.group_by(entity_col)
-        .agg(pl.col(time_col).count().alias("count"))
+        .agg(pl.count(time_col).alias("count"))
         .filter(pl.col("count") <= max_lags)
         .sort(by="count")
     )
