@@ -76,7 +76,7 @@ def time_to_arange(eager: bool = False):
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         entity_col, time_col = X.columns[:2]
         time_range_expr = (
-            pl.int_ranges(0, pl.col(time_col).count(), dtype=pl.UInt32)
+            pl.int_ranges(0, pl.count(time_col), dtype=pl.UInt32)
             .over(entity_col)
             .alias(time_col)
         )
