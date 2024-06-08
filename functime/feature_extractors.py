@@ -15,7 +15,7 @@ from scipy.signal import find_peaks_cwt, ricker, welch
 from scipy.spatial import KDTree
 
 from functime._functime_rust import rs_faer_lstsq1
-from functime._utils import UseAtOwnRisk
+from functime._utils import warn_is_unstable
 from functime.type_aliases import DetrendMethod
 
 # from functime.feature_extractor import FeatureExtractor  # noqa: F401
@@ -164,7 +164,7 @@ def approximate_entropy(
 ApEn = approximate_entropy
 
 
-@UseAtOwnRisk
+@warn_is_unstable
 def augmented_dickey_fuller(x: TIME_SERIES_T, n_lags: int) -> float:
     """
     Calculates the Augmented Dickey-Fuller (ADF) test statistic. This only works for Series input right now.
