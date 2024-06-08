@@ -129,7 +129,7 @@ def _splitter_train_test(
     entity_col = X.columns[0]
 
     max_size = (
-        X.group_by(entity_col).agg(pl.count()).select(pl.min("count")).collect().item()
+        X.group_by(entity_col).agg(pl.len()).select(pl.min("count")).collect().item()
     )
 
     if isinstance(test_size, int) and test_size > max_size:
@@ -138,11 +138,11 @@ def _splitter_train_test(
         )
 
     train_length = (
-        pl.count() - test_size
+        pl.len() - test_size
         if isinstance(test_size, int)
-        else (pl.count() * (1 - test_size)).cast(int)
+        else (pl.len() * (1 - test_size)).cast(int)
     )
-    test_length = pl.count() - train_length
+    test_length = pl.len() - train_length
 
     train_split = (
         X.group_by(entity_col)
@@ -269,12 +269,12 @@ def _window_split(
     if window_size:
         # Sliding window CV
         train_exprs = [
-            pl.all().slice(pl.count() - cutoff - window_size, window_size)
+            pl.all().slice(pl.len() - cutoff - window_size, window_size)
             for cutoff in cutoffs
         ]
     else:
         # Expanding window CV
-        train_exprs = [pl.all().slice(0, pl.count() - cutoff) for cutoff in cutoffs]
+        train_exprs = [pl.all().slice(0, pl.len() - cutoff) for cutoff in cutoffs]
 
     test_exprs = [pl.all().slice(-cutoffs[i], test_size) for i in range(n_splits)]
     train_test_exprs = zip(train_exprs, test_exprs)

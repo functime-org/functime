@@ -759,7 +759,7 @@ def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
                     ],
                 )
                 .with_columns(
-                    (pl.col(c + "__mean") - pl.col(c + "__beta") * (pl.count() - 1) / 2)
+                    (pl.col(c + "__mean") - pl.col(c + "__beta") * (pl.len() - 1) / 2)
                     .over(entity_col)
                     .alias(c + "__alpha")
                     for c in X.columns[2:]
