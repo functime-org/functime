@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from functools import wraps
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Callable, ParamSpec, TypeVar
+
+    P = ParamSpec("P")
+    R = TypeVar("R")
 
 logger = logging.getLogger(__name__)
 
 
-def UseAtOwnRisk(func: Callable) -> Any:
-    def wrapped_func(*args, **kwargs):
+def warn_is_unstable(func: Callable[P, R]) -> Callable[P, R]:
+    @wraps(func)
+    def wrapped_func(*args: P.args, **kwargs: P.kwargs) -> R:
         logger.warning(
             f"The function {func.__name__} is unstable and untested. Use at your own risk."
         )
