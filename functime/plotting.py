@@ -17,16 +17,6 @@ COLOR_PALETTE = {"actual": "#B7B7B7", "forecast": "#1b57f1", "backtest": "#A76EF
 DEFAULT_LAST_N = 64
 
 
-def _remove_legend_duplicates(fig: go.Figure) -> go.Figure:
-    names = set()
-    fig.for_each_trace(
-        lambda trace: trace.update(showlegend=False)
-        if (trace.name in names)
-        else names.add(trace.name)
-    )
-    return fig
-
-
 def plot_entities(
     y: Union[pl.DataFrame, pl.LazyFrame],
     **kwargs,
@@ -505,4 +495,14 @@ def plot_fva(
         template=template,
     )
     fig.update_layout(**kwargs)
+    return fig
+
+
+def _remove_legend_duplicates(fig: go.Figure) -> go.Figure:
+    names = set()
+    fig.for_each_trace(
+        lambda trace: trace.update(showlegend=False)
+        if (trace.name in names)
+        else names.add(trace.name)
+    )
     return fig
