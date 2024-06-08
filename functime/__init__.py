@@ -2,8 +2,4 @@
 
 __version__ = "0.9.5"
 
-import logging
-
 from functime.feature_extractors import FeatureExtractor  # noqa: F401
-
-logging.basicConfig(level=logging.INFO)
