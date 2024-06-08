@@ -13,6 +13,7 @@ from functime.metrics import smape
 
 if TYPE_CHECKING:
     from typing import Optional, Union
+
 COLOR_PALETTE = {"actual": "#B7B7B7", "forecast": "#1b57f1", "backtest": "#A76EF4"}
 DEFAULT_LAST_N = 64
 
@@ -28,6 +29,8 @@ def plot_entities(
     ----------
     y : pl.DataFrame | pl.LazyFrame
         Panel DataFrame of observed values.
+    **kwargs
+        Additional keyword arguments to pass to a `plotly.graph_objects.Layout` object.
 
     Returns
     -------
@@ -39,24 +42,26 @@ def plot_entities(
     if isinstance(y, pl.DataFrame):
         y = y.lazy()
 
-    entity_counts = y.group_by(entity_col).agg(pl.len()).collect()
+    entity_counts = y.group_by(entity_col).agg(pl.len()).sort("len").collect()
 
     height = kwargs.pop("height", len(entity_counts) * 20)
     title = kwargs.pop("title", "Entities counts")
     template = kwargs.pop("template", "plotly_white")
 
-    fig = go.Figure(
-        go.Bar(
-            x=entity_counts.get_column("len"),
-            y=entity_counts.get_column(entity_col),
-            orientation="h",
-        )
-    )
-    fig.update_layout(
+    layout = go.Layout(
         height=height,
         title=title,
         template=template,
         **kwargs,
+    )
+
+    return go.Figure(
+        data=go.Bar(
+            x=entity_counts.get_column("len"),
+            y=entity_counts.get_column(entity_col),
+            orientation="h",
+        ),
+        layout=layout,
     )
 
 
