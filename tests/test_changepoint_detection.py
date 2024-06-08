@@ -16,6 +16,6 @@ def test__cusum_filter():
         .alias("cusum_event")
     )
     changepoint = (
-        df.with_row_count().filter(pl.col("cusum_event") == 1).select("row_nr").item()
+        df.with_row_index().filter(pl.col("cusum_event") == 1).select("index").item()
     )
     assert 150 < changepoint < 160
