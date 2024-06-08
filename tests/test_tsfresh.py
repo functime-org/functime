@@ -943,13 +943,13 @@ def test_longest_streak_below_mean(S, res):
         pl.DataFrame({"a": S}).select(
             longest_streak_below_mean(pl.col("a")).alias("lengths")
         ),
-        pl.DataFrame(pl.Series("lengths", res, dtype=pl.Int32)),
+        pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64)),
     )
     assert_frame_equal(
         pl.LazyFrame({"a": S})
         .select(longest_streak_below_mean(pl.col("a")).alias("lengths"))
         .collect(),
-        pl.DataFrame(pl.Series("lengths", res, dtype=pl.Int32)),
+        pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64)),
     )
 
 
@@ -1117,6 +1117,7 @@ def test_mean_n_absolute_max(S, n_max, res):
 #         mean_n_absolute_max(x=pl.Series([12, 3]), n_maxima=0)
 #     with pytest.raises(ValueError):
 #         mean_n_absolute_max(x=pl.Series([12, 3]), n_maxima=-1)
+
 
 @pytest.mark.parametrize(
     "S, res",
