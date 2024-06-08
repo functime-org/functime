@@ -31,7 +31,7 @@ def lag(lags: List[int]):
                 .exclude([entity_col, time_col])
                 .shift(lag)
                 .over(entity_col)
-                .suffix(f"__lag_{lag}")
+                .name.suffix(f"__lag_{lag}")
             )
             for lag in lags
         ]

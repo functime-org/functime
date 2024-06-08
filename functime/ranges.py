@@ -3,18 +3,18 @@ from __future__ import annotations
 from typing import Optional
 
 import polars as pl
-from polars.type_aliases import TimeUnit
+from polars.type_aliases import FrameType, TimeUnit
 
 from functime.offsets import _strip_freq_alias
 
 
 def make_future_ranges(
     time_col: str,
-    cutoffs: pl.DataFrame,
+    cutoffs: FrameType,
     fh: int,
     freq: str,
     time_unit: Optional[TimeUnit] = None,
-) -> pl.DataFrame:
+) -> FrameType:
     """Return pl.DataFrame with columns entity_col, time_col.
 
     DataFrame has shape (n_entities, 2) and dtypes (str, list[date]), (str, list[datetime]), or (str, list[int]).
@@ -35,7 +35,7 @@ def make_future_ranges(
         # Make date ranges
         return cutoffs.select(
             pl.col(entity_col),
-            pl.date_ranges(
+            pl.datetime_ranges(
                 pl.col("low"),
                 pl.col("low")
                 .dt.offset_by(f"{fh * offset_n}{offset_alias}")
