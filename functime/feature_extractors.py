@@ -821,7 +821,7 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     """
     x_cumsum = x.abs().cum_sum().set_sorted()
     if isinstance(x, pl.Series):
-        if x.is_integer():
+        if x.dtype.is_integer():
             idx = x_cumsum.search_sorted(int(q * x_cumsum[-1]) + 1, "left")
         else:  # Search sorted is sensitive to dtype.
             idx = x_cumsum.search_sorted(q * x_cumsum[-1], "left")
