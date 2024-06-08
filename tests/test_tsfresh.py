@@ -969,13 +969,13 @@ def test_longest_streak_above_mean(S, res):
         pl.DataFrame({"a": S}).select(
             longest_streak_above_mean(pl.col("a")).alias("lengths")
         ),
-        pl.DataFrame(pl.Series("lengths", res, dtype=pl.Int32)),
+        pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64)),
     )
     assert_frame_equal(
         pl.LazyFrame({"a": S})
         .select(longest_streak_above_mean(pl.col("a")).alias("lengths"))
         .collect(),
-        pl.DataFrame(pl.Series("lengths", res, dtype=pl.Int32)),
+        pl.DataFrame(pl.Series("lengths", res, dtype=pl.UInt64)),
     )
 
 
