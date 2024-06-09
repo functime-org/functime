@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import polars as pl
-from plotly.subplots import make_subplots
 
 from functime._plotting import TimeSeriesDisplay
 from functime.base.metric import METRIC_TYPE
@@ -16,7 +14,6 @@ if TYPE_CHECKING:
     from typing import Any, Dict, Optional, Union
 
 COLOR_PALETTE = {"actual": "#B7B7B7", "forecast": "#1b57f1", "backtest": "#A76EF4"}
-DEFAULT_LAST_N = 64
 
 
 def plot_entities(
@@ -201,99 +198,48 @@ def plot_forecasts(
 
 def plot_backtests(
     y_true: Union[pl.DataFrame, pl.LazyFrame],
-    y_preds: pl.DataFrame,
+    y_preds: Union[pl.DataFrame, pl.LazyFrame],
     *,
-    n_series: int = 10,
-    seed: int | None = None,
-    n_cols: int = 2,
-    last_n: int = DEFAULT_LAST_N,
-    **kwargs,
-) -> go.Figure:
-    """Given panel DataFrame of observed values `y` and backtests across splits `y_pred`,
-    returns subplots for each individual entity / time-series.
-
-    Parameters
-    ----------
-    y_true : Union[pl.DataFrame, pl.LazyFrame]
-        Panel DataFrame of observed values.
-    y_preds : pl.DataFrame
-        Panel DataFrame of backtested values.
-    n_series : int
-        Number of entities / time-series to plot.
-        Defaults to 10.
-    seed : int | None
-        Random seed for sampling entities / time-series.
-        Defaults to None.
-    n_cols : int
-        Number of columns to arrange subplots.
-        Defaults to 2.
-    last_n : int
-        Plot `last_n` most recent values in `y` and `y_pred`.
-        Defaults to 64.
-
-    Returns
-    -------
-    figure : plotly.graph_objects.Figure
-        Plotly subplots.
-    """
-    entity_col, time_col, target_col = y_true.columns[:3]
-
+    num_series: Optional[int] = None,
+    num_cols: Optional[int] = None,
+    num_points: Optional[int] = None,
+    seed: Optional[int] = None,
+    layout_kwargs: Optional[Dict[str, Any]] = None,
+    line_kwargs: Optional[Dict[str, Any]] = None,
+):
     if isinstance(y_true, pl.DataFrame):
         y_true = y_true.lazy()
 
-    # Get most recent observations
-    entities = y_true.select(pl.col(entity_col).unique(maintain_order=True)).collect()
+    if isinstance(y_preds, pl.DataFrame):
+        y_preds = y_preds.lazy()
 
-    entities_sample = entities.to_series().sample(n_series, seed=seed)
-
-    # Get most recent observations
-    y = (
-        y_true.filter(pl.col(entity_col).is_in(entities_sample))
-        .group_by(entity_col)
-        .tail(last_n)
-        .collect()
+    drawer = TimeSeriesDisplay.from_panel(
+        y=y_true,
+        num_cols=num_cols,
+        num_series=num_series,
+        seed=seed,
+        default_title="Predictions versus actuals",
+        **layout_kwargs or {},
     )
 
-    # Organize subplots
-    n_rows = n_series // n_cols
-    row_idx = np.repeat(range(n_rows), n_cols)
-    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities)
+    drawer.add_time_series(
+        data=y_true,
+        num_points=num_points,
+        name_on_hover="Actual",
+        legend_group="Actual",
+        **line_kwargs or {"color": drawer.DEFAULT_PALETTE["actual"]},
+    )
 
-    for i, entity_id in enumerate(entities):
-        ts = y.filter(pl.col(entity_col) == entity_id)
-        ts_pred = y_preds.filter(pl.col(entity_col) == entity_id)
-        row = row_idx[i] + 1
-        col = i % n_cols + 1
-        # Plot actual
-        fig.add_trace(
-            go.Scatter(
-                x=ts.get_column(time_col),
-                y=ts.get_column(target_col),
-                name="Actual",
-                legendgroup="Actual",
-                line=dict(color=COLOR_PALETTE["actual"]),
-            ),
-            row=row,
-            col=col,
-        )
-        # Plot forecast
-        fig.add_trace(
-            go.Scatter(
-                x=ts_pred.get_column(time_col),
-                y=ts_pred.get_column(target_col),
-                name="Backtest",
-                legendgroup="Backtest",
-                line=dict(color=COLOR_PALETTE["backtest"], dash="dash"),
-            ),
-            row=row,
-            col=col,
+    for name, y_pred in y_preds.collect().group_by(["split"], maintain_order=True):
+        drawer.add_time_series(
+            data=y_pred.lazy(),
+            num_points=num_points,
+            name_on_hover=f"Split {name[0]}",  # pyright: ignore[reportIndexIssue]
+            legend_group=f"Split {name[0]}",  # pyright: ignore[reportIndexIssue]
+            **line_kwargs or {"dash": "dot"},
         )
 
-    template = kwargs.pop("template", "plotly_white")  # noqa: F841
-
-    fig.update_layout(template=template, **kwargs)
-    fig = _remove_legend_duplicates(fig)
-    return fig
+    return drawer.figure
 
 
 def plot_residuals(
@@ -457,14 +403,4 @@ def plot_fva(
         template=template,
     )
     fig.update_layout(**kwargs)
-    return fig
-
-
-def _remove_legend_duplicates(fig: go.Figure) -> go.Figure:
-    names = set()
-    fig.for_each_trace(
-        lambda trace: trace.update(showlegend=False)
-        if (trace.name in names)
-        else names.add(trace.name)
-    )
     return fig
