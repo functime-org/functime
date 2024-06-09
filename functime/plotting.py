@@ -13,8 +13,6 @@ from functime.metrics import smape
 if TYPE_CHECKING:
     from typing import Any, Dict, Optional, Union
 
-COLOR_PALETTE = {"actual": "#B7B7B7", "forecast": "#1b57f1", "backtest": "#A76EF4"}
-
 
 def plot_entities(
     y: Union[pl.DataFrame, pl.LazyFrame],
