@@ -126,100 +126,76 @@ def plot_panel(
 
 
 def plot_forecasts(
-    y_true: Union[pl.DataFrame, pl.LazyFrame],
-    y_pred: pl.DataFrame,
     *,
-    n_series: int = 10,
-    seed: int | None = None,
-    n_cols: int = 2,
-    last_n: int = DEFAULT_LAST_N,
-    **kwargs,
+    y_true: Union[pl.DataFrame, pl.LazyFrame],
+    y_pred: Union[pl.DataFrame, pl.LazyFrame],
+    num_series: Optional[int] = None,
+    num_cols: Optional[int] = None,
+    num_points: Optional[int] = None,
+    seed: Optional[int] = None,
+    layout_kwargs: Optional[Dict[str, Any]] = None,
+    line_kwargs: Optional[Dict[str, Any]] = None,
 ) -> go.Figure:
     """Given panel DataFrames of observed values `y` and forecasts `y_pred`,
     returns subplots for each individual entity / time-series.
 
     Parameters
     ----------
-    y_true : Union[pl.DataFrame, pl.LazyFrame]
+    y : Union[pl.DataFrame, pl.LazyFrame]
         Panel DataFrame of observed values.
-    y_pred : pl.DataFrame
-        Panel DataFrame of forecasted values.
-    n_series : int
-        Number of entities / time-series to plot.
-        Defaults to 10.
-    seed : int | None
+    num_series : Optional[int]
+        Number of entities / time-series to plot. If `None`, plot all entities.
+        Defaults to `None`.
+    num_points : Optional[int]
+        Plot `last_n` most recent values in `y`. If `None`, plot all points.
+        Defaults to `None`.
+    num_cols : Optional[int]
+        Number of columns to arrange subplots. Defaults to 2.
+    seed : Optional[int]
         Random seed for sampling entities / time-series.
         Defaults to None.
-    n_cols : int
-        Number of columns to arrange subplots.
-        Defaults to 2.
-    last_n : int
-        Plot `last_n` most recent values in `y` and `y_pred`.
-        Defaults to 64.
+    layout_kwargs
+        Additional keyword arguments to pass to `plotly.graph_objects.Figure.update_layout` or, equivalently, a `plotly.graph_objects.Layout` object.
+    line_kwargs
+        Additional keyword arguments to pass to a `plotly.graph_objects.Line` object.
 
     Returns
     -------
     figure : plotly.graph_objects.Figure
-        Plotly subplots.
+        Plotly instance of `Figure` with all the subplots.
     """
-    entity_col, time_col, target_col = y_true.columns[:3]
-
     if isinstance(y_true, pl.DataFrame):
         y_true = y_true.lazy()
 
-    # Get most recent observations
-    entities = y_true.select(pl.col(entity_col).unique(maintain_order=True)).collect()
+    if isinstance(y_pred, pl.DataFrame):
+        y_pred = y_pred.lazy()
 
-    entities_sample = entities.to_series().sample(n_series, seed=seed)
-
-    # Get most recent observations
-    y = (
-        y_true.filter(pl.col(entity_col).is_in(entities_sample))
-        .group_by(entity_col)
-        .tail(last_n)
-        .collect()
+    drawer = TimeSeriesDisplay.from_panel(
+        y=y_true,
+        num_cols=num_cols,
+        num_series=num_series,
+        seed=seed,
+        default_title="Predictions versus actuals",
+        **layout_kwargs or {},
     )
 
-    # Organize subplots
-    n_rows = n_series // n_cols
-    row_idx = np.repeat(range(n_rows), n_cols)
-    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=entities)
+    drawer.add_time_series(
+        data=y_true,
+        num_points=num_points,
+        name_on_hover="Actual",
+        legend_group="Actual",
+        **line_kwargs or {"color": drawer.DEFAULT_PALETTE["actual"]},
+    )
 
-    for i, entity_id in enumerate(entities):
-        ts = y.filter(pl.col(entity_col) == entity_id)
-        ts_pred = y_pred.filter(pl.col(entity_col) == entity_id)
-        row = row_idx[i] + 1
-        col = i % n_cols + 1
-        # Plot actual
-        fig.add_trace(
-            go.Scatter(
-                x=ts.get_column(time_col),
-                y=ts.get_column(target_col),
-                name="Actual",
-                legendgroup="Actual",
-                line=dict(color=COLOR_PALETTE["actual"]),
-            ),
-            row=row,
-            col=col,
-        )
-        # Plot forecast
-        fig.add_trace(
-            go.Scatter(
-                x=ts_pred.get_column(time_col),
-                y=ts_pred.get_column(target_col),
-                name="Forecast",
-                legendgroup="Forecast",
-                line=dict(color=COLOR_PALETTE["forecast"], dash="dash"),
-            ),
-            row=row,
-            col=col,
-        )
+    drawer.add_time_series(
+        data=y_pred,
+        num_points=num_points,
+        name_on_hover="Forecast",
+        legend_group="Forecast",
+        **line_kwargs or {"color": drawer.DEFAULT_PALETTE["primary"], "dash": "dash"},
+    )
 
-    template = kwargs.pop("template", "plotly_white")
-
-    fig.update_layout(template=template, **kwargs)
-    fig = _remove_legend_duplicates(fig)
-    return fig
+    return drawer.figure
 
 
 def plot_backtests(
