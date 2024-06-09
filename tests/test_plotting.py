@@ -3,25 +3,46 @@ from __future__ import annotations
 import polars as pl
 import pytest
 
-from functime import plotting
+from functime._plotting import (
+    get_chosen_entities,
+    get_num_rows,
+    get_subplot_grid_position,
+)
 
 
-def test_set_subplot_default_kwargs_no_existing_kwargs():
-    kwargs = {}
-    updated_kwargs = plotting._set_subplot_default_kwargs(kwargs, 2, 3)
+@pytest.fixture
+def mock_dataframe():
+    data = {
+        "entity": ["A", "A", "B", "B", "C", "C"],
+        "time": [1, 2, 1, 2, 1, 2],
+        "value": [10, 20, 30, 40, 50, 60],
+    }
+    return pl.LazyFrame(data)
 
-    assert updated_kwargs["width"] == 250 * 3 + 100  # default width * cols + space
-    assert updated_kwargs["height"] == 200 * 2 + 100  # default height * rows + space
-    assert updated_kwargs["template"] == "plotly_white"
+
+def test_get_chosen_entities_not_random(mock_dataframe):
+    actual = get_chosen_entities(y=mock_dataframe, num_series=3, seed=None)
+    expected = ["A", "B", "C"]
+    assert actual == expected
 
 
-def test_set_subplot_default_kwargs_with_one_defined_kwarg():
-    kwargs = {"width": 800, "some_other_kwarg": "value"}
-    updated_kwargs = plotting._set_subplot_default_kwargs(kwargs, 2, 3)
+@pytest.mark.parametrize("n_series, seed", [(3, 42), (2, 42)])
+def test_get_chosen_entities_random(mock_dataframe, n_series, seed):
+    expected = (
+        mock_dataframe.select(pl.col("entity").unique(maintain_order=True))
+        .collect()
+        .sample(n_series, seed=seed)
+        .to_series()
+        .to_list()
+    )
 
-    assert updated_kwargs["width"] == 800  # Should remain unchanged
-    assert updated_kwargs["height"] == 200 * 2 + 100  # default height * rows + space
-    assert updated_kwargs["some_other_kwarg"] == "value"
+    actual = get_chosen_entities(
+        y=mock_dataframe,
+        num_series=n_series,
+        seed=seed,
+    )
+
+    assert actual == expected
 
 
 @pytest.mark.parametrize(
@@ -34,54 +55,17 @@ def test_set_subplot_default_kwargs_with_one_defined_kwarg():
         (10, 15, 1),  # More columns than series
     ],
 )
-def test_calculate_subplot_n_rows(n_series, n_cols, expected_rows):
-    assert plotting._calculate_subplot_n_rows(n_series, n_cols) == expected_rows
+def test_get_num_rows(n_series, n_cols, expected_rows):
+    assert get_num_rows(num_series=n_series, num_cols=n_cols) == expected_rows
 
 
 @pytest.mark.parametrize(
     "n_series, n_cols",
-    [
-        (0, 2),  # No series
-        (10, 0),  # Zero columns
-        (-1, 2),  # Negative series
-        (10, -2),  # Negative columns
-    ],
+    [(0, 1), (1, 0), (0, 0)],
 )
-def test_calculate_subplot_n_rows_errors(n_series, n_cols):
+def test_get_num_rows_raises_value_error(n_series, n_cols):
     with pytest.raises(ValueError):
-        plotting._calculate_subplot_n_rows(n_series, n_cols)
-
-
-def create_mock_dataframe():
-    # Create a mock DataFrame for testing
-    data = {
-        "entity": ["A", "A", "B", "B", "C", "C"],
-        "time": [1, 2, 1, 2, 1, 2],
-        "value": [10, 20, 30, 40, 50, 60],
-    }
-    return pl.DataFrame(data)
-
-
-@pytest.mark.parametrize(
-    "n_series, last_n, expected_entities",
-    [
-        (2, 1, {"A", "B"}),  # Test with 2 series, last 1 record
-        (3, 2, {"A", "B", "C"}),  # Test with all series, last 2 records
-        (4, 2, {"A", "B", "C"}),  # More series than available
-    ],
-)
-def test_prepare_data_for_subplots(n_series, last_n, expected_entities):
-    df = create_mock_dataframe()
-    entities_sample, _, y_filtered = plotting._prepare_data_for_subplots(
-        df, n_series, last_n, seed=1
-    )
-
-    # Check if the correct entities are sampled
-    assert set(entities_sample) == expected_entities
-
-    # Check if the data is correctly filtered
-    for entity in entities_sample:
-        assert y_filtered.filter(pl.col("entity") == entity).height <= last_n
+        get_num_rows(num_series=n_series, num_cols=n_cols)
 
 
 @pytest.mark.parametrize(
@@ -98,4 +82,4 @@ def test_prepare_data_for_subplots(n_series, last_n, expected_entities):
     ],
 )
 def test_get_subplot_grid_position(i, n_cols, expected_row_col):
-    assert plotting._get_subplot_grid_position(i, n_cols) == expected_row_col
+    assert get_subplot_grid_position(element=i, num_cols=n_cols) == expected_row_col
