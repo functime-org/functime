@@ -119,6 +119,7 @@ def plot_panel(
     drawer.add_time_series(
         data=y,
         num_points=num_points,
+        show_legend=False,
         **line_kwargs or {"color": drawer.DEFAULT_PALETTE["primary"]},
     )
 
@@ -192,7 +193,7 @@ def plot_forecasts(
         num_points=num_points,
         name_on_hover="Forecast",
         legend_group="Forecast",
-        **line_kwargs or {"color": drawer.DEFAULT_PALETTE["primary"], "dash": "dash"},
+        **line_kwargs or {"color": drawer.DEFAULT_PALETTE["primary"], "dash": "dot"},
     )
 
     return drawer.figure

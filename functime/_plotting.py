@@ -237,10 +237,11 @@ def add_traces(
     *,
     figure: go.Figure,
     y: pl.DataFrame,
+    entities: Collection[str],
+    num_cols: int,
+    show_legend: bool = True,
     name_on_hover: Optional[str] = None,
     legend_group: Optional[str] = None,
-    num_cols: int,
-    entities: Collection[str],
     **kwargs,
 ) -> go.Figure:
     """Add scatterplot traces to a `Figure` instance.
@@ -254,12 +255,16 @@ def add_traces(
         Plotly figure to add traces to.
     y : pl.DataFrame
         Panel DataFrame.
+    entities : Collection[str]
+        Entities to plot in the subplot grid.
+    num_cols : int
+        Number of columns in the subplot grid.
+    show_legend : bool
+        Whether to show the legend for the trace. Defaults to `True`.
     name_on_hover : Optional[str]
         Text that will be displayed on hover. Defaults to the name of the target column, in title case.
     legend_group : Optional[str]
         Legend group the trace belongs to. Defaults to `None`.
-    num_cols : int
-        Number of columns in the subplot grid.
     **kwargs
         Additional keyword arguments to pass to `plotly.graph_objects.Line` object.
 
@@ -282,7 +287,8 @@ def add_traces(
                 name=name_on_hover or target_col.title(),
                 legendgroup=legend_group,
                 line=kwargs,
-                showlegend=False,
+                showlegend=show_legend if i == 0 else False,
+                mode="lines",
             ),
             row=row,
             col=col,
