@@ -34,11 +34,11 @@ classifiers = [
 requires-python = ">=3.8"
 dependencies = [
   "cloudpickle",
-  "flaml<3,>=2.0.2",
+  "flaml>=2.0.2",
   "holidays",
   "numpy",
   "polars>=0.20.8",
-  "scikit-learn<2,>=1.2.2",
+  "scikit-learn>=1.2.2",
   "scipy",
   "tqdm",
   'typing-extensions; python_version < "3.10"',
@@ -69,15 +69,18 @@ tree = [
 ]
 llm = [
   "openai",
-  "tabulate",
+  "pandas",
   "tenacity",
   "tiktoken",
+]
+all = [
+  "functime[ann,tree,plot]",
 ]
 
 # provisionally here until PEP 735 is approved: https://peps.python.org/pep-0735/
 dev = [
+  "functime[doc,test]",
   "pre-commit",
-  "functime[doc,plot,test]"
 ]
 doc = [
   "jupyterlab",
@@ -87,14 +90,18 @@ doc = [
   "mkdocstrings-python",
 ]
 test = [
+  "functime[all]",
+  "pytest-cov>=5.0.0",
+  "pytest-benchmark",
+]
+benchmark = [
+  "functime[test]",
   "aeon<0.5.0",
-  "coverage[toml]",
   "joblib",
   "mlforecast==0.8.1",
   "pandas",
   "pyarrow",
   "pytest",
-  "pytest-benchmark",
   "pytest-memray",
   "pytest-timeout",
   "statsmodels",
@@ -152,11 +159,6 @@ markers = [
   "multivariate: marks multivariate forecast test",
 ]
 xfail_strict = true
-
-[tool.coverage.run]
-parallel = true
-source = ["tests", "functime"]
-context = '${CONTEXT}'
 
 [tool.pyright]
 exclude = [
