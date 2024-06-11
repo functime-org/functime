@@ -87,14 +87,18 @@ doc = [
   "mkdocstrings-python",
 ]
 test = [
+  "functime[all]",
+  "pytest-cov>=5.0.0",
+  "pytest-benchmark",
+]
+benchmark = [
+  "functime[test]",
   "aeon<0.5.0",
-  "coverage[toml]",
   "joblib",
   "mlforecast==0.8.1",
   "pandas",
   "pyarrow",
   "pytest",
-  "pytest-benchmark",
   "pytest-memray",
   "pytest-timeout",
   "statsmodels",
@@ -152,11 +156,6 @@ markers = [
   "multivariate: marks multivariate forecast test",
 ]
 xfail_strict = true
-
-[tool.coverage.run]
-parallel = true
-source = ["tests", "functime"]
-context = '${CONTEXT}'
 
 [tool.pyright]
 exclude = [
