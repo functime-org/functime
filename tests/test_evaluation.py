@@ -4,9 +4,7 @@ from functools import partial
 
 import polars as pl
 import pytest
-import statsmodels.api as sm
 from polars.testing import assert_frame_equal
-from statsmodels.tsa.stattools import acf as sm_acf
 
 from functime.cross_validation import train_test_split
 from functime.evaluation import (
@@ -53,6 +51,8 @@ def commodities_backtest(commodities_dataset):
 
 @pytest.mark.skip("Values do not align up with scipy")
 def test_acf(commodities_dataset):
+    from statsmodels.tsa.stattools import acf as sm_acf
+
     y_train, _ = commodities_dataset
     entity_col, _, target_col = y_train.columns
     # Result
@@ -106,6 +106,8 @@ def test_acf(commodities_dataset):
 
 @pytest.mark.skip("Values do not align up with scipy")
 def test_ljung_box(commodities_dataset):
+    import statsmodels.api as sm
+
     y_train, _ = commodities_dataset
     entity_col, _, target_col = y_train.columns
     # Result
