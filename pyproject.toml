@@ -73,11 +73,14 @@ llm = [
   "tenacity",
   "tiktoken",
 ]
+all = [
+  "functime[ann,tree,plot]",
+]
 
 # provisionally here until PEP 735 is approved: https://peps.python.org/pep-0735/
 dev = [
+  "functime[doc,test]",
   "pre-commit",
-  "functime[doc,plot,test]"
 ]
 doc = [
   "jupyterlab",
