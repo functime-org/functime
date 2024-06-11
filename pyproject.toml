@@ -34,11 +34,11 @@ classifiers = [
 requires-python = ">=3.8"
 dependencies = [
   "cloudpickle",
-  "flaml<3,>=2.0.2",
+  "flaml>=2.0.2",
   "holidays",
   "numpy",
   "polars>=0.20.8",
-  "scikit-learn<2,>=1.2.2",
+  "scikit-learn>=1.2.2",
   "scipy",
   "tqdm",
   'typing-extensions; python_version < "3.10"',
