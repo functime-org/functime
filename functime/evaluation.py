@@ -21,7 +21,7 @@ from functime.metrics import (
 )
 
 
-def SORT_BY_TO_METRIC(y_train):
+def sort_by_metric(y_train):
     return {
         "mae": mae,
         "mape": mape,
@@ -35,7 +35,7 @@ def SORT_BY_TO_METRIC(y_train):
     }
 
 
-FORECAST_SORT_BY = Literal[
+ForecastMetrics = Literal[
     # Summary statistics
     "mean",
     "median",
@@ -54,9 +54,9 @@ FORECAST_SORT_BY = Literal[
     "underforecast",
 ]
 
-RESIDUALS_SORT_BY = Literal["bias", "abs_bias", "normality", "autocorr"]
+ResidualMetrics = Literal["bias", "abs_bias", "normality", "autocorr"]
 
-FVA_SORT_BY = Literal["naive", "snaive", "linear", "linear_scaled"]
+FVAMetrics = Literal["naive", "snaive", "linear", "linear_scaled"]
 
 
 def acf_formula(x: pl.Expr, max_lags: int) -> List[pl.Expr]:
@@ -203,7 +203,7 @@ def _rank_entities_by_stat(y_true: pl.DataFrame, sort_by: str, descending: bool)
 def _rank_entities_by_score(
     y_true: pl.DataFrame, y_pred: pl.DataFrame, sort_by: str, descending: bool
 ):
-    scoring = SORT_BY_TO_METRIC(y_true)[sort_by]
+    scoring = sort_by_metric(y_true)[sort_by]
     ranks = (
         scoring(y_true=y_true, y_pred=y_pred)
         .sort(by=sort_by, descending=descending)
@@ -229,7 +229,7 @@ def _rank_entities(
 def rank_point_forecasts(
     y_true: pl.DataFrame,
     y_pred: pl.DataFrame,
-    sort_by: FORECAST_SORT_BY = "smape",
+    sort_by: ForecastMetrics = "smape",
     descending: bool = False,
 ) -> pl.DataFrame:
     """Sorts point forecasts in `y_pred` across entities / time-series by score.
@@ -272,7 +272,7 @@ def rank_point_forecasts(
 
 def rank_residuals(
     y_resids: pl.DataFrame,
-    sort_by: RESIDUALS_SORT_BY = "abs_bias",
+    sort_by: ResidualMetrics = "abs_bias",
     descending: bool = False,
 ) -> pl.DataFrame:
     """Sorts point forecasts in `y_pred` across entities / time-series by score.
