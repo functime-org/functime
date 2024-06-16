@@ -220,7 +220,12 @@ class TimeSeriesDisplay:
 
         y = y.collect()
         if isinstance(num_points, float):
-            num_points = int(num_points * y.select(pl.len()).item())
+            num_points = num_points * y.select(pl.len()).item()
+            num_points = (
+                int(num_points)
+                if num_points == int(num_points)
+                else int(num_points) + 1
+            )
 
         y = y.group_by(entity_col).tail(num_points)
 
