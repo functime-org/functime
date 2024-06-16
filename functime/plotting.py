@@ -67,7 +67,7 @@ def plot_panel(
     *,
     num_series: Optional[int] = None,
     num_cols: Optional[int] = None,
-    num_points: Optional[int] = None,
+    num_points: Optional[int | float] = None,
     seed: Optional[int] = None,
     layout_kwargs: Optional[Dict[str, Any]] = None,
     line_kwargs: Optional[Dict[str, Any]] = None,
@@ -82,8 +82,9 @@ def plot_panel(
     num_series : Optional[int]
         Number of entities / time-series to plot. If `None`, plot all entities.
         Defaults to `None`.
-    num_points : Optional[int]
+    num_points : Optional[int | float]
         Plot `last_n` most recent values in `y`. If `None`, plot all points.
+        If a float value is passed, plot the correspinding percentage of the points.
         Defaults to `None`.
     num_cols : Optional[int]
         Number of columns to arrange subplots. Defaults to 2.
@@ -127,7 +128,7 @@ def plot_forecasts(
     y_pred: Union[pl.DataFrame, pl.LazyFrame],
     num_series: Optional[int] = None,
     num_cols: Optional[int] = None,
-    num_points: Optional[int] = None,
+    num_points: Optional[int | float] = None,
     seed: Optional[int] = None,
     layout_kwargs: Optional[Dict[str, Any]] = None,
     line_kwargs: Optional[Dict[str, Any]] = None,
@@ -144,6 +145,7 @@ def plot_forecasts(
         Defaults to `None`.
     num_points : Optional[int]
         Plot `last_n` most recent values in `y`. If `None`, plot all points.
+        If a float value is passed, plot the correspinding percentage of the points.
         Defaults to `None`.
     num_cols : Optional[int]
         Number of columns to arrange subplots. Defaults to 2.
@@ -200,7 +202,7 @@ def plot_backtests(
     *,
     num_series: Optional[int] = None,
     num_cols: Optional[int] = None,
-    num_points: Optional[int] = None,
+    num_points: Optional[int | float] = None,
     seed: Optional[int] = None,
     layout_kwargs: Optional[Dict[str, Any]] = None,
     line_kwargs: Optional[Dict[str, Any]] = None,

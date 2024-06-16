@@ -173,7 +173,7 @@ class TimeSeriesDisplay:
         self: Self,
         *,
         data: pl.LazyFrame,
-        num_points: Optional[int] = None,
+        num_points: Optional[int | float] = None,
         name_on_hover: Optional[str] = None,
         legend_group: Optional[str] = None,
         **kwargs,
@@ -185,8 +185,9 @@ class TimeSeriesDisplay:
         data : pl.LazyFrame
             Panel LazyFrame time series data.
         num_points : Optional[int]
-            Number of data points to plot. If `None`, plot all points.
-            Defaults to `None`
+            Number of data points to plot. If `None`, plot all points. If a
+            float value is passed, plot the corresponding percentage of points.
+            Defaults to `None`.
         name_on_hover : Optional[str]
             Text that will be displayed on hover. Defaults to the name of the target column.
         legend_group : Optional[str]
@@ -216,6 +217,9 @@ class TimeSeriesDisplay:
             y = data
         else:
             y = data.filter(pl.col(entity_col).is_in(self.entities))
+
+        if isinstance(num_points, float):
+            num_points = int(num_points * y.select(pl.len()).collect().item())
 
         if num_points is not None:
             y = y.group_by(entity_col).tail(num_points)
