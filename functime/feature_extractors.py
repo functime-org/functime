@@ -194,7 +194,7 @@ def augmented_dickey_fuller(x: TIME_SERIES_T, n_lags: int) -> float:
             ),
             pl.lit(1),
         )  # was a frame
-        y = data_x.drop_in_place("0").to_numpy(zero_copy_only=True)
+        y = data_x.drop_in_place("0").to_numpy(allow_copy=False)
         data_x = data_x.to_numpy()  # to NumPy matrix
 
         coeffs, resids, _, _ = lstsq(data_x, y, cond=None)
@@ -272,7 +272,7 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
             )
             .to_numpy()
         )
-        y_ = y.tail(length).to_numpy(zero_copy_only=True).reshape((-1, 1))
+        y_ = y.tail(length).to_numpy(allow_copy=False).reshape((-1, 1))
         out: np.ndarray = rs_faer_lstsq1(data_x, y_)
         return out.ravel()
     else:
@@ -593,9 +593,7 @@ def cwt_coefficients(
         for i, width in enumerate(widths):
             points = np.min([10 * width, x.len()])
             wavelet_x = np.conj(ricker(points, width)[::-1])
-            convolution[i] = np.convolve(
-                x.to_numpy(zero_copy_only=True), wavelet_x, mode="same"
-            )
+            convolution[i] = np.convolve(x.to_numpy(allow_copy=False), wavelet_x, mode="same")
         coeffs = []
         for coeff_idx in range(min(n_coefficients, convolution.shape[1])):
             coeffs.extend(convolution[widths.index(w), coeff_idx] for w in widths)
@@ -743,8 +741,8 @@ def friedrich_coefficients(
         # This is a Vandermonde matrix. May have shortcuts in our use case, as again length >> degree.
         # Not sure if NumPy is taking advantage of this though.
         return np.polyfit(
-            x_means.get_column("signal").to_numpy(zero_copy_only=True),
-            x_means.get_column("delta").to_numpy(zero_copy_only=True),
+            x_means.get_column("signal").to_numpy(allow_copy=False),
+            x_means.get_column("delta").to_numpy(allow_copy=False),
             deg=polynomial_order,
         )
     else:
@@ -1183,7 +1181,7 @@ def number_cwt_peaks(x: TIME_SERIES_T, max_width: int = 5) -> float:
     if isinstance(x, pl.Series):
         return len(
             find_peaks_cwt(
-                vector=x.to_numpy(zero_copy_only=True),
+                vector=x.to_numpy(allow_copy=False),
                 widths=np.array(list(range(1, max_width + 1))),
                 wavelet=ricker,
             )
@@ -1893,7 +1891,7 @@ def fft_coefficients(x: TIME_SERIES_T) -> MAP_LIST_EXPR:
     dict of list of floats | Expr
     """
 
-    fft = np.fft.rfft(x.to_numpy(zero_copy_only=True))
+    fft = np.fft.rfft(x.to_numpy(allow_copy=False))
     real = fft.real
     imag = fft.imag
     angle = np.arctan2(real, imag)
