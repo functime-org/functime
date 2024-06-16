@@ -218,15 +218,15 @@ class TimeSeriesDisplay:
         else:
             y = data.filter(pl.col(entity_col).is_in(self.entities))
 
+        y = y.collect()
         if isinstance(num_points, float):
-            num_points = int(num_points * y.select(pl.len()).collect().item())
+            num_points = int(num_points * y.select(pl.len()).item())
 
-        if num_points is not None:
-            y = y.group_by(entity_col).tail(num_points)
+        y = y.group_by(entity_col).tail(num_points)
 
         self.figure = add_traces(
             figure=self.figure,
-            y=y.collect(),
+            y=y,
             name_on_hover=name_on_hover,
             legend_group=legend_group,
             num_cols=self.num_cols,
