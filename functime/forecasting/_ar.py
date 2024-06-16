@@ -23,7 +23,7 @@ except ImportError:
 
 def fit_recursive(
     regress: Callable[[pl.LazyFrame, pl.LazyFrame], Any],
-    lags: int,
+    lags: Optional[int],
     y: pl.LazyFrame,
     X: Optional[pl.LazyFrame] = None,
 ) -> Mapping[str, Any]:
@@ -39,7 +39,7 @@ def fit_recursive(
     # 2. Fit
     fitted_regressor = regress(X=X_final, y=y_final)
     # 3. Collect artifacts
-    y_lag = make_y_lag(X_y_final, target_col=y.columns[-1], lags=lags)
+    y_lag = make_y_lag(X_y_final, target_col=y.columns[-1], lags=lags if lags else 0)
     artifacts = {
         "regressor": fitted_regressor,
         "y_lag": y_lag.collect(streaming=True),
@@ -79,7 +79,7 @@ def fit_direct(
 
 def fit_autoreg(
     regress: Callable[[pl.LazyFrame, pl.LazyFrame], Any],
-    lags: int,
+    lags: Optional[int],
     y: Union[pl.DataFrame, pl.LazyFrame],
     X: Optional[Union[pl.DataFrame, pl.LazyFrame]] = None,
     max_horizons: Optional[int] = None,
@@ -229,10 +229,15 @@ def predict_recursive(
     lag_cols = y_lag.columns[2:]
     lead_col = lag_cols[0]
 
+    Y_LAG_BLUEPRINT = y_lag
+
     def _get_x_y_slice(y_lag: pl.DataFrame, i: int):
-        x_y_slice = y_lag.select(
-            [entity_col, pl.all().exclude(entity_col).list.get(-1)]
-        )
+        if lead_col[-1] == "0":  # checks if there are no lags
+            x_y_slice = Y_LAG_BLUEPRINT
+        else:
+            x_y_slice = y_lag.select(
+                [entity_col, pl.all().exclude(entity_col).list.get(-1)]
+            )
         if X is not None:
             x = X.select([entity_col, pl.all().exclude(entity_col).list.get(i)])
             x_y_slice = x_y_slice.join(x, on=entity_col, how="left")

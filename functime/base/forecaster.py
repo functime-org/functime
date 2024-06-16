@@ -95,8 +95,8 @@ class Forecaster(Model):
     ----------
     freq : str
         Offset alias supported by Polars.
-    lags : int
-        Number of lagged target variables.
+    lags : Optional[int]
+        Number of lagged target variables. Can also be set to 0, this requires `X` to be provided for features.
     max_horizons: Optional[int]
         Maximum number of horizons to predict directly.
         Only applied if `strategy` equals "direct" or "ensemble".
@@ -114,7 +114,7 @@ class Forecaster(Model):
     def __init__(
         self,
         freq: Union[str, None],
-        lags: int,
+        lags: Optional[int],
         max_horizons: Optional[int] = None,
         strategy: FORECAST_STRATEGIES = None,
         target_transform: Optional[Union[Transformer, List[Transformer]]] = None,
@@ -290,7 +290,7 @@ class Forecaster(Model):
 
         y = check_backtest_lengths(
             y,
-            max_lags=self.lags,
+            max_lags=self.lags if self.lags else 0,
             test_size=test_size,
             drop_short=drop_short,
             drop_tolerance=drop_tolerance,
