@@ -1181,6 +1181,9 @@ def number_cwt_peaks(x: TIME_SERIES_T, max_width: int = 5) -> float:
     """
     if isinstance(x, pl.Series):
         return len(
+            # The default wavelet below is `ricker`.
+            # But it is deprecated and will be removed in SciPy 1.15.
+            # What would be the default then?
             find_peaks_cwt(
                 vector=x.to_numpy(zero_copy_only=True),
                 widths=np.array(list(range(1, max_width + 1))),
