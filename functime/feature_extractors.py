@@ -12,7 +12,7 @@ from pywt import cwt
 
 # from numpy.linalg import lstsq
 from scipy.linalg import lstsq
-from scipy.signal import find_peaks_cwt, ricker, welch
+from scipy.signal import find_peaks_cwt, welch
 from scipy.spatial import KDTree
 
 from functime._functime_rust import rs_faer_lstsq1
@@ -1184,7 +1184,6 @@ def number_cwt_peaks(x: TIME_SERIES_T, max_width: int = 5) -> float:
             find_peaks_cwt(
                 vector=x.to_numpy(zero_copy_only=True),
                 widths=np.array(list(range(1, max_width + 1))),
-                wavelet=ricker,
             )
         )
     else:
