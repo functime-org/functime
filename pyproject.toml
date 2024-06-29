@@ -42,6 +42,7 @@ dependencies = [
   "scipy",
   "tqdm",
   'typing-extensions; python_version < "3.10"',
+  "pywavelets>=1.4.1",
 ]
 
 [project.optional-dependencies]

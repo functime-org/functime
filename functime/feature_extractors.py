@@ -8,10 +8,11 @@ import numpy as np
 import polars as pl
 from polars.type_aliases import ClosedInterval
 from polars.utils.udfs import _get_shared_lib_location
+from pywt import cwt
 
 # from numpy.linalg import lstsq
 from scipy.linalg import lstsq
-from scipy.signal import find_peaks_cwt, ricker, welch
+from scipy.signal import find_peaks_cwt, welch
 from scipy.spatial import KDTree
 
 from functime._functime_rust import rs_faer_lstsq1
@@ -589,23 +590,21 @@ def cwt_coefficients(
     list of float
     """
     if isinstance(x, pl.Series):
-        convolution = np.empty((len(widths), x.len()), dtype=np.float32)
-        for i, width in enumerate(widths):
-            points = np.min([10 * width, x.len()])
-            wavelet_x = np.conj(ricker(points, width)[::-1])
-            convolution[i] = np.convolve(
-                x.to_numpy(zero_copy_only=True), wavelet_x, mode="same"
-            )
-        coeffs = []
+        convolution = cwt(
+            data=x.to_numpy(allow_copy=True), scales=widths, wavelet="mexh", axis=-1
+        )[0]
+        coeffs: List[float] = []
         for coeff_idx in range(min(n_coefficients, convolution.shape[1])):
-            coeffs.extend(convolution[widths.index(w), coeff_idx] for w in widths)
+            coeffs.extend(
+                [float(convolution[widths.index(w), coeff_idx]) for w in widths]
+            )
         return coeffs
     else:
         logger.info(
             "Expression version of cwt_coefficients is not yet implemented due to "
             "technical difficulty regarding Polars Expression Plugins."
         )
-        NotImplemented
+        return NotImplemented
 
 
 def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
@@ -1182,10 +1181,12 @@ def number_cwt_peaks(x: TIME_SERIES_T, max_width: int = 5) -> float:
     """
     if isinstance(x, pl.Series):
         return len(
+            # The default wavelet below is `ricker`.
+            # But it is deprecated and will be removed in SciPy 1.15.
+            # What would be the default then?
             find_peaks_cwt(
                 vector=x.to_numpy(zero_copy_only=True),
                 widths=np.array(list(range(1, max_width + 1))),
-                wavelet=ricker,
             )
         )
     else:
