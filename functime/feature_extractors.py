@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import logging
 import math
+from pathlib import Path
 from typing import List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import polars as pl
+from polars.plugins import register_plugin_function
 from polars.type_aliases import ClosedInterval
-from polars.utils.udfs import _get_shared_lib_location
 
 # from numpy.linalg import lstsq
 from scipy.linalg import lstsq
@@ -33,8 +34,6 @@ MAP_LIST_EXPR = Union[Mapping[str, List[float]], pl.Expr]
 
 
 # from polars.type_aliases import IntoExpr
-
-lib = _get_shared_lib_location(__file__)
 
 
 def absolute_energy(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
@@ -2255,9 +2254,10 @@ class FeatureExtractor:
         https://github.com/Naereen/Lempel-Ziv_Complexity/tree/master
         https://en.wikipedia.org/wiki/Lempel%E2%80%93Ziv_complexity
         """
-        out = (self._expr > threshold).register_plugin(
-            lib=lib,
-            symbol="pl_lempel_ziv_complexity",
+        out = register_plugin_function(
+            plugin_path=Path(__file__).parent,
+            function_name="pl_lempel_ziv_complexity",
+            args=self._expr > threshold,
             is_elementwise=False,
             returns_scalar=True,
         )
@@ -2766,16 +2766,17 @@ class FeatureExtractor:
         -------
         An expression of the output
         """
-        return self._expr.register_plugin(
-            lib=lib,
-            symbol="cusum",
+        return register_plugin_function(
+            plugin_path=Path(__file__).parent,
+            function_name="cusum",
+            args=self._expr,
             kwargs={
                 "threshold": threshold,
                 "drift": drift,
                 "warmup_period": warmup_period,
             },
             is_elementwise=False,
-            cast_to_supertypes=True,
+            cast_to_supertype=True,
         )
 
     def frac_diff(
@@ -2815,14 +2816,15 @@ class FeatureExtractor:
         if min_weight is None and window_size is None:
             raise ValueError("Either min_weight or window_size must be specified.")
 
-        return self._expr.register_plugin(
-            lib=lib,
-            symbol="frac_diff",
+        return register_plugin_function(
+            plugin_path=Path(__file__).parent,
+            function_name="frac_diff",
+            args=self._expr,
             kwargs={
                 "d": d,
                 "min_weight": min_weight,
                 "window_size": window_size,
             },
             is_elementwise=False,
-            cast_to_supertypes=True,
+            cast_to_supertype=True,
         )
