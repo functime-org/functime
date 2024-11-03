@@ -32,7 +32,6 @@ class snaive(Forecaster):
         # Causes internal error: entered unreachable code
         y_pred = (
             y.sort(idx_cols)
-            .set_sorted(idx_cols)
             .group_by(entity_col)
             .agg(pl.col(target_col).tail(sp))
         )
