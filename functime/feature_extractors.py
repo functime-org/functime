@@ -2,23 +2,22 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import List, Mapping, Optional, Sequence, Union
 from pathlib import Path
+from typing import List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import polars as pl
 from polars.type_aliases import ClosedInterval
-
 
 # from numpy.linalg import lstsq
 from scipy.linalg import lstsq
 from scipy.signal import find_peaks_cwt, ricker, welch
 from scipy.spatial import KDTree
 
+from functime._compat import register_plugin_function, rle_fields
 from functime._functime_rust import rs_faer_lstsq1
 from functime._utils import warn_is_unstable
 from functime.type_aliases import DetrendMethod
-from functime._compat import register_plugin_function, rle_fields
 
 # from functime.feature_extractor import FeatureExtractor  # noqa: F401
 
@@ -38,11 +37,10 @@ MAP_LIST_EXPR = Union[Mapping[str, List[float]], pl.Expr]
 
 try:
     from polars.utils.udfs import _get_shared_lib_location
+
     lib = _get_shared_lib_location(__file__)
 except ImportError:
     lib = Path(__file__).parent
-
-
 
 
 def absolute_energy(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
@@ -1003,7 +1001,11 @@ def longest_streak_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     y = (x > x.mean()).rle()
     if isinstance(x, pl.Series):
-        result = y.filter(y.struct.field(rle_fields["value"])).struct.field(rle_fields["len"]).max()
+        result = (
+            y.filter(y.struct.field(rle_fields["value"]))
+            .struct.field(rle_fields["len"])
+            .max()
+        )
         return 0 if result is None else result
     else:
         return (
@@ -1032,7 +1034,11 @@ def longest_streak_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     y = (x < x.mean()).rle()
     if isinstance(x, pl.Series):
-        result = y.filter(y.struct.field(rle_fields["value"])).struct.field(rle_fields["len"]).max()
+        result = (
+            y.filter(y.struct.field(rle_fields["value"]))
+            .struct.field(rle_fields["len"])
+            .max()
+        )
         return 0 if result is None else result
     else:
         return (
@@ -1805,7 +1811,11 @@ def longest_streak_above(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
 
     y = (x.diff() >= threshold).rle()
     if isinstance(x, pl.Series):
-        streak_max = y.filter(y.struct.field(rle_fields["value"])).struct.field(rle_fields["len"]).max()
+        streak_max = (
+            y.filter(y.struct.field(rle_fields["value"]))
+            .struct.field(rle_fields["len"])
+            .max()
+        )
         return 0 if streak_max is None else streak_max
     else:
         return (
@@ -1835,7 +1845,11 @@ def longest_streak_below(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
     """
     y = (x.diff() <= threshold).rle()
     if isinstance(x, pl.Series):
-        streak_max = y.filter(y.struct.field(rle_fields["value"])).struct.field(rle_fields["len"]).max()
+        streak_max = (
+            y.filter(y.struct.field(rle_fields["value"]))
+            .struct.field(rle_fields["len"])
+            .max()
+        )
         return 0 if streak_max is None else streak_max
     else:
         return (
@@ -2270,12 +2284,6 @@ class FeatureExtractor:
             is_elementwise=False,
             returns_scalar=True,
         )
-        # out = (self._expr > threshold).register_plugin(
-        #     lib=lib,
-        #     symbol="pl_lempel_ziv_complexity",
-        #     is_elementwise=False,
-        #     returns_scalar=True,
-        # )
         if as_ratio:
             return out / self._expr.len()
         return out
@@ -2793,17 +2801,6 @@ class FeatureExtractor:
             is_elementwise=False,
             cast_to_supertype=True,
         )
-        # return self._expr.register_plugin(
-        #     lib=lib,
-        #     symbol="cusum",
-        #     kwargs={
-        #         "threshold": threshold,
-        #         "drift": drift,
-        #         "warmup_period": warmup_period,
-        #     },
-        #     is_elementwise=False,
-        #     cast_to_supertypes=True,
-        # )
 
     def frac_diff(
         self,
@@ -2854,14 +2851,3 @@ class FeatureExtractor:
             is_elementwise=False,
             cast_to_supertype=True,
         )
-        # return self._expr.register_plugin(
-        #     lib=lib,
-        #     symbol="frac_diff",
-        #     kwargs={
-        #         "d": d,
-        #         "min_weight": min_weight,
-        #         "window_size": window_size,
-        #     },
-        #     is_elementwise=False,
-        #     cast_to_supertypes=True,
-        # )

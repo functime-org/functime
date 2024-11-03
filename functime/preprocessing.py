@@ -603,8 +603,8 @@ def boxcox(method: str = "mle"):
             PL_NUMERIC_COLS(entity_col, time_col)
             .map_elements(
                 lambda x: boxcox_normmax(x, method=method, optimizer=optimizer),
-                returns_scalar = True,
-                return_dtype =  pl.Float64
+                returns_scalar=True,
+                return_dtype=pl.Float64,
             )
             .name.suffix("__lmbd")
         )

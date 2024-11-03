@@ -87,10 +87,11 @@ def m4_dataset(request):
     def load_panel_data(path: str) -> pl.LazyFrame:
         return (
             pl.read_parquet(path)
-            .with_columns(pl.col("series").str.replace(" ", "").cast(pl.Categorical),
-                          pl.col("time").cast(pl.Int16),
-                          pl.all().exclude(['series', 'time']).cast(pl.Float32)
-                          )
+            .with_columns(
+                pl.col("series").str.replace(" ", "").cast(pl.Categorical),
+                pl.col("time").cast(pl.Int16),
+                pl.all().exclude(["series", "time"]).cast(pl.Float32),
+            )
             .sort(["series", "time"])
         )
 
