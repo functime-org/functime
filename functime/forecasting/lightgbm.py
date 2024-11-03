@@ -28,7 +28,7 @@ def _prepare_kwargs(kwargs):
 
 
 def _enforce_label_constraint(y: pl.DataFrame, objective: Union[str, None]):
-    target_col = y.columns[-1]
+    target_col = y.collect_schema().names()[-1]
     if objective == "gamma":
         y = y.with_columns(
             pl.when(pl.col(target_col) <= 0)
@@ -49,9 +49,12 @@ def _enforce_label_constraint(y: pl.DataFrame, objective: Union[str, None]):
 
 def _lightgbm(weight_transform: Optional[Callable] = None, **kwargs):
     def regress(X: pl.DataFrame, y: pl.DataFrame):
-        idx_cols = X.columns[:2]
-        feature_cols = X.columns[2:]
-        categorical_cols = X.select(pl.col(pl.Categorical).exclude(idx_cols)).columns
+        X_columns = X.collect_schema().names()
+        idx_cols = X_columns[:2]
+        feature_cols = X_columns[2:]
+        categorical_cols = (
+            X.select(pl.col(pl.Categorical).exclude(idx_cols)).collect_schema().names()
+        )
 
         def train(
             X: np.ndarray, y: np.ndarray, sample_weight: Optional[np.ndarray] = None
