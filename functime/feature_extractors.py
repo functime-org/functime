@@ -18,7 +18,7 @@ from scipy.spatial import KDTree
 from functime._functime_rust import rs_faer_lstsq1
 from functime._utils import warn_is_unstable
 from functime.type_aliases import DetrendMethod
-from functime._compat import register_plugin_function
+from functime._compat import register_plugin_function, rle_fields
 
 # from functime.feature_extractor import FeatureExtractor  # noqa: F401
 
@@ -1003,12 +1003,12 @@ def longest_streak_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     y = (x > x.mean()).rle()
     if isinstance(x, pl.Series):
-        result = y.filter(y.struct.field("values")).struct.field("lengths").max()
+        result = y.filter(y.struct.field(rle_fields["value"])).struct.field(rle_fields["len"]).max()
         return 0 if result is None else result
     else:
         return (
-            y.filter(y.struct.field("values"))
-            .struct.field("lengths")
+            y.filter(y.struct.field(rle_fields["value"]))
+            .struct.field(rle_fields["len"])
             .max()
             .fill_null(0)
         )
@@ -1032,12 +1032,12 @@ def longest_streak_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     y = (x < x.mean()).rle()
     if isinstance(x, pl.Series):
-        result = y.filter(y.struct.field("values")).struct.field("lengths").max()
+        result = y.filter(y.struct.field(rle_fields["value"])).struct.field(rle_fields["len"]).max()
         return 0 if result is None else result
     else:
         return (
-            y.filter(y.struct.field("values"))
-            .struct.field("lengths")
+            y.filter(y.struct.field(rle_fields["value"]))
+            .struct.field(rle_fields["len"])
             .max()
             .fill_null(0)
         )
@@ -1760,7 +1760,7 @@ def streak_length_stats(x: TIME_SERIES_T, above: bool, threshold: float) -> MAP_
     else:
         y = (x.diff() <= threshold).rle()
 
-    y = y.filter(y.struct.field("values")).struct.field("lengths")
+    y = y.filter(y.struct.field(rle_fields["value"])).struct.field(rle_fields["len"])
     if isinstance(x, pl.Series):
         return {
             "min": y.min() or 0,
@@ -1805,12 +1805,12 @@ def longest_streak_above(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
 
     y = (x.diff() >= threshold).rle()
     if isinstance(x, pl.Series):
-        streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
+        streak_max = y.filter(y.struct.field(rle_fields["value"])).struct.field(rle_fields["len"]).max()
         return 0 if streak_max is None else streak_max
     else:
         return (
-            y.filter(y.struct.field("values"))
-            .struct.field("lengths")
+            y.filter(y.struct.field(rle_fields["value"]))
+            .struct.field(rle_fields["len"])
             .max()
             .fill_null(0)
         )
@@ -1835,12 +1835,12 @@ def longest_streak_below(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
     """
     y = (x.diff() <= threshold).rle()
     if isinstance(x, pl.Series):
-        streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
+        streak_max = y.filter(y.struct.field(rle_fields["value"])).struct.field(rle_fields["len"]).max()
         return 0 if streak_max is None else streak_max
     else:
         return (
-            y.filter(y.struct.field("values"))
-            .struct.field("lengths")
+            y.filter(y.struct.field(rle_fields["value"]))
+            .struct.field(rle_fields["len"])
             .max()
             .fill_null(0)
         )

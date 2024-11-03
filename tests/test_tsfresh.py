@@ -941,15 +941,15 @@ def test_benford_correlation():
 def test_longest_streak_below_mean(S, res):
     assert_frame_equal(
         pl.DataFrame({"a": S}).select(
-            longest_streak_below_mean(pl.col("a")).alias("lengths")
+            longest_streak_below_mean(pl.col("a")).alias("len").cast(pl.UInt32)
         ),
-        pl.DataFrame(pl.Series("lengths", res, dtype=pl.Int32)),
+        pl.DataFrame(pl.Series("len", res, dtype=pl.UInt32)),
     )
     assert_frame_equal(
         pl.LazyFrame({"a": S})
-        .select(longest_streak_below_mean(pl.col("a")).alias("lengths"))
+        .select(longest_streak_below_mean(pl.col("a")).alias("len").cast(pl.UInt32))
         .collect(),
-        pl.DataFrame(pl.Series("lengths", res, dtype=pl.Int32)),
+        pl.DataFrame(pl.Series("len", res, dtype=pl.UInt32)),
     )
 
 
@@ -967,15 +967,15 @@ def test_longest_streak_below_mean(S, res):
 def test_longest_streak_above_mean(S, res):
     assert_frame_equal(
         pl.DataFrame({"a": S}).select(
-            longest_streak_above_mean(pl.col("a")).alias("lengths")
+            longest_streak_above_mean(pl.col("a").alias("len").cast(pl.UInt32))
         ),
-        pl.DataFrame(pl.Series("lengths", res, dtype=pl.Int32)),
+        pl.DataFrame(pl.Series("len", res, dtype=pl.UInt32)),
     )
     assert_frame_equal(
         pl.LazyFrame({"a": S})
-        .select(longest_streak_above_mean(pl.col("a")).alias("lengths"))
+        .select(longest_streak_above_mean(pl.col("a")).alias("len").cast(pl.UInt32))
         .collect(),
-        pl.DataFrame(pl.Series("lengths", res, dtype=pl.Int32)),
+        pl.DataFrame(pl.Series("len", res, dtype=pl.UInt32)),
     )
 
 
