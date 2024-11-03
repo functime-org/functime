@@ -263,7 +263,7 @@ def _window_split(
     X = X.lazy()  # Defensive
     backward_steps = np.arange(1, n_splits) * step_size + test_size
     cutoffs = np.flip(np.concatenate([np.array([test_size]), backward_steps]))
-    entity_col = X.columns[0]
+    entity_col = X.collect_schema().names()[0]
 
     # TODO: split in two functions?
     if window_size:

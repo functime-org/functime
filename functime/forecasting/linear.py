@@ -97,7 +97,7 @@ class linear_model(Forecaster):
         # Check dummy variable trap
         if (
             X is not None
-            and len(X.select(pl.col(pl.Categorical)).columns) > 0
+            and len(X.select(pl.col(pl.Categorical)).collect_schema().names()) > 0
             and kwargs.get("fit_intercept") is True
         ):
             raise ValueError(

@@ -28,18 +28,20 @@ def fit_recursive(
     X: Optional[pl.LazyFrame] = None,
 ) -> Mapping[str, Any]:
     # 1. Impose AR structure
-    target_col = y.columns[-1]
+    y_columns = y.collect_schema().names()
+    target_col = y_columns[-1]
     X_y_final = make_reduction(lags=lags, y=y, X=X).lazy()
+    X_y_final_columns = X_y_final.collect_schema().names()
     X_final, y_final = pl.collect_all(
         [
             X_y_final.select(pl.all().exclude(target_col)),
-            X_y_final.select([*X_y_final.columns[:2], target_col]),
+            X_y_final.select([*X_y_final_columns[:2], target_col]),
         ]
     )
     # 2. Fit
     fitted_regressor = regress(X=X_final, y=y_final)
     # 3. Collect artifacts
-    y_lag = make_y_lag(X_y_final, target_col=y.columns[-1], lags=lags)
+    y_lag = make_y_lag(X_y_final, target_col=y_columns[-1], lags=lags)
     artifacts = {
         "regressor": fitted_regressor,
         "y_lag": y_lag.collect(streaming=True),

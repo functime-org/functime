@@ -52,7 +52,8 @@ def check_backtest_lengths(
     # in the panel dataset is sufficiently long
     # for the given cross-validation parameters
     y = y.lazy()
-    entity_col, time_col = y.columns[:2]
+    y_columns = y.collect_schema().names()
+    entity_col, time_col = y_columns[:2]
     lengths = (
         y.group_by(entity_col)
         .agg(pl.col(time_col).len().alias("len"))
@@ -164,7 +165,7 @@ class Forecaster(Model):
     def _transform_X(self, y: DF_TYPE, X: Optional[DF_TYPE] = None):
         feature_transform = self.feature_transform
         if X is None:
-            X = y.select(y.columns[:2])
+            X = y.drop(pl.nth([0, 1]))
         if not isinstance(feature_transform, List):
             feature_transform = [feature_transform]
         for transf in feature_transform:
@@ -177,29 +178,34 @@ class Forecaster(Model):
         y: pl.LazyFrame = self._set_string_cache(y.lazy().collect()).lazy()
         if self.target_transform is not None:
             y = self._transform_y(y=y)
+        y_schema = y.collect_schema()
+        y_columns = y_schema.names()
         # Prepare X
+        X_columns = None
         if X is not None:
-            if X.columns[0] == y.columns[0]:
+            X_columns = X.collect_schema().names()
+            if X_columns[0] == y_columns[0]:
                 X = self._enforce_string_cache(X.lazy().collect())
             X = X.lazy()
+
         # Feature transform
         if self.feature_transform is not None:
             X = self._transform_X(X=X, y=y)
         # Fit AR forecaster
         artifacts = self._fit(y=y, X=X)
         # Prepare artifacts
-        cutoffs = y.group_by(y.columns[0]).agg(pl.col(y.columns[1]).max().alias("low"))
+        cutoffs = y.group_by(y_columns[0]).agg(pl.col(y_columns[1]).max().alias("low"))
         # BUG: Regression after changing arange to int_ranges
         # artifacts["__cutoffs"] = cutoffs.collect(streaming=True)
         artifacts["__cutoffs"] = cutoffs.collect()
         state = ForecastState(
-            entity=y.columns[0],
-            time=y.columns[1],
+            entity=y_columns[0],
+            time=y_columns[1],
             artifacts=artifacts,
-            target=y.columns[-1],
-            target_schema=y.schema,
+            target=y_columns[-1],
+            target_schema=y_schema,
             strategy=self.strategy or "recursive",
-            features=X.columns[2:] if X is not None else None,
+            features=X_columns[2:] if X is not None else None,
         )
         self.state = state
         return self
@@ -226,8 +232,9 @@ class Forecaster(Model):
             X = X.lazy()
             # Coerce X (can be panel / time series / cross sectional) into panel
             # and aggregate feature columns into lists
-            has_entity = X.columns[0] == state.entity
-            has_time = X.columns[1] == state.time
+            columns = X.collect_schema().names()
+            has_entity = columns[0] == state.entity
+            has_time = columns[1] == state.time
 
             if has_entity:
                 X = self._enforce_string_cache(X.lazy().collect()).lazy()

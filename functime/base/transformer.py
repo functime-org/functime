@@ -56,9 +56,10 @@ class Transformer:
 
     def transform(self, X: DF_TYPE) -> pl.LazyFrame:
         X = X.lazy()
+        X_columns = X.collect_schema().names()
         transform = self.func[0] if self.is_invertible else self.func
         artifacts = transform(X)
-        state = ModelState(entity=X.columns[0], time=X.columns[1], artifacts=artifacts)
+        state = ModelState(entity=X_columns[0], time=X_columns[1], artifacts=artifacts)
         self.state = state
         return artifacts["X_new"]
 

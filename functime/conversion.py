@@ -12,7 +12,8 @@ def df_to_ndarray(df: pl.DataFrame) -> np.ndarray:
 def X_to_numpy(X: pl.DataFrame) -> np.ndarray:
     X_arr = (
         X.lazy()
-        .select(pl.col(X.columns[2:]).cast(pl.Float32))
+        .drop(pl.nth([0, 1]))
+        .select(pl.all().cast(pl.Float32))
         .select(
             pl.when(pl.all().is_infinite() | pl.all().is_nan())
             .then(None)

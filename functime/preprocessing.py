@@ -177,8 +177,9 @@ def lag(lags: List[int], is_sorted: bool = False):
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        entity_col = X.columns[0]
-        time_col = X.columns[1]
+        X_columns = X.collect_schema().names()
+        entity_col = X_columns[0]
+        time_col = X_columns[1]
         max_lag = max(lags)
         lagged_series = (
             (
