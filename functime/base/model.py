@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping, Protocol, Union
+from typing import Any, Protocol
 
 import polars as pl
 
@@ -22,7 +23,7 @@ def _set_string_cache(df: pl.DataFrame):
 
 
 def _enforce_string_cache(
-    df: pl.DataFrame, string_cache: Mapping[Union[int, str], int]
+    df: pl.DataFrame, string_cache: Mapping[int | str, int]
 ) -> pl.DataFrame:
     entity_col = df.columns[0]
     if df.schema[entity_col] == pl.Categorical:
@@ -34,7 +35,7 @@ def _enforce_string_cache(
 
 
 def _reset_string_cache(
-    df: pl.DataFrame, inv_string_cache: Mapping[int, Union[int, str]], return_dtype
+    df: pl.DataFrame, inv_string_cache: Mapping[int, int | str], return_dtype
 ) -> pl.DataFrame:
     return df.with_columns(
         pl.col(df.columns[0]).replace(

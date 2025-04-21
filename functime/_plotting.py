@@ -10,11 +10,9 @@ import polars as pl
 from plotly.subplots import make_subplots
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
     from typing import (
         ClassVar,
-        Collection,
-        Optional,
-        Tuple,
         TypedDict,
     )
 
@@ -103,9 +101,9 @@ class TimeSeriesDisplay:
         cls,
         *,
         y: pl.LazyFrame,
-        num_cols: Optional[int] = None,
-        num_series: Optional[int] = None,
-        seed: Optional[int] = None,
+        num_cols: int | None = None,
+        num_series: int | None = None,
+        seed: int | None = None,
         default_title: str,
         **kwargs,
     ):
@@ -173,9 +171,9 @@ class TimeSeriesDisplay:
         self: Self,
         *,
         data: pl.LazyFrame,
-        num_points: Optional[int] = None,
-        name_on_hover: Optional[str] = None,
-        legend_group: Optional[str] = None,
+        num_points: int | None = None,
+        name_on_hover: str | None = None,
+        legend_group: str | None = None,
         **kwargs,
     ) -> Self:
         """Add a time series to the subplot grid.
@@ -240,8 +238,8 @@ def add_traces(
     entities: Collection[str],
     num_cols: int,
     show_legend: bool = True,
-    name_on_hover: Optional[str] = None,
-    legend_group: Optional[str] = None,
+    name_on_hover: str | None = None,
+    legend_group: str | None = None,
     **kwargs,
 ) -> go.Figure:
     """Add scatterplot traces to a `Figure` instance.
@@ -300,8 +298,8 @@ def add_traces(
 def get_chosen_entities(
     *,
     y: pl.LazyFrame,
-    num_series: Optional[int] = None,
-    seed: Optional[int] = None,
+    num_series: int | None = None,
+    seed: int | None = None,
 ):
     """Sample entities to plot in a subplot grid, given the data.
 
@@ -404,7 +402,7 @@ def get_subplot_grid_position(
     *,
     element: int,
     num_cols: int,
-) -> Tuple[int, int]:
+) -> tuple[int, int]:
     """Get the row and column index of the subplot at the given element index.
 
     Need to add 1 because the grid indexes in a plotly subplot are 1-based.

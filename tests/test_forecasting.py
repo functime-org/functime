@@ -127,7 +127,7 @@ def test_forecaster_on_m4(forecaster, m4_dataset):
     (i.e. averaged across all time-series) is less than 0.3
     """
     y_train, y_test, fh, _ = m4_dataset
-    y_pred = forecaster(freq="1i")(y=y_train, fh=fh)
+    forecaster(freq="1i")(y=y_train, fh=fh)
     # _check_missing_values(y_train.lazy(), y_pred.lazy(), y_pred.columns[0])
     # _check_m4_score(y_test, y_pred)
 
@@ -135,7 +135,7 @@ def test_forecaster_on_m4(forecaster, m4_dataset):
 @pytest.mark.slow
 def test_auto_on_m4(auto_forecaster, m4_dataset):
     y_train, y_test, fh, _ = m4_dataset
-    y_pred = auto_forecaster(freq="1i")(y=y_train, fh=fh)
+    auto_forecaster(freq="1i")(y=y_train, fh=fh)
     # _check_missing_values(y_train.lazy(), y_pred.lazy(), y_pred.columns[0])
     # _check_m4_score(y_test, y_pred)
 
@@ -146,9 +146,7 @@ def test_forecaster_on_m5(forecaster, m5_dataset, benchmark):
     overall RMSSE (i.e. averaged across all time-series) is less than 2.
     """
     y_train, X_train, y_test, X_test, fh, freq = m5_dataset
-    y_pred = benchmark(
-        lambda: forecaster(freq)(y=y_train, X=X_train, fh=fh, X_future=X_test)
-    )
+    benchmark(lambda: forecaster(freq)(y=y_train, X=X_train, fh=fh, X_future=X_test))
     # entity_col = y_pred.columns[0]
     # _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
     # _check_m5_score(y_test, y_pred, y_train)

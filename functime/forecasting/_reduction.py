@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import polars as pl
 
 from functime.preprocessing import lag
@@ -21,7 +19,7 @@ def _join_X_y(y: pl.LazyFrame, X: pl.LazyFrame) -> pl.LazyFrame:
 
 
 def make_reduction(
-    lags: int, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None
+    lags: int, y: pl.LazyFrame, X: pl.LazyFrame | None = None
 ) -> pl.DataFrame:
     y_columns = y.collect_schema().names()
     idx_cols = y_columns[:2]
@@ -44,7 +42,7 @@ def make_reduction(
 
 
 def make_direct_reduction(
-    lags: int, max_horizons: int, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None
+    lags: int, max_horizons: int, y: pl.LazyFrame, X: pl.LazyFrame | None = None
 ) -> pl.DataFrame:
     idx_cols = y.columns[:2]
     # Defensive lazy

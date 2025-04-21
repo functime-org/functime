@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Optional, Union
+from collections.abc import Callable
 
 import numpy as np
 import polars as pl
@@ -27,7 +27,7 @@ def _prepare_kwargs(kwargs):
     return {**new_kwargs, **kwargs}
 
 
-def _enforce_label_constraint(y: pl.DataFrame, objective: Union[str, None]):
+def _enforce_label_constraint(y: pl.DataFrame, objective: str | None):
     target_col = y.collect_schema().names()[-1]
     if objective == "gamma":
         y = y.with_columns(
@@ -47,7 +47,7 @@ def _enforce_label_constraint(y: pl.DataFrame, objective: Union[str, None]):
     return y
 
 
-def _lightgbm(weight_transform: Optional[Callable] = None, **kwargs):
+def _lightgbm(weight_transform: Callable | None = None, **kwargs):
     def regress(X: pl.DataFrame, y: pl.DataFrame):
         X_columns = X.collect_schema().names()
         idx_cols = X_columns[:2]
@@ -57,7 +57,7 @@ def _lightgbm(weight_transform: Optional[Callable] = None, **kwargs):
         )
 
         def train(
-            X: np.ndarray, y: np.ndarray, sample_weight: Optional[np.ndarray] = None
+            X: np.ndarray, y: np.ndarray, sample_weight: np.ndarray | None = None
         ):
             dataset = Dataset(
                 data=X,
@@ -103,7 +103,7 @@ def _flaml_lightgbm(**kwargs):
 class lightgbm(Forecaster):
     """Autoregressive LightGBM forecaster."""
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         y_new = y.pipe(
             _enforce_label_constraint, objective=self.kwargs.get("objective")
         )
@@ -121,7 +121,7 @@ class lightgbm(Forecaster):
 class flaml_lightgbm(Forecaster):
     """Autoregressive FLAML LightGBM forecaster with automated lags and hyperparameter tuning."""
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         y_new = y.pipe(
             _enforce_label_constraint, objective=self.kwargs.get("objective")
         )

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional, Union
-
 import polars as pl
 
 from functime.base import Forecaster
@@ -23,7 +21,7 @@ class snaive(Forecaster):
         self.sp = sp
         super().__init__(freq=freq, lags=1)
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         idx_cols = y.columns[:2]
         entity_col = idx_cols[0]
         target_col = y.columns[2]
@@ -35,7 +33,7 @@ class snaive(Forecaster):
         return artifacts
 
     def predict(
-        self, fh: int, X: Optional[Union[pl.DataFrame, pl.LazyFrame]] = None
+        self, fh: int, X: pl.DataFrame | pl.LazyFrame | None = None
     ) -> pl.DataFrame:
         state = self.state
         entity = state.entity

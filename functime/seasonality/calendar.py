@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Literal, Optional
+from typing import Literal
 
 import polars as pl
 from holidays import country_holidays
@@ -11,7 +11,7 @@ from functime.ranges import make_future_ranges
 
 @transformer
 def add_calendar_effects(
-    attrs: List[
+    attrs: list[
         Literal["minute", "hour", "day", "weekday", "week", "month", "quarter", "year"]
     ],
     as_dummies: bool = False,
@@ -54,7 +54,7 @@ def add_calendar_effects(
 
 
 @transformer
-def add_holiday_effects(country_codes: List[str], as_dummies: bool = False):
+def add_holiday_effects(country_codes: list[str], as_dummies: bool = False):
     """Extract holiday effects from time column for specified ISO-2 country codes and frequency.
 
     Parameters
@@ -118,9 +118,9 @@ def add_holiday_effects(country_codes: List[str], as_dummies: bool = False):
 
 def make_future_calendar_effects(
     idx: pl.DataFrame,
-    attrs: List[str],
+    attrs: list[str],
     fh: int,
-    freq: Optional[str] = None,
+    freq: str | None = None,
 ):
     entity_col, time_col = idx.columns[:2]
     cutoffs = idx.group_by(entity_col).agg(pl.col(time_col).max().alias("low"))
@@ -136,9 +136,9 @@ def make_future_calendar_effects(
 
 def make_future_holiday_effects(
     idx: pl.DataFrame,
-    country_codes: List[str],
+    country_codes: list[str],
     fh: int,
-    freq: Optional[str] = None,
+    freq: str | None = None,
 ):
     entity_col, time_col = idx.columns[:2]
     cutoffs = idx.group_by(entity_col).agg(pl.col(time_col).max().alias("low"))

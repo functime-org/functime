@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import os
 from functools import partial
-from typing import List
 
 import numpy as np
 import pandas as pd
@@ -143,9 +142,9 @@ def prepare_m5_dataset(m5_train: pl.LazyFrame, m5_test: pl.LazyFrame):
     def preprocess(
         X: pl.LazyFrame,
         entity_col: str,
-        sampled_entities: List[str],
-        categorical_cols: List[str],
-        boolean_cols: List[str],
+        sampled_entities: list[str],
+        categorical_cols: list[str],
+        boolean_cols: list[str],
     ) -> pl.LazyFrame:
         X_new = (
             X.select(

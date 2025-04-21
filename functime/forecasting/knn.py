@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import polars as pl
 
 from functime.base import Forecaster
@@ -24,7 +22,7 @@ def _knn(**kwargs):
 class knn(Forecaster):
     """Autoregressive k-nearest neighbors."""
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         regress = _knn(**self.kwargs)
         return fit_autoreg(
             regress=regress,
