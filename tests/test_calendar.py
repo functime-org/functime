@@ -83,7 +83,7 @@ def test_add_holiday_effects():
                 "holiday__US": [
                     "new_years_day",
                     None,
-                    "thanksgiving",
+                    "thanksgiving_day",
                     "christmas_day",
                     "new_years_day",
                     None,
