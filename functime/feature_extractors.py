@@ -7,11 +7,12 @@ from typing import List, Mapping, Optional, Sequence, Union
 import numpy as np
 import polars as pl
 from polars.type_aliases import ClosedInterval
-from polars.utils.udfs import _get_shared_lib_location
+from pathlib import Path
 
 # from numpy.linalg import lstsq
 from scipy.linalg import lstsq
-from scipy.signal import find_peaks_cwt, ricker, welch
+from scipy.signal import find_peaks_cwt, welch
+import pywt
 from scipy.spatial import KDTree
 
 from functime._functime_rust import rs_faer_lstsq1
@@ -34,7 +35,7 @@ MAP_LIST_EXPR = Union[Mapping[str, List[float]], pl.Expr]
 
 # from polars.type_aliases import IntoExpr
 
-lib = _get_shared_lib_location(__file__)
+lib = Path(__file__).parent
 
 
 def absolute_energy(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
@@ -573,14 +574,14 @@ def cwt_coefficients(
     x: TIME_SERIES_T, widths: Sequence[int] = (2, 5, 10, 20), n_coefficients: int = 14
 ) -> List[float]:
     """
-    Calculates a Continuous wavelet transform for the Ricker wavelet.
+    Calculates Continuous Wavelet Transform coefficients using the Mexican hat wavelet.
 
     Parameters
     ----------
     x : pl.Expr | pl.Series
         Input time-series.
     widths : Sequence[int], optional
-        The widths of the Ricker wavelet to use for the CWT. Default is (2, 5, 10, 20).
+        The widths (scales) of the wavelet to use for the CWT. Default is (2, 5, 10, 20).
     n_coefficients : int, optional
         The number of CWT coefficients to return. Default is 14.
 
@@ -589,23 +590,26 @@ def cwt_coefficients(
     list of float
     """
     if isinstance(x, pl.Series):
-        convolution = np.empty((len(widths), x.len()), dtype=np.float32)
-        for i, width in enumerate(widths):
-            points = np.min([10 * width, x.len()])
-            wavelet_x = np.conj(ricker(points, width)[::-1])
-            convolution[i] = np.convolve(
-                x.to_numpy(zero_copy_only=True), wavelet_x, mode="same"
-            )
-        coeffs = []
-        for coeff_idx in range(min(n_coefficients, convolution.shape[1])):
-            coeffs.extend(convolution[widths.index(w), coeff_idx] for w in widths)
-        return coeffs
+        # Use PyWavelets for efficient CWT calculation
+        x_np = x.to_numpy(zero_copy_only=True)
+        scales = np.array(widths)  # For 'mexh', scale ≈ width
+        
+        # Perform CWT using PyWavelets
+        coeffs, _ = pywt.cwt(x_np, scales=scales, wavelet='mexh')
+        
+        # Extract coefficients in the same format as the original implementation
+        output_coeffs = []
+        for coeff_idx in range(min(n_coefficients, coeffs.shape[1])):
+            for scale_idx in range(len(widths)):
+                output_coeffs.append(coeffs[scale_idx, coeff_idx])
+                
+        return output_coeffs
     else:
         logger.info(
             "Expression version of cwt_coefficients is not yet implemented due to "
             "technical difficulty regarding Polars Expression Plugins."
         )
-        NotImplemented
+        return NotImplemented
 
 
 def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
@@ -995,12 +999,12 @@ def longest_streak_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     y = (x > x.mean()).rle()
     if isinstance(x, pl.Series):
-        result = y.filter(y.struct.field("values")).struct.field("lengths").max()
+        result = y.filter(y.struct.field("value")).struct.field("len").max()
         return 0 if result is None else result
     else:
         return (
-            y.filter(y.struct.field("values"))
-            .struct.field("lengths")
+            y.filter(y.struct.field("value"))
+            .struct.field("len")
             .max()
             .fill_null(0)
         )
@@ -1024,12 +1028,12 @@ def longest_streak_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     y = (x < x.mean()).rle()
     if isinstance(x, pl.Series):
-        result = y.filter(y.struct.field("values")).struct.field("lengths").max()
+        result = y.filter(y.struct.field("value")).struct.field("len").max()
         return 0 if result is None else result
     else:
         return (
-            y.filter(y.struct.field("values"))
-            .struct.field("lengths")
+            y.filter(y.struct.field("value"))
+            .struct.field("len")
             .max()
             .fill_null(0)
         )
@@ -1159,22 +1163,42 @@ def number_crossings(x: TIME_SERIES_T, crossing_value: float = 0.0) -> FLOAT_EXP
     return y.eq(y.shift(1)).not_().sum()
 
 
+def _mexican_hat_wavelet(length: int, width: float) -> np.ndarray:
+    """
+    Generate a Mexican hat (Ricker) wavelet of given length and width.
+    
+    This function replicates the behavior of the removed scipy.signal.ricker function.
+    
+    Parameters
+    ----------
+    length : int
+        Length of the wavelet (number of points).
+    width : float
+        Width parameter of the wavelet.
+    
+    Returns
+    -------
+    np.ndarray
+        Mexican hat wavelet values.
+    """
+    # Generate points symmetrically around zero
+    x = np.linspace(-(length - 1) / 2, (length - 1) / 2, length)
+    x = x / width  # Scale by width
+    
+    # Mexican hat (Ricker) wavelet formula
+    return (1 - x**2) * np.exp(-0.5 * x**2)
+
+
 def number_cwt_peaks(x: TIME_SERIES_T, max_width: int = 5) -> float:
     """
-    Number of different peaks in x.
-
-    To estimate the numbers of peaks, x is smoothed by a ricker wavelet for widths ranging from 1 to n. This feature
-    calculator returns the number of peaks that occur at enough width scales and with sufficiently high
-    Signal-to-Noise-Ratio (SNR)
+    Number of different peaks in x using Mexican hat wavelet.
 
     Parameters
     ----------
     x : pl.Series
         A single time-series.
-
     max_width : int
-        maximum width to consider
-
+        Maximum width to consider.
 
     Returns
     -------
@@ -1184,8 +1208,8 @@ def number_cwt_peaks(x: TIME_SERIES_T, max_width: int = 5) -> float:
         return len(
             find_peaks_cwt(
                 vector=x.to_numpy(zero_copy_only=True),
-                widths=np.array(list(range(1, max_width + 1))),
-                wavelet=ricker,
+                widths=np.arange(1, max_width + 1),
+                wavelet=_mexican_hat_wavelet,  # Use our custom wavelet function
             )
         )
     else:
@@ -1194,7 +1218,6 @@ def number_cwt_peaks(x: TIME_SERIES_T, max_width: int = 5) -> float:
             "technical difficulty regarding Polars Expression Plugins."
         )
         return NotImplemented
-
 
 # def partial_autocorrelation(x: TIME_SERIES_T, n_lags: int) -> float:
 #     return NotImplemented
@@ -1752,7 +1775,7 @@ def streak_length_stats(x: TIME_SERIES_T, above: bool, threshold: float) -> MAP_
     else:
         y = (x.diff() <= threshold).rle()
 
-    y = y.filter(y.struct.field("values")).struct.field("lengths")
+    y = y.filter(y.struct.field("value")).struct.field("len")
     if isinstance(x, pl.Series):
         return {
             "min": y.min() or 0,
@@ -1797,12 +1820,12 @@ def longest_streak_above(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
 
     y = (x.diff() >= threshold).rle()
     if isinstance(x, pl.Series):
-        streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
+        streak_max = y.filter(y.struct.field("value")).struct.field("len").max()
         return 0 if streak_max is None else streak_max
     else:
         return (
-            y.filter(y.struct.field("values"))
-            .struct.field("lengths")
+            y.filter(y.struct.field("value"))
+            .struct.field("len")
             .max()
             .fill_null(0)
         )
@@ -1827,12 +1850,12 @@ def longest_streak_below(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
     """
     y = (x.diff() <= threshold).rle()
     if isinstance(x, pl.Series):
-        streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
+        streak_max = y.filter(y.struct.field("value")).struct.field("len").max()
         return 0 if streak_max is None else streak_max
     else:
         return (
-            y.filter(y.struct.field("values"))
-            .struct.field("lengths")
+            y.filter(y.struct.field("value"))
+            .struct.field("len")
             .max()
             .fill_null(0)
         )
@@ -2255,11 +2278,11 @@ class FeatureExtractor:
         https://github.com/Naereen/Lempel-Ziv_Complexity/tree/master
         https://en.wikipedia.org/wiki/Lempel%E2%80%93Ziv_complexity
         """
-        out = (self._expr > threshold).register_plugin(
-            lib=lib,
-            symbol="pl_lempel_ziv_complexity",
+        out = pl.plugins.register_plugin_function(
+            plugin_path=lib,
+            function_name="pl_lempel_ziv_complexity",
+            args=self._expr,
             is_elementwise=False,
-            returns_scalar=True,
         )
         if as_ratio:
             return out / self._expr.len()
@@ -2766,16 +2789,17 @@ class FeatureExtractor:
         -------
         An expression of the output
         """
-        return self._expr.register_plugin(
-            lib=lib,
-            symbol="cusum",
+        return pl.plugins.register_plugin_function(
+            plugin_path=lib,
+            function_name="cusum",
+            args=self._expr,
             kwargs={
                 "threshold": threshold,
                 "drift": drift,
                 "warmup_period": warmup_period,
             },
             is_elementwise=False,
-            cast_to_supertypes=True,
+            cast_to_supertype=True,
         )
 
     def frac_diff(
@@ -2815,14 +2839,15 @@ class FeatureExtractor:
         if min_weight is None and window_size is None:
             raise ValueError("Either min_weight or window_size must be specified.")
 
-        return self._expr.register_plugin(
-            lib=lib,
-            symbol="frac_diff",
+        return pl.plugins.register_plugin_function(
+            plugin_path=lib,
+            function_name="frac_diff",
+            args=self._expr,
             kwargs={
                 "d": d,
                 "min_weight": min_weight,
                 "window_size": window_size,
             },
             is_elementwise=False,
-            cast_to_supertypes=True,
+            cast_to_supertype=True,
         )
