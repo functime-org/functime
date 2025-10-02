@@ -5,6 +5,7 @@
 ![functime](https://github.com/functime-org/functime/raw/main/docs/img/banner_dark_bg.png)
 [![Python](https://img.shields.io/pypi/pyversions/functime)](https://pypi.org/project/functime/)
 [![PyPi](https://img.shields.io/pypi/v/functime?color=blue)](https://pypi.org/project/functime/)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![GitHub Run Quickstart](https://github.com/functime-org/functime/actions/workflows/quickstart.yml/badge.svg)](https://github.com/functime-org/functime/actions/workflows/quickstart.yml)
 [![Discord](https://img.shields.io/discord/1145819725276917782)](https://discord.com/invite/JKMrZKjEwN)
@@ -30,14 +31,24 @@ Join us on [Discord](https://discord.com/invite/JKMrZKjEwN)!
 `functime` comes with a specialized LLM agent to analyze, describe, and compare your forecasts. Check out the walkthrough [here](https://docs.functime.ai/notebooks/llm/).
 
 ## Getting Started
-Install `functime` via the [pip](https://pypi.org/project/functime/) package manager.
+
+Install `functime` using [uv](https://docs.astral.sh/uv/) (recommended) or pip:
+
 ```bash
+# Using uv (recommended)
+uv add functime
+
+# Or using pip
 pip install functime
 ```
 
 `functime` comes with extra options. For example, to install `functime` with large-language model (LLM) and lightgbm features:
 
 ```bash
+# Using uv (recommended)
+uv add "functime[llm,lgb]"
+
+# Or using pip
 pip install "functime[llm,lgb]"
 ```
 
