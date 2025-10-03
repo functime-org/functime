@@ -1055,6 +1055,7 @@ dependencies = [
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
     { name = "scipy", version = "1.16.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "tqdm" },
+    { name = "typing-extensions", marker = "python_full_version < '3.10'" },
 ]
 
 [package.optional-dependencies]
@@ -1106,12 +1107,14 @@ xgb = [
 [package.dev-dependencies]
 benchmark = [
     { name = "aeon" },
-    { name = "functime" },
+    { name = "functime", extra = ["all"] },
     { name = "joblib" },
     { name = "mlforecast" },
     { name = "pandas" },
     { name = "pyarrow" },
     { name = "pytest" },
+    { name = "pytest-benchmark" },
+    { name = "pytest-cov" },
     { name = "pytest-memray" },
     { name = "pytest-timeout" },
     { name = "statsmodels" },
@@ -1165,6 +1168,7 @@ requires-dist = [
     { name = "tenacity", marker = "extra == 'llm'" },
     { name = "tiktoken", marker = "extra == 'llm'" },
     { name = "tqdm" },
+    { name = "typing-extensions", marker = "python_full_version < '3.10'" },
     { name = "xgboost", marker = "extra == 'xgb'" },
 ]
 provides-extras = ["plot", "cat", "lgb", "xgb", "ann", "tree", "llm", "all"]
@@ -1172,12 +1176,14 @@ provides-extras = ["plot", "cat", "lgb", "xgb", "ann", "tree", "llm", "all"]
 [package.metadata.requires-dev]
 benchmark = [
     { name = "aeon", specifier = "<0.5.0" },
-    { name = "functime", extras = ["test"] },
+    { name = "functime", extras = ["all"] },
     { name = "joblib" },
     { name = "mlforecast", specifier = "==0.8.1" },
     { name = "pandas" },
     { name = "pyarrow" },
     { name = "pytest" },
+    { name = "pytest-benchmark" },
+    { name = "pytest-cov", specifier = ">=5.0.0" },
     { name = "pytest-memray" },
     { name = "pytest-timeout" },
     { name = "statsmodels" },
