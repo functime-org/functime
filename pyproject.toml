@@ -89,7 +89,6 @@ test = [
   "pytest-benchmark",
 ]
 benchmark = [
-  "functime[test]",
   "aeon<0.5.0",
   "joblib",
   "mlforecast==0.8.1",
@@ -100,6 +99,7 @@ benchmark = [
   "pytest-timeout",
   "statsmodels",
   "tsfresh",
+  { include-group = 'test'}
 ]
 
 [tool.maturin]
