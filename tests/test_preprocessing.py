@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Tuple
-
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -105,7 +103,7 @@ def stats(request):
     return request.param
 
 
-def pd_lag(X: pd.DataFrame, lags: List[int]) -> pd.DataFrame:
+def pd_lag(X: pd.DataFrame, lags: list[int]) -> pd.DataFrame:
     """Lag values in panel pd.DataFrame by `lags` and suffix k-lag
     column names with `_lag_{k}`. Includes original columns.
     """
@@ -117,7 +115,7 @@ def pd_lag(X: pd.DataFrame, lags: List[int]) -> pd.DataFrame:
     return X.join(pd.concat(X_lags, axis=1))
 
 
-def pd_roll(X: pd.DataFrame, window_sizes: List[int], stats: str):
+def pd_roll(X: pd.DataFrame, window_sizes: list[int], stats: str):
     # Pandas currently does not support group_by with rolling on multi-index
     # See: https://github.com/pandas-dev/pandas/issues/34642
     # To bypass this, we perform a few pivots so that the rolling
@@ -150,15 +148,15 @@ def pd_roll(X: pd.DataFrame, window_sizes: List[int], stats: str):
 
 @pytest.fixture
 def lagged_pd_dataframe(
-    pd_X: pd.DataFrame, lags: List[int]
-) -> Tuple[List[int], pd.DataFrame]:
+    pd_X: pd.DataFrame, lags: list[int]
+) -> tuple[list[int], pd.DataFrame]:
     return lags, pd_lag(pd_X, lags=lags)
 
 
 @pytest.fixture
 def rolling_pd_dataframe(
-    pd_X: pd.DataFrame, window_sizes: List[int], stats: List[str]
-) -> Tuple[List[int], List[int], pd.DataFrame]:
+    pd_X: pd.DataFrame, window_sizes: list[int], stats: list[str]
+) -> tuple[list[int], list[int], pd.DataFrame]:
     return window_sizes, stats, pd_roll(pd_X, window_sizes=window_sizes, stats=stats)
 
 
@@ -346,8 +344,8 @@ def test_fractional_diff(pd_X):
 @pytest.mark.benchmark(group="fractional_diff")
 def test_fractional_diff_benchmark_functime(pd_X, benchmark):
     X = pl.from_pandas(pd_X.reset_index()).lazy()
-    entity_col = pd_X.index.names[0]
-    time_col = pd_X.index.names[1]
+    pd_X.index.names[0]
+    pd_X.index.names[1]
     transformer = fractional_diff(d=0.5, min_weight=1e-3)
     X_new = X.pipe(transformer)
     benchmark(X_new.collect)

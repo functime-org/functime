@@ -4,12 +4,9 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from typing import (
         Literal,
-        Mapping,
-        Optional,
-        Tuple,
-        Union,
     )
 
     from functime.type_aliases import PolarsFrame
@@ -26,34 +23,34 @@ __all__ = [
 
 @overload
 def train_test_split(
-    test_size: Union[int, float] = ...,
+    test_size: int | float = ...,
     eager: Literal[True] = ...,
-) -> Callable[[PolarsFrame], Tuple[pl.DataFrame, pl.DataFrame]]: ...
+) -> Callable[[PolarsFrame], tuple[pl.DataFrame, pl.DataFrame]]: ...
 
 
 @overload
 def train_test_split(
-    test_size: Union[int, float] = ...,
+    test_size: int | float = ...,
     eager: Literal[False] = ...,
-) -> Callable[[PolarsFrame], Tuple[pl.DataFrame, pl.DataFrame]]: ...
+) -> Callable[[PolarsFrame], tuple[pl.DataFrame, pl.DataFrame]]: ...
 
 
 @overload
 def train_test_split(
-    test_size: Union[int, float] = ...,
+    test_size: int | float = ...,
     eager: bool = ...,
 ) -> Callable[
     [PolarsFrame],
-    Union[Tuple[pl.DataFrame, pl.DataFrame], Tuple[pl.LazyFrame, pl.LazyFrame]],
+    tuple[pl.DataFrame, pl.DataFrame] | tuple[pl.LazyFrame, pl.LazyFrame],
 ]: ...
 
 
 def train_test_split(
-    test_size: Union[int, float] = 0.25,
+    test_size: int | float = 0.25,
     eager: bool = False,
 ) -> Callable[
     [PolarsFrame],
-    Union[Tuple[pl.DataFrame, pl.DataFrame], Tuple[pl.LazyFrame, pl.LazyFrame]],
+    tuple[pl.DataFrame, pl.DataFrame] | tuple[pl.LazyFrame, pl.LazyFrame],
 ]:
     """Return a time-ordered train set and test set given `test_size`.
 
@@ -82,7 +79,7 @@ def train_test_split(
 
     def splitter(
         X: PolarsFrame,
-    ) -> Union[Tuple[pl.DataFrame, pl.DataFrame], Tuple[pl.LazyFrame, pl.LazyFrame]]:
+    ) -> tuple[pl.DataFrame, pl.DataFrame] | tuple[pl.LazyFrame, pl.LazyFrame]:
         """Split the data into train and test sets."""
 
         return _splitter_train_test(
@@ -97,32 +94,32 @@ def train_test_split(
 @overload
 def _splitter_train_test(
     X: PolarsFrame,
-    test_size: Union[int, float],
+    test_size: int | float,
     eager: Literal[True] = ...,
-) -> Tuple[pl.DataFrame, pl.DataFrame]: ...
+) -> tuple[pl.DataFrame, pl.DataFrame]: ...
 
 
 @overload
 def _splitter_train_test(
     X: PolarsFrame,
-    test_size: Union[int, float],
+    test_size: int | float,
     eager: Literal[False] = ...,
-) -> Tuple[pl.LazyFrame, pl.LazyFrame]: ...
+) -> tuple[pl.LazyFrame, pl.LazyFrame]: ...
 
 
 @overload
 def _splitter_train_test(
     X: PolarsFrame,
-    test_size: Union[int, float],
+    test_size: int | float,
     eager: bool = ...,
-) -> Union[Tuple[pl.DataFrame, pl.DataFrame], Tuple[pl.LazyFrame, pl.LazyFrame]]: ...
+) -> tuple[pl.DataFrame, pl.DataFrame] | tuple[pl.LazyFrame, pl.LazyFrame]: ...
 
 
 def _splitter_train_test(
     X: PolarsFrame,
-    test_size: Union[int, float],
+    test_size: int | float,
     eager: bool = False,
-) -> Union[Tuple[pl.DataFrame, pl.DataFrame], Tuple[pl.LazyFrame, pl.LazyFrame]]:
+) -> tuple[pl.DataFrame, pl.DataFrame] | tuple[pl.LazyFrame, pl.LazyFrame]:
     if isinstance(X, pl.DataFrame):
         X = X.lazy()
 
@@ -258,12 +255,12 @@ def _window_split(
     test_size: int,
     n_splits: int,
     step_size: int,
-    window_size: Optional[int] = None,
-) -> Mapping[int, Tuple[pl.LazyFrame, pl.LazyFrame]]:
+    window_size: int | None = None,
+) -> Mapping[int, tuple[pl.LazyFrame, pl.LazyFrame]]:
     X = X.lazy()  # Defensive
     backward_steps = np.arange(1, n_splits) * step_size + test_size
     cutoffs = np.flip(np.concatenate([np.array([test_size]), backward_steps]))
-    entity_col = X.columns[0]
+    entity_col = X.collect_schema().names()[0]
 
     # TODO: split in two functions?
     if window_size:

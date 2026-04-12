@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
-import sys
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Callable, List, Literal, Mapping, Optional, Tuple, TypeVar, Union
+from typing import Literal, ParamSpec, TypeVar
 
 import polars as pl
 
@@ -11,18 +11,13 @@ from functime.base.model import Model, ModelState
 from functime.base.transformer import Transformer
 from functime.ranges import make_future_ranges
 
-if sys.version_info < (3, 10):
-    from typing_extensions import ParamSpec
-else:
-    from typing import ParamSpec
-
 # The parameters of the Model
 P = ParamSpec("P")
 # The return type of the estimator's curried function
-R = Tuple[TypeVar("fit", bound=Callable), TypeVar("predict", bound=Callable)]
+R = tuple[TypeVar("fit", bound=Callable), TypeVar("predict", bound=Callable)]
 
-FORECAST_STRATEGIES = Optional[Literal["direct", "recursive", "naive"]]
-DF_TYPE = Union[pl.LazyFrame, pl.DataFrame]
+FORECAST_STRATEGIES = Literal["direct", "recursive", "naive"] | None
+DF_TYPE = pl.LazyFrame | pl.DataFrame
 
 
 SUPPORTED_FREQ = [
@@ -52,7 +47,8 @@ def check_backtest_lengths(
     # in the panel dataset is sufficiently long
     # for the given cross-validation parameters
     y = y.lazy()
-    entity_col, time_col = y.columns[:2]
+    y_columns = y.collect_schema().names()
+    entity_col, time_col = y_columns[:2]
     lengths = (
         y.group_by(entity_col)
         .agg(pl.col(time_col).len().alias("len"))
@@ -84,8 +80,8 @@ def check_backtest_lengths(
 class ForecastState(ModelState):
     target: str
     target_schema: Mapping[str, pl.DataType]
-    strategy: Optional[str] = "naive"
-    features: Optional[List[str]] = None
+    strategy: str | None = "naive"
+    features: list[str] | None = None
 
 
 class Forecaster(Model):
@@ -113,12 +109,12 @@ class Forecaster(Model):
 
     def __init__(
         self,
-        freq: Union[str, None],
+        freq: str | None,
         lags: int,
-        max_horizons: Optional[int] = None,
+        max_horizons: int | None = None,
         strategy: FORECAST_STRATEGIES = None,
-        target_transform: Optional[Union[Transformer, List[Transformer]]] = None,
-        feature_transform: Optional[Union[Transformer, List[Transformer]]] = None,
+        target_transform: Transformer | list[Transformer] | None = None,
+        feature_transform: Transformer | list[Transformer] | None = None,
         **kwargs,
     ):
         if freq not in SUPPORTED_FREQ:
@@ -138,8 +134,8 @@ class Forecaster(Model):
         self,
         y: DF_TYPE,
         fh: int,
-        X: Optional[DF_TYPE] = None,
-        X_future: Optional[DF_TYPE] = None,
+        X: DF_TYPE | None = None,
+        X_future: DF_TYPE | None = None,
     ) -> pl.DataFrame:
         self.fit(y=y, X=X)
         return self.predict(fh=fh, X=X_future)
@@ -150,7 +146,7 @@ class Forecaster(Model):
     def _transform_y(self, y: DF_TYPE):
         fitted_transformers = []
         target_transform = self.target_transform
-        if not isinstance(target_transform, List):
+        if not isinstance(target_transform, list):
             target_transform = [target_transform]
         for transf in target_transform:
             y = y.pipe(transf)
@@ -161,50 +157,55 @@ class Forecaster(Model):
         self.fitted_target_transform = fitted_transformers
         return y_new
 
-    def _transform_X(self, y: DF_TYPE, X: Optional[DF_TYPE] = None):
+    def _transform_X(self, y: DF_TYPE, X: DF_TYPE | None = None):
         feature_transform = self.feature_transform
         if X is None:
-            X = y.select(y.columns[:2])
-        if not isinstance(feature_transform, List):
+            X = y.drop(pl.nth([0, 1]))
+        if not isinstance(feature_transform, list):
             feature_transform = [feature_transform]
         for transf in feature_transform:
             X = X.pipe(transf)
         X_new = X.collect().lazy()
         return X_new
 
-    def fit(self, y: DF_TYPE, X: Optional[DF_TYPE] = None):
+    def fit(self, y: DF_TYPE, X: DF_TYPE | None = None):
         # Prepare y
         y: pl.LazyFrame = self._set_string_cache(y.lazy().collect()).lazy()
         if self.target_transform is not None:
             y = self._transform_y(y=y)
+        y_schema = y.collect_schema()
+        y_columns = y_schema.names()
         # Prepare X
+        X_columns = None
         if X is not None:
-            if X.columns[0] == y.columns[0]:
+            X_columns = X.collect_schema().names()
+            if X_columns[0] == y_columns[0]:
                 X = self._enforce_string_cache(X.lazy().collect())
             X = X.lazy()
+
         # Feature transform
         if self.feature_transform is not None:
             X = self._transform_X(X=X, y=y)
         # Fit AR forecaster
         artifacts = self._fit(y=y, X=X)
         # Prepare artifacts
-        cutoffs = y.group_by(y.columns[0]).agg(pl.col(y.columns[1]).max().alias("low"))
+        cutoffs = y.group_by(y_columns[0]).agg(pl.col(y_columns[1]).max().alias("low"))
         # BUG: Regression after changing arange to int_ranges
         # artifacts["__cutoffs"] = cutoffs.collect(streaming=True)
         artifacts["__cutoffs"] = cutoffs.collect()
         state = ForecastState(
-            entity=y.columns[0],
-            time=y.columns[1],
+            entity=y_columns[0],
+            time=y_columns[1],
             artifacts=artifacts,
-            target=y.columns[-1],
-            target_schema=y.schema,
+            target=y_columns[-1],
+            target_schema=y_schema,
             strategy=self.strategy or "recursive",
-            features=X.columns[2:] if X is not None else None,
+            features=X_columns[2:] if X is not None else None,
         )
         self.state = state
         return self
 
-    def predict(self, fh: int, X: Optional[DF_TYPE] = None) -> pl.DataFrame:
+    def predict(self, fh: int, X: DF_TYPE | None = None) -> pl.DataFrame:
         from functime.forecasting._ar import predict_autoreg
 
         state = self.state
@@ -226,8 +227,9 @@ class Forecaster(Model):
             X = X.lazy()
             # Coerce X (can be panel / time series / cross sectional) into panel
             # and aggregate feature columns into lists
-            has_entity = X.columns[0] == state.entity
-            has_time = X.columns[1] == state.time
+            columns = X.collect_schema().names()
+            has_entity = columns[0] == state.entity
+            has_time = columns[1] == state.time
 
             if has_entity:
                 X = self._enforce_string_cache(X.lazy().collect()).lazy()
@@ -273,7 +275,7 @@ class Forecaster(Model):
     def backtest(
         self,
         y: DF_TYPE,
-        X: Optional[pl.DataFrame] = None,
+        X: pl.DataFrame | None = None,
         test_size: int = 1,
         step_size: int = 1,
         n_splits: int = 5,
@@ -322,9 +324,9 @@ class Forecaster(Model):
         self,
         fh: int,
         y: pl.DataFrame,
-        X: Optional[DF_TYPE] = None,
-        X_future: Optional[DF_TYPE] = None,
-        alphas: Optional[List[float]] = None,
+        X: DF_TYPE | None = None,
+        X_future: DF_TYPE | None = None,
+        alphas: list[float] | None = None,
         test_size: int = 1,
         step_size: int = 1,
         n_splits: int = 5,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import List, Literal, Optional
+from typing import Literal
 
 import polars as pl
 import polars.selectors as cs
@@ -59,7 +59,7 @@ RESIDUALS_SORT_BY = Literal["bias", "abs_bias", "normality", "autocorr"]
 FVA_SORT_BY = Literal["naive", "snaive", "linear", "linear_scaled"]
 
 
-def acf_formula(x: pl.Expr, max_lags: int) -> List[pl.Expr]:
+def acf_formula(x: pl.Expr, max_lags: int) -> list[pl.Expr]:
     # NOTE: Unsure if lists of expressions are automatically vectorized by the Rust query engine...
     # Brute force adjusted ACF calculation (might be slow for long series and lags)
     n = x.len()
@@ -323,8 +323,8 @@ def rank_residuals(
 def rank_fva(
     y_true: pl.DataFrame,
     y_pred: pl.DataFrame,
-    y_pred_bench: Optional[pl.DataFrame] = None,
-    scoring: Optional[METRIC_TYPE] = None,
+    y_pred_bench: pl.DataFrame | None = None,
+    scoring: METRIC_TYPE | None = None,
     descending: bool = False,
 ) -> pl.DataFrame:
     """Sorts point forecasts in `y_pred` across entities / time-series by score.
