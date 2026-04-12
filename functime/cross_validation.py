@@ -123,7 +123,7 @@ def _splitter_train_test(
     if isinstance(X, pl.DataFrame):
         X = X.lazy()
 
-    entity_col = X.columns[0]
+    entity_col = X.collect_schema().names()[0]
 
     max_size = (
         X.group_by(entity_col).agg(pl.len()).select(pl.min("len")).collect().item()

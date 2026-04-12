@@ -19,9 +19,10 @@ class naive(Forecaster):
         super().__init__(freq=freq, lags=1)
 
     def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
-        idx_cols = y.columns[:2]
+        _ycols = y.collect_schema().names()
+        idx_cols = _ycols[:2]
         entity_col = idx_cols[0]
-        target_col = y.columns[2]
+        target_col = _ycols[2]
         # BUG: Cannot run the following in lazy streaming mode?
         # Causes internal error: entered unreachable code
         y_pred = (

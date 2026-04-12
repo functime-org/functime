@@ -57,9 +57,9 @@ def fit_direct(
     y: pl.LazyFrame,
     X: pl.LazyFrame | None = None,
 ) -> Mapping[str, Any]:
-    idx_cols = y.columns[:2]
-    target_col = y.columns[-1]
-    feature_cols = X.columns[2:] if X is not None else []
+    idx_cols = y.collect_schema().names()[:2]
+    target_col = y.collect_schema().names()[-1]
+    feature_cols = X.collect_schema().names()[2:] if X is not None else []
     # 1. Impose AR structure
     X_y_final = make_direct_reduction(lags=lags, max_horizons=max_horizons, y=y, X=X)
     # 2. Fit
@@ -72,7 +72,7 @@ def fit_direct(
         fitted_regressor = regress(X=X_final, y=y_final)
         fitted_regressors.append(fitted_regressor)
     # 3. Collect artifacts
-    y_lag = make_y_lag(X_y_final, target_col=y.columns[-1], lags=lags + max_horizons)
+    y_lag = make_y_lag(X_y_final, target_col=y.collect_schema().names()[-1], lags=lags + max_horizons)
     artifacts = {
         "regressors": fitted_regressors,
         "y_lag": y_lag.collect(streaming=True),

@@ -22,9 +22,10 @@ class snaive(Forecaster):
         super().__init__(freq=freq, lags=1)
 
     def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
-        idx_cols = y.columns[:2]
+        _cols = y.collect_schema().names()
+        idx_cols = _cols[:2]
         entity_col = idx_cols[0]
-        target_col = y.columns[2]
+        target_col = _cols[2]
         sp = self.sp
         # BUG: Cannot run the following in lazy streaming mode?
         # Causes internal error: entered unreachable code

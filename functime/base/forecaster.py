@@ -160,7 +160,8 @@ class Forecaster(Model):
     def _transform_X(self, y: DF_TYPE, X: DF_TYPE | None = None):
         feature_transform = self.feature_transform
         if X is None:
-            X = y.drop(pl.nth([0, 1]))
+            y_cols = y.collect_schema().names()
+            X = y.select(y_cols[:2])
         if not isinstance(feature_transform, list):
             feature_transform = [feature_transform]
         for transf in feature_transform:
@@ -186,6 +187,8 @@ class Forecaster(Model):
         # Feature transform
         if self.feature_transform is not None:
             X = self._transform_X(X=X, y=y)
+            if X is not None:
+                X_columns = X.collect_schema().names()
         # Fit AR forecaster
         artifacts = self._fit(y=y, X=X)
         # Prepare artifacts

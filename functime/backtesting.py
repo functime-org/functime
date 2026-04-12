@@ -45,7 +45,7 @@ def _residualize_autoreg(
             selected_lags = range(i + 1, lags + i + 1)
             feature_cols = [f"{target_col}__lag_{j}" for j in selected_lags]
             if X_train is not None:
-                feature_cols += X_train.columns[2:]
+                feature_cols += X_train.collect_schema().names()[2:]
             X_cp_train = X_y_train.select([*idx_cols, *feature_cols])
             y_pred_arr = regressors[i].predict(X_cp_train)
             # Check if censored model
@@ -114,7 +114,7 @@ def backtest(
     residualize: bool = True,
 ) -> tuple[pl.DataFrame, pl.DataFrame]:
     pl.enable_string_cache()
-    entity_col, time_col, target_col = y.columns[:3]
+    entity_col, time_col, target_col = y.collect_schema().names()[:3]
     if X is None:
         splits = cv(y)
     else:

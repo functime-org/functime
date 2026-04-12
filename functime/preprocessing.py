@@ -32,7 +32,7 @@ def reindex(drop_duplicates: bool = False):
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        entity_col, time_col = X.columns[:2]
+        entity_col, time_col = X.collect_schema().names()[:2]
         if drop_duplicates:
             entities = X.select(pl.col(entity_col).unique())
             timestamps = X.select(pl.col(time_col).unique())
@@ -75,7 +75,7 @@ def time_to_arange(eager: bool = False):
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        entity_col, time_col = X.columns[:2]
+        entity_col, time_col = X.collect_schema().names()[:2]
         time_range_expr = (
             pl.int_ranges(0, pl.count(time_col), dtype=pl.UInt32)
             .over(entity_col)
@@ -108,7 +108,7 @@ def resample(freq: str, agg_method: str, impute_method: str | int | float):
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        entity_col, time_col, target_col = X.columns
+        entity_col, time_col, target_col = X.collect_schema().names()
         agg_exprs = {
             "sum": pl.sum(target_col),
             "mean": pl.mean(target_col),
@@ -146,7 +146,7 @@ def trim(direction: Literal["both", "left", "right"] = "both"):
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        entity_col, time_col = X.columns[:2]
+        entity_col, time_col = X.collect_schema().names()[:2]
 
         start = pl.col(time_col).min().over(entity_col).max()
         end = pl.col(time_col).max().over(entity_col).min()
@@ -227,7 +227,7 @@ def one_hot_encode(drop_first: bool = False):
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         # NOTE: You can't do lazy one hot encoding because
         # polars needs to know the unique values in the selected columns
-        cat_cols = X.select(pl.col(pl.Categorical)).columns
+        cat_cols = X.select(pl.col(pl.Categorical)).collect_schema().names()
         X_new = X.collect().to_dummies(
             columns=cat_cols, drop_first=drop_first, separator="__"
         )
@@ -241,7 +241,7 @@ def one_hot_encode(drop_first: bool = False):
         return NotImplemented
 
     def transform_new(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
-        cat_cols = X.select(pl.col(pl.Categorical)).columns
+        cat_cols = X.select(pl.col(pl.Categorical)).collect_schema().names()
         dummy_cols = state.artifacts["dummy_cols"]
         X_new = X.collect().to_dummies(columns=cat_cols, separator="__")
         if len(set(dummy_cols) & set(X_new.columns)) < len(dummy_cols):
@@ -285,7 +285,7 @@ def roll(
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        entity_col, time_col = X.columns[:2]
+        entity_col, time_col = X.collect_schema().names()[:2]
         offset_n, offset_alias = _strip_freq_alias(freq)
         values = pl.all().exclude([entity_col, time_col])
         stat_exprs = {
@@ -355,9 +355,9 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
         raise ValueError("At least one of `use_mean` or `use_std` must be set to True")
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        idx_cols = X.columns[:2]
+        idx_cols = X.collect_schema().names()[:2]
         entity_col, time_col = idx_cols
-        numeric_cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).columns
+        numeric_cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).collect_schema().names()
         boolean_cols = None
         _mean = None
         _std = None
@@ -376,7 +376,7 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
                 idx_cols + [pl.col(col) / pl.col(f"{col}_std") for col in numeric_cols]
             )
         if rescale_bool:
-            boolean_cols = X.select(pl.col(pl.Boolean)).columns
+            boolean_cols = X.select(pl.col(pl.Boolean)).collect_schema().names()
             X = X.with_columns(pl.col(pl.Boolean).cast(pl.Int8) * 2 - 1)
         artifacts = {
             "X_new": X,
@@ -388,7 +388,7 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
         return artifacts
 
     def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
-        idx_cols = X.columns[:2]
+        idx_cols = X.collect_schema().names()[:2]
         entity_col = idx_cols[0]
         artifacts = state.artifacts
         numeric_cols = artifacts["numeric_cols"]
@@ -408,7 +408,7 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
 
     def transform_new(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
         artifacts = state.artifacts
-        idx_cols = X.columns[:2]
+        idx_cols = X.collect_schema().names()[:2]
         numeric_cols = state.artifacts["numeric_cols"]
         _mean = artifacts["_mean"]
         _std = artifacts["_std"]
@@ -476,7 +476,7 @@ def impute(
         }
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        entity_col, time_col = X.columns[:2]
+        entity_col, time_col = X.collect_schema().names()[:2]
         if isinstance(method, int) or isinstance(method, float):
             expr = PL_NUMERIC_COLS(entity_col, time_col).fill_null(pl.lit(method))
         else:
@@ -503,7 +503,7 @@ def diff(order: int, sp: int = 1, fill_strategy: str | None = None):
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        idx_cols = X.columns[:2]
+        idx_cols = X.collect_schema().names()[:2]
         entity_col = idx_cols[0]
         time_col = idx_cols[1]
 
@@ -535,8 +535,8 @@ def diff(order: int, sp: int = 1, fill_strategy: str | None = None):
         state: ModelState, X: pl.LazyFrame, from_last: bool = False
     ) -> pl.LazyFrame:
         artifacts = state.artifacts
-        entity_col = X.columns[0]
-        time_col = X.columns[1]
+        entity_col = X.collect_schema().names()[0]
+        time_col = X.collect_schema().names()[1]
         idx_cols = entity_col, time_col
 
         X_cutoff = artifacts["X_last"] if from_last else artifacts["X_first"]
@@ -544,7 +544,7 @@ def diff(order: int, sp: int = 1, fill_strategy: str | None = None):
             [
                 X,
                 X_cutoff.select(
-                    pl.col(col).cast(dtype) for col, dtype in X.schema.items()
+                    pl.col(col).cast(dtype) for col, dtype in X.collect_schema().items()
                 ),
             ],
             how="diagonal",
@@ -627,9 +627,10 @@ def boxcox(method: str = "mle"):
         return artifacts
 
     def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
-        entity_col, time_col = X.columns[:2]
+        _xcols = X.collect_schema().names()
+        entity_col, time_col = _xcols[:2]
         lmbds = state.artifacts["lmbds"]
-        cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).columns
+        cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).collect_schema().names()
         X_new = (
             X.join(lmbds, on=entity_col, how="left", suffix="__lmbd")
             .with_columns(
@@ -643,7 +644,7 @@ def boxcox(method: str = "mle"):
                     for col in cols
                 ]
             )
-            .select(X.columns)
+            .select(_xcols)
         )
         return X_new
 
@@ -701,9 +702,10 @@ def yeojohnson(brack: tuple = (-2, 2)):
         return artifacts
 
     def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
-        entity_col, time_col = X.columns[:2]
+        _xcols = X.collect_schema().names()
+        entity_col, time_col = _xcols[:2]
         lmbds = state.artifacts["lmbds"]
-        cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).columns
+        cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).collect_schema().names()
         X_new = (
             X.join(lmbds, on=entity_col, how="left", suffix="__lmbd")
             .with_columns(
@@ -726,7 +728,7 @@ def yeojohnson(brack: tuple = (-2, 2)):
                     for col in cols
                 ]
             )
-            .select(X.columns)
+            .select(_xcols)
         )
         return X_new
 
@@ -748,9 +750,10 @@ def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        entity_col, time_col = X.columns[:2]
+        _xcols = X.collect_schema().names()
+        entity_col, time_col = _xcols[:2]
+        value_cols = _xcols[2:]
         if method == "linear":
-            cols = X.columns
             X_new_temp = (
                 X.with_columns(
                     pl.col(time_col).arg_sort().over(entity_col).alias("__x")
@@ -760,18 +763,18 @@ def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
                         (pl.cov(pl.col(c), pl.col("__x")) / pl.col("__x").var())
                         .over(entity_col)
                         .name.suffix("__beta")
-                        for c in X.columns[2:]
+                        for c in value_cols
                     ],
                     *[
                         pl.col(c).mean().over(entity_col).name.suffix("__mean")
-                        for c in X.columns[2:]
+                        for c in value_cols
                     ],
                 )
                 .with_columns(
                     (pl.col(c + "__mean") - pl.col(c + "__beta") * (pl.len() - 1) / 2)
                     .over(entity_col)
                     .alias(c + "__alpha")
-                    for c in X.columns[2:]
+                    for c in value_cols
                 )
                 .with_columns(
                     (
@@ -779,12 +782,12 @@ def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
                         - pl.col(c + "__beta") * pl.col("__x")
                         - pl.col(c + "__alpha")
                     ).alias(c)
-                    for c in X.columns[2:]
+                    for c in value_cols
                 )
                 .collect()
             )
 
-            X_new = X_new_temp.select(cols)
+            X_new = X_new_temp.select(_xcols)
 
             artifacts = {
                 "_beta": X_new_temp.select(entity_col, cs.ends_with("__beta")).unique(
@@ -800,10 +803,10 @@ def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
             }
         elif method == "mean":
             _mean = X.group_by(entity_col).agg(
-                pl.col(X.columns[2:]).mean().name.suffix("__mean")
+                pl.col(value_cols).mean().name.suffix("__mean")
             )
             X_new = X.with_columns(
-                pl.col(X.columns[2:]) - pl.col(X.columns[2:]).mean().over(entity_col)
+                pl.col(value_cols) - pl.col(value_cols).mean().over(entity_col)
             )
             _mean, X_new = pl.collect_all([_mean, X_new])
             artifacts = {"_mean": _mean, "X_new": X_new.lazy()}
@@ -814,7 +817,9 @@ def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
         return artifacts
 
     def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
-        entity_col, time_col = X.columns[:2]
+        _xcols = X.collect_schema().names()
+        entity_col, time_col = _xcols[:2]
+        value_cols = _xcols[2:]
         offset_n, offset_alias = _strip_freq_alias(freq)
         if method == "linear":
             _beta = state.artifacts["_beta"]
@@ -881,18 +886,18 @@ def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
                             + pl.col(f"{col}__alpha")
                             + pl.col(f"{col}__beta") * x
                         )
-                        for col in X.columns[2:]
+                        for col in value_cols
                     ]
                 )
-                .select(X.columns)
+                .select(_xcols)
             )
         else:
             X_new = (
                 X.join(state.artifacts["_mean"].lazy(), on=entity_col, how="left")
                 .with_columns(
-                    [pl.col(col) + pl.col(f"{col}__mean") for col in X.columns[2:]]
+                    [pl.col(col) + pl.col(f"{col}__mean") for col in value_cols]
                 )
-                .select(X.columns)
+                .select(_xcols)
             )
         return X_new
 
@@ -1072,7 +1077,7 @@ def fractional_diff(
         raise ValueError("Only one of `min_weight` or `window_size` must be specified.")
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        idx_cols = X.columns[:2]
+        idx_cols = X.collect_schema().names()[:2]
         entity_col = idx_cols[0]
         time_col = idx_cols[1]
 

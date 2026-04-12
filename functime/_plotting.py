@@ -206,7 +206,7 @@ class TimeSeriesDisplay:
         if num_points is not None and num_points < 0:
             raise ValueError("Number of points must be a positive integer")
 
-        entity_col = data.columns[0]
+        entity_col = data.collect_schema().names()[0]
 
         num_entities = data.select(pl.col(entity_col).n_unique()).collect().item()
 
@@ -334,7 +334,7 @@ def get_chosen_entities(
     if num_series is not None and num_series <= 0:
         raise ValueError("Number of series must be a positive integer")
 
-    entity_col = y.columns[0]
+    entity_col = y.collect_schema().names()[0]
 
     num_entities = y.select(pl.col(entity_col).n_unique()).collect().item()
 

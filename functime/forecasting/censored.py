@@ -56,7 +56,7 @@ class censored_model(Forecaster):
 
     def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         # 1. Fit classifier
-        target_col = y.columns[-1]
+        target_col = y.collect_schema().names()[-1]
         X_y_final = (
             make_reduction(lags=self.lags, y=y, X=X)
             .with_columns(
@@ -70,7 +70,7 @@ class censored_model(Forecaster):
         X_final, y_final = pl.collect_all(
             [
                 X_y_final.select(pl.all().exclude(target_col)),
-                X_y_final.select([*X_y_final.columns[:2], target_col]),
+                X_y_final.select([*X_y_final.collect_schema().names()[:2], target_col]),
             ]
         )
         fitted_classifier = self.classify(X=X_to_numpy(X_final), y=y_to_numpy(y_final))

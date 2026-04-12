@@ -35,7 +35,7 @@ def add_calendar_effects(
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        time_col = pl.col(X.columns[1])
+        time_col = pl.col(X.collect_schema().names()[1])
         X_new = X.with_columns(
             [
                 getattr(time_col.dt, attr)()
@@ -67,7 +67,7 @@ def add_holiday_effects(country_codes: list[str], as_dummies: bool = False):
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         # Get min and max timestamps
-        time_col = X.columns[1]
+        time_col = X.collect_schema().names()[1]
         timestamps = (
             X.select(time_col)
             .collect(streaming=True)
@@ -122,7 +122,7 @@ def make_future_calendar_effects(
     fh: int,
     freq: str | None = None,
 ):
-    entity_col, time_col = idx.columns[:2]
+    entity_col, time_col = idx.collect_schema().names()[:2]
     cutoffs = idx.group_by(entity_col).agg(pl.col(time_col).max().alias("low"))
     future_idx = make_future_ranges(
         time_col=time_col,
@@ -140,7 +140,7 @@ def make_future_holiday_effects(
     fh: int,
     freq: str | None = None,
 ):
-    entity_col, time_col = idx.columns[:2]
+    entity_col, time_col = idx.collect_schema().names()[:2]
     cutoffs = idx.group_by(entity_col).agg(pl.col(time_col).max().alias("low"))
     future_idx = make_future_ranges(
         time_col=time_col,

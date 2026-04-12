@@ -44,14 +44,15 @@ def make_reduction(
 def make_direct_reduction(
     lags: int, max_horizons: int, y: pl.LazyFrame, X: pl.LazyFrame | None = None
 ) -> pl.DataFrame:
-    idx_cols = y.columns[:2]
+    _y_cols = y.collect_schema().names()
+    idx_cols = _y_cols[:2]
     # Defensive lazy
     y = y.lazy()
     X = X.lazy() if X is not None else X
     # Get lags
     y_lag = y.pipe(lag(lags=list(range(1, lags + max_horizons + 1))))
     X_y = y_lag.join(y, on=idx_cols, how="inner").select(
-        [*y.columns, *y_lag.columns[2:]]
+        [*_y_cols, *y_lag.collect_schema().names()[2:]]
     )
     # Drop nulls in lagged columns
     if X is not None:

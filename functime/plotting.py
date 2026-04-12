@@ -33,7 +33,7 @@ def plot_entities(
     figure : plotly.graph_objects.Figure
         Plotly bar chart.
     """
-    entity_col = y.columns[0]
+    entity_col = y.collect_schema().names()[0]
 
     if isinstance(y, pl.DataFrame):
         y = y.lazy()
@@ -262,7 +262,7 @@ def plot_residuals(
     figure : plotly.graph_objects.Figure
         Plotly histogram.
     """
-    entity_col, _, target_col = y_resids.columns[:3]
+    entity_col, _, target_col = y_resids.collect_schema().names()[:3]
 
     if isinstance(y_resids, pl.DataFrame):
         y_resids = y_resids.lazy()
