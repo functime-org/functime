@@ -138,7 +138,7 @@ def pd_roll(X: pd.DataFrame, window_sizes: list[int], stats: str):
             X_stats.append(X_stat)
         X_window = (
             pd.concat(X_stats, axis=1)
-            .stack(dropna=False)
+            .stack()
             .reorder_levels([1, 0], axis=0)
         )
         X_window_sizes.append(X_window)

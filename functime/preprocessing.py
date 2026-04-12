@@ -596,21 +596,22 @@ def boxcox(method: str = "mle"):
                 options={"maxiter": 200, "xatol": 1e-12},
             )
 
-        idx_cols = X.columns[:2]
+        X_columns = X.collect_schema().names()
+        idx_cols = X_columns[:2]
         entity_col, time_col = idx_cols
-        gb = X.group_by(X.columns[0])
+        gb = X.group_by(X_columns[0])
         # Step 1. Compute optimal lambdas
         lmbds = gb.agg(
             PL_NUMERIC_COLS(entity_col, time_col)
-            .map_elements(
-                lambda x: boxcox_normmax(x, method=method, optimizer=optimizer),
-                returns_scalar=True,
+            .map_batches(
+                lambda x: pl.Series([boxcox_normmax(x, method=method, optimizer=optimizer)]),
                 return_dtype=pl.Float64,
             )
+            .first()
             .name.suffix("__lmbd")
         )
         # Step 2. Transform
-        cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).columns
+        cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).collect_schema().names()
         X_new = X.join(lmbds, on=entity_col, how="left").select(
             idx_cols
             + [
@@ -661,21 +662,22 @@ def yeojohnson(brack: tuple = (-2, 2)):
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        idx_cols = X.columns[:2]
+        X_columns = X.collect_schema().names()
+        idx_cols = X_columns[:2]
         entity_col, time_col = idx_cols
-        gb = X.group_by(X.columns[0])
+        gb = X.group_by(X_columns[0])
         # Step 1. Compute optimal lambdas
         lmbds = gb.agg(
             PL_NUMERIC_COLS(entity_col, time_col)
-            .map_elements(
-                lambda x: yeojohnson_normmax(x.to_numpy(), brack),
-                returns_scalar=True,
+            .map_batches(
+                lambda x: pl.Series([yeojohnson_normmax(x.to_numpy(), brack)]),
                 return_dtype=pl.Float64,
             )
+            .first()
             .name.suffix("__lmbd")
         )
         # Step 2. Transform
-        cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).columns
+        cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).collect_schema().names()
         X_new = X.join(lmbds, on=entity_col, how="left").select(
             idx_cols
             + [

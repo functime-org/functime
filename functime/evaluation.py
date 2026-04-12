@@ -172,7 +172,11 @@ def normality_test(X: pl.DataFrame) -> pl.DataFrame:
     entity_col, _, target_col = X.columns[:3]
     results = X.group_by(entity_col).agg(
         pl.col(target_col)
-        .map_elements(lambda s: normaltest(s.to_numpy())[0])
+        .map_batches(
+            lambda s: pl.Series([normaltest(s.to_numpy())[0]]),
+            return_dtype=pl.Float64,
+        )
+        .first()
         .alias("normal_test")
     )
     return results
