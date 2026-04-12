@@ -16,27 +16,33 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
 
-      - name: Set up Python 3
-        uses: actions/setup-python@v3
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install ".[test,lgb]"
+          uv sync --python ${{ matrix.python-version }} --extra lgb --locked
+
       - name: Benchmark
         run: |
-          pytest -k "test_benchmark" -vv \
+          uv run pytest -k "test_benchmark" -vv \
             --benchmark-name=short \
             --benchmark-group-by=param \
             --benchmark-min-rounds=3 \
             --benchmark-columns=min,max,mean,median,stddev,rounds,iterations \
             --benchmark-json=docs/benchmarks/${{ matrix.os }}.json
-      - uses: actions/checkout@v3
+
       - name: Commit results
-        uses: stefanzweifel/git-auto-commit-action@v4
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "docs: Update ${{ matrix.os }} benchmark"
+          file_pattern: docs/benchmarks/${{ matrix.os }}.json

@@ -11,13 +11,24 @@ from polars.type_aliases import ClosedInterval
 
 # from numpy.linalg import lstsq
 from scipy.linalg import lstsq
-from scipy.signal import find_peaks_cwt, ricker, welch
+from scipy.signal import find_peaks_cwt, welch
 from scipy.spatial import KDTree
 
 from functime._compat import register_plugin_function, rle_fields
 from functime._functime_rust import rs_faer_lstsq1
 from functime._utils import warn_is_unstable
 from functime.type_aliases import DetrendMethod
+
+
+def _ricker(points: int, a: float) -> np.ndarray:
+    """Ricker wavelet (Mexican hat), replacing the removed scipy.signal.ricker."""
+    A = 2 / (np.sqrt(3 * a) * (np.pi**0.25))
+    wsq = a**2
+    vec = np.arange(0, points) - (points - 1.0) / 2
+    xsq = vec**2
+    mod = 1 - xsq / wsq
+    gauss = np.exp(-xsq / (2 * wsq))
+    return A * mod * gauss
 
 # from functime.feature_extractor import FeatureExtractor  # noqa: F401
 
@@ -598,7 +609,7 @@ def cwt_coefficients(
         convolution = np.empty((len(widths), x.len()), dtype=np.float32)
         for i, width in enumerate(widths):
             points = np.min([10 * width, x.len()])
-            wavelet_x = np.conj(ricker(points, width)[::-1])
+            wavelet_x = np.conj(_ricker(points, width)[::-1])
             convolution[i] = np.convolve(
                 x.to_numpy(zero_copy_only=True), wavelet_x, mode="same"
             )
@@ -1199,7 +1210,7 @@ def number_cwt_peaks(x: TIME_SERIES_T, max_width: int = 5) -> float:
             find_peaks_cwt(
                 vector=x.to_numpy(zero_copy_only=True),
                 widths=np.array(list(range(1, max_width + 1))),
-                wavelet=ricker,
+                wavelet=_ricker,
             )
         )
     else:
