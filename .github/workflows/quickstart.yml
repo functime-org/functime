@@ -16,7 +16,7 @@ jobs:
   quickstart:
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

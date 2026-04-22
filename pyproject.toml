@@ -1,11 +1,12 @@
 [project]
 name = "functime"
-version = "0.9.5"
+version = "1.0.0rc1"
 description = "Time-series machine learning at scale."
 readme = "README.md"
 authors = [
   { name = "Chris Lo", email = "chris@functime.ai" },
   { name = "Daryl Lim", email = "daryl@functime.ai" },
+  { name = "Mathieu Cayssol", email = "mathieu.cayssol@gmail.com"}
 ]
 maintainers = [
   { name = "functime Team", email = "team@functime.ai" },
@@ -19,6 +20,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering",
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
