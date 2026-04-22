@@ -15,7 +15,7 @@
 ---
 **functime** is a powerful [Python library](https://pypi.org/project/functime/) for production-ready **global forecasting** and **time-series feature extraction** on **large panel datasets**.
 
-**functime** also comes with time-series [preprocessing](https://docs.functime.ai/ref/preprocessing/) (box-cox, differencing etc), cross-validation [splitters](https://docs.functime.ai/ref/cross-validation/) (expanding and sliding window), and forecast [metrics](https://docs.functime.ai/ref/metrics/) (MASE, SMAPE etc). All optimized as [lazy Polars](https://pola-rs.github.io/polars-book/user-guide/lazy/using/) transforms.
+**functime** also comes with time-series [preprocessing](https://functime-org.github.io/functime/ref/preprocessing/) (box-cox, differencing etc), cross-validation [splitters](https://functime-org.github.io/functime/ref/cross-validation/) (expanding and sliding window), and forecast [metrics](https://functime-org.github.io/functime/ref/metrics/) (MASE, SMAPE etc). All optimized as [lazy Polars](https://pola-rs.github.io/polars-book/user-guide/lazy/using/) transforms.
 
 Join us on [Discord](https://discord.com/invite/JKMrZKjEwN)!
 
@@ -28,7 +28,7 @@ Join us on [Discord](https://discord.com/invite/JKMrZKjEwN)!
 - **Automated lags and hyperparameter tuning** using [`FLAML`](https://github.com/microsoft/FLAML)
 
 ## Additional Highlights
-`functime` comes with a specialized LLM agent to analyze, describe, and compare your forecasts. Check out the walkthrough [here](https://docs.functime.ai/notebooks/llm/).
+`functime` comes with a specialized LLM agent to analyze, describe, and compare your forecasts. Check out the walkthrough [here](https://functime-org.github.io/functime/notebooks/llm/).
 
 ## Getting Started
 
@@ -106,11 +106,11 @@ forecaster.fit(y=y_train, X=X_train)
 y_pred = forecaster.predict(fh=3, X=X_future)
 ```
 
-View the full walkthrough on forecasting [here](https://docs.functime.ai/forecasting/).
+View the full walkthrough on forecasting [here](https://functime-org.github.io/functime/forecasting/).
 
 ### Feature Extraction
 
-`functime` comes with over 100+ [time-series feature extractors](https://docs.functime.ai/feature-extraction/).
+`functime` comes with over 100+ [time-series feature extractors](https://functime-org.github.io/functime/feature-extraction/).
 Every feature is easily accessible via `functime`'s custom `ts` (time-series) namespace, which works with any `Polars` Series or expression. To register the custom `ts` `Polars` namespace, you must first import `functime` in your module.
 
 To register the custom `ts` `Polars` namespace, you must first import `functime`!

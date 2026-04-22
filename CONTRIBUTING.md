@@ -144,7 +144,7 @@ functime uses uv for dependency management:
 
 ## Need Help?
 
-- Check the [documentation](https://docs.functime.ai)
+- Check the [documentation](https://functime-org.github.io/functime)
 - Join our [Discord](https://discord.com/invite/JKMrZKjEwN)
 - Open an issue on GitHub
 
