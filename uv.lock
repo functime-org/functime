@@ -790,7 +790,7 @@ wheels = [
 
 [[package]]
 name = "functime"
-version = "0.9.5"
+version = "1.0.0rc1"
 source = { editable = "." }
 dependencies = [
     { name = "cloudpickle" },
