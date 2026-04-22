@@ -9,7 +9,7 @@ Thank you for considering contributing to functime! We value every contribution,
 - [uv](https://docs.astral.sh/uv/) - Fast Python package manager
 - [just](https://github.com/casey/just) - Command runner
 - [Rust toolchain](https://rustup.rs/) - For building the Rust extension module
-- Python 3.9 or higher
+- Python 3.11 or higher
 
 ### Getting Started
 
