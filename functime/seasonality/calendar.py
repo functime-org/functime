@@ -46,7 +46,7 @@ def add_calendar_effects(
             ]
         )
         if as_dummies:
-            X_new = X_new.collect(streaming=True).to_dummies(columns=attrs).lazy()
+            X_new = X_new.collect(engine="streaming").to_dummies(columns=attrs).lazy()
         artifacts = {"X_new": X_new}
         return artifacts
 
@@ -70,7 +70,7 @@ def add_holiday_effects(country_codes: list[str], as_dummies: bool = False):
         time_col = X.collect_schema().names()[1]
         timestamps = (
             X.select(time_col)
-            .collect(streaming=True)
+            .collect(engine="streaming")
             .get_column(time_col)
             .unique()
             .to_list()
@@ -99,14 +99,14 @@ def add_holiday_effects(country_codes: list[str], as_dummies: bool = False):
                 .cast(pl.Categorical)
             )
             .with_columns(
-                pl.Series(values=timestamps, name=time_col).cast(X.schema[time_col])
+                pl.Series(values=timestamps, name=time_col).cast(X.collect_schema()[time_col])
             )
             .lazy()
         )
         X_new = X.join(holidays, how="left", on=time_col)
         if as_dummies:
             X_new = (
-                X_new.collect(streaming=True)
+                X_new.collect(engine="streaming")
                 .to_dummies(columns=holidays.columns[1:])
                 .lazy()
             )

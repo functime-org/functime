@@ -26,10 +26,10 @@ def metric(score: Callable):
         **kwargs,
     ) -> pl.DataFrame:
         if isinstance(y_true, pl.LazyFrame):
-            y_true = y_true.collect(streaming=True)
+            y_true = y_true.collect(engine="streaming")
 
         if isinstance(y_pred, pl.LazyFrame):
-            y_pred = y_pred.collect(streaming=True)
+            y_pred = y_pred.collect(engine="streaming")
 
         y_true, entity_col_dtype, string_cache, inv_string_cache = y_true.pipe(
             _set_string_cache
@@ -45,7 +45,7 @@ def metric(score: Callable):
             y_train = (
                 kwargs["y_train"]
                 .lazy()
-                .collect(streaming=True)
+                .collect(engine="streaming")
                 .pipe(_enforce_string_cache, string_cache=string_cache)
             )
             kwargs["y_train"] = y_train

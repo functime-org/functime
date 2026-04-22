@@ -22,7 +22,7 @@ def X_to_numpy(X: pl.DataFrame) -> np.ndarray:
         )
         # TODO: Support custom group_by imputation
         .fill_null(strategy="mean")  # Do not fill backward (data leak)
-        .collect(streaming=True)
+        .collect(engine="streaming")
         .pipe(df_to_ndarray)
     )
     return X_arr
@@ -40,7 +40,7 @@ def y_to_numpy(y: pl.DataFrame) -> np.ndarray:
         )
         # TODO: Support custom group_by imputation
         .fill_null(strategy="mean")  # Do not fill backward (data leak)
-        .collect(streaming=True)
+        .collect(engine="streaming")
         .get_column(y.columns[-1])
         .to_numpy()  # TODO: Cannot require zero-copy array?
     )

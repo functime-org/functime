@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import polars as pl
-from polars.type_aliases import FrameType, TimeUnit
+from polars._typing import FrameType, TimeUnit
 
 from functime.offsets import _strip_freq_alias
 

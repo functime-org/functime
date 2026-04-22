@@ -35,7 +35,7 @@ def test_train_test_split_int_size(test_size, pl_y, benchmark):
     y_train, y_test = benchmark(_split, pl_y)
 
     # Check column names
-    entity_col, time_col = pl_y.columns[:2]
+    entity_col, time_col = pl_y.collect_schema().names()[:2]
     assert y_train.columns == y_test.columns
 
     # Check train window lengths
@@ -73,8 +73,8 @@ def test_train_test_split_float_size(pl_y, float_test_size, context):
         assert "`test_size` must be between 0 and 1" in str(exc_info.value)
 
     else:
-        entity_col, time_col = pl_y.columns[:2]
-        assert y_train.columns == y_test.columns
+        entity_col, time_col = pl_y.collect_schema().names()[:2]
+        assert y_train.collect_schema().names() == y_test.collect_schema().names()
 
         # Check train window lengths
         ts_lengths = (
@@ -108,7 +108,7 @@ def test_expanding_window_split(test_size, n_splits, step_size, pl_y, benchmark)
         return {i: pl.collect_all(s) for i, s in splits.items()}
 
     splits = benchmark(_split, pl_y)
-    entity_col, time_col = pl_y.columns[:2]
+    entity_col, time_col = pl_y.collect_schema().names()[:2]
 
     for split in splits.values():
         _, y_test = split
@@ -130,7 +130,7 @@ def test_sliding_window_split(test_size, n_splits, step_size, pl_y, benchmark):
         return {i: pl.collect_all(s) for i, s in splits.items()}
 
     splits = benchmark(_split, pl_y)
-    entity_col, time_col = pl_y.columns[:2]
+    entity_col, time_col = pl_y.collect_schema().names()[:2]
 
     for split in splits.values():
         _, y_test = split

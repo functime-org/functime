@@ -52,7 +52,7 @@ def check_backtest_lengths(
     lengths = (
         y.group_by(entity_col)
         .agg(pl.col(time_col).len().alias("len"))
-        .collect(streaming=True)
+        .collect(engine="streaming")
     )
     n_entities = len(lengths)
     min_length = int(max_lags + test_size * drop_tolerance)

@@ -45,7 +45,7 @@ def test_add_calendar_effects():
                 "year": [2023, 2023, 2023],
             }
         ).with_columns(pl.all().exclude("datetime").cast(pl.Utf8).cast(pl.Categorical))
-        assert_frame_equal(result.collect(), expected, check_dtype=False)
+        assert_frame_equal(result.collect(), expected, check_dtypes=False)
 
 
 def test_add_holiday_effects():
@@ -98,4 +98,4 @@ def test_add_holiday_effects():
                 ],
             }
         ).with_columns(pl.all().exclude("datetime").cast(pl.Utf8).cast(pl.Categorical))
-        assert_frame_equal(result.collect(), expected, check_dtype=False)
+        assert_frame_equal(result.collect(), expected, check_dtypes=False)

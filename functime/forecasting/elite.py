@@ -200,13 +200,13 @@ class elite(Forecaster):
             )
             .sort([entity_col, time_col])
             .set_sorted([entity_col, time_col])
-            .collect(streaming=True)
+            .collect(engine="streaming")
         )
         if X is not None:
             X_stack = (
                 X_stack.lazy()
                 .join(X.lazy(), on=[entity_col, time_col], how="left")
-                .collect(streaming=True)
+                .collect(engine="streaming")
             )
         X_stack = X_stack.with_columns(
             trend=pl.col(time_col).arg_sort().over(entity_col)
@@ -256,7 +256,7 @@ class elite(Forecaster):
                 y_true = (
                     y_pred.select([entity_col, time_col])
                     .join(y.lazy(), on=[entity_col, time_col], how="left")
-                    .collect(streaming=True)
+                    .collect(engine="streaming")
                 )
                 scores = score(y_pred=y_pred, y_true=y_true).with_columns(
                     [
@@ -282,7 +282,7 @@ class elite(Forecaster):
             # Select top K scores
             .group_by(entity_col, maintain_order=True)
             .agg([pl.col("model_name").head(top_k), pl.col(metric_name).head(top_k)])
-            .collect(streaming=True)
+            .collect(engine="streaming")
         )
         full_y_preds = pl.concat(
             [
@@ -297,7 +297,7 @@ class elite(Forecaster):
             X_stack.select([entity_col, time_col])
             .lazy()
             .join(y.lazy(), on=[entity_col, time_col], how="left")
-            .collect(streaming=True)
+            .collect(engine="streaming")
         )
 
         final_regressor = None

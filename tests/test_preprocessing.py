@@ -186,7 +186,7 @@ def test_roll(pd_X, rolling_pd_dataframe, benchmark):
         lambda: roll(window_sizes=window_sizes, stats=stats, freq="1d")(X=X).collect()
     )
     expected = df.reset_index().loc[:, result.columns]
-    assert_frame_equal(result, pl.DataFrame(expected), check_exact=False, rtol=0.01)
+    assert_frame_equal(result, pl.DataFrame(expected), check_exact=False, rel_tol=0.01)
 
 
 def test_scale(pd_X):
@@ -201,7 +201,7 @@ def test_scale(pd_X):
     X_new = X.pipe(transformer).collect()
     assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()))
     X_original = X_new.pipe(transformer.invert)
-    assert_frame_equal(X_original, X, check_dtype=False)
+    assert_frame_equal(X_original, X, check_dtypes=False)
 
 
 @pytest.mark.parametrize("sp", [1])
@@ -226,7 +226,7 @@ def test_diff(pd_X, sp):
     assert_frame_equal(
         X_original.sort(idx_cols).collect(),
         X_new.select(idx_cols).join(X, on=idx_cols, how="left").collect(),
-        check_dtype=False,
+        check_dtypes=False,
     )
 
 
@@ -246,7 +246,7 @@ def test_boxcox(pd_X):
     X_new = X.pipe(transformer).collect()
     assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()))
     X_original = X_new.pipe(transformer.invert)
-    assert_frame_equal(X_original, X, check_dtype=False)
+    assert_frame_equal(X_original, X, check_dtypes=False)
 
 
 def test_yeojohnson(pd_X):
@@ -263,7 +263,7 @@ def test_yeojohnson(pd_X):
     X_new = X.pipe(transformer).collect()
     assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()))
     X_original = X_new.pipe(transformer.invert)
-    assert_frame_equal(X_original, X, check_dtype=False)
+    assert_frame_equal(X_original, X, check_dtypes=False)
 
 
 @pytest.mark.parametrize("method", ["linear", "mean"])
@@ -276,10 +276,10 @@ def test_detrend(method, pd_X):
     X = pl.from_pandas(pd_X.reset_index()).lazy()
     transformer = detrend(method=method, freq="1d")
     X_new = X.pipe(transformer).collect()
-    assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()), rtol=1e-10)
+    assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()), rel_tol=1e-10)
 
     X_inverted = X_new.pipe(transformer.invert).collect()
-    assert_frame_equal(X_original, X_inverted, check_dtype=False, rtol=1e-10)
+    assert_frame_equal(X_original, X_inverted, check_dtypes=False, rel_tol=1e-10)
 
 
 def pd_fractional_diff(df, d, thres):

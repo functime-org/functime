@@ -131,7 +131,7 @@ def acf(X: pl.DataFrame, max_lags: int, alpha: float = 0.05) -> pl.DataFrame:
             pl.lit([1.0]).list.concat("confint_lower").alias("confint_lower"),
             pl.lit([1.0]).list.concat("confint_upper").alias("confint_upper"),
         )
-        .collect(streaming=True)
+        .collect(engine="streaming")
     )
     return result
 

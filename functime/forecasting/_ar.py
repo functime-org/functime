@@ -45,7 +45,7 @@ def fit_recursive(
     y_lag = make_y_lag(X_y_final, target_col=y_columns[-1], lags=lags)
     artifacts = {
         "regressor": fitted_regressor,
-        "y_lag": y_lag.collect(streaming=True),
+        "y_lag": y_lag.collect(engine="streaming"),
     }
     return artifacts
 
@@ -75,7 +75,7 @@ def fit_direct(
     y_lag = make_y_lag(X_y_final, target_col=y.collect_schema().names()[-1], lags=lags + max_horizons)
     artifacts = {
         "regressors": fitted_regressors,
-        "y_lag": y_lag.collect(streaming=True),
+        "y_lag": y_lag.collect(engine="streaming"),
     }
     return artifacts
 

@@ -84,7 +84,7 @@ def time_to_arange(eager: bool = False):
         other_cols = pl.all().exclude([entity_col, time_col])
         X_new = X.select([entity_col, time_range_expr, other_cols])
         if eager:
-            X_new = X_new.collect(streaming=True)
+            X_new = X_new.collect(engine="streaming")
         artifacts = {"X_new": X_new}
         return artifacts
 
@@ -117,7 +117,7 @@ def resample(freq: str, agg_method: str, impute_method: str | int | float):
         X_new = (
             # Defensive resampling
             X.lazy()
-            .group_by_dynamic(time_col, every=freq, by=entity_col)
+            .group_by_dynamic(time_col, every=freq, group_by=entity_col)
             .agg(agg_exprs[agg_method])
             # Must defensive sort columns otherwise time_col and target_col
             # positions are incorrectly swapped in lazy
@@ -307,7 +307,7 @@ def roll(
                 X.sort([entity_col, time_col])
                 .group_by_dynamic(
                     index_column=time_col,
-                    by=entity_col,
+                    group_by=entity_col,
                     offset=f"{w}{offset_alias}",
                     every=f"1{offset_alias}",
                     period=f"{offset_n * w}{offset_alias}",

@@ -18,7 +18,7 @@ def _residualize_autoreg(
     artifacts: Mapping[str, Any],
     X_train: pl.DataFrame | None = None,
 ) -> pl.DataFrame:
-    y_train = y_train.lazy().collect(streaming=True)
+    y_train = y_train.lazy().collect(engine="streaming")
     idx_cols = y_train.columns[:2]
 
     def _score_recursive(regressor):
@@ -122,7 +122,7 @@ def backtest(
         splits = (
             y.lazy()
             .join(X.lazy(), how="left", on=[entity_col, time_col])
-            .collect(streaming=True)
+            .collect(engine="streaming")
             .lazy()
             .pipe(cv)
         )

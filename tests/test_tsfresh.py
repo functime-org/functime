@@ -75,19 +75,19 @@ np.random.seed(42)
             [0, 0, 0],
             [True, 0],
             [2.0, 2, 2.0, None, 2.0, 2.0, 2.0, 2],
-            {"check_dtype": False},
+            {"check_dtypes": False},
         ),
         (
             [0, 0, 0],
             [False, 0],
             [2.0, 2, 2.0, None, 2.0, 2.0, 2.0, 2],
-            {"check_dtype": False},
+            {"check_dtypes": False},
         ),
         (
             [0, 0, 0],
             [False, 1],
             [2.0, 2, 2.0, None, 2.0, 2.0, 2.0, 2],
-            {"check_dtype": False},
+            {"check_dtypes": False},
         ),
         # won't work with no matches - error
         # add error handling for this
@@ -95,27 +95,27 @@ np.random.seed(42)
             [0, 0, 0],
             [True, 1],
             [0.0, None, None, None, None, None, None, None],
-            {"check_dtype": False},
+            {"check_dtypes": False},
         ),
         (
             [0, 1, 1, 0, 2, 2, 2],
             [True, 0],
             [2.0, 3, 2.5, 0.707107, 2.0, 2.5, 3.0, 2],
-            {"check_dtype": False},
+            {"check_dtypes": False},
         ),
         # # floats
         (
             [0.0, 1.5, 1.5, 0, 2.5, 2.5, 2.5],
             [True, 0],
             [2.0, 3, 2.5, 0.707107, 2.0, 2.5, 3.0, 2],
-            {"check_dtype": False},
+            {"check_dtypes": False},
         ),
         # # negative floats
         (
             [0.0, -1.5, -1.5, 0, -2.5, -2.5, -2.5],
             [False, 0],
             [2.0, 3, 2.5, 0.707107, 2.0, 2.5, 3.0, 2],
-            {"check_dtype": False},
+            {"check_dtypes": False},
         ),
     ],
 )
@@ -205,8 +205,8 @@ def test_mean_abs_change(S, res, k):
         ([-1.0, 1.3, 5.3, 4.5], [11 / 6], {}),
         ([-1.0, 1, 2, float("inf")], [float("inf")], {}),
         ([-1.0, 1, 2, -float("inf")], [-float("inf")], {}),
-        ([1], [0], {"check_dtype": False}),
-        ([], [0], {"check_dtype": False}),
+        ([1], [0], {"check_dtypes": False}),
+        ([], [0], {"check_dtypes": False}),
     ],
 )
 def test_mean_change(S, res, k):
@@ -341,7 +341,7 @@ def test_count_range(S, res):
         (
             list(temp := np.random.normal(0, 0.001, 100)) - np.mean(temp),
             [0, 0, 0],
-            {"check_exact": False, "atol": 0.0001},
+            {"check_exact": False, "abs_tol": 0.0001},
         ),
         # -ve trend -1 intercept no residual
         ([-1, -2, -3, -4, -5], [-1, -1, 0], {}),
