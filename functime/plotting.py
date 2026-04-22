@@ -132,12 +132,12 @@ def plot_forecasts(
     layout_kwargs: dict[str, Any] | None = None,
     line_kwargs: dict[str, Any] | None = None,
 ) -> go.Figure:
-    """Given panel DataFrames of observed values `y` and forecasts `y_pred`,
+    """Given panel DataFrames of observed values `y_true` and forecasts `y_pred`,
     returns subplots for each individual entity / time-series.
 
     Parameters
     ----------
-    y : Union[pl.DataFrame, pl.LazyFrame]
+    y_true : Union[pl.DataFrame, pl.LazyFrame]
         Panel DataFrame of observed values.
     num_series : Optional[int]
         Number of entities / time-series to plot. If `None`, plot all entities.

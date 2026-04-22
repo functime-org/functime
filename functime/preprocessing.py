@@ -916,7 +916,9 @@ def deseasonalize_fourier(sp: int, K: int, robust: bool = False):
         Maximum order(s) of Fourier terms.
         Must be less than `sp`.
 
-    Note: part of this transformer uses sklearn under-the-hood: it is not pure Polars and lazy.
+    Notes
+    -----
+    Part of this transformer uses sklearn under-the-hood: it is not pure Polars and lazy.
     """
 
     if robust:

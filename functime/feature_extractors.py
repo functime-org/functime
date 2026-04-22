@@ -1280,12 +1280,12 @@ def number_peaks(x: TIME_SERIES_T, support: int) -> INT_EXPR:
 
     Hence in the sequence
 
-    x = [3, 0, 0, 4, 0, 0, 13]
+    ``x = [3, 0, 0, 4, 0, 0, 13]``
 
     4 is a peak of support 1 and 2 because in the subsequences
 
-    [0, 4, 0]
-    [0, 0, 4, 0, 0]
+    ``[0, 4, 0]``
+    ``[0, 0, 4, 0, 0]``
 
     4 is still the highest value. Here, 4 is not a peak of support 3 because 13 is the 3th neighbour to the right of 4
     and its bigger than 4.
@@ -1917,9 +1917,6 @@ def fft_coefficients(x: TIME_SERIES_T) -> MAP_LIST_EXPR:
     ----------
     x : pl.Expr | pl.Series
         Input time series.
-    n_threads : int
-        Number of threads to use.
-        If None, uses all threads available. Defaults to None.
 
     Returns
     -------
@@ -2101,11 +2098,6 @@ class FeatureExtractor:
         """
         Count the number of values that are above the mean.
 
-        Parameters
-        ----------
-        x : pl.Expr | pl.Series
-            Input time-series.
-
         Returns
         -------
         An expression of the output
@@ -2271,8 +2263,6 @@ class FeatureExtractor:
 
         Parameters
         ----------
-        x : pl.Expr | pl.Series
-            Input time-series.
         threshold: float | pl.Expr
             Either a number, or an expression representing a comparable quantity. If x > threshold,
             then it will be binarized as 1 and 0 otherwise.
@@ -2504,12 +2494,12 @@ class FeatureExtractor:
 
         Hence in the sequence
 
-        x = [3, 0, 0, 4, 0, 0, 13]
+        ``x = [3, 0, 0, 4, 0, 0, 13]``
 
         4 is a peak of support 1 and 2 because in the subsequences
 
-        [0, 4, 0]
-        [0, 0, 4, 0, 0]
+        ``[0, 4, 0]``
+        ``[0, 0, 4, 0, 0]``
 
         4 is still the highest value. Here, 4 is not a peak of support 3 because 13 is the 3th neighbour to the right of 4
         and its bigger than 4.
