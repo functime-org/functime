@@ -130,7 +130,7 @@ def fit_cv(  # noqa: Ruff too complex
     points_to_evaluate: list[Mapping[str, Any]] | None = None,
     low_cost_partial_config: Mapping[str, Any] | None = None,
     num_samples: int = -1,
-    cv: Callable[[pl.LazyFrame, bool, bool], pl.LazyFrame | pl.DataFrame] | None = None,
+    cv: Callable[..., Any] | None = None,
     X: pl.LazyFrame | None = None,
     **kwargs,
 ) -> Mapping[str, Any]:
@@ -154,25 +154,25 @@ def fit_cv(  # noqa: Ruff too complex
     lags_path = list(range(min_lags, max_lags + 1))
     scores_path = []
     for lags in (pbar := tqdm(lags_path, desc=f"Evaluating n={min(lags_path)} lags")):
-        score, params = evaluate(
-            **{
-                "lags": lags,
-                "n_splits": n_splits,
-                "time_budget": time_budget,
-                "points_to_evaluate": points_to_evaluate,
-                "num_samples": num_samples,
-                "low_cost_partial_config": low_cost_partial_config,
-                "search_space": search_space,
-                "test_size": test_size,
-                "max_horizons": max_horizons,
-                "strategy": strategy,
-                "freq": freq,
-                "forecaster_cls": forecaster_cls,
-                "y_splits": y_splits,
-                "X_splits": X_splits,
-                "include_best_params": True,
-            },
+        result = evaluate(
+            lags=lags,
+            n_splits=n_splits,
+            time_budget=time_budget,
+            points_to_evaluate=points_to_evaluate,
+            num_samples=num_samples,
+            low_cost_partial_config=low_cost_partial_config,
+            search_space=search_space,
+            test_size=test_size,
+            max_horizons=max_horizons,
+            strategy=strategy,
+            freq=freq,
+            forecaster_cls=forecaster_cls,
+            y_splits=y_splits,
+            X_splits=X_splits,
+            include_best_params=True,
         )
+        assert isinstance(result, tuple)
+        score, params = result
         scores_path.append(score)
         if score < best_score:
             best_score = score

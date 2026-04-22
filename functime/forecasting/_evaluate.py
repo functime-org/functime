@@ -124,7 +124,7 @@ def evaluate(
     X_splits: Mapping[int, tuple[pl.DataFrame, pl.DataFrame]] | None,
     search_space: Mapping[str, Domain] | None = None,
     include_best_params: bool = False,
-):
+) -> float | tuple[float, Mapping[str, Any] | None]:
     params = None
     if search_space is None:
         result = evaluate_windows(
