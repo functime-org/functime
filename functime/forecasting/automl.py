@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from collections.abc import Mapping
 from functools import partial
-from typing import Any, Literal, Mapping, Optional, Union
+from typing import Any, Literal
 
 import polars as pl
 from flaml import tune
@@ -59,20 +60,20 @@ class AutoForecaster(Forecaster):
 
     def __init__(
         self,
-        freq: Union[str, None],
+        freq: str | None,
         min_lags: int = 3,
         max_lags: int = 12,
-        max_horizons: Optional[int] = None,
+        max_horizons: int | None = None,
         strategy: FORECAST_STRATEGIES = None,
         test_size: int = 1,
         step_size: int = 1,
         n_splits: int = 5,
         time_budget: int = 5,
-        search_space: Optional[Mapping[str, Any]] = None,
-        points_to_evaluate: Optional[Mapping[str, Any]] = None,
+        search_space: Mapping[str, Any] | None = None,
+        points_to_evaluate: Mapping[str, Any] | None = None,
         num_samples: int = -1,
-        target_transform: Optional[Transformer] = None,
-        feature_transform: Optional[Transformer] = None,
+        target_transform: Transformer | None = None,
+        feature_transform: Transformer | None = None,
         **kwargs,
     ):
         if freq not in SUPPORTED_FREQ:
@@ -119,7 +120,7 @@ class AutoForecaster(Forecaster):
     def low_cost_partial_config(self):
         return None
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         from functime.forecasting._ar import fit_cv
 
         return fit_cv(
@@ -142,15 +143,15 @@ class AutoForecaster(Forecaster):
             low_cost_partial_config=self.low_cost_partial_config,
         )
 
-    def _predict(self, fh: int, X: Optional[pl.LazyFrame] = None):
+    def _predict(self, fh: int, X: pl.LazyFrame | None = None):
         from functime.forecasting._ar import predict_autoreg
 
         return predict_autoreg(state=self.state, fh=fh, X=X)
 
     def backtest(
         self,
-        y: Union[pl.LazyFrame, pl.DataFrame],
-        X: Optional[pl.LazyFrame] = None,
+        y: pl.LazyFrame | pl.DataFrame,
+        X: pl.LazyFrame | None = None,
         test_size: int = 1,
         step_size: int = 1,
         n_splits: int = 5,

@@ -1,6 +1,3 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
 name: Quickstart
 
 on:
@@ -19,34 +16,35 @@ jobs:
   quickstart:
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python 3
-        uses: actions/setup-python@v3
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: Set up Rust
         run: rustup show
+
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
-      - name: Create virtual environment
-        run: python3 -m venv venv
+
       - name: Install functime
         env:
           RUSTFLAGS: -C debuginfo=0  # Do not produce debug symbols to keep memory usage down
         run: |
-          source venv/bin/activate
-          python3 -m pip install --upgrade pip
-          python3 -m pip install maturin
-          maturin develop
-      - name: Install extra dependencies
-        run: |
-          source venv/bin/activate
-          python3 -m pip install --upgrade pip
+          uv sync --python ${{ matrix.python-version }} --locked
+          uv run --with "maturin>=1.5" -- maturin develop
+
       - name: Run Quickstart
         run: |
-          source venv/bin/activate
-          python docs/code/quickstart.py
-          python docs/code/feature_engineering.py
+          uv run python docs/code/quickstart.py
+          uv run python docs/code/feature_engineering.py

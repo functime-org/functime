@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping, Protocol, Union
+from typing import Any, Protocol
 
 import polars as pl
 
@@ -15,29 +16,29 @@ def _set_string_cache(df: pl.DataFrame):
         # Reset categorical to string type
         df = df.with_columns(pl.col(entity_col).cast(pl.Utf8))
     df_new = df.with_columns(
-        pl.col(entity_col).replace(string_cache, return_dtype=pl.Int32, default=None)
+        pl.col(entity_col).replace_strict(string_cache, return_dtype=pl.Int32, default=None)
     )
     inv_string_cache = {i: entity for entity, i in string_cache.items()}
     return df_new, entity_col_dtype, string_cache, inv_string_cache
 
 
 def _enforce_string_cache(
-    df: pl.DataFrame, string_cache: Mapping[Union[int, str], int]
+    df: pl.DataFrame, string_cache: Mapping[int | str, int]
 ) -> pl.DataFrame:
     entity_col = df.columns[0]
     if df.schema[entity_col] == pl.Categorical:
         # Reset categorical to string type
         df = df.with_columns(pl.col(entity_col).cast(pl.Utf8))
     return df.with_columns(
-        pl.col(entity_col).replace(string_cache, return_dtype=pl.Int32, default=None)
+        pl.col(entity_col).replace_strict(string_cache, return_dtype=pl.Int32, default=None)
     )
 
 
 def _reset_string_cache(
-    df: pl.DataFrame, inv_string_cache: Mapping[int, Union[int, str]], return_dtype
+    df: pl.DataFrame, inv_string_cache: Mapping[int, int | str], return_dtype
 ) -> pl.DataFrame:
     return df.with_columns(
-        pl.col(df.columns[0]).replace(
+        pl.col(df.columns[0]).replace_strict(
             inv_string_cache, return_dtype=return_dtype, default=None
         )
     )

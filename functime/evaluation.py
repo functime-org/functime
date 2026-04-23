@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import List, Literal, Optional
+from typing import Literal
 
 import polars as pl
 import polars.selectors as cs
@@ -59,7 +59,7 @@ RESIDUALS_SORT_BY = Literal["bias", "abs_bias", "normality", "autocorr"]
 FVA_SORT_BY = Literal["naive", "snaive", "linear", "linear_scaled"]
 
 
-def acf_formula(x: pl.Expr, max_lags: int) -> List[pl.Expr]:
+def acf_formula(x: pl.Expr, max_lags: int) -> list[pl.Expr]:
     # NOTE: Unsure if lists of expressions are automatically vectorized by the Rust query engine...
     # Brute force adjusted ACF calculation (might be slow for long series and lags)
     n = x.len()
@@ -131,7 +131,7 @@ def acf(X: pl.DataFrame, max_lags: int, alpha: float = 0.05) -> pl.DataFrame:
             pl.lit([1.0]).list.concat("confint_lower").alias("confint_lower"),
             pl.lit([1.0]).list.concat("confint_upper").alias("confint_upper"),
         )
-        .collect(streaming=True)
+        .collect(engine="streaming")
     )
     return result
 
@@ -172,7 +172,11 @@ def normality_test(X: pl.DataFrame) -> pl.DataFrame:
     entity_col, _, target_col = X.columns[:3]
     results = X.group_by(entity_col).agg(
         pl.col(target_col)
-        .map_elements(lambda s: normaltest(s.to_numpy())[0])
+        .map_batches(
+            lambda s: pl.Series([normaltest(s.to_numpy())[0]]),
+            return_dtype=pl.Float64,
+        )
+        .first()
         .alias("normal_test")
     )
     return results
@@ -323,8 +327,8 @@ def rank_residuals(
 def rank_fva(
     y_true: pl.DataFrame,
     y_pred: pl.DataFrame,
-    y_pred_bench: Optional[pl.DataFrame] = None,
-    scoring: Optional[METRIC_TYPE] = None,
+    y_pred_bench: pl.DataFrame | None = None,
+    scoring: METRIC_TYPE | None = None,
     descending: bool = False,
 ) -> pl.DataFrame:
     """Sorts point forecasts in `y_pred` across entities / time-series by score.

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import partial, reduce
-from typing import Literal, Optional
+from typing import Literal
 
 import polars as pl
 
@@ -110,7 +110,7 @@ def score_forecast(
 def score_backtest(
     y_true: pl.DataFrame,
     y_preds: pl.DataFrame,
-    agg_method: Optional[Literal["mean", "median", "first", "last"]] = None,
+    agg_method: Literal["mean", "median", "first", "last"] | None = None,
 ) -> pl.DataFrame:
     """Return DataFrame of forecast metrics across entities.
 

@@ -57,7 +57,7 @@ features = (
     y.group_by_dynamic(
         time_col,
         every="12mo",
-        by=entity_col,
+        group_by=entity_col,
     )
     .agg(
         binned_entropy=pl.col(value_col).ts.binned_entropy(bin_count=10),

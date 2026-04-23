@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Literal, Optional
+from typing import Literal
 
 import polars as pl
 from holidays import country_holidays
@@ -11,7 +11,7 @@ from functime.ranges import make_future_ranges
 
 @transformer
 def add_calendar_effects(
-    attrs: List[
+    attrs: list[
         Literal["minute", "hour", "day", "weekday", "week", "month", "quarter", "year"]
     ],
     as_dummies: bool = False,
@@ -35,7 +35,7 @@ def add_calendar_effects(
     """
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        time_col = pl.col(X.columns[1])
+        time_col = pl.col(X.collect_schema().names()[1])
         X_new = X.with_columns(
             [
                 getattr(time_col.dt, attr)()
@@ -46,7 +46,7 @@ def add_calendar_effects(
             ]
         )
         if as_dummies:
-            X_new = X_new.collect(streaming=True).to_dummies(columns=attrs).lazy()
+            X_new = X_new.collect(engine="streaming").to_dummies(columns=attrs).lazy()
         artifacts = {"X_new": X_new}
         return artifacts
 
@@ -54,7 +54,7 @@ def add_calendar_effects(
 
 
 @transformer
-def add_holiday_effects(country_codes: List[str], as_dummies: bool = False):
+def add_holiday_effects(country_codes: list[str], as_dummies: bool = False):
     """Extract holiday effects from time column for specified ISO-2 country codes and frequency.
 
     Parameters
@@ -67,10 +67,10 @@ def add_holiday_effects(country_codes: List[str], as_dummies: bool = False):
 
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         # Get min and max timestamps
-        time_col = X.columns[1]
+        time_col = X.collect_schema().names()[1]
         timestamps = (
             X.select(time_col)
-            .collect(streaming=True)
+            .collect(engine="streaming")
             .get_column(time_col)
             .unique()
             .to_list()
@@ -99,14 +99,14 @@ def add_holiday_effects(country_codes: List[str], as_dummies: bool = False):
                 .cast(pl.Categorical)
             )
             .with_columns(
-                pl.Series(values=timestamps, name=time_col).cast(X.schema[time_col])
+                pl.Series(values=timestamps, name=time_col).cast(X.collect_schema()[time_col])
             )
             .lazy()
         )
         X_new = X.join(holidays, how="left", on=time_col)
         if as_dummies:
             X_new = (
-                X_new.collect(streaming=True)
+                X_new.collect(engine="streaming")
                 .to_dummies(columns=holidays.columns[1:])
                 .lazy()
             )
@@ -118,11 +118,11 @@ def add_holiday_effects(country_codes: List[str], as_dummies: bool = False):
 
 def make_future_calendar_effects(
     idx: pl.DataFrame,
-    attrs: List[str],
+    attrs: list[str],
     fh: int,
-    freq: Optional[str] = None,
+    freq: str | None = None,
 ):
-    entity_col, time_col = idx.columns[:2]
+    entity_col, time_col = idx.collect_schema().names()[:2]
     cutoffs = idx.group_by(entity_col).agg(pl.col(time_col).max().alias("low"))
     future_idx = make_future_ranges(
         time_col=time_col,
@@ -136,11 +136,11 @@ def make_future_calendar_effects(
 
 def make_future_holiday_effects(
     idx: pl.DataFrame,
-    country_codes: List[str],
+    country_codes: list[str],
     fh: int,
-    freq: Optional[str] = None,
+    freq: str | None = None,
 ):
-    entity_col, time_col = idx.columns[:2]
+    entity_col, time_col = idx.collect_schema().names()[:2]
     cutoffs = idx.group_by(entity_col).agg(pl.col(time_col).max().alias("low"))
     future_idx = make_future_ranges(
         time_col=time_col,

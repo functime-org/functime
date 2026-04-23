@@ -1,24 +1,18 @@
 from __future__ import annotations
 
 import inspect
-import sys
+from collections.abc import Callable
 from functools import cached_property, wraps
-from typing import Callable, Tuple, TypeVar, Union
+from typing import ParamSpec, TypeVar
 
 import polars as pl
 
 from functime.base.model import ModelState
 
-if sys.version_info < (3, 10):
-    from typing_extensions import ParamSpec
-else:
-    from typing import ParamSpec
-
-
 P = ParamSpec("P")  # The parameters of the Model
 R = TypeVar("R")
 
-DF_TYPE = Union[pl.LazyFrame, pl.DataFrame]
+DF_TYPE = pl.LazyFrame | pl.DataFrame
 
 
 class Transformer:
@@ -52,13 +46,14 @@ class Transformer:
 
     @cached_property
     def is_invertible(self):
-        return isinstance(self.func, Tuple)
+        return isinstance(self.func, tuple)
 
     def transform(self, X: DF_TYPE) -> pl.LazyFrame:
         X = X.lazy()
+        X_columns = X.collect_schema().names()
         transform = self.func[0] if self.is_invertible else self.func
         artifacts = transform(X)
-        state = ModelState(entity=X.columns[0], time=X.columns[1], artifacts=artifacts)
+        state = ModelState(entity=X_columns[0], time=X_columns[1], artifacts=artifacts)
         self.state = state
         return artifacts["X_new"]
 

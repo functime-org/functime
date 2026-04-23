@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Optional, Union
+from collections.abc import Callable
 
 import numpy as np
 import polars as pl
@@ -38,13 +38,13 @@ class censored_model(Forecaster):
 
     def __init__(
         self,
-        freq: Union[str, None],
+        freq: str | None,
         lags: int,
-        max_horizons: Optional[int] = None,
+        max_horizons: int | None = None,
         strategy: FORECAST_STRATEGIES = None,
         threshold: float = 0.0,
-        regress: Optional[Callable] = None,
-        classify: Optional[Callable] = None,
+        regress: Callable | None = None,
+        classify: Callable | None = None,
         **kwargs,
     ):
         self.threshold = threshold
@@ -54,9 +54,9 @@ class censored_model(Forecaster):
             freq=freq, lags=lags, max_horizons=max_horizons, strategy=strategy, **kwargs
         )
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         # 1. Fit classifier
-        target_col = y.columns[-1]
+        target_col = y.collect_schema().names()[-1]
         X_y_final = (
             make_reduction(lags=self.lags, y=y, X=X)
             .with_columns(
@@ -70,7 +70,7 @@ class censored_model(Forecaster):
         X_final, y_final = pl.collect_all(
             [
                 X_y_final.select(pl.all().exclude(target_col)),
-                X_y_final.select([*X_y_final.columns[:2], target_col]),
+                X_y_final.select([*X_y_final.collect_schema().names()[:2], target_col]),
             ]
         )
         fitted_classifier = self.classify(X=X_to_numpy(X_final), y=y_to_numpy(y_final))
@@ -98,12 +98,12 @@ class zero_inflated_model(censored_model):
 
     def __init__(
         self,
-        freq: Union[str, None],
+        freq: str | None,
         lags: int,
-        max_horizons: Optional[int] = None,
+        max_horizons: int | None = None,
         strategy: FORECAST_STRATEGIES = None,
-        regress: Optional[Callable] = None,
-        classify: Optional[Callable] = None,
+        regress: Callable | None = None,
+        classify: Callable | None = None,
         **kwargs,
     ):
         super().__init__(

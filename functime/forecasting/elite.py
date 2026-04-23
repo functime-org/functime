@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from functools import partial
-from typing import Any, Literal, Mapping, Optional, Union
+from typing import Any, Literal
 
 import polars as pl
 import polars.selectors as cs
@@ -63,17 +64,17 @@ class elite(Forecaster):
 
     def __init__(
         self,
-        freq: Union[str, None],
+        freq: str | None,
         lags: int,
-        sp: Optional[int] = None,
-        forecasters: Optional[Mapping[str, Forecaster]] = None,
-        model_kwargs: Optional[Mapping[str, Mapping[str, Any]]] = None,
+        sp: int | None = None,
+        forecasters: Mapping[str, Forecaster] | None = None,
+        model_kwargs: Mapping[str, Mapping[str, Any]] | None = None,
         ensemble_strategy: Literal["lasso", "log_lasso", "mean"] = "mean",
-        top_k: Optional[int] = None,
-        scoring: Optional[METRIC_TYPE] = None,
-        test_size: Optional[int] = None,
-        step_size: Optional[int] = None,
-        n_splits: Optional[int] = None,
+        top_k: int | None = None,
+        scoring: METRIC_TYPE | None = None,
+        test_size: int | None = None,
+        step_size: int | None = None,
+        n_splits: int | None = None,
         **kwargs,
     ):
         self.sp = sp or freq_to_sp(freq=freq)[0]
@@ -176,7 +177,7 @@ class elite(Forecaster):
         self,
         y_pred: pl.DataFrame,
         best_models: pl.DataFrame,
-        X: Optional[pl.DataFrame] = None,
+        X: pl.DataFrame | None = None,
     ) -> pl.DataFrame:
         top_k = self.top_k
         entity_col, time_col, target_col = y_pred.columns[:3]
@@ -199,20 +200,20 @@ class elite(Forecaster):
             )
             .sort([entity_col, time_col])
             .set_sorted([entity_col, time_col])
-            .collect(streaming=True)
+            .collect(engine="streaming")
         )
         if X is not None:
             X_stack = (
                 X_stack.lazy()
                 .join(X.lazy(), on=[entity_col, time_col], how="left")
-                .collect(streaming=True)
+                .collect(engine="streaming")
             )
         X_stack = X_stack.with_columns(
             trend=pl.col(time_col).arg_sort().over(entity_col)
         )
         return X_stack
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         freq = self.freq
         lags = self.lags
         top_k = self.top_k
@@ -255,7 +256,7 @@ class elite(Forecaster):
                 y_true = (
                     y_pred.select([entity_col, time_col])
                     .join(y.lazy(), on=[entity_col, time_col], how="left")
-                    .collect(streaming=True)
+                    .collect(engine="streaming")
                 )
                 scores = score(y_pred=y_pred, y_true=y_true).with_columns(
                     [
@@ -281,7 +282,7 @@ class elite(Forecaster):
             # Select top K scores
             .group_by(entity_col, maintain_order=True)
             .agg([pl.col("model_name").head(top_k), pl.col(metric_name).head(top_k)])
-            .collect(streaming=True)
+            .collect(engine="streaming")
         )
         full_y_preds = pl.concat(
             [
@@ -296,7 +297,7 @@ class elite(Forecaster):
             X_stack.select([entity_col, time_col])
             .lazy()
             .join(y.lazy(), on=[entity_col, time_col], how="left")
-            .collect(streaming=True)
+            .collect(engine="streaming")
         )
 
         final_regressor = None
@@ -326,7 +327,7 @@ class elite(Forecaster):
         }
         return artifacts
 
-    def predict(self, fh: int, X: Optional[pl.LazyFrame] = None):
+    def predict(self, fh: int, X: pl.LazyFrame | None = None):
         state = self.state
         entity_col = state.entity
         time_col = state.time

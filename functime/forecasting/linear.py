@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import polars as pl
 
 from functime.base import Forecaster
@@ -92,12 +90,12 @@ def _elastic_net_cv(**kwargs):
 class linear_model(Forecaster):
     """Autoregressive linear forecaster."""
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         kwargs = self.kwargs
         # Check dummy variable trap
         if (
             X is not None
-            and len(X.select(pl.col(pl.Categorical)).columns) > 0
+            and len(X.select(pl.col(pl.Categorical)).collect_schema().names()) > 0
             and kwargs.get("fit_intercept") is True
         ):
             raise ValueError(
@@ -118,7 +116,7 @@ class linear_model(Forecaster):
 class lasso(Forecaster):
     """Autoregressive LASSO forecaster."""
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         regress = _lasso(**self.kwargs)
         return fit_autoreg(
             regress=regress,
@@ -133,7 +131,7 @@ class lasso(Forecaster):
 class ridge(Forecaster):
     """Autoregressive Ridge forecaster."""
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         regress = _ridge(**self.kwargs)
         return fit_autoreg(
             regress=regress,
@@ -148,7 +146,7 @@ class ridge(Forecaster):
 class elastic_net(Forecaster):
     """Autoregressive ElasticNet forecaster."""
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         regress = _elastic_net(**self.kwargs)
         return fit_autoreg(
             regress=regress,
@@ -163,7 +161,7 @@ class elastic_net(Forecaster):
 class lasso_cv(Forecaster):
     """Autoregressive LassoCV forecaster."""
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         regress = _lasso_cv(**self.kwargs)
         return fit_autoreg(
             regress=regress,
@@ -178,7 +176,7 @@ class lasso_cv(Forecaster):
 class ridge_cv(Forecaster):
     """Autoregressive RidgeCV forecaster."""
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         regress = _ridge_cv(**self.kwargs)
         return fit_autoreg(
             regress=regress,
@@ -193,7 +191,7 @@ class ridge_cv(Forecaster):
 class elastic_net_cv(Forecaster):
     """Autoregressive ElasticNetCV forecaster."""
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         regress = _elastic_net_cv(**self.kwargs)
         return fit_autoreg(
             regress=regress,

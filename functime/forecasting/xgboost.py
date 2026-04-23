@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Optional, Union
+from collections.abc import Callable
 
 import numpy as np
 import polars as pl
@@ -13,7 +13,7 @@ from functime.forecasting._ar import fit_autoreg
 from functime.forecasting._regressors import GradientBoostedTreeRegressor
 
 
-def _enforce_label_constraint(y: pl.DataFrame, objective: Union[str, None]):
+def _enforce_label_constraint(y: pl.DataFrame, objective: str | None):
     target_col = y.columns[-1]
     if objective == "reg:gamma":
         y = y.with_columns(
@@ -33,11 +33,11 @@ def _enforce_label_constraint(y: pl.DataFrame, objective: Union[str, None]):
     return y
 
 
-def _xgboost(weight_transform: Optional[Callable] = None, **kwargs):
+def _xgboost(weight_transform: Callable | None = None, **kwargs):
     def regress(X: pl.DataFrame, y: pl.DataFrame):
         feature_cols = X.columns[2:]
 
-        def train(X: pa.Table, y: pa.Table, sample_weight: Optional[np.ndarray] = None):
+        def train(X: pa.Table, y: pa.Table, sample_weight: np.ndarray | None = None):
             dataset = DMatrix(
                 data=X,
                 label=y,
@@ -62,7 +62,7 @@ def _xgboost(weight_transform: Optional[Callable] = None, **kwargs):
 class xgboost(Forecaster):
     """Autoregressive XGBoost forecaster."""
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         y_new = y.pipe(
             _enforce_label_constraint, objective=self.kwargs.get("objective")
         )

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from typing import Literal, Mapping, Tuple, Union
+from collections.abc import Mapping
+from typing import Literal
 
 import polars as pl
 
 FORMAT_T = Literal["markdown_bullet_list", "freeform"]
 
 
-def format_dataframes(data: Union[pl.DataFrame, Mapping[str, pl.DataFrame]]) -> str:
+def format_dataframes(data: pl.DataFrame | Mapping[str, pl.DataFrame]) -> str:
     """Convert 1 or more polars DataFrames to Markdown"""
     outer = "\n\n```\n{}\n```\n\n"
     if isinstance(data, pl.DataFrame):
@@ -20,7 +21,7 @@ def format_dataframes(data: Union[pl.DataFrame, Mapping[str, pl.DataFrame]]) -> 
     return outer.format(inner)
 
 
-def format_instructions(format: FORMAT_T) -> Tuple[str, str]:
+def format_instructions(format: FORMAT_T) -> tuple[str, str]:
     if format == "markdown_bullet_list":
         return (
             "Analyze the following time series data in 8-10 bulletpoints.",

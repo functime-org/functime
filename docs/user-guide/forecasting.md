@@ -468,8 +468,8 @@ best_params = forecaster.best_params
 ## Backtesting
 
 Every `forecaster` and `auto_forecaster` has a `backtest` method.
-`functime` supports both [`expanding_window_split`](https://docs.functime.ai/ref/cross-validation/#functime.cross_validation.expanding_window_split)
-and [`sliding_window_split`](https://docs.functime.ai/ref/cross-validation/#functime.cross_validation.sliding_window_split) for backtesting and cross-validation.
+`functime` supports both [`expanding_window_split`](../api-reference/cross-validation.md#functime.cross_validation.expanding_window_split)
+and [`sliding_window_split`](../api-reference/cross-validation.md#functime.cross_validation.sliding_window_split) for backtesting and cross-validation.
 
 ```python
 from functime.forecasting import linear_model
