@@ -18,12 +18,9 @@ build-release:
 rebuild: clean build-release
 
 [group("Build")]
-[doc("Remove generated artefacts and caches")]
+[doc("Remove build artefacts")]
 clean:
-    rm -rf build/ dist/ *.egg-info
-    rm -rf target/
-    rm -rf .pytest_cache/ .ruff_cache/
-    rm -rf .uv/ .venv/
+    rm -rf build/ dist/ *.egg-info target/
 
 [group("Dev")]
 [doc("Install all dev dependencies using the lockfile")]

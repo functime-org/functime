@@ -161,4 +161,4 @@ requires = [
 ]
 
 [tool.uv]
-required-version = ">=0.7.8"
+required-version = ">=0.8"
