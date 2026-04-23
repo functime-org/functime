@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Optional, Union
+from collections.abc import Callable
 
 import numpy as np
 import polars as pl
@@ -12,7 +12,7 @@ from functime.forecasting._ar import fit_autoreg
 from functime.forecasting._regressors import GradientBoostedTreeRegressor
 
 
-def _enforce_label_constraint(y: pl.DataFrame, loss_function: Union[str, None]):
+def _enforce_label_constraint(y: pl.DataFrame, loss_function: str | None):
     target_col = y.columns[-1]
     if loss_function in ["Tweedie", "Poisson"]:
         # Fill values less than 0 with 0
@@ -25,14 +25,14 @@ def _enforce_label_constraint(y: pl.DataFrame, loss_function: Union[str, None]):
     return y
 
 
-def _catboost(weight_transform: Optional[Callable] = None, **kwargs):
+def _catboost(weight_transform: Callable | None = None, **kwargs):
     def regress(X: pl.DataFrame, y: pl.DataFrame):
         idx_cols = X.columns[:2]
         feature_cols = X.columns[2:]
         categorical_cols = X.select(pl.col(pl.Categorical).exclude(idx_cols)).columns
 
         def train(
-            X: np.ndarray, y: np.ndarray, sample_weight: Optional[np.ndarray] = None
+            X: np.ndarray, y: np.ndarray, sample_weight: np.ndarray | None = None
         ):
             pool = Pool(
                 data=X,
@@ -54,7 +54,7 @@ def _catboost(weight_transform: Optional[Callable] = None, **kwargs):
 class catboost(Forecaster):
     """Autoregressive Catboost forecaster."""
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         y_new = y.pipe(
             _enforce_label_constraint, loss_function=self.kwargs.get("loss_function")
         )

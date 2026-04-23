@@ -12,7 +12,8 @@ def df_to_ndarray(df: pl.DataFrame) -> np.ndarray:
 def X_to_numpy(X: pl.DataFrame) -> np.ndarray:
     X_arr = (
         X.lazy()
-        .select(pl.col(X.columns[2:]).cast(pl.Float32))
+        .drop(pl.nth([0, 1]))
+        .select(pl.all().cast(pl.Float32))
         .select(
             pl.when(pl.all().is_infinite() | pl.all().is_nan())
             .then(None)
@@ -21,7 +22,7 @@ def X_to_numpy(X: pl.DataFrame) -> np.ndarray:
         )
         # TODO: Support custom group_by imputation
         .fill_null(strategy="mean")  # Do not fill backward (data leak)
-        .collect(streaming=True)
+        .collect(engine="streaming")
         .pipe(df_to_ndarray)
     )
     return X_arr
@@ -39,7 +40,7 @@ def y_to_numpy(y: pl.DataFrame) -> np.ndarray:
         )
         # TODO: Support custom group_by imputation
         .fill_null(strategy="mean")  # Do not fill backward (data leak)
-        .collect(streaming=True)
+        .collect(engine="streaming")
         .get_column(y.columns[-1])
         .to_numpy()  # TODO: Cannot require zero-copy array?
     )

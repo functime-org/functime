@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Tuple
-
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -105,7 +103,7 @@ def stats(request):
     return request.param
 
 
-def pd_lag(X: pd.DataFrame, lags: List[int]) -> pd.DataFrame:
+def pd_lag(X: pd.DataFrame, lags: list[int]) -> pd.DataFrame:
     """Lag values in panel pd.DataFrame by `lags` and suffix k-lag
     column names with `_lag_{k}`. Includes original columns.
     """
@@ -117,7 +115,7 @@ def pd_lag(X: pd.DataFrame, lags: List[int]) -> pd.DataFrame:
     return X.join(pd.concat(X_lags, axis=1))
 
 
-def pd_roll(X: pd.DataFrame, window_sizes: List[int], stats: str):
+def pd_roll(X: pd.DataFrame, window_sizes: list[int], stats: str):
     # Pandas currently does not support group_by with rolling on multi-index
     # See: https://github.com/pandas-dev/pandas/issues/34642
     # To bypass this, we perform a few pivots so that the rolling
@@ -140,7 +138,7 @@ def pd_roll(X: pd.DataFrame, window_sizes: List[int], stats: str):
             X_stats.append(X_stat)
         X_window = (
             pd.concat(X_stats, axis=1)
-            .stack(dropna=False)
+            .stack()
             .reorder_levels([1, 0], axis=0)
         )
         X_window_sizes.append(X_window)
@@ -150,15 +148,15 @@ def pd_roll(X: pd.DataFrame, window_sizes: List[int], stats: str):
 
 @pytest.fixture
 def lagged_pd_dataframe(
-    pd_X: pd.DataFrame, lags: List[int]
-) -> Tuple[List[int], pd.DataFrame]:
+    pd_X: pd.DataFrame, lags: list[int]
+) -> tuple[list[int], pd.DataFrame]:
     return lags, pd_lag(pd_X, lags=lags)
 
 
 @pytest.fixture
 def rolling_pd_dataframe(
-    pd_X: pd.DataFrame, window_sizes: List[int], stats: List[str]
-) -> Tuple[List[int], List[int], pd.DataFrame]:
+    pd_X: pd.DataFrame, window_sizes: list[int], stats: list[str]
+) -> tuple[list[int], list[int], pd.DataFrame]:
     return window_sizes, stats, pd_roll(pd_X, window_sizes=window_sizes, stats=stats)
 
 
@@ -188,7 +186,7 @@ def test_roll(pd_X, rolling_pd_dataframe, benchmark):
         lambda: roll(window_sizes=window_sizes, stats=stats, freq="1d")(X=X).collect()
     )
     expected = df.reset_index().loc[:, result.columns]
-    assert_frame_equal(result, pl.DataFrame(expected), check_exact=False, rtol=0.01)
+    assert_frame_equal(result, pl.DataFrame(expected), check_exact=False, rel_tol=0.01)
 
 
 def test_scale(pd_X):
@@ -203,7 +201,7 @@ def test_scale(pd_X):
     X_new = X.pipe(transformer).collect()
     assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()))
     X_original = X_new.pipe(transformer.invert)
-    assert_frame_equal(X_original, X, check_dtype=False)
+    assert_frame_equal(X_original, X, check_dtypes=False)
 
 
 @pytest.mark.parametrize("sp", [1])
@@ -228,7 +226,7 @@ def test_diff(pd_X, sp):
     assert_frame_equal(
         X_original.sort(idx_cols).collect(),
         X_new.select(idx_cols).join(X, on=idx_cols, how="left").collect(),
-        check_dtype=False,
+        check_dtypes=False,
     )
 
 
@@ -248,7 +246,7 @@ def test_boxcox(pd_X):
     X_new = X.pipe(transformer).collect()
     assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()))
     X_original = X_new.pipe(transformer.invert)
-    assert_frame_equal(X_original, X, check_dtype=False)
+    assert_frame_equal(X_original, X, check_dtypes=False)
 
 
 def test_yeojohnson(pd_X):
@@ -265,7 +263,7 @@ def test_yeojohnson(pd_X):
     X_new = X.pipe(transformer).collect()
     assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()))
     X_original = X_new.pipe(transformer.invert)
-    assert_frame_equal(X_original, X, check_dtype=False)
+    assert_frame_equal(X_original, X, check_dtypes=False)
 
 
 @pytest.mark.parametrize("method", ["linear", "mean"])
@@ -278,10 +276,10 @@ def test_detrend(method, pd_X):
     X = pl.from_pandas(pd_X.reset_index()).lazy()
     transformer = detrend(method=method, freq="1d")
     X_new = X.pipe(transformer).collect()
-    assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()), rtol=1e-10)
+    assert_frame_equal(X_new, pl.DataFrame(expected.reset_index()), rel_tol=1e-10)
 
     X_inverted = X_new.pipe(transformer.invert).collect()
-    assert_frame_equal(X_original, X_inverted, check_dtype=False, rtol=1e-10)
+    assert_frame_equal(X_original, X_inverted, check_dtypes=False, rel_tol=1e-10)
 
 
 def pd_fractional_diff(df, d, thres):
@@ -346,8 +344,8 @@ def test_fractional_diff(pd_X):
 @pytest.mark.benchmark(group="fractional_diff")
 def test_fractional_diff_benchmark_functime(pd_X, benchmark):
     X = pl.from_pandas(pd_X.reset_index()).lazy()
-    entity_col = pd_X.index.names[0]
-    time_col = pd_X.index.names[1]
+    pd_X.index.names[0]
+    pd_X.index.names[1]
     transformer = fractional_diff(d=0.5, min_weight=1e-3)
     X_new = X.pipe(transformer)
     benchmark(X_new.collect)

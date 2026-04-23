@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional, Union
-
 import polars as pl
 
 from functime.base import Forecaster
@@ -20,10 +18,11 @@ class naive(Forecaster):
     def __init__(self, freq: str):
         super().__init__(freq=freq, lags=1)
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
-        idx_cols = y.columns[:2]
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
+        _ycols = y.collect_schema().names()
+        idx_cols = _ycols[:2]
         entity_col = idx_cols[0]
-        target_col = y.columns[2]
+        target_col = _ycols[2]
         # BUG: Cannot run the following in lazy streaming mode?
         # Causes internal error: entered unreachable code
         y_pred = (
@@ -36,7 +35,7 @@ class naive(Forecaster):
         return artifacts
 
     def predict(
-        self, fh: int, X: Optional[Union[pl.DataFrame, pl.LazyFrame]] = None
+        self, fh: int, X: pl.DataFrame | pl.LazyFrame | None = None
     ) -> pl.DataFrame:
         state = self.state
         entity = state.entity

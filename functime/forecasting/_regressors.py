@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Callable, Literal, Optional, Union
+from collections.abc import Callable
+from typing import Literal
 
 import numpy as np
 import polars as pl
@@ -16,9 +17,9 @@ class GradientBoostedTreeRegressor:
     def __init__(
         self,
         regress,
-        weight_transform: Optional[Callable] = None,
+        weight_transform: Callable | None = None,
         fit_dtype: Literal["numpy", "arrow"] = None,
-        predict_dtype: Union[Literal["numpy", "arrow"], Callable] = None,
+        predict_dtype: Literal["numpy", "arrow"] | Callable = None,
     ):
         self.regress = regress
         self.regressor = None
@@ -104,7 +105,7 @@ class SklearnRegressor:
 class CensoredRegressor:
     def __init__(
         self,
-        threshold: Union[int, float],
+        threshold: int | float,
         regress,
         predict_proba,
     ):
@@ -152,9 +153,9 @@ class FLAMLRegressor:
 
     def __init__(
         self,
-        time_budget: Optional[int] = None,
-        max_iter: Optional[int] = None,
-        metric: Optional[str] = None,
+        time_budget: int | None = None,
+        max_iter: int | None = None,
+        metric: str | None = None,
         **kwargs,
     ):
         self.time_budget = time_budget or 30

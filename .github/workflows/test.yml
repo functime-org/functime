@@ -14,12 +14,18 @@ jobs:
   test:
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python 3
-        uses: actions/setup-python@v3
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -29,26 +35,15 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
 
-      - name: Create virtual environment
-        run: python3 -m venv venv
-
       - name: Install functime
         env:
           RUSTFLAGS: -C debuginfo=0  # Do not produce debug symbols to keep memory usage down
         run: |
-          source venv/bin/activate
-          python3 -m pip install --upgrade pip
-          python3 -m pip install maturin
-          maturin develop --extras=test,cat,xgb,lgb
-
-      - name: Install extra dependencies
-        run: |
-          source venv/bin/activate
-          python3 -m pip install --upgrade pip
+          uv sync --python ${{ matrix.python-version }} --extra cat --extra xgb --extra lgb --locked
+          uv run --with "maturin>=1.5" -- maturin develop --extras=cat,xgb,lgb
 
       - name: Test
         env:
           FUNCTIME__TEST_MODE: "true"
         run: |
-          source venv/bin/activate
-          pytest tests -vv --show-capture=no --tb=line --benchmark-disable -k "not test_benchmarks"
+          uv run pytest tests -vv --show-capture=no --tb=line --benchmark-disable -k "not test_benchmarks"

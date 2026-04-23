@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, List, Literal, Mapping, Optional, Union
+from collections.abc import Callable, Mapping
+from typing import Any, Literal
 
 import numpy as np
 import polars as pl
@@ -25,24 +26,26 @@ def fit_recursive(
     regress: Callable[[pl.LazyFrame, pl.LazyFrame], Any],
     lags: int,
     y: pl.LazyFrame,
-    X: Optional[pl.LazyFrame] = None,
+    X: pl.LazyFrame | None = None,
 ) -> Mapping[str, Any]:
     # 1. Impose AR structure
-    target_col = y.columns[-1]
+    y_columns = y.collect_schema().names()
+    target_col = y_columns[-1]
     X_y_final = make_reduction(lags=lags, y=y, X=X).lazy()
+    X_y_final_columns = X_y_final.collect_schema().names()
     X_final, y_final = pl.collect_all(
         [
             X_y_final.select(pl.all().exclude(target_col)),
-            X_y_final.select([*X_y_final.columns[:2], target_col]),
+            X_y_final.select([*X_y_final_columns[:2], target_col]),
         ]
     )
     # 2. Fit
     fitted_regressor = regress(X=X_final, y=y_final)
     # 3. Collect artifacts
-    y_lag = make_y_lag(X_y_final, target_col=y.columns[-1], lags=lags)
+    y_lag = make_y_lag(X_y_final, target_col=y_columns[-1], lags=lags)
     artifacts = {
         "regressor": fitted_regressor,
-        "y_lag": y_lag.collect(streaming=True),
+        "y_lag": y_lag.collect(engine="streaming"),
     }
     return artifacts
 
@@ -52,11 +55,11 @@ def fit_direct(
     lags: int,
     max_horizons: int,
     y: pl.LazyFrame,
-    X: Optional[pl.LazyFrame] = None,
+    X: pl.LazyFrame | None = None,
 ) -> Mapping[str, Any]:
-    idx_cols = y.columns[:2]
-    target_col = y.columns[-1]
-    feature_cols = X.columns[2:] if X is not None else []
+    idx_cols = y.collect_schema().names()[:2]
+    target_col = y.collect_schema().names()[-1]
+    feature_cols = X.collect_schema().names()[2:] if X is not None else []
     # 1. Impose AR structure
     X_y_final = make_direct_reduction(lags=lags, max_horizons=max_horizons, y=y, X=X)
     # 2. Fit
@@ -69,10 +72,10 @@ def fit_direct(
         fitted_regressor = regress(X=X_final, y=y_final)
         fitted_regressors.append(fitted_regressor)
     # 3. Collect artifacts
-    y_lag = make_y_lag(X_y_final, target_col=y.columns[-1], lags=lags + max_horizons)
+    y_lag = make_y_lag(X_y_final, target_col=y.collect_schema().names()[-1], lags=lags + max_horizons)
     artifacts = {
         "regressors": fitted_regressors,
-        "y_lag": y_lag.collect(streaming=True),
+        "y_lag": y_lag.collect(engine="streaming"),
     }
     return artifacts
 
@@ -80,10 +83,10 @@ def fit_direct(
 def fit_autoreg(
     regress: Callable[[pl.LazyFrame, pl.LazyFrame], Any],
     lags: int,
-    y: Union[pl.DataFrame, pl.LazyFrame],
-    X: Optional[Union[pl.DataFrame, pl.LazyFrame]] = None,
-    max_horizons: Optional[int] = None,
-    strategy: Optional[Literal["direct", "recursive", "naive"]] = None,
+    y: pl.DataFrame | pl.LazyFrame,
+    X: pl.DataFrame | pl.LazyFrame | None = None,
+    max_horizons: int | None = None,
+    strategy: Literal["direct", "recursive", "naive"] | None = None,
 ) -> Mapping[str, Any]:
     y = y.lazy()
     X = X.lazy() if X is not None else X
@@ -114,23 +117,21 @@ def fit_autoreg(
 def fit_cv(  # noqa: Ruff too complex
     y: pl.LazyFrame,
     forecaster_cls,
-    freq: Union[str, None],
+    freq: str | None,
     min_lags: int = 3,
     max_lags: int = 12,
-    max_horizons: Optional[int] = None,
-    strategy: Optional[Literal["direct", "recursive", "naive"]] = None,
+    max_horizons: int | None = None,
+    strategy: Literal["direct", "recursive", "naive"] | None = None,
     test_size: int = 1,
     step_size: int = 1,
     n_splits: int = 5,
     time_budget: int = 5,
-    search_space: Optional[Mapping[str, Domain]] = None,
-    points_to_evaluate: Optional[List[Mapping[str, Any]]] = None,
-    low_cost_partial_config: Optional[Mapping[str, Any]] = None,
+    search_space: Mapping[str, Domain] | None = None,
+    points_to_evaluate: list[Mapping[str, Any]] | None = None,
+    low_cost_partial_config: Mapping[str, Any] | None = None,
     num_samples: int = -1,
-    cv: Optional[
-        Callable[[pl.LazyFrame, bool, bool], Union[pl.LazyFrame, pl.DataFrame]]
-    ] = None,
-    X: Optional[pl.LazyFrame] = None,
+    cv: Callable[..., Any] | None = None,
+    X: pl.LazyFrame | None = None,
     **kwargs,
 ) -> Mapping[str, Any]:
     # TODO: Consolidate logging
@@ -153,25 +154,25 @@ def fit_cv(  # noqa: Ruff too complex
     lags_path = list(range(min_lags, max_lags + 1))
     scores_path = []
     for lags in (pbar := tqdm(lags_path, desc=f"Evaluating n={min(lags_path)} lags")):
-        score, params = evaluate(
-            **{
-                "lags": lags,
-                "n_splits": n_splits,
-                "time_budget": time_budget,
-                "points_to_evaluate": points_to_evaluate,
-                "num_samples": num_samples,
-                "low_cost_partial_config": low_cost_partial_config,
-                "search_space": search_space,
-                "test_size": test_size,
-                "max_horizons": max_horizons,
-                "strategy": strategy,
-                "freq": freq,
-                "forecaster_cls": forecaster_cls,
-                "y_splits": y_splits,
-                "X_splits": X_splits,
-                "include_best_params": True,
-            },
+        result = evaluate(
+            lags=lags,
+            n_splits=n_splits,
+            time_budget=time_budget,
+            points_to_evaluate=points_to_evaluate,
+            num_samples=num_samples,
+            low_cost_partial_config=low_cost_partial_config,
+            search_space=search_space,
+            test_size=test_size,
+            max_horizons=max_horizons,
+            strategy=strategy,
+            freq=freq,
+            forecaster_cls=forecaster_cls,
+            y_splits=y_splits,
+            X_splits=X_splits,
+            include_best_params=True,
         )
+        assert isinstance(result, tuple)
+        score, params = result
         scores_path.append(score)
         if score < best_score:
             best_score = score
@@ -215,7 +216,7 @@ def fit_cv(  # noqa: Ruff too complex
 def predict_recursive(
     state,
     fh: int,
-    X: Optional[pl.DataFrame] = None,
+    X: pl.DataFrame | None = None,
 ) -> pl.DataFrame:
     artifacts = state.artifacts
     if "recursive" in artifacts.keys():
@@ -273,7 +274,7 @@ def predict_recursive(
 # (values are aggregated into list before being passed into predict)
 
 
-def predict_direct(state, fh: int, X: Optional[pl.DataFrame] = None) -> pl.DataFrame:
+def predict_direct(state, fh: int, X: pl.DataFrame | None = None) -> pl.DataFrame:
     entity_col = state.entity
     time_col = state.time
     target_col = state.target
@@ -336,7 +337,7 @@ def predict_direct(state, fh: int, X: Optional[pl.DataFrame] = None) -> pl.DataF
 def predict_autoreg(
     state,
     fh: int,
-    X: Optional[Union[pl.DataFrame, pl.LazyFrame]] = None,
+    X: pl.DataFrame | pl.LazyFrame | None = None,
 ) -> pl.DataFrame:
     strategy = state.strategy
     time_col = state.time

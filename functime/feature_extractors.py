@@ -2,39 +2,56 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import List, Mapping, Optional, Sequence, Union
+from collections.abc import Mapping, Sequence
+from pathlib import Path
 
 import numpy as np
 import polars as pl
-from polars.type_aliases import ClosedInterval
-from polars.utils.udfs import _get_shared_lib_location
+from polars._typing import ClosedInterval
 
 # from numpy.linalg import lstsq
 from scipy.linalg import lstsq
-from scipy.signal import find_peaks_cwt, ricker, welch
+from scipy.signal import find_peaks_cwt, welch
 from scipy.spatial import KDTree
 
+from functime._compat import register_plugin_function, rle_fields
 from functime._functime_rust import rs_faer_lstsq1
 from functime._utils import warn_is_unstable
 from functime.type_aliases import DetrendMethod
+
+
+def _ricker(points: int, a: float) -> np.ndarray:
+    """Ricker wavelet (Mexican hat), replacing the removed scipy.signal.ricker."""
+    A = 2 / (np.sqrt(3 * a) * (np.pi**0.25))
+    wsq = a**2
+    vec = np.arange(0, points) - (points - 1.0) / 2
+    xsq = vec**2
+    mod = 1 - xsq / wsq
+    gauss = np.exp(-xsq / (2 * wsq))
+    return A * mod * gauss
 
 # from functime.feature_extractor import FeatureExtractor  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
-TIME_SERIES_T = Union[pl.Series, pl.Expr]
-FLOAT_EXPR = Union[float, pl.Expr]
-FLOAT_INT_EXPR = Union[int, float, pl.Expr]
-INT_EXPR = Union[int, pl.Expr]
-LIST_EXPR = Union[list, pl.Expr]
-BOOL_EXPR = Union[bool, pl.Expr]
-MAP_EXPR = Union[Mapping[str, float], pl.Expr]
-MAP_LIST_EXPR = Union[Mapping[str, List[float]], pl.Expr]
+TIME_SERIES_T = pl.Series | pl.Expr
+FLOAT_EXPR = float | pl.Expr
+FLOAT_INT_EXPR = int | float | pl.Expr
+INT_EXPR = int | pl.Expr
+LIST_EXPR = list | pl.Expr
+BOOL_EXPR = bool | pl.Expr
+MAP_EXPR = Mapping[str, float] | pl.Expr
+MAP_LIST_EXPR = Mapping[str, list[float]] | pl.Expr
 
 
 # from polars.type_aliases import IntoExpr
 
-lib = _get_shared_lib_location(__file__)
+try:
+    from polars.utils.udfs import _get_shared_lib_location
+
+    lib = _get_shared_lib_location(__file__)
+except ImportError:
+    lib = Path(__file__).parent
 
 
 def absolute_energy(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
@@ -194,7 +211,7 @@ def augmented_dickey_fuller(x: TIME_SERIES_T, n_lags: int) -> float:
             ),
             pl.lit(1),
         )  # was a frame
-        y = data_x.drop_in_place("0").to_numpy(zero_copy_only=True)
+        y = data_x.drop_in_place("0").to_numpy(allow_copy=False)
         data_x = data_x.to_numpy()  # to NumPy matrix
 
         coeffs, resids, _, _ = lstsq(data_x, y, cond=None)
@@ -242,7 +259,7 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     return y1.dot(y2) / (var * range_)
 
 
-def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
+def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> list[float]:
     """
     Computes coefficients for an AR(`n_lags`) process. This only works for Series input
     right now. Caution: Any Null Value in Series will replaced by 0!
@@ -272,7 +289,7 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> List[float]:
             )
             .to_numpy()
         )
-        y_ = y.tail(length).to_numpy(zero_copy_only=True).reshape((-1, 1))
+        y_ = y.tail(length).to_numpy(allow_copy=False).reshape((-1, 1))
         out: np.ndarray = rs_faer_lstsq1(data_x, y_)
         return out.ravel()
     else:
@@ -571,7 +588,7 @@ def count_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
 
 def cwt_coefficients(
     x: TIME_SERIES_T, widths: Sequence[int] = (2, 5, 10, 20), n_coefficients: int = 14
-) -> List[float]:
+) -> list[float]:
     """
     Calculates a Continuous wavelet transform for the Ricker wavelet.
 
@@ -592,9 +609,9 @@ def cwt_coefficients(
         convolution = np.empty((len(widths), x.len()), dtype=np.float32)
         for i, width in enumerate(widths):
             points = np.min([10 * width, x.len()])
-            wavelet_x = np.conj(ricker(points, width)[::-1])
+            wavelet_x = np.conj(_ricker(points, width)[::-1])
             convolution[i] = np.convolve(
-                x.to_numpy(zero_copy_only=True), wavelet_x, mode="same"
+                x.to_numpy(allow_copy=False), wavelet_x, mode="same"
             )
         coeffs = []
         for coeff_idx in range(min(n_coefficients, convolution.shape[1])):
@@ -694,7 +711,7 @@ def fourier_entropy(x: TIME_SERIES_T, n_bins: int = 10) -> float:
         if len(x) == 1:
             return np.nan
         else:
-            _, pxx = welch(x, nperseg=min(x.len(), 256))
+            _, pxx = welch(x.to_numpy(), nperseg=min(x.len(), 256))
             pxx_as_series = pl.Series(pxx)
             return binned_entropy(pxx_as_series / pxx_as_series.max(), n_bins)
     else:
@@ -743,8 +760,8 @@ def friedrich_coefficients(
         # This is a Vandermonde matrix. May have shortcuts in our use case, as again length >> degree.
         # Not sure if NumPy is taking advantage of this though.
         return np.polyfit(
-            x_means.get_column("signal").to_numpy(zero_copy_only=True),
-            x_means.get_column("delta").to_numpy(zero_copy_only=True),
+            x_means.get_column("signal").to_numpy(allow_copy=False),
+            x_means.get_column("delta").to_numpy(allow_copy=False),
             deg=polynomial_order,
         )
     else:
@@ -899,7 +916,7 @@ def last_location_of_minimum(x: TIME_SERIES_T) -> FLOAT_EXPR:
 
 
 def lempel_ziv_complexity(
-    x: TIME_SERIES_T, threshold: Union[float, pl.Expr], as_ratio: bool = True
+    x: TIME_SERIES_T, threshold: float | pl.Expr, as_ratio: bool = True
 ) -> FLOAT_EXPR:
     """
     Calculate a complexity estimate based on the Lempel-Ziv compression algorithm. The
@@ -995,12 +1012,16 @@ def longest_streak_above_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     y = (x > x.mean()).rle()
     if isinstance(x, pl.Series):
-        result = y.filter(y.struct.field("values")).struct.field("lengths").max()
+        result = (
+            y.filter(y.struct.field(rle_fields["value"]))
+            .struct.field(rle_fields["len"])
+            .max()
+        )
         return 0 if result is None else result
     else:
         return (
-            y.filter(y.struct.field("values"))
-            .struct.field("lengths")
+            y.filter(y.struct.field(rle_fields["value"]))
+            .struct.field(rle_fields["len"])
             .max()
             .fill_null(0)
         )
@@ -1024,12 +1045,16 @@ def longest_streak_below_mean(x: TIME_SERIES_T) -> INT_EXPR:
     """
     y = (x < x.mean()).rle()
     if isinstance(x, pl.Series):
-        result = y.filter(y.struct.field("values")).struct.field("lengths").max()
+        result = (
+            y.filter(y.struct.field(rle_fields["value"]))
+            .struct.field(rle_fields["len"])
+            .max()
+        )
         return 0 if result is None else result
     else:
         return (
-            y.filter(y.struct.field("values"))
-            .struct.field("lengths")
+            y.filter(y.struct.field(rle_fields["value"]))
+            .struct.field(rle_fields["len"])
             .max()
             .fill_null(0)
         )
@@ -1183,9 +1208,9 @@ def number_cwt_peaks(x: TIME_SERIES_T, max_width: int = 5) -> float:
     if isinstance(x, pl.Series):
         return len(
             find_peaks_cwt(
-                vector=x.to_numpy(zero_copy_only=True),
+                vector=x.to_numpy(allow_copy=False),
                 widths=np.array(list(range(1, max_width + 1))),
-                wavelet=ricker,
+                wavelet=_ricker,
             )
         )
     else:
@@ -1255,12 +1280,12 @@ def number_peaks(x: TIME_SERIES_T, support: int) -> INT_EXPR:
 
     Hence in the sequence
 
-    x = [3, 0, 0, 4, 0, 0, 13]
+    ``x = [3, 0, 0, 4, 0, 0, 13]``
 
     4 is a peak of support 1 and 2 because in the subsequences
 
-    [0, 4, 0]
-    [0, 0, 4, 0, 0]
+    ``[0, 4, 0]``
+    ``[0, 0, 4, 0, 0]``
 
     4 is still the highest value. Here, 4 is not a peak of support 3 because 13 is the 3th neighbour to the right of 4
     and its bigger than 4.
@@ -1504,7 +1529,7 @@ def sample_entropy(x: TIME_SERIES_T, ratio: float = 0.2, m: int = 2) -> FLOAT_EX
 
 
 # Need to improve the input arguments depending on use cases.
-def spkt_welch_density(x: TIME_SERIES_T, n_coeffs: Optional[int] = None) -> LIST_EXPR:
+def spkt_welch_density(x: TIME_SERIES_T, n_coeffs: int | None = None) -> LIST_EXPR:
     """
     This estimates the cross power spectral density of the time series x at different frequencies.
     This only works for Series input right now.
@@ -1752,7 +1777,7 @@ def streak_length_stats(x: TIME_SERIES_T, above: bool, threshold: float) -> MAP_
     else:
         y = (x.diff() <= threshold).rle()
 
-    y = y.filter(y.struct.field("values")).struct.field("lengths")
+    y = y.filter(y.struct.field(rle_fields["value"])).struct.field(rle_fields["len"])
     if isinstance(x, pl.Series):
         return {
             "min": y.min() or 0,
@@ -1797,12 +1822,16 @@ def longest_streak_above(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
 
     y = (x.diff() >= threshold).rle()
     if isinstance(x, pl.Series):
-        streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
+        streak_max = (
+            y.filter(y.struct.field(rle_fields["value"]))
+            .struct.field(rle_fields["len"])
+            .max()
+        )
         return 0 if streak_max is None else streak_max
     else:
         return (
-            y.filter(y.struct.field("values"))
-            .struct.field("lengths")
+            y.filter(y.struct.field(rle_fields["value"]))
+            .struct.field(rle_fields["len"])
             .max()
             .fill_null(0)
         )
@@ -1827,12 +1856,16 @@ def longest_streak_below(x: TIME_SERIES_T, threshold: float) -> TIME_SERIES_T:
     """
     y = (x.diff() <= threshold).rle()
     if isinstance(x, pl.Series):
-        streak_max = y.filter(y.struct.field("values")).struct.field("lengths").max()
+        streak_max = (
+            y.filter(y.struct.field(rle_fields["value"]))
+            .struct.field(rle_fields["len"])
+            .max()
+        )
         return 0 if streak_max is None else streak_max
     else:
         return (
-            y.filter(y.struct.field("values"))
-            .struct.field("lengths")
+            y.filter(y.struct.field(rle_fields["value"]))
+            .struct.field(rle_fields["len"])
             .max()
             .fill_null(0)
         )
@@ -1884,16 +1917,13 @@ def fft_coefficients(x: TIME_SERIES_T) -> MAP_LIST_EXPR:
     ----------
     x : pl.Expr | pl.Series
         Input time series.
-    n_threads : int
-        Number of threads to use.
-        If None, uses all threads available. Defaults to None.
 
     Returns
     -------
     dict of list of floats | Expr
     """
 
-    fft = np.fft.rfft(x.to_numpy(zero_copy_only=True))
+    fft = np.fft.rfft(x.to_numpy(allow_copy=False))
     real = fft.real
     imag = fft.imag
     angle = np.arctan2(real, imag)
@@ -2068,11 +2098,6 @@ class FeatureExtractor:
         """
         Count the number of values that are above the mean.
 
-        Parameters
-        ----------
-        x : pl.Expr | pl.Series
-            Input time-series.
-
         Returns
         -------
         An expression of the output
@@ -2228,7 +2253,7 @@ class FeatureExtractor:
         return last_location_of_minimum(self._expr)
 
     def lempel_ziv_complexity(
-        self, threshold: Union[float, pl.Expr], as_ratio: bool = True
+        self, threshold: float | pl.Expr, as_ratio: bool = True
     ) -> pl.Expr:
         """
         Calculate a complexity estimate based on the Lempel-Ziv compression algorithm. The
@@ -2238,8 +2263,6 @@ class FeatureExtractor:
 
         Parameters
         ----------
-        x : pl.Expr | pl.Series
-            Input time-series.
         threshold: float | pl.Expr
             Either a number, or an expression representing a comparable quantity. If x > threshold,
             then it will be binarized as 1 and 0 otherwise.
@@ -2255,9 +2278,10 @@ class FeatureExtractor:
         https://github.com/Naereen/Lempel-Ziv_Complexity/tree/master
         https://en.wikipedia.org/wiki/Lempel%E2%80%93Ziv_complexity
         """
-        out = (self._expr > threshold).register_plugin(
-            lib=lib,
-            symbol="pl_lempel_ziv_complexity",
+        out = register_plugin_function(
+            args=[self._expr > threshold],
+            plugin_path=lib,
+            function_name="pl_lempel_ziv_complexity",
             is_elementwise=False,
             returns_scalar=True,
         )
@@ -2470,12 +2494,12 @@ class FeatureExtractor:
 
         Hence in the sequence
 
-        x = [3, 0, 0, 4, 0, 0, 13]
+        ``x = [3, 0, 0, 4, 0, 0, 13]``
 
         4 is a peak of support 1 and 2 because in the subsequences
 
-        [0, 4, 0]
-        [0, 0, 4, 0, 0]
+        ``[0, 4, 0]``
+        ``[0, 0, 4, 0, 0]``
 
         4 is still the highest value. Here, 4 is not a peak of support 3 because 13 is the 3th neighbour to the right of 4
         and its bigger than 4.
@@ -2766,23 +2790,24 @@ class FeatureExtractor:
         -------
         An expression of the output
         """
-        return self._expr.register_plugin(
-            lib=lib,
-            symbol="cusum",
+        return register_plugin_function(
+            args=[self._expr],
+            plugin_path=lib,
+            function_name="cusum",
             kwargs={
                 "threshold": threshold,
                 "drift": drift,
                 "warmup_period": warmup_period,
             },
             is_elementwise=False,
-            cast_to_supertypes=True,
+            cast_to_supertype=True,
         )
 
     def frac_diff(
         self,
         d: float,
-        min_weight: Optional[float] = None,
-        window_size: Optional[int] = None,
+        min_weight: float | None = None,
+        window_size: int | None = None,
     ) -> pl.Expr:
         """Compute the fractional differential of a time series.
 
@@ -2815,14 +2840,15 @@ class FeatureExtractor:
         if min_weight is None and window_size is None:
             raise ValueError("Either min_weight or window_size must be specified.")
 
-        return self._expr.register_plugin(
-            lib=lib,
-            symbol="frac_diff",
+        return register_plugin_function(
+            args=[self._expr],
+            plugin_path=lib,
+            function_name="frac_diff",
             kwargs={
                 "d": d,
                 "min_weight": min_weight,
                 "window_size": window_size,
             },
             is_elementwise=False,
-            cast_to_supertypes=True,
+            cast_to_supertype=True,
         )

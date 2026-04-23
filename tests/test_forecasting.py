@@ -127,7 +127,7 @@ def test_forecaster_on_m4(forecaster, m4_dataset):
     (i.e. averaged across all time-series) is less than 0.3
     """
     y_train, y_test, fh, _ = m4_dataset
-    y_pred = forecaster(freq="1i")(y=y_train, fh=fh)
+    forecaster(freq="1i")(y=y_train, fh=fh)
     # _check_missing_values(y_train.lazy(), y_pred.lazy(), y_pred.columns[0])
     # _check_m4_score(y_test, y_pred)
 
@@ -135,7 +135,7 @@ def test_forecaster_on_m4(forecaster, m4_dataset):
 @pytest.mark.slow
 def test_auto_on_m4(auto_forecaster, m4_dataset):
     y_train, y_test, fh, _ = m4_dataset
-    y_pred = auto_forecaster(freq="1i")(y=y_train, fh=fh)
+    auto_forecaster(freq="1i")(y=y_train, fh=fh)
     # _check_missing_values(y_train.lazy(), y_pred.lazy(), y_pred.columns[0])
     # _check_m4_score(y_test, y_pred)
 
@@ -146,9 +146,7 @@ def test_forecaster_on_m5(forecaster, m5_dataset, benchmark):
     overall RMSSE (i.e. averaged across all time-series) is less than 2.
     """
     y_train, X_train, y_test, X_test, fh, freq = m5_dataset
-    y_pred = benchmark(
-        lambda: forecaster(freq)(y=y_train, X=X_train, fh=fh, X_future=X_test)
-    )
+    benchmark(lambda: forecaster(freq)(y=y_train, X=X_train, fh=fh, X_future=X_test))
     # entity_col = y_pred.columns[0]
     # _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
     # _check_m5_score(y_test, y_pred, y_train)
@@ -188,7 +186,7 @@ def simple_classify(X: np.ndarray, y: np.ndarray):
 @pytest.mark.parametrize("threshold", [5])
 def test_censored_model_on_m5(threshold, m5_dataset):
     y_train, X_train, y_test, X_test, fh, freq = m5_dataset
-    idx_cols = y_train.columns[:2]
+    idx_cols = y_train.collect_schema().names()[:2]
     X_train = X_train.with_columns(
         pl.all().exclude(idx_cols).to_physical().cast(pl.Float32).fill_null("mean")
     )
@@ -203,13 +201,13 @@ def test_censored_model_on_m5(threshold, m5_dataset):
         classify=simple_classify,
     )(y=y_train, X=X_train, fh=fh, X_future=X_test)
     # Check column names
-    assert y_pred.columns == [*y_train.columns[:3]]
+    assert y_pred.collect_schema().names() == [*y_train.collect_schema().names()[:3]]
     # # Check no missing time-series
     # entity_col = y_pred.columns[0]
     # _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
     # Check score
     score = (
-        rmsse(y_test, y_pred.select(y_train.columns[:3]), y_train=y_train)
+        rmsse(y_test, y_pred.select(y_train.collect_schema().names()[:3]), y_train=y_train)
         .get_column("rmsse")
         .mean()
     )
@@ -224,13 +222,13 @@ def test_zero_inflated_model_on_m5(m5_dataset):
         lags=3, freq=freq, regress=simple_regress, classify=simple_classify
     )(y=y_train, X=X_train, fh=fh, X_future=X_test)
     # Check column names
-    assert y_pred.columns == [*y_train.columns[:3], "threshold_proba"]
+    assert y_pred.collect_schema().names() == [*y_train.collect_schema().names()[:3], "threshold_proba"]
     # # Check no missing time-series
     # entity_col = y_pred.columns[0]
     # _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
     # Check score
     score = (
-        rmsse(y_test, y_pred.select(y_train.columns[:3]), y_train=y_train)
+        rmsse(y_test, y_pred.select(y_train.collect_schema().names()[:3]), y_train=y_train)
         .get_column("rmsse")
         .mean()
     )
@@ -250,7 +248,7 @@ def test_elite_on_m4(m4_dataset, m4_freq_to_lags, m4_freq_to_sp):
     # Score
     elite_scores = smape_original(y_true=y_test, y_pred=y_pred)
     naive_scores = smape_original(y_true=y_test, y_pred=y_pred_naive)
-    scores = elite_scores.join(naive_scores, suffix="_naive", on=y_train.columns[0])
+    scores = elite_scores.join(naive_scores, suffix="_naive", on=y_train.collect_schema().names()[0])
 
     # Compare scores (forecast value add)
     fva = (
@@ -265,7 +263,7 @@ def test_elite_on_m4(m4_dataset, m4_freq_to_lags, m4_freq_to_sp):
                 ),
             ]
         )
-        .collect(streaming=True)
+        .collect(engine="streaming")
     )
 
     logging.info(fva.filter(pl.col("fva") > 0).describe())
@@ -281,7 +279,7 @@ def test_elite_on_m4(m4_dataset, m4_freq_to_lags, m4_freq_to_sp):
 @pytest.mark.slow
 def test_conformalize_non_crossing_m4(m4_dataset):
     y_train, _, fh, _ = m4_dataset
-    entity_col, time_col, target_col = y_train.columns[:3]
+    entity_col, time_col, target_col = y_train.collect_schema().names()[:3]
     y_preds = linear_model(freq="1i", lags=12).conformalize(
         y=y_train, fh=fh, alphas=[0.1, 0.9], drop_short=True
     )
@@ -301,7 +299,7 @@ def test_conformalize_non_crossing_m4(m4_dataset):
 @pytest.mark.skip("Memory leak")
 def test_conformalize_non_crossing_m5(m5_dataset):
     y_train, X_train, _, X_test, fh, freq = m5_dataset
-    entity_col, time_col, target_col = y_train.columns[:3]
+    entity_col, time_col, target_col = y_train.collect_schema().names()[:3]
     y_preds = linear_model(freq=freq, lags=12).conformalize(
         y=y_train, X=X_train, X_future=X_test, fh=fh, alphas=[0.1, 0.9], drop_short=True
     )

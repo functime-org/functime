@@ -5,6 +5,7 @@
 ![functime](https://github.com/functime-org/functime/raw/main/docs/img/banner_dark_bg.png)
 [![Python](https://img.shields.io/pypi/pyversions/functime)](https://pypi.org/project/functime/)
 [![PyPi](https://img.shields.io/pypi/v/functime?color=blue)](https://pypi.org/project/functime/)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![GitHub Run Quickstart](https://github.com/functime-org/functime/actions/workflows/quickstart.yml/badge.svg)](https://github.com/functime-org/functime/actions/workflows/quickstart.yml)
 [![Discord](https://img.shields.io/discord/1145819725276917782)](https://discord.com/invite/JKMrZKjEwN)
@@ -14,7 +15,7 @@
 ---
 **functime** is a powerful [Python library](https://pypi.org/project/functime/) for production-ready **global forecasting** and **time-series feature extraction** on **large panel datasets**.
 
-**functime** also comes with time-series [preprocessing](https://docs.functime.ai/ref/preprocessing/) (box-cox, differencing etc), cross-validation [splitters](https://docs.functime.ai/ref/cross-validation/) (expanding and sliding window), and forecast [metrics](https://docs.functime.ai/ref/metrics/) (MASE, SMAPE etc). All optimized as [lazy Polars](https://pola-rs.github.io/polars-book/user-guide/lazy/using/) transforms.
+**functime** also comes with time-series [preprocessing](https://functime-org.github.io/functime/api-reference/preprocessing/) (box-cox, differencing etc), cross-validation [splitters](https://functime-org.github.io/functime/api-reference/cross-validation/) (expanding and sliding window), and forecast [metrics](https://functime-org.github.io/functime/api-reference/metrics/) (MASE, SMAPE etc). All optimized as [lazy Polars](https://docs.pola.rs/user-guide/lazy/using/) transforms.
 
 Join us on [Discord](https://discord.com/invite/JKMrZKjEwN)!
 
@@ -27,17 +28,27 @@ Join us on [Discord](https://discord.com/invite/JKMrZKjEwN)!
 - **Automated lags and hyperparameter tuning** using [`FLAML`](https://github.com/microsoft/FLAML)
 
 ## Additional Highlights
-`functime` comes with a specialized LLM agent to analyze, describe, and compare your forecasts. Check out the walkthrough [here](https://docs.functime.ai/notebooks/llm/).
+`functime` comes with a specialized LLM agent to analyze, describe, and compare your forecasts. Check out the walkthrough [here](https://functime-org.github.io/functime/notebooks/llm/).
 
 ## Getting Started
-Install `functime` via the [pip](https://pypi.org/project/functime/) package manager.
+
+Install `functime` using [uv](https://docs.astral.sh/uv/) (recommended) or pip:
+
 ```bash
+# Using uv (recommended)
+uv add functime
+
+# Or using pip
 pip install functime
 ```
 
 `functime` comes with extra options. For example, to install `functime` with large-language model (LLM) and lightgbm features:
 
 ```bash
+# Using uv (recommended)
+uv add "functime[llm,lgb]"
+
+# Or using pip
 pip install "functime[llm,lgb]"
 ```
 
@@ -95,11 +106,11 @@ forecaster.fit(y=y_train, X=X_train)
 y_pred = forecaster.predict(fh=3, X=X_future)
 ```
 
-View the full walkthrough on forecasting [here](https://docs.functime.ai/forecasting/).
+View the full walkthrough on forecasting [here](https://functime-org.github.io/functime/user-guide/forecasting/).
 
 ### Feature Extraction
 
-`functime` comes with over 100+ [time-series feature extractors](https://docs.functime.ai/feature-extraction/).
+`functime` comes with over 100+ [time-series feature extractors](https://functime-org.github.io/functime/user-guide/feature-extraction/).
 Every feature is easily accessible via `functime`'s custom `ts` (time-series) namespace, which works with any `Polars` Series or expression. To register the custom `ts` `Polars` namespace, you must first import `functime` in your module.
 
 To register the custom `ts` `Polars` namespace, you must first import `functime`!
@@ -153,7 +164,7 @@ features = (
     y.group_by_dynamic(
         time_col,
         every="12mo",
-        by=entity_col,
+        group_by=entity_col,
     )
     .agg(
         binned_entropy=pl.col(value_col).ts.binned_entropy(bin_count=10),

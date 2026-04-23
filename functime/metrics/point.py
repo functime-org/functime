@@ -195,7 +195,7 @@ def mase(
         mae_scores.lazy()
         .join(naive_mae_scores.lazy(), on=entity_col, how="left")
         .select([entity_col, (pl.col("mae") / pl.col("naive")).alias("mase")])
-        .collect(streaming=True)
+        .collect(engine="streaming")
     )
     return scores
 
@@ -231,7 +231,7 @@ def rmsse(
         mse_scores.lazy()
         .join(naive_mse_scores.lazy(), on=entity_col, how="left")
         .select([entity_col, (pl.col("mse") / pl.col("naive")).sqrt().alias("rmsse")])
-        .collect(streaming=True)
+        .collect(engine="streaming")
     )
     return scores
 

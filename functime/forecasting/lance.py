@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal
 
 import lance
 import numpy as np
@@ -16,14 +16,14 @@ class ANNRegressor:
 
     def __init__(
         self,
-        uri: Optional[str] = None,
+        uri: str | None = None,
         index_type: Literal["IVF_PQ"] = "IVF_PQ",
         metric: Literal["L2", "cosine", "dot"] = "L2",
         num_partitions: int = 256,
-        num_sub_vectors: Optional[int] = None,
-        ivf_centroids: Optional[np.ndarray] = None,
-        nprobes: Optional[int] = None,
-        refine_factor: Optional[int] = None,
+        num_sub_vectors: int | None = None,
+        ivf_centroids: np.ndarray | None = None,
+        nprobes: int | None = None,
+        refine_factor: int | None = None,
         **kwargs,
     ):
         self.uri = uri or "functime_embs/knn.lance"
@@ -101,7 +101,7 @@ def _ann(**kwargs):
 class ann(Forecaster):
     """Autoregressive approximate nearest neighbors built on Lance."""
 
-    def _fit(self, y: pl.LazyFrame, X: Optional[pl.LazyFrame] = None):
+    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
         regress = _ann(**self.kwargs)
         return fit_autoreg(
             regress=regress,

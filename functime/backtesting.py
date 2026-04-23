@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Mapping, Optional, Tuple
+from collections.abc import Callable, Mapping
+from typing import Any
 
 import numpy as np
 import polars as pl
@@ -15,9 +16,9 @@ def _residualize_autoreg(
     lags: int,
     max_horizons: int,
     artifacts: Mapping[str, Any],
-    X_train: Optional[pl.DataFrame] = None,
+    X_train: pl.DataFrame | None = None,
 ) -> pl.DataFrame:
-    y_train = y_train.lazy().collect(streaming=True)
+    y_train = y_train.lazy().collect(engine="streaming")
     idx_cols = y_train.columns[:2]
 
     def _score_recursive(regressor):
@@ -25,7 +26,7 @@ def _residualize_autoreg(
         X_cp_train = X_y_train.select(pl.all().exclude(target_col))
         y_pred_arr = regressor.predict(X_cp_train)
         # Check if censored model
-        if isinstance(y_pred_arr, Tuple):
+        if isinstance(y_pred_arr, tuple):
             y_pred_arr, _ = y_pred_arr  # forecast, probabilities
         y_pred_cp = X_cp_train.select(idx_cols).with_columns(
             pl.lit(y_pred_arr).alias("y_pred")
@@ -44,11 +45,11 @@ def _residualize_autoreg(
             selected_lags = range(i + 1, lags + i + 1)
             feature_cols = [f"{target_col}__lag_{j}" for j in selected_lags]
             if X_train is not None:
-                feature_cols += X_train.columns[2:]
+                feature_cols += X_train.collect_schema().names()[2:]
             X_cp_train = X_y_train.select([*idx_cols, *feature_cols])
             y_pred_arr = regressors[i].predict(X_cp_train)
             # Check if censored model
-            if isinstance(y_pred_arr, Tuple):
+            if isinstance(y_pred_arr, tuple):
                 y_pred_arr, _ = y_pred_arr  # forecast, probabilities
             y_preds_cp.append(y_pred_arr)
         # NOTE: we just naively take the mean across all direct predictions
@@ -88,7 +89,7 @@ def _merge_autoreg_residuals(
     lags: int,
     max_horizons: int,
     artifacts: Mapping[str, Any],
-    X: Optional[pl.DataFrame] = None,
+    X: pl.DataFrame | None = None,
 ):
     y_resid = _residualize_autoreg(
         y_train=y,
@@ -109,11 +110,11 @@ def backtest(
     fh: int,
     y: pl.DataFrame,
     cv: Callable[[pl.DataFrame], Mapping[int, pl.DataFrame]],
-    X: Optional[pl.DataFrame] = None,
+    X: pl.DataFrame | None = None,
     residualize: bool = True,
-) -> Tuple[pl.DataFrame, pl.DataFrame]:
+) -> tuple[pl.DataFrame, pl.DataFrame]:
     pl.enable_string_cache()
-    entity_col, time_col, target_col = y.columns[:3]
+    entity_col, time_col, target_col = y.collect_schema().names()[:3]
     if X is None:
         splits = cv(y)
     else:
@@ -121,7 +122,7 @@ def backtest(
         splits = (
             y.lazy()
             .join(X.lazy(), how="left", on=[entity_col, time_col])
-            .collect(streaming=True)
+            .collect(engine="streaming")
             .lazy()
             .pipe(cv)
         )

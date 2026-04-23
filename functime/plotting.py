@@ -11,11 +11,11 @@ from functime.base.metric import METRIC_TYPE
 from functime.metrics import smape
 
 if TYPE_CHECKING:
-    from typing import Any, Dict, Optional, Union
+    from typing import Any
 
 
 def plot_entities(
-    y: Union[pl.DataFrame, pl.LazyFrame],
+    y: pl.DataFrame | pl.LazyFrame,
     **kwargs,
 ) -> go.Figure:
     """Given panel DataFrame of observed values `y`,
@@ -33,7 +33,7 @@ def plot_entities(
     figure : plotly.graph_objects.Figure
         Plotly bar chart.
     """
-    entity_col = y.columns[0]
+    entity_col = y.collect_schema().names()[0]
 
     if isinstance(y, pl.DataFrame):
         y = y.lazy()
@@ -63,14 +63,14 @@ def plot_entities(
 
 # TODO: if num_points is (0,1] than take a percentage of the points
 def plot_panel(
-    y: Union[pl.DataFrame, pl.LazyFrame],
+    y: pl.DataFrame | pl.LazyFrame,
     *,
-    num_series: Optional[int] = None,
-    num_cols: Optional[int] = None,
-    num_points: Optional[int] = None,
-    seed: Optional[int] = None,
-    layout_kwargs: Optional[Dict[str, Any]] = None,
-    line_kwargs: Optional[Dict[str, Any]] = None,
+    num_series: int | None = None,
+    num_cols: int | None = None,
+    num_points: int | None = None,
+    seed: int | None = None,
+    layout_kwargs: dict[str, Any] | None = None,
+    line_kwargs: dict[str, Any] | None = None,
 ):
     """Given panel DataFrames of observed values `y`,
     returns subplots for each individual entity / time-series.
@@ -123,21 +123,21 @@ def plot_panel(
 
 def plot_forecasts(
     *,
-    y_true: Union[pl.DataFrame, pl.LazyFrame],
-    y_pred: Union[pl.DataFrame, pl.LazyFrame],
-    num_series: Optional[int] = None,
-    num_cols: Optional[int] = None,
-    num_points: Optional[int] = None,
-    seed: Optional[int] = None,
-    layout_kwargs: Optional[Dict[str, Any]] = None,
-    line_kwargs: Optional[Dict[str, Any]] = None,
+    y_true: pl.DataFrame | pl.LazyFrame,
+    y_pred: pl.DataFrame | pl.LazyFrame,
+    num_series: int | None = None,
+    num_cols: int | None = None,
+    num_points: int | None = None,
+    seed: int | None = None,
+    layout_kwargs: dict[str, Any] | None = None,
+    line_kwargs: dict[str, Any] | None = None,
 ) -> go.Figure:
-    """Given panel DataFrames of observed values `y` and forecasts `y_pred`,
+    """Given panel DataFrames of observed values `y_true` and forecasts `y_pred`,
     returns subplots for each individual entity / time-series.
 
     Parameters
     ----------
-    y : Union[pl.DataFrame, pl.LazyFrame]
+    y_true : Union[pl.DataFrame, pl.LazyFrame]
         Panel DataFrame of observed values.
     num_series : Optional[int]
         Number of entities / time-series to plot. If `None`, plot all entities.
@@ -195,15 +195,15 @@ def plot_forecasts(
 
 
 def plot_backtests(
-    y_true: Union[pl.DataFrame, pl.LazyFrame],
-    y_preds: Union[pl.DataFrame, pl.LazyFrame],
+    y_true: pl.DataFrame | pl.LazyFrame,
+    y_preds: pl.DataFrame | pl.LazyFrame,
     *,
-    num_series: Optional[int] = None,
-    num_cols: Optional[int] = None,
-    num_points: Optional[int] = None,
-    seed: Optional[int] = None,
-    layout_kwargs: Optional[Dict[str, Any]] = None,
-    line_kwargs: Optional[Dict[str, Any]] = None,
+    num_series: int | None = None,
+    num_cols: int | None = None,
+    num_points: int | None = None,
+    seed: int | None = None,
+    layout_kwargs: dict[str, Any] | None = None,
+    line_kwargs: dict[str, Any] | None = None,
 ):
     if isinstance(y_true, pl.DataFrame):
         y_true = y_true.lazy()
@@ -241,8 +241,8 @@ def plot_backtests(
 
 
 def plot_residuals(
-    y_resids: Union[pl.DataFrame, pl.LazyFrame],
-    n_bins: Optional[int] = None,
+    y_resids: pl.DataFrame | pl.LazyFrame,
+    n_bins: int | None = None,
     **kwargs,
 ) -> go.Figure:
     """Given panel DataFrame of residuals across splits `y_resids`,
@@ -262,7 +262,7 @@ def plot_residuals(
     figure : plotly.graph_objects.Figure
         Plotly histogram.
     """
-    entity_col, _, target_col = y_resids.columns[:3]
+    entity_col, _, target_col = y_resids.collect_schema().names()[:3]
 
     if isinstance(y_resids, pl.DataFrame):
         y_resids = y_resids.lazy()
@@ -289,7 +289,7 @@ def plot_comet(
     y_train: pl.DataFrame,
     y_test: pl.DataFrame,
     y_pred: pl.DataFrame,
-    scoring: Optional[METRIC_TYPE] = None,
+    scoring: METRIC_TYPE | None = None,
     **kwargs,
 ):
     """Given a train-test-split of panel data (`y_train`, `y_test`) and forecast `y_pred`,
@@ -341,7 +341,7 @@ def plot_fva(
     y_true: pl.DataFrame,
     y_pred: pl.DataFrame,
     y_pred_bench: pl.DataFrame,
-    scoring: Optional[METRIC_TYPE] = None,
+    scoring: METRIC_TYPE | None = None,
     **kwargs,
 ):
     """Given two panel data forecasts `y_pred` and `y_pred_bench`,

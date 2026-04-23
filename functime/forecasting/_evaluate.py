@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Mapping
 from functools import partial
-from typing import Any, Callable, List, Mapping, Optional, Tuple, Union
+from typing import Any
 
 import polars as pl
 
@@ -26,9 +27,9 @@ def evaluate_window(
     forecaster_cls: Callable,
     y_train: pl.DataFrame,
     y_test: pl.DataFrame,
-    X_train: Optional[pl.DataFrame] = None,
-    X_test: Optional[pl.DataFrame] = None,
-) -> Union[float, pl.DataFrame]:
+    X_train: pl.DataFrame | None = None,
+    X_test: pl.DataFrame | None = None,
+) -> float | pl.DataFrame:
     # Train test split
     entity_col, time_col = y_train.columns[:2]
     # Fit
@@ -72,8 +73,8 @@ def evaluate_windows(
     strategy: str,
     freq: str,
     forecaster_cls: Callable,
-    y_splits: Mapping[int, Tuple[pl.DataFrame, pl.DataFrame]],
-    X_splits: Optional[Mapping[int, Tuple[pl.DataFrame, pl.DataFrame]]],
+    y_splits: Mapping[int, tuple[pl.DataFrame, pl.DataFrame]],
+    X_splits: Mapping[int, tuple[pl.DataFrame, pl.DataFrame]] | None,
 ):
     # Get average mae across splits
     results = []
@@ -111,7 +112,7 @@ def evaluate(
     lags: int,
     n_splits: int,
     time_budget: int,
-    points_to_evaluate: List[Mapping[str, Any]],
+    points_to_evaluate: list[Mapping[str, Any]],
     num_samples: int,
     low_cost_partial_config: Mapping[str, Any],
     test_size: int,
@@ -119,11 +120,11 @@ def evaluate(
     strategy: str,
     freq: str,
     forecaster_cls: Callable,
-    y_splits: Mapping[int, Tuple[pl.DataFrame, pl.DataFrame]],
-    X_splits: Optional[Mapping[int, Tuple[pl.DataFrame, pl.DataFrame]]],
-    search_space: Optional[Mapping[str, Domain]] = None,
+    y_splits: Mapping[int, tuple[pl.DataFrame, pl.DataFrame]],
+    X_splits: Mapping[int, tuple[pl.DataFrame, pl.DataFrame]] | None,
+    search_space: Mapping[str, Domain] | None = None,
     include_best_params: bool = False,
-):
+) -> float | tuple[float, Mapping[str, Any] | None]:
     params = None
     if search_space is None:
         result = evaluate_windows(

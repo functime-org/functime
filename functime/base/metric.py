@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable, Union
 
 import polars as pl
 
@@ -12,7 +12,7 @@ from functime.base.model import (
 )
 
 METRIC_TYPE = Callable[
-    [Union[pl.LazyFrame, pl.DataFrame], Union[pl.LazyFrame, pl.DataFrame]], pl.DataFrame
+    [pl.LazyFrame | pl.DataFrame, pl.LazyFrame | pl.DataFrame], pl.DataFrame
 ]
 
 
@@ -20,16 +20,16 @@ METRIC_TYPE = Callable[
 def metric(score: Callable):
     @wraps(score)
     def _score(
-        y_true: Union[pl.LazyFrame, pl.DataFrame],
-        y_pred: Union[pl.LazyFrame, pl.DataFrame],
+        y_true: pl.LazyFrame | pl.DataFrame,
+        y_pred: pl.LazyFrame | pl.DataFrame,
         *args,
         **kwargs,
     ) -> pl.DataFrame:
         if isinstance(y_true, pl.LazyFrame):
-            y_true = y_true.collect(streaming=True)
+            y_true = y_true.collect(engine="streaming")
 
         if isinstance(y_pred, pl.LazyFrame):
-            y_pred = y_pred.collect(streaming=True)
+            y_pred = y_pred.collect(engine="streaming")
 
         y_true, entity_col_dtype, string_cache, inv_string_cache = y_true.pipe(
             _set_string_cache
@@ -45,7 +45,7 @@ def metric(score: Callable):
             y_train = (
                 kwargs["y_train"]
                 .lazy()
-                .collect(streaming=True)
+                .collect(engine="streaming")
                 .pipe(_enforce_string_cache, string_cache=string_cache)
             )
             kwargs["y_train"] = y_train
