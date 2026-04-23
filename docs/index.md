@@ -67,8 +67,8 @@ Point and probabilistic forecasts using machine learning.
 Includes utilities to support the full forecasting lifecycle: preprocessing, feature extraction, time-series cross-validation / splitters, backtesting, automated hyperparameter tuning, and scoring.
 
 - Every forecaster supports **exogenous features**
-- **Seasonality** effects using [calendar, Fourier, and holiday features](https://functime-org.github.io/functime/seasonality/)
-- **Backtesting** with [expanding window and sliding window splitters](https://functime-org.github.io/functime/ref/cross-validation/)
+- **Seasonality** effects using [calendar, Fourier, and holiday features](./user-guide/seasonality.md)
+- **Backtesting** with [expanding window and sliding window splitters](./api-reference/cross-validation.md)
 - **Automated lags and hyperparameter tuning** using [`FLAML`](https://github.com/microsoft/FLAML)
 - **Probabilistic forecasts** via quantile regression and conformal prediction
 - **Forecast metrics** (e.g. MASE, SMAPE, CRPS) for scoring in parallel
@@ -92,7 +92,7 @@ View the [full walkthrough](./user-guide/forecasting.md) on forecasting with `fu
 View the [full walkthrough](./user-guide/feature-extraction.md) on forecasting with `functime`.
 
 ### Preprocessing
-View API reference for [`functime.preprocessing`](https://functime-org.github.io/functime/user-guide/preprocessing/).
+View API reference for [`functime.preprocessing`](./api-reference/preprocessing.md).
 Preprocessors take in a `polars.DataFrame` or `polars.LazyFrame` as input and **always returns a `polars.LazyFrame`**.
 No computation is run until the `.collect()` method is called on the LazyFrame.
 This allows Polars to [optimize the whole query](https://pola-rs.github.io/polars-book/user-guide/lazy/optimizations/) before execution.

@@ -15,7 +15,7 @@
 ---
 **functime** is a powerful [Python library](https://pypi.org/project/functime/) for production-ready **global forecasting** and **time-series feature extraction** on **large panel datasets**.
 
-**functime** also comes with time-series [preprocessing](https://functime-org.github.io/functime/ref/preprocessing/) (box-cox, differencing etc), cross-validation [splitters](https://functime-org.github.io/functime/ref/cross-validation/) (expanding and sliding window), and forecast [metrics](https://functime-org.github.io/functime/ref/metrics/) (MASE, SMAPE etc). All optimized as [lazy Polars](https://pola-rs.github.io/polars-book/user-guide/lazy/using/) transforms.
+**functime** also comes with time-series [preprocessing](https://functime-org.github.io/functime/api-reference/preprocessing/) (box-cox, differencing etc), cross-validation [splitters](https://functime-org.github.io/functime/api-reference/cross-validation/) (expanding and sliding window), and forecast [metrics](https://functime-org.github.io/functime/api-reference/metrics/) (MASE, SMAPE etc). All optimized as [lazy Polars](https://docs.pola.rs/user-guide/lazy/using/) transforms.
 
 Join us on [Discord](https://discord.com/invite/JKMrZKjEwN)!
 
@@ -106,11 +106,11 @@ forecaster.fit(y=y_train, X=X_train)
 y_pred = forecaster.predict(fh=3, X=X_future)
 ```
 
-View the full walkthrough on forecasting [here](https://functime-org.github.io/functime/forecasting/).
+View the full walkthrough on forecasting [here](https://functime-org.github.io/functime/user-guide/forecasting/).
 
 ### Feature Extraction
 
-`functime` comes with over 100+ [time-series feature extractors](https://functime-org.github.io/functime/feature-extraction/).
+`functime` comes with over 100+ [time-series feature extractors](https://functime-org.github.io/functime/user-guide/feature-extraction/).
 Every feature is easily accessible via `functime`'s custom `ts` (time-series) namespace, which works with any `Polars` Series or expression. To register the custom `ts` `Polars` namespace, you must first import `functime` in your module.
 
 To register the custom `ts` `Polars` namespace, you must first import `functime`!
