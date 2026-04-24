@@ -262,7 +262,7 @@ def m5_dataset():
     if os.environ.get("FUNCTIME__TEST_MODE", "").lower() == "true":
         # Get top N top sellers
         top_sellers = (
-            y_train.groupby(entity_col)
+            y_train.group_by(entity_col)
             .agg(pl.col(value_col).sum())
             .top_k(n_samples, by=value_col)
             .get_column(entity_col)
