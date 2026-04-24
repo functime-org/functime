@@ -32,9 +32,10 @@ jobs:
           sccache: 'true'
           manylinux: auto
       - name: Upload wheels
+        if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux-${{ matrix.target }}-py${{ matrix.python-version }}
+          name: wheels-linux-${{ matrix.target }}
           path: dist
 
   windows:
@@ -56,9 +57,10 @@ jobs:
           args: --release --out dist --find-interpreter
           sccache: 'true'
       - name: Upload wheels
+        if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-windows-${{ matrix.target }}-py${{ matrix.python-version }}
+          name: wheels-windows-${{ matrix.target }}
           path: dist
 
   macos:
@@ -79,9 +81,10 @@ jobs:
           args: --release --out dist --find-interpreter
           sccache: 'true'
       - name: Upload wheels
+        if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-macos-${{ matrix.target }}-py${{ matrix.python-version }}
+          name: wheels-macos-${{ matrix.target }}
           path: dist
 
   sdist:
