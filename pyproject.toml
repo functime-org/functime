@@ -105,7 +105,13 @@ benchmark = [
 [tool.maturin]
 module-name = "functime._functime_rust"
 features = ["pyo3/extension-module"]
-exclude = ["docs/**, data/**", "tests/**", ".pre-commit-config.yaml"]
+exclude = [
+  "data/**",
+  "docs/**",
+  "site/**",
+  "tests/**",
+  ".pre-commit-config.yaml",
+]
 
 [tool.ruff]
 extend-include = ["*.ipynb"]
