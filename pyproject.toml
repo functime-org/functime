@@ -28,7 +28,7 @@ classifiers = [
 requires-python = ">=3.11"
 dependencies = [
   "cloudpickle",
-  "flaml>=2.0.2",
+  "flaml>=2.3.0",
   "holidays",
   "numpy",
   "polars>=1.0",

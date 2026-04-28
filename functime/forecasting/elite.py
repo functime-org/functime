@@ -9,7 +9,6 @@ import polars.selectors as cs
 from sklearn.linear_model import LassoLarsIC
 from tqdm import tqdm
 
-from functime.backtesting import backtest
 from functime.base.forecaster import Forecaster
 from functime.base.metric import METRIC_TYPE
 from functime.conversion import X_to_numpy, y_to_numpy
@@ -244,6 +243,7 @@ class elite(Forecaster):
                 )
             else:
                 forecaster = forecaster_cls(freq=freq)
+            from functime.backtesting import backtest
             y_preds = backtest(forecaster=forecaster, y=y, cv=cv, residualize=False)
             cv_y_preds[model_name] = y_preds.pipe(coerce_dtypes(schema)).collect()
 

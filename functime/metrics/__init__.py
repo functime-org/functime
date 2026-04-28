@@ -10,6 +10,11 @@ from .point import (
     smape_original,
     underforecast,
 )
+from .probabilistic import (
+    crps,
+    interval_coverage,
+    winkler_score,
+)
 
 __all__ = [
     "mae",
@@ -22,4 +27,7 @@ __all__ = [
     "smape_original",
     "overforecast",
     "underforecast",
+    "crps",
+    "interval_coverage",
+    "winkler_score",
 ]
