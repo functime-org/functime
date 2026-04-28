@@ -890,7 +890,7 @@ test = [
 requires-dist = [
     { name = "catboost", marker = "extra == 'cat'" },
     { name = "cloudpickle" },
-    { name = "flaml", specifier = ">=2.0.2" },
+    { name = "flaml", specifier = ">=2.3.0" },
     { name = "functime", extras = ["ann", "tree", "plot"], marker = "extra == 'all'" },
     { name = "functime", extras = ["cat", "lgb", "xgb"], marker = "extra == 'tree'" },
     { name = "holidays" },
