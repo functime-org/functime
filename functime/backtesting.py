@@ -156,30 +156,94 @@ def backtest(
         # Append results
         y_preds.append(y_pred)
         if residualize:
-            # Residuals
-            y_resid = _residualize_autoreg(
-                y_train=y_train,
-                X_train=X_train,
-                strategy=forecaster.state.strategy,
-                lags=forecaster.lags,
-                max_horizons=forecaster.max_horizons,
-                artifacts=forecaster.state.artifacts,
+            # Residuals — only for autoregressive models that have a regressor
+            artifacts = forecaster.state.artifacts
+            has_regressor = (
+                "regressor" in artifacts
+                or "regressors" in artifacts
+                or (
+                    "recursive" in artifacts
+                    and "regressor" in artifacts.get("recursive", {})
+                )
             )
+            if has_regressor:
+                y_resid = _residualize_autoreg(
+                    y_train=y_train,
+                    X_train=X_train,
+                    strategy=forecaster.state.strategy,
+                    lags=forecaster.lags,
+                    max_horizons=forecaster.max_horizons,
+                    artifacts=artifacts,
+                )
+            else:
+                # For non-autoregressive models (e.g. naive, snaive),
+                # compute naive residuals: y[t] - y[t-1]
+                _y_train_df = y_train.lazy().collect(engine="streaming") if isinstance(y_train, pl.LazyFrame) else y_train
+                idx_cols = _y_train_df.columns[:2]
+                _target_col = _y_train_df.columns[-1]
+                y_resid = (
+                    _y_train_df.sort(idx_cols)
+                    .with_columns(
+                        (
+                            pl.col(_target_col)
+                            - pl.col(_target_col).shift(1).over(idx_cols[0])
+                        ).alias("y_resid")
+                    )
+                    .select(*idx_cols, "y_resid")
+                    .drop_nulls()
+                )
+            if isinstance(y_resid, pl.LazyFrame):
+                y_resid = y_resid.collect(engine="streaming")
             y_resid = y_resid.with_columns(pl.lit(i).alias("split"))
             y_resids.append(y_resid)
 
     y_preds = pl.concat(y_preds)
     full_forecaster = forecaster.fit(y=y, X=X)
     if residualize:
-        y_resids = _merge_autoreg_residuals(
-            y=y,
-            X=X,
-            y_resids=pl.concat(y_resids),
-            strategy=full_forecaster.state.strategy,
-            lags=forecaster.lags,
-            max_horizons=forecaster.max_horizons,
-            artifacts=full_forecaster.state.artifacts,
+        artifacts = full_forecaster.state.artifacts
+        has_regressor = (
+            "regressor" in artifacts
+            or "regressors" in artifacts
+            or (
+                "recursive" in artifacts
+                and "regressor" in artifacts.get("recursive", {})
+            )
         )
+        # Collect any lazy residuals
+        y_resids_collected = [
+            r.collect(engine="streaming") if isinstance(r, pl.LazyFrame) else r
+            for r in y_resids
+        ]
+        if has_regressor:
+            y_resids = _merge_autoreg_residuals(
+                y=y,
+                X=X,
+                y_resids=pl.concat(y_resids_collected),
+                strategy=full_forecaster.state.strategy,
+                lags=forecaster.lags,
+                max_horizons=forecaster.max_horizons,
+                artifacts=artifacts,
+            )
+        else:
+            # For non-autoregressive models, compute naive residuals for the full data
+            _y_df = y.lazy().collect(engine="streaming") if isinstance(y, pl.LazyFrame) else y
+            idx_cols = _y_df.columns[:2]
+            _target_col = _y_df.columns[-1]
+            y_resid = (
+                _y_df.sort(idx_cols)
+                .with_columns(
+                    (
+                        pl.col(_target_col)
+                        - pl.col(_target_col).shift(1).over(idx_cols[0])
+                    ).alias("y_resid")
+                )
+                .select(*idx_cols, "y_resid")
+                .drop_nulls()
+            )
+            combined = pl.concat(y_resids_collected)
+            last_split = combined.get_column("split").max() + 1
+            y_resid = y_resid.with_columns(pl.lit(last_split).alias("split"))
+            y_resids = pl.concat([combined, y_resid])
         pl.disable_string_cache()
         return y_preds, y_resids
     pl.disable_string_cache()
