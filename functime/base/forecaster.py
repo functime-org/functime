@@ -31,6 +31,7 @@ SUPPORTED_FREQ = [
     "1d",
     "1w",
     "1mo",
+    "1q",
     "3mo",
     "1y",
 ]

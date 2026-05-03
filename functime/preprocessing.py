@@ -736,6 +736,39 @@ def yeojohnson(brack: tuple = (-2, 2)):
 
 
 @transformer
+def log1p():
+    """Applies the log(1 + x) transformation to numeric columns in a panel DataFrame.
+
+    This is commonly used for positive-valued time series data (e.g. counts, prices)
+    to stabilize variance and reduce skewness. The inverse transform is exp(x) - 1.
+
+    Note: All numeric values must be > -1 for the log to be defined.
+    """
+
+    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+        X_columns = X.collect_schema().names()
+        idx_cols = X_columns[:2]
+        entity_col, time_col = idx_cols
+        cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).collect_schema().names()
+        X_new = X.with_columns(
+            [pl.col(col).log1p() for col in cols]
+        )
+        artifacts = {"X_new": X_new}
+        return artifacts
+
+    def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
+        _xcols = X.collect_schema().names()
+        entity_col, time_col = _xcols[:2]
+        cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).collect_schema().names()
+        X_new = X.with_columns(
+            [pl.col(col).exp() - 1 for col in cols]
+        )
+        return X_new
+
+    return transform, invert
+
+
+@transformer
 def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
     """Removes mean or linear trend from numeric columns in a panel DataFrame.
 

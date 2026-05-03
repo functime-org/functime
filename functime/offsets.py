@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-OFFSET_ALIASES = {"s", "m", "h", "d", "w", "mo", "y", "i"}
+OFFSET_ALIASES = {"s", "m", "h", "d", "w", "mo", "q", "y", "i"}
 
 
 def _strip_freq_alias(freq: str) -> tuple[int, str]:
@@ -32,6 +32,7 @@ def freq_to_sp(freq: str) -> list[int] | list[float]:
         - 1d (1 day)
         - 1w (1 week)
         - 1mo (1 calendar month)
+        - 1q (1 calendar quarter)
         - 3mo (1 calendar quarter)
         - 1y (1 calendar year)
 
@@ -48,6 +49,7 @@ def freq_to_sp(freq: str) -> list[int] | list[float]:
         "1d": [7, 365],
         "1w": [52],
         "1mo": [12],
+        "1q": [4],
         "3mo": [4],
         "1y": [1],
     }

@@ -79,6 +79,18 @@ class AutoForecaster(Forecaster):
         if freq not in SUPPORTED_FREQ:
             raise ValueError(f"Offset {freq} not supported")
 
+        # Validate kwargs: reject common automl-param misplacements
+        _automl_params = {
+            "n_evals", "n_trials", "n_iter", "max_evals", "max_trials",
+        }
+        bad_kwargs = _automl_params & set(kwargs)
+        if bad_kwargs:
+            raise TypeError(
+                f"Unknown keyword argument(s) {bad_kwargs} for the underlying regressor. "
+                f"AutoML evaluation count is controlled by `num_samples`, not {bad_kwargs.pop()!r}. "
+                f"Only pass keyword arguments accepted by the sklearn-compatible regressor."
+            )
+
         self.freq = freq
         self.min_lags = min_lags
         self.max_lags = max_lags
