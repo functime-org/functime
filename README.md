@@ -68,7 +68,7 @@ from functime.preprocessing import scale
 from functime.metrics import mase
 
 # Load commodities price data
-y = pl.read_parquet("https://github.com/functime-org/functime/raw/main/data/commodities.parquet")
+y = pl.read_parquet("hf://datasets/functime-org/datasets/commodities.parquet")
 entity_col, time_col = y.columns[:2]
 
 # Time series split
@@ -121,7 +121,7 @@ import numpy as np
 from functime.feature_extractors import FeatureExtractor, binned_entropy
 
 # Load commodities price data
-y = pl.read_parquet("https://github.com/functime-org/functime/raw/main/data/commodities.parquet")
+y = pl.read_parquet("hf://datasets/functime-org/datasets/commodities.parquet")
 
 # Get column names ("commodity_type", "time", "price")
 entity_col, time_col, value_col = y.columns

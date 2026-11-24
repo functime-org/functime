@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
 import polars as pl
 import pytest
@@ -78,7 +79,7 @@ def test_fourier_compare_with_aeon():
 
     sp = 12
     K = 4
-    y = pl.read_parquet("data/commodities.parquet")
+    y = pl.read_parquet(Path(__file__).parent / "data" / "commodities.parquet")
     entity_col, time_col, target_col = y.columns
     result = (
         y.pipe(add_fourier_terms(sp=sp, K=K)).sort([entity_col, time_col]).collect()

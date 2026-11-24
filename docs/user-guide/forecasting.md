@@ -33,7 +33,7 @@ from functime.seasonality import add_calendar_effects
 
 
 # Load data
-y = pl.read_parquet("https://github.com/functime-org/functime/raw/main/data/commodities.parquet")
+y = pl.read_parquet("hf://datasets/functime-org/datasets/commodities.parquet")
 entity_col, time_col = y.columns[:2]
 X = (
     y.select([entity_col, time_col])
@@ -343,8 +343,8 @@ Most real-world datasets in e-commerce and logistics contain zeros in the target
 from functime.forecasting import censored_model
 
 # Load the M5 competition Walmart dataset
-y_train = pl.read_parquet("data/m5_y_train_sample.parquet")
-X_train = pl.read_parquet("data/m5_X_train_sample.parquet")
+y_train = pl.read_parquet("hf://datasets/functime-org/datasets/m5/y_train_sample.parquet")
+X_train = pl.read_parquet("hf://datasets/functime-org/datasets/m5/X_train_sample.parquet")
 
 # Fit-predict given threshold = 0.0
 y_pred = censored_model(lags=3, threshold=0.0, freq="1d")(

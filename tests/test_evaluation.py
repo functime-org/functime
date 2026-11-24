@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
+from pathlib import Path
 
 import polars as pl
 import pytest
@@ -22,7 +23,7 @@ MAX_LAGS = 24
 
 @pytest.fixture
 def commodities_dataset():
-    y = pl.read_parquet("data/commodities.parquet").with_columns(
+    y = pl.read_parquet(Path(__file__).parent / "data" / "commodities.parquet").with_columns(
         pl.col("commodity_type").str.strip_chars()
     )
     y_train, y_test = train_test_split(test_size=6, eager=True)(y)

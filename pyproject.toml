@@ -106,7 +106,6 @@ benchmark = [
 module-name = "functime._functime_rust"
 features = ["pyo3/extension-module"]
 exclude = [
-  "data/**",
   "docs/**",
   "site/**",
   "tests/**",

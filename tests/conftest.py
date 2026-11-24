@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from functools import partial
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -11,6 +12,9 @@ import pytest
 
 from functime.cross_validation import train_test_split
 from functime.offsets import freq_to_sp
+
+TESTS_DATA_DIR = Path(__file__).parent / "data"
+HF_DATASET_BASE = "hf://datasets/functime-org/datasets"
 
 
 @pytest.fixture(params=[50], ids=lambda x: f"n_periods({x})")
@@ -73,11 +77,11 @@ def m4_freq_to_lags():
 
 @pytest.fixture(
     params=[
-        ("1d", 14, "data/m4_1d_train.parquet/*/*", "data/m4_1d_test.parquet"),
-        ("1w", 13, "data/m4_1w_train.parquet", "data/m4_1w_test.parquet"),
-        ("1mo", 18, "data/m4_1mo_train.parquet/*/*", "data/m4_1mo_test.parquet"),
-        ("3mo", 8, "data/m4_3mo_train.parquet", "data/m4_3mo_test.parquet"),
-        ("1y", 6, "data/m4_1y_train.parquet", "data/m4_1y_test.parquet"),
+        ("1d", 14, f"{HF_DATASET_BASE}/m4/1d_train.parquet", f"{HF_DATASET_BASE}/m4/1d_test.parquet"),
+        ("1w", 13, f"{HF_DATASET_BASE}/m4/1w_train.parquet", f"{HF_DATASET_BASE}/m4/1w_test.parquet"),
+        ("1mo", 18, f"{HF_DATASET_BASE}/m4/1mo_train.parquet", f"{HF_DATASET_BASE}/m4/1mo_test.parquet"),
+        ("3mo", 8, f"{HF_DATASET_BASE}/m4/3mo_train.parquet", f"{HF_DATASET_BASE}/m4/3mo_test.parquet"),
+        ("1y", 6, f"{HF_DATASET_BASE}/m4/1y_train.parquet", f"{HF_DATASET_BASE}/m4/1y_test.parquet"),
     ],
     ids=lambda x: f"freq_{x[0]}-fh_{x[1]}",
     scope="module",
@@ -234,10 +238,10 @@ def m5_dataset():
     n_samples = 30
 
     # Load data
-    y_train = pl.read_parquet("data/m5_y_train_sample.parquet")
-    X_train = pl.read_parquet("data/m5_X_train_sample.parquet")
-    y_test = pl.read_parquet("data/m5_y_test_sample.parquet")
-    X_test = pl.read_parquet("data/m5_X_test_sample.parquet")
+    y_train = pl.read_parquet(TESTS_DATA_DIR / "m5_y_train_sample.parquet")
+    X_train = pl.read_parquet(TESTS_DATA_DIR / "m5_X_train_sample.parquet")
+    y_test = pl.read_parquet(TESTS_DATA_DIR / "m5_y_test_sample.parquet")
+    X_test = pl.read_parquet(TESTS_DATA_DIR / "m5_X_test_sample.parquet")
 
     # Check series lengths
     entity_col, time_col, value_col = y_train.columns[:3]
@@ -315,7 +319,7 @@ def dunnhumby_retail():
     fh = 12
     freq = "1d"
 
-    data = pl.read_parquet("data/dunnhumby.parquet").with_columns(
+    data = pl.read_parquet(f"{HF_DATASET_BASE}/dunnhumby.parquet").with_columns(
         # Create UNIT_PRICE column
         (pl.col("SALES_VALUE") / pl.col("QUANTITY"))
         .round(2)
