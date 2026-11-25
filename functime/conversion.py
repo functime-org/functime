@@ -96,9 +96,9 @@ def long_to_wide(
 def X_to_numpy(X: pl.DataFrame | pl.LazyFrame) -> np.ndarray:
     """Convert panel feature columns into a 2D ``np.float32`` ndarray.
 
-    Drops the leading entity and time index columns, casts remaining features
-    to ``pl.Float32``, replaces non-finite values with nulls, and mean-imputes
-    before materializing a 2D NumPy array.
+    Drops the leading entity and time index columns and casts remaining
+    features to ``pl.Float32`` without modifying or imputing missing or
+    non-finite values.
 
     Parameters
     ----------
@@ -115,14 +115,6 @@ def X_to_numpy(X: pl.DataFrame | pl.LazyFrame) -> np.ndarray:
         X.lazy()
         .drop(pl.nth([0, 1]))
         .select(pl.all().cast(pl.Float32))
-        .select(
-            pl.when(pl.all().is_infinite() | pl.all().is_nan())
-            .then(None)
-            .otherwise(pl.all())
-            .name.keep()
-        )
-        # Do not backward-fill to avoid leaking future observations across rows.
-        .fill_null(strategy="mean")
         .collect(engine="streaming")
         .to_numpy()
     )
@@ -132,9 +124,8 @@ def y_to_numpy(y: pl.DataFrame) -> np.ndarray:
     """Convert the target column of a panel DataFrame into a 1D ``np.float32`` ndarray.
 
     Returns a zero-copy NumPy view when the trailing target column is already
-    null-free, finite ``pl.Float32``. Otherwise casts to ``pl.Float32``,
-    replaces non-finite values with nulls, mean-imputes, and exports with
-    ``allow_copy=False`` whenever no nulls remain.
+    a contiguous, null-free ``pl.Float32`` series; otherwise casts to
+    ``pl.Float32`` and exports without imputing missing or non-finite values.
 
     Parameters
     ----------
@@ -148,25 +139,9 @@ def y_to_numpy(y: pl.DataFrame) -> np.ndarray:
     """
     target_col = y.columns[-1]
     raw = y.get_column(target_col)
-    if raw.dtype == pl.Float32 and raw.null_count() == 0 and raw.is_finite().all():
-        return raw.rechunk().to_numpy(allow_copy=False)
-
-    series = (
-        y.lazy()
-        .select(pl.col(target_col).cast(pl.Float32))
-        .select(
-            pl.when(pl.all().is_infinite() | pl.all().is_nan())
-            .then(None)
-            .otherwise(pl.all())
-            .name.keep()
-        )
-        # Do not backward-fill to avoid leaking future observations across rows.
-        .fill_null(strategy="mean")
-        .collect(engine="streaming")
-        .get_column(target_col)
-        .rechunk()
-    )
-    # NumPy float arrays lack a validity mask, so all-null series cannot use allow_copy=False.
+    series = raw if raw.dtype == pl.Float32 else raw.cast(pl.Float32)
+    series = series.rechunk()
+    # NumPy float arrays lack a validity mask, so allow_copy=False requires null_count == 0.
     if series.null_count() == 0:
         return series.to_numpy(allow_copy=False)
     return series.to_numpy()

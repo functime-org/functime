@@ -4,16 +4,11 @@ import numpy as np
 import polars as pl
 import pytest
 
-import functime.conversion as conversion
 from functime.conversion import X_to_numpy, y_to_numpy
 from functime.forecasting._regressors import GradientBoostedTreeRegressor
 
 
-def test_df_to_ndarray_removed():
-    assert not hasattr(conversion, "df_to_ndarray")
-
-
-def test_X_to_numpy_casts_and_imputes():
+def test_X_to_numpy_casts_without_imputation():
     df = pl.DataFrame(
         {
             "entity_id": ["a", "a", "a", "a"],
@@ -28,10 +23,17 @@ def test_X_to_numpy_casts_and_imputes():
         arr = X_to_numpy(frame)
         assert arr.dtype == np.float32
         assert arr.shape == (4, 3)
-        assert np.isfinite(arr).all()
-        np.testing.assert_allclose(arr[:, 0], [1.0, 2.0, 2.0, 3.0], rtol=1e-6)
-        np.testing.assert_allclose(arr[:, 1], [10.0, 15.0, 15.0, 20.0], rtol=1e-6)
-        np.testing.assert_allclose(arr[:, 2], [1.0, 2.0, 3.0, 4.0], rtol=1e-6)
+        np.testing.assert_array_equal(
+            arr[:, 2], np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32)
+        )
+        assert arr[0, 0] == pytest.approx(1.0)
+        assert np.isnan(arr[1, 0])
+        assert np.isposinf(arr[2, 0])
+        assert arr[3, 0] == pytest.approx(3.0)
+        assert arr[0, 1] == pytest.approx(10.0)
+        assert np.isnan(arr[1, 1])
+        assert np.isneginf(arr[2, 1])
+        assert arr[3, 1] == pytest.approx(20.0)
 
 
 def test_y_to_numpy_zero_copy_on_contiguous_float32():
@@ -86,9 +88,14 @@ def test_y_to_numpy_fallback_cases():
             ),
         }
     )
-    arr_imputed = y_to_numpy(df_non_finite)
-    assert arr_imputed.dtype == np.float32
-    np.testing.assert_allclose(arr_imputed, [2.0, 6.0, 4.0, 4.0, 4.0, 4.0], rtol=1e-6)
+    arr_non_finite = y_to_numpy(df_non_finite)
+    assert arr_non_finite.dtype == np.float32
+    assert arr_non_finite[0] == pytest.approx(2.0)
+    assert arr_non_finite[1] == pytest.approx(6.0)
+    assert np.isnan(arr_non_finite[2])
+    assert np.isposinf(arr_non_finite[3])
+    assert np.isneginf(arr_non_finite[4])
+    assert np.isnan(arr_non_finite[5])
 
     for dtype in (pl.Float64, pl.Int64):
         df_cast = pl.DataFrame(
