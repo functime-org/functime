@@ -8,6 +8,10 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   ruff:
     runs-on: ubuntu-latest
@@ -22,6 +26,7 @@ jobs:
         uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           version: "latest"
+          enable-cache: true
 
       - name: Run ruff check
         run: uvx ruff check .
