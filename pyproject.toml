@@ -17,15 +17,15 @@ classifiers = [
   "Intended Audience :: Developers",
   "Intended Audience :: Science/Research",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Topic :: Scientific/Engineering",
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
   "cloudpickle",
   "flaml>=2.3.0",
@@ -58,7 +58,9 @@ ann = [
   "pylance",
 ]
 tree = [
-  "functime[cat,lgb,xgb]"
+  # CatBoost does not publish Python 3.15 wheels yet
+  "functime[cat]; python_version < '3.15'",
+  "functime[lgb,xgb]",
 ]
 llm = [
   "openai",
@@ -84,7 +86,9 @@ doc = [
   "mkdocstrings-python",
 ]
 test = [
-  "functime[all]",
+  "pandas",
+  "plotly",
+  "pytest>=8.0.0",
   "pytest-cov>=5.0.0",
   "pytest-benchmark",
 ]

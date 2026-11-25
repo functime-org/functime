@@ -102,7 +102,10 @@ def score_forecast(
     ]
     scores = [metric(y_true, y_pred) for metric in metrics]
     scores = reduce(
-        lambda df1, df2: df1.lazy().join(df2.lazy(), how="left", on=entity_col), scores
+        lambda df1, df2: df1.lazy().join(
+            df2.lazy(), how="left", on=entity_col, maintain_order="left"
+        ),
+        scores,
     ).collect()
     return scores
 

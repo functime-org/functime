@@ -32,7 +32,10 @@ def _residualize_autoreg(
             pl.lit(y_pred_arr).alias("y_pred")
         )
         y_resids = y_pred_cp.join(
-            y_train.rename({target_col: "y_train"}), on=idx_cols, how="left"
+            y_train.rename({target_col: "y_train"}),
+            on=idx_cols,
+            how="left",
+            maintain_order="left",
         ).select(*idx_cols, (pl.col("y_train") - pl.col("y_pred")).alias("y_resid"))
         return y_resids
 
@@ -59,7 +62,10 @@ def _residualize_autoreg(
             pl.lit(y_pred_arr).alias("y_pred")
         )
         y_resid = y_pred_cp.join(
-            y_train.rename({target_col: "y_train"}), on=idx_cols, how="left"
+            y_train.rename({target_col: "y_train"}),
+            on=idx_cols,
+            how="left",
+            maintain_order="left",
         ).select(*idx_cols, (pl.col("y_train") - pl.col("y_pred")).alias("y_resid"))
         return y_resid
 
@@ -69,7 +75,11 @@ def _residualize_autoreg(
         y_resid_direct = _score_direct(artifacts["direct"]["regressors"])
         y_resid = (
             y_resid_recursive.join(
-                y_resid_direct, on=idx_cols, how="inner", suffix="__direct"
+                y_resid_direct,
+                on=idx_cols,
+                how="inner",
+                suffix="__direct",
+                maintain_order="left",
             )
             .with_columns((pl.col("y_resid") - pl.col("y_resid__direct")) / 2)
             .drop("y_resid__direct")
@@ -121,7 +131,9 @@ def backtest(
         # Defensive left join y and X to defend against misalignment issues
         splits = (
             y.lazy()
-            .join(X.lazy(), how="left", on=[entity_col, time_col])
+            .join(
+                X.lazy(), how="left", on=[entity_col, time_col], maintain_order="left"
+            )
             .collect(engine="streaming")
             .lazy()
             .pipe(cv)

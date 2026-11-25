@@ -344,7 +344,10 @@ def benford_correlation(x: TIME_SERIES_T) -> FLOAT_EXPR:
             )
             .unique_counts()
         )
-        return pl.corr(counts - 1, pl.lit(_BENFORD_DIST_SERIES))
+        return pl.corr(
+            (counts - 1).implode().explode(),
+            pl.lit(_BENFORD_DIST_SERIES.to_list()).explode(),
+        )
 
 
 # def benford_correlation2(x: pl.Expr) -> pl.Expr:

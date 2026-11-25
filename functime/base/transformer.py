@@ -3,14 +3,10 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable
 from functools import cached_property, wraps
-from typing import ParamSpec, TypeVar
 
 import polars as pl
 
 from functime.base.model import ModelState
-
-P = ParamSpec("P")  # The parameters of the Model
-R = TypeVar("R")
 
 DF_TYPE = pl.LazyFrame | pl.DataFrame
 
@@ -69,7 +65,7 @@ class Transformer:
         return X_new
 
 
-def transformer(transf: Callable[P, R]):
+def transformer[**P, R](transf: Callable[P, R]):
     @wraps(transf)
     def _transformer(*args: P.args, **kwargs: P.kwargs) -> Transformer:
         return Transformer(transf, *args, **kwargs)

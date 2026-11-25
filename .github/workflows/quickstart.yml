@@ -3,31 +3,41 @@ name: Quickstart
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
       - "functime/**"
+      - "src/**"
+      - "Cargo.toml"
       - "pyproject.toml"
+      - "uv.lock"
       - "docs/code/quickstart.py"
+      - "docs/code/feature_engineering.py"
       - ".github/workflows/quickstart.yml"
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
+
+permissions: {}
 
 jobs:
   quickstart:
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.12", "3.13", "3.14", "3.15"]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           version: "latest"
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -35,13 +45,14 @@ jobs:
         run: rustup show
 
       - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
 
       - name: Install functime
         env:
-          RUSTFLAGS: -C debuginfo=0  # Do not produce debug symbols to keep memory usage down
+          RUSTFLAGS: -C debuginfo=0
+          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
         run: |
-          uv sync --python ${{ matrix.python-version }} --locked
+          uv sync --python "${{ matrix.python-version }}" --no-dev --locked
           uv run --with "maturin>=1.5" -- maturin develop
 
       - name: Run Quickstart

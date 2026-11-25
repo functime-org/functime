@@ -238,7 +238,9 @@ def predict_recursive(
         )
         if X is not None:
             x = X.select([entity_col, pl.all().exclude(entity_col).list.get(i)])
-            x_y_slice = x_y_slice.join(x, on=entity_col, how="left")
+            x_y_slice = x_y_slice.join(
+                x, on=entity_col, how="left", maintain_order="left"
+            )
         return x_y_slice
 
     is_censored = getattr(regressor, "is_censored", False)
@@ -308,7 +310,7 @@ def predict_direct(state, fh: int, X: pl.DataFrame | None = None) -> pl.DataFram
         x = y_lag.select([entity_col, pl.col(time_col).list.get(i), *lag_cols])
         if X is not None:
             x_slice = X.select([entity_col, pl.col(regressor_cols).list.get(i)])
-            x = x.join(x_slice, on=entity_col, how="left")
+            x = x.join(x_slice, on=entity_col, how="left", maintain_order="left")
         # Predict
         y_pred_i = regressors[i].predict(x)
         # Censored forecast adjustment
@@ -360,7 +362,7 @@ def predict_autoreg(
         )
         y_pred_dir = predict_direct(**predict_kwargs).rename({target_col: "direct"})
         y_pred = (
-            y_pred_rec.join(y_pred_dir, on=state.entity)
+            y_pred_rec.join(y_pred_dir, on=state.entity, maintain_order="left")
             .explode(["recursive", "direct"])
             .select(
                 [
@@ -368,7 +370,7 @@ def predict_autoreg(
                     ((pl.col("recursive") + pl.col("direct")) / 2).alias(target_col),
                 ]
             )
-            .group_by(state.entity)
+            .group_by(state.entity, maintain_order=True)
             .agg(target_col)
         )
     else:

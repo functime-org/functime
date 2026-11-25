@@ -323,7 +323,10 @@ def roll(
         # Join all window lazy operations
         X_rolling = X_all[0]
         for X_window in X_all[1:]:
-            X_rolling = X_rolling.join(X_window, on=[entity_col, time_col], how="inner")
+            X_rolling = X_rolling.join(
+                X_window, on=[entity_col, time_col], how="inner", maintain_order="left"
+            )
+        X_rolling = X_rolling.sort([entity_col, time_col])
         # Defensive join to match original X index
         # X_new = X.join(X_rolling, on=[entity_col, time_col], how="left").select(
         #     X_rolling.columns
@@ -367,14 +370,14 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
             _mean = X.group_by(entity_col).agg(
                 PL_NUMERIC_COLS(entity_col, time_col).mean().name.suffix("_mean")
             )
-            X = X.join(_mean, on=entity_col).select(
+            X = X.join(_mean, on=entity_col, maintain_order="left").select(
                 idx_cols + [pl.col(col) - pl.col(f"{col}_mean") for col in numeric_cols]
             )
         if use_std:
             _std = X.group_by(entity_col).agg(
                 PL_NUMERIC_COLS(entity_col, time_col).std().name.suffix("_std")
             )
-            X = X.join(_std, on=entity_col).select(
+            X = X.join(_std, on=entity_col, maintain_order="left").select(
                 idx_cols + [pl.col(col) / pl.col(f"{col}_std") for col in numeric_cols]
             )
         if rescale_bool:
@@ -396,12 +399,12 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
         numeric_cols = artifacts["numeric_cols"]
         if use_std:
             _std = artifacts["_std"]
-            X = X.join(_std, on=entity_col, how="left").select(
+            X = X.join(_std, on=entity_col, how="left", maintain_order="left").select(
                 idx_cols + [pl.col(col) * pl.col(f"{col}_std") for col in numeric_cols]
             )
         if use_mean:
             _mean = artifacts["_mean"]
-            X = X.join(_mean, on=entity_col, how="left").select(
+            X = X.join(_mean, on=entity_col, how="left", maintain_order="left").select(
                 idx_cols + [pl.col(col) + pl.col(f"{col}_mean") for col in numeric_cols]
             )
         if rescale_bool:
@@ -415,11 +418,11 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
         _mean = artifacts["_mean"]
         _std = artifacts["_std"]
         if use_mean:
-            X = X.join(_mean, on=idx_cols, how="left").select(
+            X = X.join(_mean, on=idx_cols, how="left", maintain_order="left").select(
                 idx_cols + [pl.col(col) - pl.col(f"{col}_mean") for col in numeric_cols]
             )
         if use_std:
-            X = X.join(_std, on=idx_cols, how="left").select(
+            X = X.join(_std, on=idx_cols, how="left", maintain_order="left").select(
                 idx_cols + [pl.col(col) / pl.col(f"{col}_std") for col in numeric_cols]
             )
         if rescale_bool:
@@ -568,6 +571,7 @@ def diff(order: int, sp: int = 1, fill_strategy: str | None = None):
                 X_new.unique(subset=[entity_col, time_col], keep="last"),
                 on=idx_cols,
                 how="left",
+                maintain_order="left",
             )
         )
         return X_new
@@ -616,7 +620,7 @@ def boxcox(method: str = "mle"):
         )
         # Step 2. Transform
         cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).collect_schema().names()
-        X_new = X.join(lmbds, on=entity_col, how="left").select(
+        X_new = X.join(lmbds, on=entity_col, how="left", maintain_order="left").select(
             idx_cols
             + [
                 pl.when(pl.col(f"{col}__lmbd") == 0)
@@ -636,7 +640,9 @@ def boxcox(method: str = "mle"):
         lmbds = state.artifacts["lmbds"]
         cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).collect_schema().names()
         X_new = (
-            X.join(lmbds, on=entity_col, how="left", suffix="__lmbd")
+            X.join(
+                lmbds, on=entity_col, how="left", suffix="__lmbd", maintain_order="left"
+            )
             .with_columns(
                 [
                     pl.when(pl.col(f"{col}__lmbd") == 0)
@@ -683,7 +689,7 @@ def yeojohnson(brack: tuple = (-2, 2)):
         )
         # Step 2. Transform
         cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).collect_schema().names()
-        X_new = X.join(lmbds, on=entity_col, how="left").select(
+        X_new = X.join(lmbds, on=entity_col, how="left", maintain_order="left").select(
             idx_cols
             + [
                 pl.when((pl.col(col) >= 0) & (pl.col(f"{col}__lmbd") == 0))
@@ -711,7 +717,9 @@ def yeojohnson(brack: tuple = (-2, 2)):
         lmbds = state.artifacts["lmbds"]
         cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).collect_schema().names()
         X_new = (
-            X.join(lmbds, on=entity_col, how="left", suffix="__lmbd")
+            X.join(
+                lmbds, on=entity_col, how="left", suffix="__lmbd", maintain_order="left"
+            )
             .with_columns(
                 [
                     pl.when((pl.col(col) >= 0) & (pl.col(f"{col}__lmbd") == 0))
@@ -909,9 +917,9 @@ def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
             # of the left join
             x = pl.col(time_col).arg_sort().over(entity_col) + pl.col("offset")
             X_new = (
-                X.join(offsets.lazy(), on=entity_col, how="left")
-                .join(_beta.lazy(), on=entity_col, how="left")
-                .join(_alpha.lazy(), on=entity_col, how="left")
+                X.join(offsets.lazy(), on=entity_col, how="left", maintain_order="left")
+                .join(_beta.lazy(), on=entity_col, how="left", maintain_order="left")
+                .join(_alpha.lazy(), on=entity_col, how="left", maintain_order="left")
                 .with_columns(
                     [
                         (
@@ -926,7 +934,12 @@ def detrend(freq: str, method: Literal["linear", "mean"] = "linear"):
             )
         else:
             X_new = (
-                X.join(state.artifacts["_mean"].lazy(), on=entity_col, how="left")
+                X.join(
+                    state.artifacts["_mean"].lazy(),
+                    on=entity_col,
+                    how="left",
+                    maintain_order="left",
+                )
                 .with_columns(
                     [pl.col(col) + pl.col(f"{col}__mean") for col in value_cols]
                 )
@@ -989,6 +1002,7 @@ def deseasonalize_fourier(sp: int, K: int, robust: bool = False):
             X.pipe(add_fourier_terms(sp=sp, K=K)).collect(),
             on=[entity_col, time_col],
             how="left",
+            maintain_order="left",
         )
         fourier_cols = list(set(X_with_features.columns) - set(X.columns))
         return_dtype = pl.Struct(
@@ -1054,11 +1068,12 @@ def deseasonalize_fourier(sp: int, K: int, robust: bool = False):
             X.pipe(add_fourier_terms(sp=sp, K=K)).collect(),
             on=[entity_col, time_col],
             how="left",
+            maintain_order="left",
         )
         y_new = (
-            X_with_features.group_by(entity_col)
+            X_with_features.group_by(entity_col, maintain_order=True)
             .agg([time_col, target_col, *fourier_cols])
-            .join(regressors, on=entity_col, how="left")
+            .join(regressors, on=entity_col, how="left", maintain_order="left")
             .select(
                 [
                     entity_col,

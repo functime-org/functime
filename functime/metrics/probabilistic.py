@@ -16,8 +16,18 @@ def _score_probabilistic(
     y_pred_lower = y_pred_lower.rename({y_pred_lower.columns[-1]: "lower"})
     y_pred_upper = y_pred_upper.rename({y_pred_upper.columns[-1]: "upper"})
     scores = (
-        y_true.join(y_pred_lower.select(entity_col, time_col, "lower"), on=[entity_col, time_col], how="left")
-        .join(y_pred_upper.select(entity_col, time_col, "upper"), on=[entity_col, time_col], how="left")
+        y_true.join(
+            y_pred_lower.select(entity_col, time_col, "lower"),
+            on=[entity_col, time_col],
+            how="left",
+            maintain_order="left",
+        )
+        .join(
+            y_pred_upper.select(entity_col, time_col, "upper"),
+            on=[entity_col, time_col],
+            how="left",
+            maintain_order="left",
+        )
         .group_by(entity_col)
         .agg(formula.alias(alias))
     )
@@ -127,8 +137,8 @@ def interval_coverage(
 
     scores = (
         y_true.rename({actual_col: "actual"})
-        .join(lower, on=[entity_col, time_col], how="left")
-        .join(upper, on=[entity_col, time_col], how="left")
+        .join(lower, on=[entity_col, time_col], how="left", maintain_order="left")
+        .join(upper, on=[entity_col, time_col], how="left", maintain_order="left")
         .group_by(entity_col)
         .agg(
             (
@@ -195,8 +205,8 @@ def winkler_score(
     # penalty = max(lower - actual, 0) + max(actual - upper, 0)
     scores = (
         y_true.rename({actual_col: "actual"})
-        .join(lower, on=[entity_col, time_col], how="left")
-        .join(upper, on=[entity_col, time_col], how="left")
+        .join(lower, on=[entity_col, time_col], how="left", maintain_order="left")
+        .join(upper, on=[entity_col, time_col], how="left", maintain_order="left")
         .with_columns(
             (pl.col("upper") - pl.col("lower")).alias("width"),
             (

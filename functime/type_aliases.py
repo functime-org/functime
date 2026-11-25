@@ -3,20 +3,20 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Literal, TypeAlias
+from typing import Literal
 
 import polars as pl
 
 # general
-PolarsFrame: TypeAlias = pl.DataFrame | pl.LazyFrame
+type PolarsFrame = pl.DataFrame | pl.LazyFrame
 
 # cross validation
-EagerSplitter: TypeAlias = Callable[
+type EagerSplitter = Callable[
     [pl.DataFrame | pl.LazyFrame], tuple[pl.DataFrame, pl.DataFrame]
 ]
-LazySplitter: TypeAlias = Callable[
+type LazySplitter = Callable[
     [pl.DataFrame | pl.LazyFrame], tuple[pl.LazyFrame, pl.LazyFrame]
 ]
 
 # feature extraction
-DetrendMethod: TypeAlias = Literal["linear", "mean"]
+type DetrendMethod = Literal["linear", "mean"]
