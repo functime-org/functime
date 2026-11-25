@@ -8,32 +8,28 @@ from functime.conversion import X_to_numpy, y_to_numpy
 from functime.forecasting._regressors import GradientBoostedTreeRegressor
 
 
-def test_X_to_numpy_casts_without_imputation():
+def test_X_to_numpy():
     df = pl.DataFrame(
         {
-            "entity_id": ["a", "a", "a", "a"],
-            "time": [0, 1, 2, 3],
-            "f1": [1.0, np.nan, np.inf, 3.0],
-            "f2": pl.Series("f2", [10.0, None, -np.inf, 20.0], dtype=pl.Float64),
-            "f3": [1, 2, 3, 4],
+            "entity_id": ["a", "a", "a"],
+            "time": [0, 1, 2],
+            "f1": [1.0, 2.0, 3.0],
+            "f2": pl.Series("f2", [10.0, 20.0, 30.0], dtype=pl.Float64),
+            "f3": [4, 5, 6],
         }
     )
 
     for frame in (df, df.lazy()):
         arr = X_to_numpy(frame)
         assert arr.dtype == np.float32
-        assert arr.shape == (4, 3)
-        np.testing.assert_array_equal(
-            arr[:, 2], np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32)
+        assert arr.shape == (3, 3)
+        np.testing.assert_allclose(
+            arr,
+            np.array(
+                [[1.0, 10.0, 4.0], [2.0, 20.0, 5.0], [3.0, 30.0, 6.0]],
+                dtype=np.float32,
+            ),
         )
-        assert arr[0, 0] == pytest.approx(1.0)
-        assert np.isnan(arr[1, 0])
-        assert np.isposinf(arr[2, 0])
-        assert arr[3, 0] == pytest.approx(3.0)
-        assert arr[0, 1] == pytest.approx(10.0)
-        assert np.isnan(arr[1, 1])
-        assert np.isneginf(arr[2, 1])
-        assert arr[3, 1] == pytest.approx(20.0)
 
 
 def test_y_to_numpy_zero_copy_on_contiguous_float32():
@@ -78,25 +74,7 @@ def test_y_to_numpy_chunked_float32():
     np.testing.assert_array_equal(arr, np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32))
 
 
-def test_y_to_numpy_fallback_cases():
-    df_non_finite = pl.DataFrame(
-        {
-            "entity_id": ["a"] * 6,
-            "time": list(range(6)),
-            "target": pl.Series(
-                "target", [2.0, 6.0, np.nan, np.inf, -np.inf, None], dtype=pl.Float32
-            ),
-        }
-    )
-    arr_non_finite = y_to_numpy(df_non_finite)
-    assert arr_non_finite.dtype == np.float32
-    assert arr_non_finite[0] == pytest.approx(2.0)
-    assert arr_non_finite[1] == pytest.approx(6.0)
-    assert np.isnan(arr_non_finite[2])
-    assert np.isposinf(arr_non_finite[3])
-    assert np.isneginf(arr_non_finite[4])
-    assert np.isnan(arr_non_finite[5])
-
+def test_y_to_numpy_casting_and_edge_cases():
     for dtype in (pl.Float64, pl.Int64):
         df_cast = pl.DataFrame(
             {

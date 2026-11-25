@@ -96,10 +96,6 @@ def long_to_wide(
 def X_to_numpy(X: pl.DataFrame | pl.LazyFrame) -> np.ndarray:
     """Convert panel feature columns into a 2D ``np.float32`` ndarray.
 
-    Drops the leading entity and time index columns and casts remaining
-    features to ``pl.Float32`` without modifying or imputing missing or
-    non-finite values.
-
     Parameters
     ----------
     X : pl.DataFrame | pl.LazyFrame
@@ -123,10 +119,6 @@ def X_to_numpy(X: pl.DataFrame | pl.LazyFrame) -> np.ndarray:
 def y_to_numpy(y: pl.DataFrame) -> np.ndarray:
     """Convert the target column of a panel DataFrame into a 1D ``np.float32`` ndarray.
 
-    Returns a zero-copy NumPy view when the trailing target column is already
-    a contiguous, null-free ``pl.Float32`` series; otherwise casts to
-    ``pl.Float32`` and exports without imputing missing or non-finite values.
-
     Parameters
     ----------
     y : pl.DataFrame
@@ -137,11 +129,4 @@ def y_to_numpy(y: pl.DataFrame) -> np.ndarray:
     np.ndarray
         1D ``np.float32`` NumPy target vector.
     """
-    target_col = y.columns[-1]
-    raw = y.get_column(target_col)
-    series = raw if raw.dtype == pl.Float32 else raw.cast(pl.Float32)
-    series = series.rechunk()
-    # NumPy float arrays lack a validity mask, so allow_copy=False requires null_count == 0.
-    if series.null_count() == 0:
-        return series.to_numpy(allow_copy=False)
-    return series.to_numpy()
+    return y.get_column(y.columns[-1]).cast(pl.Float32).to_numpy()
