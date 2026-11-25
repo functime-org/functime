@@ -45,7 +45,7 @@ class GradientBoostedTreeRegressor:
 
         if self.fit_dtype == "numpy":
             X_coerced = X_to_numpy(X)
-            y_coerced = y_to_numpy(X)
+            y_coerced = y_to_numpy(y)
         elif self.fit_dtype == "arrow":
             X_coerced = X.to_arrow()
             y_coerced = y.to_arrow()
@@ -62,7 +62,7 @@ class GradientBoostedTreeRegressor:
         if self.predict_dtype == "numpy":
             X_coerced = X_to_numpy(X)
         elif self.predict_dtype == "arrow":
-            X_coerced = X.to_arrow
+            X_coerced = X.to_arrow()
         elif isinstance(self.predict_dtype, Callable):
             X_coerced = self.predict_dtype(X)
         y_pred = self.regressor.predict(X_coerced)

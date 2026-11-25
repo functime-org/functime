@@ -93,13 +93,25 @@ def long_to_wide(
     return result
 
 
-def df_to_ndarray(df: pl.DataFrame) -> np.ndarray:
-    """Zero-copy spill-to-disk Polars DataFrame to numpy ndarray."""
-    return df.to_numpy()
+def X_to_numpy(X: pl.DataFrame | pl.LazyFrame) -> np.ndarray:
+    """Convert panel feature columns into a 2D ``np.float32`` ndarray.
 
+    Drops the leading entity and time index columns, casts remaining features
+    to ``pl.Float32``, replaces non-finite values with nulls, and mean-imputes
+    before materializing a 2D NumPy array.
 
-def X_to_numpy(X: pl.DataFrame) -> np.ndarray:
-    X_arr = (
+    Parameters
+    ----------
+    X : pl.DataFrame | pl.LazyFrame
+        Panel frame with leading entity and time columns followed by feature
+        columns.
+
+    Returns
+    -------
+    np.ndarray
+        2D ``np.float32`` NumPy feature matrix.
+    """
+    return (
         X.lazy()
         .drop(pl.nth([0, 1]))
         .select(pl.all().cast(pl.Float32))
@@ -109,28 +121,52 @@ def X_to_numpy(X: pl.DataFrame) -> np.ndarray:
             .otherwise(pl.all())
             .name.keep()
         )
-        # TODO: Support custom group_by imputation
-        .fill_null(strategy="mean")  # Do not fill backward (data leak)
+        # Do not backward-fill to avoid leaking future observations across rows.
+        .fill_null(strategy="mean")
         .collect(engine="streaming")
-        .pipe(df_to_ndarray)
+        .to_numpy()
     )
-    return X_arr
 
 
 def y_to_numpy(y: pl.DataFrame) -> np.ndarray:
-    y_arr = (
+    """Convert the target column of a panel DataFrame into a 1D ``np.float32`` ndarray.
+
+    Returns a zero-copy NumPy view when the trailing target column is already
+    null-free, finite ``pl.Float32``. Otherwise casts to ``pl.Float32``,
+    replaces non-finite values with nulls, mean-imputes, and exports with
+    ``allow_copy=False`` whenever no nulls remain.
+
+    Parameters
+    ----------
+    y : pl.DataFrame
+        Panel DataFrame whose trailing column is the target series.
+
+    Returns
+    -------
+    np.ndarray
+        1D ``np.float32`` NumPy target vector.
+    """
+    target_col = y.columns[-1]
+    raw = y.get_column(target_col)
+    if raw.dtype == pl.Float32 and raw.null_count() == 0 and raw.is_finite().all():
+        return raw.rechunk().to_numpy(allow_copy=False)
+
+    series = (
         y.lazy()
-        .select(pl.col(y.columns[-1]).cast(pl.Float32))
+        .select(pl.col(target_col).cast(pl.Float32))
         .select(
             pl.when(pl.all().is_infinite() | pl.all().is_nan())
             .then(None)
             .otherwise(pl.all())
             .name.keep()
         )
-        # TODO: Support custom group_by imputation
-        .fill_null(strategy="mean")  # Do not fill backward (data leak)
+        # Do not backward-fill to avoid leaking future observations across rows.
+        .fill_null(strategy="mean")
         .collect(engine="streaming")
-        .get_column(y.columns[-1])
-        .to_numpy()  # TODO: Cannot require zero-copy array?
+        .get_column(target_col)
+        .rechunk()
     )
-    return y_arr
+    # NumPy float arrays lack a validity mask, so all-null series cannot use allow_copy=False.
+    if series.null_count() == 0:
+        return series.to_numpy(allow_copy=False)
+    return series.to_numpy()
