@@ -10,14 +10,32 @@ import polars as pl
 from polars._typing import ClosedInterval
 
 # from numpy.linalg import lstsq
-from scipy.linalg import lstsq
+from scipy.linalg import LinAlgError, lstsq, solve
 from scipy.signal import find_peaks_cwt, welch
 from scipy.spatial import KDTree
 
 from functime._compat import register_plugin_function, rle_fields
-from functime._functime_rust import rs_faer_lstsq1
 from functime._utils import warn_is_unstable
 from functime.type_aliases import DetrendMethod
+
+
+def _ffd_weights(
+    d: float,
+    min_weight: float | None = None,
+    window_size: int | None = None,
+) -> list[float]:
+    weights = [1.0]
+    k = 1
+    threshold = 0.0 if min_weight is None else min_weight
+    max_k = 1000 if window_size is None else window_size
+    while True:
+        weight = -weights[k - 1] * (d - k + 1.0) / k
+        if abs(weight) < threshold or k > max_k:
+            break
+        weights.append(weight)
+        k += 1
+    weights.reverse()
+    return weights
 
 
 def _ricker(points: int, a: float) -> np.ndarray:
@@ -272,22 +290,28 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> list[float]:
     list of float
     """
     if isinstance(x, pl.Series):
-        length = len(x) - n_lags
-        y = x.fill_null(0.0)
-        data_x = (
-            y.to_frame()
-            .select(
-                *(
-                    pl.col(y.name).slice(n_lags - i, length=length).alias(str(i))
-                    for i in range(1, n_lags + 1)
-                ),
-                pl.lit(1),
+        if len(x) <= n_lags:
+            raise ValueError(
+                f"Series length ({len(x)}) must be greater than `n_lags` ({n_lags})."
             )
-            .to_numpy()
-        )
-        y_ = y.tail(length).to_numpy(allow_copy=False).reshape((-1, 1))
-        out: np.ndarray = rs_faer_lstsq1(data_x, y_)
-        return out.ravel()
+        arr = x.cast(pl.Float64).fill_null(0.0).to_numpy()
+        length = len(arr) - n_lags
+        win = np.lib.stride_tricks.sliding_window_view(arr, n_lags + 1)
+        data_x = np.empty((length, n_lags + 1), dtype=np.float64)
+        data_x[:, :n_lags] = win[:, :n_lags][:, ::-1]
+        data_x[:, n_lags] = 1.0
+        y_ = arr[n_lags:]
+        try:
+            # Fast normal-equations Cholesky path; fall back to SVD `lstsq` for
+            # constant or rank-deficient series where X^T X is not positive definite.
+            return solve(
+                data_x.T @ data_x,
+                data_x.T @ y_,
+                assume_a="pos",
+                check_finite=False,
+            )
+        except LinAlgError:
+            return lstsq(data_x, y_, check_finite=False)[0]
     else:
         logger.info(
             "Expression version of autoregressive_coefficients is not yet implemented due to "
@@ -2842,15 +2866,13 @@ class FeatureExtractor:
         if min_weight is None and window_size is None:
             raise ValueError("Either min_weight or window_size must be specified.")
 
-        return register_plugin_function(
-            args=[self._expr],
-            plugin_path=lib,
-            function_name="frac_diff",
-            kwargs={
-                "d": d,
-                "min_weight": min_weight,
-                "window_size": window_size,
-            },
-            is_elementwise=False,
-            cast_to_supertype=True,
+        weights = _ffd_weights(d=d, min_weight=min_weight, window_size=window_size)
+        expr = self._expr.cast(pl.Float64)
+        if len(weights) == 1:
+            return expr * weights[0]
+        # Convert nulls to NaN because Polars panics on weighted rolling_sum with a null mask.
+        return (
+            expr.fill_null(float("nan"))
+            .rolling_sum(window_size=len(weights), weights=weights)
+            .fill_nan(None)
         )

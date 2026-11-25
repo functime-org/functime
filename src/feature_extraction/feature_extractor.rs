@@ -1,5 +1,4 @@
 use hashbrown::HashSet;
-use polars_core::prelude::*;
 use pyo3_polars::{
     derive::polars_expr,
     export::polars_core::{prelude::*, series::Series},

@@ -149,7 +149,7 @@ keep-runtime-typing = true
 project-includes = ["functime"]
 search-path = ["."]
 python-version = "3.12"
-ignore-missing-imports = ["functime._functime_rust", "lance"]
+ignore-missing-imports = ["lance"]
 
 # Gradual typing backlog: legacy v1.0 modules checked with `basic` until migrated.
 # All other modules (and new code in functime/_core, functime/sklearn) use full `default` checks.

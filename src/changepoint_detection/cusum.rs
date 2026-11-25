@@ -1,5 +1,5 @@
-use polars::prelude::*;
 use pyo3_polars::derive::polars_expr;
+use pyo3_polars::export::polars_core::prelude::*;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
