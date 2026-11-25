@@ -72,7 +72,9 @@ def fit_direct(
         fitted_regressor = regress(X=X_final, y=y_final)
         fitted_regressors.append(fitted_regressor)
     # 3. Collect artifacts
-    y_lag = make_y_lag(X_y_final, target_col=y.collect_schema().names()[-1], lags=lags + max_horizons)
+    y_lag = make_y_lag(
+        X_y_final, target_col=y.collect_schema().names()[-1], lags=lags + max_horizons
+    )
     artifacts = {
         "regressors": fitted_regressors,
         "y_lag": y_lag.collect(engine="streaming"),
@@ -114,7 +116,7 @@ def fit_autoreg(
     return artifacts
 
 
-def fit_cv(  # noqa: Ruff too complex
+def fit_cv(
     y: pl.LazyFrame,
     forecaster_cls,
     freq: str | None,

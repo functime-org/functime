@@ -357,7 +357,9 @@ def scale(use_mean: bool = True, use_std: bool = True, rescale_bool: bool = Fals
     def transform(X: pl.LazyFrame) -> pl.LazyFrame:
         idx_cols = X.collect_schema().names()[:2]
         entity_col, time_col = idx_cols
-        numeric_cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).collect_schema().names()
+        numeric_cols = (
+            X.select(PL_NUMERIC_COLS(entity_col, time_col)).collect_schema().names()
+        )
         boolean_cols = None
         _mean = None
         _std = None
@@ -604,7 +606,9 @@ def boxcox(method: str = "mle"):
         lmbds = gb.agg(
             PL_NUMERIC_COLS(entity_col, time_col)
             .map_batches(
-                lambda x: pl.Series([boxcox_normmax(x, method=method, optimizer=optimizer)]),
+                lambda x: pl.Series(
+                    [boxcox_normmax(x, method=method, optimizer=optimizer)]
+                ),
                 return_dtype=pl.Float64,
             )
             .first()
@@ -750,9 +754,7 @@ def log1p():
         idx_cols = X_columns[:2]
         entity_col, time_col = idx_cols
         cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).collect_schema().names()
-        X_new = X.with_columns(
-            [pl.col(col).log1p() for col in cols]
-        )
+        X_new = X.with_columns([pl.col(col).log1p() for col in cols])
         artifacts = {"X_new": X_new}
         return artifacts
 
@@ -760,9 +762,7 @@ def log1p():
         _xcols = X.collect_schema().names()
         entity_col, time_col = _xcols[:2]
         cols = X.select(PL_NUMERIC_COLS(entity_col, time_col)).collect_schema().names()
-        X_new = X.with_columns(
-            [pl.col(col).exp() - 1 for col in cols]
-        )
+        X_new = X.with_columns([pl.col(col).exp() - 1 for col in cols])
         return X_new
 
     return transform, invert

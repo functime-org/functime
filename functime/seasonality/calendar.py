@@ -99,7 +99,9 @@ def add_holiday_effects(country_codes: list[str], as_dummies: bool = False):
                 .cast(pl.Categorical)
             )
             .with_columns(
-                pl.Series(values=timestamps, name=time_col).cast(X.collect_schema()[time_col])
+                pl.Series(values=timestamps, name=time_col).cast(
+                    X.collect_schema()[time_col]
+                )
             )
             .lazy()
         )

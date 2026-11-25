@@ -244,6 +244,7 @@ class elite(Forecaster):
             else:
                 forecaster = forecaster_cls(freq=freq)
             from functime.backtesting import backtest
+
             y_preds = backtest(forecaster=forecaster, y=y, cv=cv, residualize=False)
             cv_y_preds[model_name] = y_preds.pipe(coerce_dtypes(schema)).collect()
 
