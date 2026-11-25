@@ -27,9 +27,6 @@ Join us on [Discord](https://discord.com/invite/JKMrZKjEwN)!
 - **Backtesting** with expanding window and sliding window splitters
 - **Automated lags and hyperparameter tuning** using [`FLAML`](https://github.com/microsoft/FLAML)
 
-## Additional Highlights
-`functime` comes with a specialized LLM agent to analyze, describe, and compare your forecasts. Check out the walkthrough [here](https://functime-org.github.io/functime/notebooks/llm/).
-
 ## Getting Started
 
 Install `functime` using [uv](https://docs.astral.sh/uv/) (recommended) or pip:
@@ -42,20 +39,19 @@ uv add functime
 pip install functime
 ```
 
-`functime` comes with extra options. For example, to install `functime` with large-language model (LLM) and lightgbm features:
+`functime` comes with extra options. For example, to install `functime` with lightgbm and plotting features:
 
 ```bash
 # Using uv (recommended)
-uv add "functime[llm,lgb]"
+uv add "functime[lgb,plot]"
 
 # Or using pip
-pip install "functime[llm,lgb]"
+pip install "functime[lgb,plot]"
 ```
 
 - `cat`: To use `catboost` forecaster
 - `xgb`: To use `xgboost` forecaster
 - `lgb`: To use `lightgbm` forecaster
-- `llm`: To use the LLM-powered forecast analyst
 
 ### Forecasting
 

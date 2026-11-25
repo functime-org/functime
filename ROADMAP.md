@@ -6,7 +6,7 @@
 
 A lean, pure-Python, Polars-powered time-series toolkit working uniformly from a **single time series (`entity_col=None`) to 100,000+ series panels (`entity_col="id"`)**, paired with a **thin `functime.sklearn.*` wrapper layer** mirroring `scikit-learn` 1:1 and a **DI-first `functime.forecasting` module**.
 
-Rather than maintaining hardcoded model wrappers (`lightgbm`, `catboost`, `xgboost`, `linear_model`, `flaml`, `lance`, `llm`), users compose `functime.sklearn` components with `scikit-learn` pipelines and inject any external regressor (`LightGBM`, `XGBoost`, `CatBoost`, `Ridge`, etc.) into sklearn-compatible **`*Forecaster`** estimators under `functime.forecasting` (`RecursiveForecaster`, `DirectForecaster`, plus dedicated naive baselines such as `NaiveForecaster`, `SeasonalNaiveForecaster`, `MeanForecaster`, `DriftForecaster`) alongside functional **`backtest`** orchestration.
+Rather than maintaining hardcoded model wrappers (`lightgbm`, `catboost`, `xgboost`, `linear_model`, `flaml`, `lance`, and the already-removed `llm` module), users compose `functime.sklearn` components with `scikit-learn` pipelines and inject any external regressor (`LightGBM`, `XGBoost`, `CatBoost`, `Ridge`, etc.) into sklearn-compatible **`*Forecaster`** estimators under `functime.forecasting` (`RecursiveForecaster`, `DirectForecaster`, plus dedicated naive baselines such as `NaiveForecaster`, `SeasonalNaiveForecaster`, `MeanForecaster`, `DriftForecaster`) alongside functional **`backtest`** orchestration.
 
 ## 2. Architectural Pillars
 
@@ -25,7 +25,7 @@ Rather than maintaining hardcoded model wrappers (`lightgbm`, `catboost`, `xgboo
    - Maintain compatibility with `polars>=1.0` (both 1.x and 2.x) and Python `3.12–3.15` while keeping existing `v1` APIs working.
    - Ship `functime.sklearn` (backed by private `functime._core`), new `PascalCase` `*Forecaster` classes inside `functime.forecasting` (`NaiveForecaster`, `SeasonalNaiveForecaster`, `MeanForecaster`, `DriftForecaster`, `RecursiveForecaster`, `DirectForecaster`), and non-colliding top-level modules (`model_selection`, `diagnostics`) progressively across small minor releases, alongside optional Rust decoupling (`functime[rust]`).
 2. **Final `v1.x` — Formal Deprecations:**
-   - Once the new interface (including `RecursiveForecaster`, `DirectForecaster`, naive forecasters, and `backtest`) covers the core workflows, mark legacy `v1` wrappers and modules (the `snake_case` hardcoded wrappers in `functime.forecasting`, `backtesting.py`, `llm/`, `@transformer`, legacy `preprocessing.py` and `seasonality/`) with `DeprecationWarning` pointing directly to their replacements and migration guidance.
+   - Once the new interface (including `RecursiveForecaster`, `DirectForecaster`, naive forecasters, and `backtest`) covers the core workflows, mark legacy `v1` wrappers and modules (the `snake_case` hardcoded wrappers in `functime.forecasting`, `backtesting.py`, `@transformer`, legacy `preprocessing.py` and `seasonality/`) with `DeprecationWarning` pointing directly to their replacements and migration guidance.
 3. **`v2.0` — Clean Pure-Python Break:**
    - Remove all deprecated `v1` wrappers/modules and the embedded Rust build (`py3-none-any` wheel).
    - Promote internal `functime._core` primitives to shallow top-level `functime.*` domain modules (`preprocessing` including seasonality, `feature_extraction`, `model_selection`, `metrics`, `diagnostics`, `conformal`, `plotting`) alongside `functime.sklearn.*` and the modernized `functime.forecasting`.

@@ -62,12 +62,6 @@ tree = [
   "functime[cat]; python_version < '3.15'",
   "functime[lgb,xgb]",
 ]
-llm = [
-  "openai",
-  "pandas",
-  "tenacity",
-  "tiktoken",
-]
 all = [
   "functime[ann,tree,plot]",
 ]
