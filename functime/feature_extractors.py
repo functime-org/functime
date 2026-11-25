@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Mapping, Sequence
-from pathlib import Path
+from functools import partial
 
 import numpy as np
 import polars as pl
@@ -14,8 +14,8 @@ from scipy.linalg import lstsq
 from scipy.signal import find_peaks_cwt, welch
 from scipy.spatial import KDTree
 
+from functime import _rust
 from functime._compat import register_plugin_function, rle_fields
-from functime._functime_rust import rs_faer_lstsq1
 from functime._utils import warn_is_unstable
 from functime.type_aliases import DetrendMethod
 
@@ -31,6 +31,141 @@ def _ricker(points: int, a: float) -> np.ndarray:
     return A * mod * gauss
 
 
+def _lstsq_py(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    if x.shape[0] == 0:
+        return np.zeros((x.shape[1], y.shape[1]), dtype=np.float64)
+    coeffs, _, _, _ = lstsq(x, y, cond=None)
+    return np.asarray(coeffs, dtype=np.float64)
+
+
+def _lempel_ziv_complexity_py(s: pl.Series) -> int:
+    bits = s.cast(pl.Boolean).fill_null(False).cast(pl.UInt8).to_numpy().tobytes()
+    n = len(bits)
+    ind = 0
+    inc = 1
+    sub_strings: set[bytes] = set()
+    while ind + inc <= n:
+        subseq = bits[ind : ind + inc]
+        if subseq in sub_strings:
+            inc += 1
+        else:
+            sub_strings.add(subseq)
+            ind += inc
+            inc = 1
+    return len(sub_strings)
+
+
+def _cusum_py(
+    s: pl.Series, *, threshold: float, warmup_period: int, drift: float
+) -> pl.Series:
+    values = s.cast(pl.Float64).to_list()
+    events: list[int] = []
+    s_pos = 0.0
+    s_neg = 0.0
+    t = 0
+    mu_x = 0.0
+    sigma_x = 0.0
+    obs: list[float] = []
+
+    for value in values:
+        if t < warmup_period:
+            if value is not None:
+                obs.append(value)
+            events.append(0)
+            t += 1
+            continue
+        if t == warmup_period:
+            if obs:
+                n_obs = len(obs)
+                mu_x = sum(obs) / n_obs
+                sigma_x = math.sqrt(sum((x - mu_x) ** 2 for x in obs) / n_obs)
+            else:
+                mu_x = math.nan
+                sigma_x = math.nan
+            t += 1
+
+        if value is not None:
+            if math.isnan(mu_x) or math.isnan(sigma_x):
+                v = math.nan
+            elif sigma_x == 0.0:
+                diff = value - mu_x
+                v = math.nan if diff == 0.0 else math.copysign(math.inf, diff)
+            else:
+                v = (value - mu_x) / sigma_x
+            cand_pos = s_pos + v - drift
+            cand_neg = s_neg + v + drift
+            # Match Rust f64::max/min IEEE-754 behavior where NaN falls back to 0.0.
+            s_pos = cand_pos if cand_pos > 0.0 else 0.0
+            s_neg = cand_neg if cand_neg < 0.0 else 0.0
+            if s_pos > threshold or s_neg < -threshold:
+                events.append(1)
+                s_pos = 0.0
+                s_neg = 0.0
+                t = 0
+                obs.clear()
+            else:
+                events.append(0)
+        else:
+            events.append(0)
+
+    return pl.Series(s.name, events, dtype=pl.Int32)
+
+
+def _get_ffd_weights(
+    d: float, min_weight: float | None, window_size: int | None
+) -> np.ndarray:
+    weights = [1.0]
+    k = 1
+    threshold = 0.0 if min_weight is None else min_weight
+    max_k = 1000 if window_size is None else window_size
+    while True:
+        weight = -weights[k - 1] * (d - k + 1.0) / k
+        if abs(weight) < threshold or k > max_k:
+            break
+        weights.append(weight)
+        k += 1
+    weights.reverse()
+    return np.asarray(weights, dtype=np.float64)
+
+
+def _frac_diff_py(s: pl.Series, *, weights: np.ndarray) -> pl.Series:
+    values = s.cast(pl.Float64)
+    n = len(values)
+    window_len = len(weights)
+    width = window_len - 1
+    if n == 0:
+        return pl.Series(s.name, [], dtype=pl.Float64)
+    if n <= width:
+        return pl.repeat(None, n, dtype=pl.Float64, eager=True).alias(s.name)
+
+    if values.null_count() == 0:
+        arr = np.ascontiguousarray(values.to_numpy(allow_copy=False), dtype=np.float64)
+        dots = np.lib.stride_tricks.sliding_window_view(arr, window_len) @ weights
+        return (
+            pl.repeat(None, width, dtype=pl.Float64, eager=True)
+            .append(pl.Series(dots, dtype=pl.Float64))
+            .alias(s.name)
+        )
+
+    # Polars rolling_sum(weights=...) panics when nulls are present, so mask invalid windows explicitly.
+    valid = values.is_not_null().to_numpy()
+    arr = np.ascontiguousarray(
+        values.fill_null(0.0).to_numpy(allow_copy=False), dtype=np.float64
+    )
+    dots = np.lib.stride_tricks.sliding_window_view(arr, window_len) @ weights
+    null_prefix = np.concatenate(([0], np.cumsum(~valid, dtype=np.int64)))
+    window_valid = (null_prefix[window_len:] - null_prefix[:-window_len]) == 0
+    out = np.empty(n, dtype=np.float64)
+    out[:width] = np.nan
+    out[width:] = dots
+    mask = np.zeros(n, dtype=bool)
+    mask[width:] = window_valid
+    return pl.Series(s.name, out, dtype=pl.Float64).zip_with(
+        pl.Series(mask),
+        pl.repeat(None, n, dtype=pl.Float64, eager=True),
+    )
+
+
 # from functime.feature_extractor import FeatureExtractor  # noqa: F401
 
 logger = logging.getLogger(__name__)
@@ -43,16 +178,6 @@ LIST_EXPR = list | pl.Expr
 BOOL_EXPR = bool | pl.Expr
 MAP_EXPR = Mapping[str, float] | pl.Expr
 MAP_LIST_EXPR = Mapping[str, list[float]] | pl.Expr
-
-
-# from polars.type_aliases import IntoExpr
-
-try:
-    from polars.utils.udfs import _get_shared_lib_location
-
-    lib = _get_shared_lib_location(__file__)
-except ImportError:
-    lib = Path(__file__).parent
 
 
 def absolute_energy(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
@@ -278,20 +403,29 @@ def autoregressive_coefficients(x: TIME_SERIES_T, n_lags: int) -> list[float]:
     """
     if isinstance(x, pl.Series):
         length = len(x) - n_lags
-        y = x.fill_null(0.0)
-        data_x = (
+        if length <= 0:
+            return np.zeros(n_lags + 1, dtype=np.float64)
+        y = x.cast(pl.Float64).fill_null(0.0)
+        data_x = np.ascontiguousarray(
             y.to_frame()
             .select(
                 *(
                     pl.col(y.name).slice(n_lags - i, length=length).alias(str(i))
                     for i in range(1, n_lags + 1)
                 ),
-                pl.lit(1),
+                pl.lit(1.0),
             )
-            .to_numpy()
+            .to_numpy(),
+            dtype=np.float64,
         )
-        y_ = y.tail(length).to_numpy(allow_copy=False).reshape((-1, 1))
-        out: np.ndarray = rs_faer_lstsq1(data_x, y_)
+        y_ = np.ascontiguousarray(
+            y.tail(length).to_numpy(allow_copy=False).reshape((-1, 1)),
+            dtype=np.float64,
+        )
+        if _rust.HAS_RUST and _rust.rs_faer_lstsq1 is not None:
+            out: np.ndarray = _rust.rs_faer_lstsq1(data_x, y_)
+        else:
+            out = _lstsq_py(data_x, y_)
         return out.ravel()
     else:
         logger.info(
@@ -2282,13 +2416,20 @@ class FeatureExtractor:
         https://github.com/Naereen/Lempel-Ziv_Complexity/tree/master
         https://en.wikipedia.org/wiki/Lempel%E2%80%93Ziv_complexity
         """
-        out = register_plugin_function(
-            args=[self._expr > threshold],
-            plugin_path=lib,
-            function_name="pl_lempel_ziv_complexity",
-            is_elementwise=False,
-            returns_scalar=True,
-        )
+        if _rust.HAS_RUST and _rust.PLUGIN_PATH is not None:
+            out = register_plugin_function(
+                args=[self._expr > threshold],
+                plugin_path=_rust.PLUGIN_PATH,
+                function_name="pl_lempel_ziv_complexity",
+                is_elementwise=False,
+                returns_scalar=True,
+            )
+        else:
+            out = (self._expr > threshold).map_batches(
+                _lempel_ziv_complexity_py,
+                return_dtype=pl.UInt32,
+                returns_scalar=True,
+            )
         if as_ratio:
             return out / self._expr.len()
         return out
@@ -2794,17 +2935,28 @@ class FeatureExtractor:
         -------
         An expression of the output
         """
-        return register_plugin_function(
-            args=[self._expr],
-            plugin_path=lib,
-            function_name="cusum",
-            kwargs={
-                "threshold": threshold,
-                "drift": drift,
-                "warmup_period": warmup_period,
-            },
-            is_elementwise=False,
-            cast_to_supertype=True,
+        expr = self._expr.cast(pl.Float64)
+        if _rust.HAS_RUST and _rust.PLUGIN_PATH is not None:
+            return register_plugin_function(
+                args=[expr],
+                plugin_path=_rust.PLUGIN_PATH,
+                function_name="cusum",
+                kwargs={
+                    "threshold": threshold,
+                    "drift": drift,
+                    "warmup_period": warmup_period,
+                },
+                is_elementwise=False,
+                cast_to_supertype=True,
+            )
+        return expr.map_batches(
+            partial(
+                _cusum_py,
+                threshold=threshold,
+                warmup_period=warmup_period,
+                drift=drift,
+            ),
+            return_dtype=pl.Int32,
         )
 
     def frac_diff(
@@ -2838,21 +2990,34 @@ class FeatureExtractor:
 
         # Assert only one of min_weight or window_size is specified
         if min_weight is not None and window_size is not None:
-            raise ValueError("Only one of min_weight or window_size can be specified.")
+            raise ValueError(
+                "Only one of `min_weight` or `window_size` can be specified."
+            )
 
         # Assert either min_weight or window_size is specified
         if min_weight is None and window_size is None:
-            raise ValueError("Either min_weight or window_size must be specified.")
+            raise ValueError("Either `min_weight` or `window_size` must be specified.")
 
-        return register_plugin_function(
-            args=[self._expr],
-            plugin_path=lib,
-            function_name="frac_diff",
-            kwargs={
-                "d": d,
-                "min_weight": min_weight,
-                "window_size": window_size,
-            },
-            is_elementwise=False,
-            cast_to_supertype=True,
+        if window_size is not None and window_size < 0:
+            raise ValueError("`window_size` must be non-negative.")
+
+        expr = self._expr.cast(pl.Float64)
+        if _rust.HAS_RUST and _rust.PLUGIN_PATH is not None:
+            return register_plugin_function(
+                args=[expr],
+                plugin_path=_rust.PLUGIN_PATH,
+                function_name="frac_diff",
+                kwargs={
+                    "d": d,
+                    "min_weight": min_weight,
+                    "window_size": window_size,
+                },
+                is_elementwise=False,
+                cast_to_supertype=True,
+            )
+
+        weights = _get_ffd_weights(d, min_weight, window_size)
+        return expr.map_batches(
+            partial(_frac_diff_py, weights=weights),
+            return_dtype=pl.Float64,
         )

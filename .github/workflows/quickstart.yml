@@ -6,8 +6,6 @@ on:
     branches: ["main"]
     paths:
       - "functime/**"
-      - "src/**"
-      - "Cargo.toml"
       - "pyproject.toml"
       - "uv.lock"
       - "docs/code/quickstart.py"
@@ -23,43 +21,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build-wheel:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          persist-credentials: false
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
-        with:
-          version: "latest"
-          enable-cache: true
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: "3.12"
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
-
-      - name: Build abi3 wheel
-        env:
-          RUSTFLAGS: -C debuginfo=0
-        run: uvx --from "maturin<2,>=1.5" maturin build --profile dev -i python --out dist
-
-      - name: Upload wheel
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: functime-wheel
-          path: dist/*.whl
-          retention-days: 1
-
   quickstart:
-    needs: build-wheel
     strategy:
       matrix:
         python-version: ["3.12", "3.13", "3.14", "3.15"]
@@ -82,16 +44,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Download wheel
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: functime-wheel
-          path: dist
-
       - name: Install functime
         run: |
-          uv sync --python "${{ matrix.python-version }}" --no-dev --no-install-project --locked
-          uv pip install --no-deps dist/functime-*.whl
+          uv sync --python "${{ matrix.python-version }}" --no-dev --locked
 
       - name: Run Quickstart
         run: |

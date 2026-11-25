@@ -16,6 +16,12 @@ resolution-markers = [
     "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
+[manifest]
+members = [
+    "functime",
+    "functime-rust",
+]
+
 [[package]]
 name = "aeon"
 version = "0.0.0"
@@ -905,6 +911,10 @@ ann = [
 cat = [
     { name = "catboost" },
 ]
+fast = [
+    { name = "functime-rust" },
+    { name = "polars-ols" },
+]
 lgb = [
     { name = "lightgbm" },
 ]
@@ -914,10 +924,16 @@ llm = [
     { name = "tenacity" },
     { name = "tiktoken" },
 ]
+ols = [
+    { name = "polars-ols" },
+]
 plot = [
     { name = "kaleido" },
     { name = "pandas" },
     { name = "plotly" },
+]
+rust = [
+    { name = "functime-rust" },
 ]
 tree = [
     { name = "catboost", marker = "python_full_version < '3.15'" },
@@ -982,6 +998,8 @@ requires-dist = [
     { name = "functime", extras = ["ann", "tree", "plot"], marker = "extra == 'all'" },
     { name = "functime", extras = ["cat"], marker = "python_full_version < '3.15' and extra == 'tree'" },
     { name = "functime", extras = ["lgb", "xgb"], marker = "extra == 'tree'" },
+    { name = "functime", extras = ["ols", "rust"], marker = "extra == 'fast'" },
+    { name = "functime-rust", marker = "extra == 'rust'", editable = "packages/functime-rust" },
     { name = "holidays" },
     { name = "kaleido", marker = "extra == 'plot'", specifier = "==0.2.1" },
     { name = "lightgbm", marker = "extra == 'lgb'" },
@@ -991,6 +1009,7 @@ requires-dist = [
     { name = "pandas", marker = "extra == 'plot'" },
     { name = "plotly", marker = "extra == 'plot'" },
     { name = "polars", specifier = ">=1.0" },
+    { name = "polars-ols", marker = "extra == 'ols'" },
     { name = "pyarrow", marker = "extra == 'ann'" },
     { name = "pyarrow", marker = "extra == 'xgb'" },
     { name = "pylance", marker = "extra == 'ann'" },
@@ -1001,7 +1020,7 @@ requires-dist = [
     { name = "tqdm" },
     { name = "xgboost", marker = "extra == 'xgb'" },
 ]
-provides-extras = ["plot", "cat", "lgb", "xgb", "ann", "tree", "llm", "all"]
+provides-extras = ["plot", "cat", "lgb", "xgb", "ann", "tree", "llm", "ols", "rust", "fast", "all"]
 
 [package.metadata.requires-dev]
 benchmark = [
@@ -1047,6 +1066,11 @@ test = [
     { name = "pytest-benchmark" },
     { name = "pytest-cov", specifier = ">=5.0.0" },
 ]
+
+[[package]]
+name = "functime-rust"
+version = "0.1.0"
+source = { editable = "packages/functime-rust" }
 
 [[package]]
 name = "ghp-import"
@@ -2796,6 +2820,25 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/83/a3/69b118378276da546b6721b6b41a35c5a3de87f39c75779e4ef289f1aa56/polars-2.2.0.tar.gz", hash = "sha256:fce26202b9b6c3b6f4139dccef29ed46303d9461d30d9dab9965cc552e44c8b1", size = 925113, upload-time = "2026-11-24T18:18:26.64Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/03/bd/f7e92f928be51649fb5ab5b230a5a1ff86c43402836b8989d16c6491fe75/polars-2.2.0-py3-none-any.whl", hash = "sha256:892770de126ceb0233e7dee9084c69bd49dd3c8939f90c4a53eb7b5dc735d60f", size = 1031193, upload-time = "2026-11-24T18:15:56.74Z" },
+]
+
+[[package]]
+name = "polars-ols"
+version = "0.3.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "polars" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2b/da/56fdbd7c00d0e9bf82fe88a55d4cd1132c834619456a375b1821da4bb865/polars_ols-0.3.5.tar.gz", hash = "sha256:b507aa33c920573f3e3a152b6cb4e4429b3892db5e393fd2cb5cd7cfb53d7e77", size = 84767, upload-time = "2024-08-25T16:22:33.613Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/30/6a/c1a955f68f04ef18a6c1b8e185b23f49a34b86e72623f809166f2fbaa3c9/polars_ols-0.3.5-cp38-abi3-macosx_10_12_x86_64.whl", hash = "sha256:79c71a38cc86de74a3312dec80f578a0c5dee0eec66064bde7d52b98c8b0cbe9", size = 11294762, upload-time = "2024-08-25T16:22:11.703Z" },
+    { url = "https://files.pythonhosted.org/packages/d0/61/8fe5d3bcc15a671336eb6cfe3b34c1ddcbd969f3552225d815dc729e22c5/polars_ols-0.3.5-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:fe4b97b168c5404d796463e97db851a94607c79a909fdaeedc4629b56649a2fb", size = 10243546, upload-time = "2024-08-25T16:22:14.671Z" },
+    { url = "https://files.pythonhosted.org/packages/20/bd/711cf2815e79d83e9057ffa893036d78210f3411bf638a78496635da49c9/polars_ols-0.3.5-cp38-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:fe5b08142fdd85d4beaecf9ab8bdf16b93db9919b2706755ae90e362a985f01d", size = 11920671, upload-time = "2024-08-25T16:22:17.541Z" },
+    { url = "https://files.pythonhosted.org/packages/4d/a2/33b0cdbec45b859cf93657c4978ab2e4747235e5ab10138c16ce2622ada8/polars_ols-0.3.5-cp38-abi3-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:fa2880802d42076a935b5c1bd9e114e8f3bb4126290330b63aaf32eda6381a51", size = 12108217, upload-time = "2024-08-25T16:22:20.057Z" },
+    { url = "https://files.pythonhosted.org/packages/b1/bf/95a3841b43ede52a01ec02ad59fcaac92804ab208637f2c25694833a5399/polars_ols-0.3.5-cp38-abi3-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:5fe50e4032e7430e5ed154f426f4c83973a9e30120211afd122c597bea19828f", size = 13592335, upload-time = "2024-08-25T16:22:23.11Z" },
+    { url = "https://files.pythonhosted.org/packages/0e/40/c760dc5eaa03bf6ff3e9d09c723b7d7b02521a5a45324910b74d6aa19480/polars_ols-0.3.5-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7b8c0f03c6bf6dd9e0384f4d95183989724fd8e5703d20daade1754631f5b7d9", size = 15267885, upload-time = "2024-08-25T16:22:26.114Z" },
+    { url = "https://files.pythonhosted.org/packages/13/1d/b3f7c57ca9ab7bf878b766467e68f4adcc5e41a94eee68c8d0c7bcd948d2/polars_ols-0.3.5-cp38-abi3-win32.whl", hash = "sha256:8e33fc7d6cb62cb7930b50a5dd428ce9dfd5bb3587463672269ed65776aa8081", size = 8963620, upload-time = "2024-08-25T16:22:28.697Z" },
+    { url = "https://files.pythonhosted.org/packages/ea/5f/5a7b73ab8bead1b453a8b9fcca1bf024dd7b057177c19bbc523537c4bfcd/polars_ols-0.3.5-cp38-abi3-win_amd64.whl", hash = "sha256:075e27381781895a9ada73296777304fcd2752797c4f7e17f3c30b57ae4a2120", size = 10338290, upload-time = "2024-08-25T16:22:31.476Z" },
 ]
 
 [[package]]

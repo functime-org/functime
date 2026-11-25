@@ -4,28 +4,34 @@ alias fmt := format
 alias check := lint
 
 [group("Build")]
-[doc("Build the extension in debug mode (fast rebuilds)")]
+[doc("Build pure-Python wheel and sdist (zero Rust required)")]
 build:
-    uv run --with "maturin>=1.5" -- maturin develop
+    uv build --wheel
 
 [group("Build")]
-[doc("Build the extension in release mode (optimised)")]
-build-release:
-    uv run --with "maturin>=1.5" -- maturin develop --release
+[doc("Build the optional Rust extension in debug mode (fast rebuilds)")]
+build-rust:
+    uv run --with "maturin>=1.5" -- maturin develop -m packages/functime-rust/Cargo.toml
 
 [group("Build")]
-[doc("Clean then perform a release build")]
-rebuild: clean build-release
+[doc("Build the optional Rust extension in release mode (optimised)")]
+build-rust-release:
+    uv run --with "maturin>=1.5" -- maturin develop --release -m packages/functime-rust/Cargo.toml
 
 [group("Build")]
 [doc("Remove build artefacts")]
 clean:
-    rm -rf build/ dist/ *.egg-info target/
+    rm -rf build/ dist/ *.egg-info target/ packages/functime-rust/target/ packages/functime-rust/dist/
 
 [group("Dev")]
-[doc("Install all dev dependencies using the lockfile")]
+[doc("Install dev dependencies without Rust using the lockfile")]
 sync:
-    uv sync --all-extras --dev --locked
+    uv sync --dev --extra tree --locked
+
+[group("Dev")]
+[doc("Install dev dependencies including optional Rust extension")]
+sync-rust:
+    uv sync --dev --extra tree --extra rust --locked
 
 [group("Dev")]
 [doc("Format code and sort imports")]
@@ -41,7 +47,7 @@ lint *args=".":
 [group("Test")]
 [doc("Run the default test suite (benchmarks excluded)")]
 test *args="":
-    uv run pytest tests -vv --show-capture=no --tb=line --benchmark-disable -k "not test_benchmarks" {{ args }}
+    uv run --no-sync pytest tests -vv --show-capture=no --tb=line --benchmark-disable -k "not test_benchmarks" {{ args }}
 
 [group("Test")]
 [doc("Run benchmark-only pytest selection")]
@@ -58,7 +64,7 @@ publish-dry-run:
     UV_PUBLISH_TOKEN=${UV_PUBLISH_TOKEN:-""} uv publish --dry-run
 
 [group("Test")]
-[doc("Run quickstart scripts against the built wheel")]
+[doc("Run quickstart scripts against the installed environment")]
 quickstart:
-    uv run python docs/code/quickstart.py
-    uv run python docs/code/feature_engineering.py
+    uv run --no-sync python docs/code/quickstart.py
+    uv run --no-sync python docs/code/feature_engineering.py
