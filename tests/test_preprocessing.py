@@ -421,6 +421,22 @@ def test_fractional_diff(pd_X):
     )
 
 
+def test_fractional_diff_window_size_panel() -> None:
+    X = pl.DataFrame(
+        {
+            "entity": ["a"] * 5 + ["b"] * 5,
+            "time": [0, 1, 2, 3, 4] * 2,
+            "val": [1.0, 2.0, 4.0, 8.0, 16.0, 10.0, 20.0, 30.0, 40.0, 50.0],
+        }
+    )
+    X_new = X.pipe(fractional_diff(d=1.0, window_size=1)).collect()
+    expected = X.with_columns(pl.col("val").diff().over("entity").cast(pl.Float64))
+    assert_frame_equal(
+        X_new.sort("entity", "time"),
+        expected.sort("entity", "time"),
+    )
+
+
 ### Temporarily commented out. Uncomment when benchmarking is ready. ###
 @pytest.mark.benchmark(group="fractional_diff")
 def test_fractional_diff_benchmark_functime(pd_X, benchmark):
