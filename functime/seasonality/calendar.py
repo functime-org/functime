@@ -105,7 +105,7 @@ def add_holiday_effects(country_codes: list[str], as_dummies: bool = False):
             )
             .lazy()
         )
-        X_new = X.join(holidays, how="left", on=time_col)
+        X_new = X.join(holidays, how="left", on=time_col, maintain_order="left")
         if as_dummies:
             X_new = (
                 X_new.collect(engine="streaming")

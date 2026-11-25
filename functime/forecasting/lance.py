@@ -42,7 +42,7 @@ class ANNRegressor:
         feat_cols = X.columns[2:]
         n_dims = len(feat_cols)
         df = (
-            y.join(X, how="left", on=idx_cols)
+            y.join(X, how="left", on=idx_cols, maintain_order="left")
             .with_columns(
                 pl.all().exclude(idx_cols).to_physical().cast(pl.Float32)
             )  # Defensive

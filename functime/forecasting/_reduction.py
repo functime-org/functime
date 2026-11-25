@@ -14,7 +14,7 @@ def _join_X_y(y: pl.LazyFrame, X: pl.LazyFrame) -> pl.LazyFrame:
             "`X` must have at least one leading column identical to `y`'s"
             f" leading columns ({y_columns[0]}, {y_columns[1]})."
         )
-    X_y = y.join(X, on=on, how="inner")
+    X_y = y.join(X, on=on, how="inner", maintain_order="left")
     return X_y
 
 
@@ -29,7 +29,7 @@ def make_reduction(
     # Get lags
     y_lag = y.pipe(lag(lags=list(range(1, lags + 1))))
     y_lag_columns = y_lag.collect_schema().names()
-    X_y = y_lag.join(y, on=idx_cols, how="inner").select(
+    X_y = y_lag.join(y, on=idx_cols, how="inner", maintain_order="left").select(
         [*y_columns, *y_lag_columns[2:]]
     )
     # Exogenous features
@@ -51,7 +51,7 @@ def make_direct_reduction(
     X = X.lazy() if X is not None else X
     # Get lags
     y_lag = y.pipe(lag(lags=list(range(1, lags + max_horizons + 1))))
-    X_y = y_lag.join(y, on=idx_cols, how="inner").select(
+    X_y = y_lag.join(y, on=idx_cols, how="inner", maintain_order="left").select(
         [*_y_cols, *y_lag.collect_schema().names()[2:]]
     )
     # Drop nulls in lagged columns
@@ -64,12 +64,12 @@ def make_direct_reduction(
 
 
 def make_y_lag(X_y: pl.DataFrame, target_col: str, lags: int):
-    # NOTE: We should probably do a defensive sort on time before concat_list
     entity_col, time_col = X_y.collect_schema().names()[:2]
     y_lag = (
         X_y.lazy()
+        .sort([entity_col, time_col])
         .select([entity_col, time_col, pl.col(rf"^{target_col}__lag_(\d+)$")])
-        .group_by(entity_col)
+        .group_by(entity_col, maintain_order=True)
         .agg(pl.all().tail(lags))
         .collect(engine="streaming")
         .lazy()

@@ -184,7 +184,12 @@ class elite(Forecaster):
             best_models.select([entity_col, "model_name"])
             .explode("model_name")
             .lazy()
-            .join(y_pred, how="left", on=[entity_col, "model_name"])
+            .join(
+                y_pred,
+                how="left",
+                on=[entity_col, "model_name"],
+                maintain_order="left",
+            )
             .group_by([entity_col, time_col])
             .agg(pl.col(target_col))
             .select(
@@ -204,7 +209,12 @@ class elite(Forecaster):
         if X is not None:
             X_stack = (
                 X_stack.lazy()
-                .join(X.lazy(), on=[entity_col, time_col], how="left")
+                .join(
+                    X.lazy(),
+                    on=[entity_col, time_col],
+                    how="left",
+                    maintain_order="left",
+                )
                 .collect(engine="streaming")
             )
         X_stack = X_stack.with_columns(
@@ -256,7 +266,12 @@ class elite(Forecaster):
                 y_pred = y_preds.filter(pl.col("split") == split).drop("split").lazy()
                 y_true = (
                     y_pred.select([entity_col, time_col])
-                    .join(y.lazy(), on=[entity_col, time_col], how="left")
+                    .join(
+                        y.lazy(),
+                        on=[entity_col, time_col],
+                        how="left",
+                        maintain_order="left",
+                    )
                     .collect(engine="streaming")
                 )
                 scores = score(y_pred=y_pred, y_true=y_true).with_columns(
@@ -297,7 +312,9 @@ class elite(Forecaster):
         y_stack = (
             X_stack.select([entity_col, time_col])
             .lazy()
-            .join(y.lazy(), on=[entity_col, time_col], how="left")
+            .join(
+                y.lazy(), on=[entity_col, time_col], how="left", maintain_order="left"
+            )
             .collect(engine="streaming")
         )
 

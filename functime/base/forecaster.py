@@ -239,9 +239,13 @@ class Forecaster(Model):
                 X = self._enforce_string_cache(X.lazy().collect()).lazy()
 
             if has_entity and not has_time:
-                X = future_ranges.lazy().join(X, on=entity_col, how="left")
+                X = future_ranges.lazy().join(
+                    X, on=entity_col, how="left", maintain_order="left"
+                )
             elif has_time and not has_entity:
-                X = future_ranges.lazy().join(X, on=time_col, how="left")
+                X = future_ranges.lazy().join(
+                    X, on=time_col, how="left", maintain_order="left"
+                )
 
         # Feature transform
         if self.feature_transform is not None:
@@ -252,9 +256,9 @@ class Forecaster(Model):
         y_pred_vals = predict_autoreg(self.state, fh=fh, X=X)
         # BUG: Exploding list[date] errogenously casts
         # into integer series but only for LazyFrame explode
-        y_pred = y_pred_vals.join(future_ranges, on=entity_col, how="left").select(
-            [entity_col, time_col, target_col]
-        )
+        y_pred = y_pred_vals.join(
+            future_ranges, on=entity_col, how="left", maintain_order="left"
+        ).select([entity_col, time_col, target_col])
         if fh > 1:
             y_pred = y_pred.explode(pl.all().exclude(entity_col))
         else:

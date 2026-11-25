@@ -221,7 +221,9 @@ def test_diff(pd_X, sp):
     # X_original = # transform.invert(X_new)
     assert_frame_equal(
         X_original.sort(idx_cols).collect(),
-        X_new.select(idx_cols).join(X, on=idx_cols, how="left").collect(),
+        X_new.select(idx_cols)
+        .join(X, on=idx_cols, how="left", maintain_order="left")
+        .collect(),
         check_dtypes=False,
     )
 

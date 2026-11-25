@@ -24,6 +24,7 @@ def enbpi(
             .lazy(),
             how="left",
             on=entity_col,
+            maintain_order="left",
         ).select(
             [
                 pl.col(entity_col).cast(schema[entity_col]),
