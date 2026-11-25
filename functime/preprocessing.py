@@ -3,8 +3,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Literal
 
-import cloudpickle
-import numpy as np
 import polars as pl
 import polars.selectors as cs
 from scipy import optimize
@@ -972,122 +970,89 @@ def deseasonalize_fourier(sp: int, K: int, robust: bool = False):
     else:
         regressor_cls = TheilSenRegressor
 
-    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
-        X = X.collect()  # Not lazy
-        if X.shape[1] > 3:
+    def transform(X: pl.LazyFrame) -> dict[str, Any]:
+        X_df = X.collect()  # Not lazy
+        if X_df.shape[1] > 3:
             raise ValueError(
                 "Got `X` with more than 3 columns."
                 " Expected `x` with maximum 3 columns: entity column,"
                 " time column, target column."
             )
 
-        def _deseasonalize(inputs: pl.Series):
-            # Coerce inputs
-            X_y = inputs.struct.unnest()
-            y = X_y.get_column(target_col).to_numpy()
-            X = X_y.select(pl.all().exclude(target_col)).to_numpy()
-            # Fit-predict
-            regressor = regressor_cls().fit(y=y, X=X)
-            # Subtract prediction from y
-            y_pred = regressor.predict(X=X)
-            y_new = y - y_pred
-            return {
-                target_col: y_new.tolist(),
-                "seasonal": y_pred.tolist(),
-                "regressor": cloudpickle.dumps(regressor),
-            }
+        entity_col, time_col, target_col = X_df.columns[:3]
+        X_with_features = X_df.pipe(add_fourier_terms(sp=sp, K=K)).collect()
+        fourier_cols = [c for c in X_with_features.columns if c not in X_df.columns]
 
-        entity_col, time_col, target_col = X.columns[:3]
-        X_with_features = X.join(
-            X.pipe(add_fourier_terms(sp=sp, K=K)).collect(),
-            on=[entity_col, time_col],
-            how="left",
-            maintain_order="left",
-        )
-        fourier_cols = list(set(X_with_features.columns) - set(X.columns))
-        return_dtype = pl.Struct(
-            [
-                pl.Field(name=target_col, dtype=pl.List(pl.Float64)),
-                pl.Field(name="seasonal", dtype=pl.List(pl.Float64)),
-                pl.Field(name="regressor", dtype=pl.Binary),
-            ]
+        regressors: dict[Any, LinearRegression | TheilSenRegressor] = {}
+        deseasonalized_frames: list[pl.DataFrame] = []
+        seasonal_frames: list[pl.DataFrame] = []
+        for (entity,), group in X_with_features.group_by(
+            entity_col, maintain_order=True
+        ):
+            y = group.get_column(target_col).to_numpy()
+            X_fourier = group.select(fourier_cols).to_numpy()
+            regressor = regressor_cls().fit(X=X_fourier, y=y)
+            y_pred = regressor.predict(X=X_fourier)
+            y_new = y - y_pred
+            regressors[entity] = regressor
+            base = group.select([entity_col, time_col])
+            deseasonalized_frames.append(
+                base.with_columns(pl.Series(target_col, y_new, dtype=pl.Float64))
+            )
+            seasonal_frames.append(
+                base.with_columns(pl.Series(target_col, y_pred, dtype=pl.Float64))
+            )
+
+        empty_frame = X_df.select(
+            [entity_col, time_col, pl.col(target_col).cast(pl.Float64)]
         )
         X_new = (
-            X_with_features.group_by(entity_col)
-            .agg(
-                [
-                    time_col,
-                    pl.struct([target_col, *fourier_cols])
-                    .map_elements(_deseasonalize, return_dtype=return_dtype)
-                    .alias("result"),
-                    pl.col(X.columns[3:]),
-                ]
-            )
-            .select([time_col, entity_col, pl.col("result")])
-            .unnest("result")
+            pl.concat(deseasonalized_frames) if deseasonalized_frames else empty_frame
         )
+        X_seasonal = pl.concat(seasonal_frames) if seasonal_frames else empty_frame
         artifacts = {
-            "X_new": X_new.select([entity_col, time_col, target_col])
-            .explode([time_col, target_col])
-            .lazy(),
-            "X_seasonal": X_new.select(
-                [entity_col, time_col, pl.col("seasonal").alias(target_col)]
-            )
-            .explode([time_col, target_col])
-            .lazy(),
-            "regressors": X_new.select([entity_col, "regressor"]),
+            "X_new": X_new.lazy(),
+            "X_seasonal": X_seasonal.lazy(),
+            "regressors": regressors,
             "fourier_cols": fourier_cols,
         }
         return artifacts
 
     def invert(state: ModelState, X: pl.LazyFrame) -> pl.LazyFrame:
-        X = X.collect()
-        entity_col, time_col, target_col = X.columns[:3]
-
-        if X.shape[1] > 3:
+        X_df = X.collect()
+        if X_df.shape[1] > 3:
             raise ValueError(
                 "Got `X` with more than 3 columns."
                 "Expected `x` with maximum 3 columns: entity column, time column, target column."
             )
 
+        entity_col, time_col, target_col = X_df.columns[:3]
         regressors = state.artifacts["regressors"]
         fourier_cols = state.artifacts["fourier_cols"]
 
-        def _reseasonalize(inputs: Mapping[str, Any]):
-            # Coerce inputs
-            regressor = cloudpickle.loads(inputs["regressor"])
-            y = inputs[target_col]
-            X = np.array(inputs["fourier"]).reshape((len(y), len(fourier_cols)))
-            # Predict
-            y_pred = regressor.predict(X=X)
-            # Add prediction to y
-            y_new = np.array(y) + y_pred
-            return y_new.tolist()
-
-        X_with_features = X.join(
-            X.pipe(add_fourier_terms(sp=sp, K=K)).collect(),
-            on=[entity_col, time_col],
-            how="left",
-            maintain_order="left",
-        )
-        y_new = (
-            X_with_features.group_by(entity_col, maintain_order=True)
-            .agg([time_col, target_col, *fourier_cols])
-            .join(regressors, on=entity_col, how="left", maintain_order="left")
-            .select(
-                [
-                    entity_col,
-                    time_col,
-                    pl.struct(
-                        [
-                            target_col,
-                            pl.concat_list(fourier_cols).alias("fourier"),
-                            "regressor",
-                        ]
-                    ).map_elements(_reseasonalize, return_dtype=pl.List(pl.Float64)),
-                ]
+        X_with_features = X_df.pipe(add_fourier_terms(sp=sp, K=K)).collect()
+        reseasonalized_frames: list[pl.DataFrame] = []
+        for (entity,), group in X_with_features.group_by(
+            entity_col, maintain_order=True
+        ):
+            if entity not in regressors:
+                raise KeyError(f"No fitted regressor found for entity {entity!r}.")
+            y = group.get_column(target_col).to_numpy()
+            X_fourier = group.select(fourier_cols).to_numpy()
+            y_pred = regressors[entity].predict(X=X_fourier)
+            y_new = y + y_pred
+            reseasonalized_frames.append(
+                group.select([entity_col, time_col]).with_columns(
+                    pl.Series(target_col, y_new, dtype=pl.Float64)
+                )
             )
-            .explode(pl.all().exclude(entity_col))
+
+        y_new = (
+            pl.concat(reseasonalized_frames)
+            if reseasonalized_frames
+            else X_df.select(
+                [entity_col, time_col, pl.col(target_col).cast(pl.Float64)]
+            )
         )
         return y_new.lazy()
 

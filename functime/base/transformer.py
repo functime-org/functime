@@ -11,6 +11,28 @@ from functime.base.model import ModelState
 DF_TYPE = pl.LazyFrame | pl.DataFrame
 
 
+def _restore_transformer(
+    factory: Callable,
+    args: tuple,
+    kwargs: dict,
+    state: ModelState | None,
+) -> Transformer:
+    obj = factory(*args, **kwargs)
+    obj.state = state
+    return obj
+
+
+def _restore_raw_transformer(
+    transf: Callable,
+    args: tuple,
+    kwargs: dict,
+    state: ModelState | None,
+) -> Transformer:
+    obj = Transformer(transf, *args, **kwargs)
+    obj.state = state
+    return obj
+
+
 class Transformer:
     """A transformer."""
 
@@ -19,6 +41,20 @@ class Transformer:
         self.args = args
         self.kwargs = kwargs
         self.state = None
+        self._factory: Callable | None = None
+
+    def __reduce__(self):
+        # `@wraps` replaces the module attribute with the wrapper, so stdlib
+        # `pickle` must reference the decorated factory rather than `self.transf`.
+        if self._factory is not None:
+            return (
+                _restore_transformer,
+                (self._factory, self.args, self.kwargs, self.state),
+            )
+        return (
+            _restore_raw_transformer,
+            (self.transf, self.args, self.kwargs, self.state),
+        )
 
     @property
     def func(self):
@@ -68,6 +104,8 @@ class Transformer:
 def transformer[**P, R](transf: Callable[P, R]):
     @wraps(transf)
     def _transformer(*args: P.args, **kwargs: P.kwargs) -> Transformer:
-        return Transformer(transf, *args, **kwargs)
+        obj = Transformer(transf, *args, **kwargs)
+        obj._factory = _transformer
+        return obj
 
     return _transformer
