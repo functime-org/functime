@@ -47,12 +47,7 @@ MAP_LIST_EXPR = Mapping[str, list[float]] | pl.Expr
 
 # from polars.type_aliases import IntoExpr
 
-try:
-    from polars.utils.udfs import _get_shared_lib_location
-
-    lib = _get_shared_lib_location(__file__)
-except ImportError:
-    lib = Path(__file__).parent
+lib = Path(__file__).parent
 
 
 def absolute_energy(x: TIME_SERIES_T) -> FLOAT_INT_EXPR:
@@ -753,7 +748,10 @@ def friedrich_coefficients(
             .with_columns(
                 pl.col("signal").diff().alias("delta"),
                 pl.col("signal")
-                .qcut(q=n_quantiles, labels=[str(i) for i in range(n_quantiles)])
+                .qcut(
+                    quantiles=n_quantiles,
+                    labels=[str(i) for i in range(n_quantiles)],
+                )
                 .alias("quantile"),
             )
             .group_by("quantile")

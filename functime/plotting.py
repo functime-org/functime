@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 import polars as pl
 
 from functime._plotting import TimeSeriesDisplay
-from functime.base.metric import METRIC_TYPE
+from functime.base.metric import MetricFn
 from functime.metrics import smape
 
 if TYPE_CHECKING:
@@ -289,7 +289,7 @@ def plot_comet(
     y_train: pl.DataFrame,
     y_test: pl.DataFrame,
     y_pred: pl.DataFrame,
-    scoring: METRIC_TYPE | None = None,
+    scoring: MetricFn | None = None,
     **kwargs,
 ):
     """Given a train-test-split of panel data (`y_train`, `y_test`) and forecast `y_pred`,
@@ -341,7 +341,7 @@ def plot_fva(
     y_true: pl.DataFrame,
     y_pred: pl.DataFrame,
     y_pred_bench: pl.DataFrame,
-    scoring: METRIC_TYPE | None = None,
+    scoring: MetricFn | None = None,
     **kwargs,
 ):
     """Given two panel data forecasts `y_pred` and `y_pred_bench`,
@@ -385,12 +385,16 @@ def plot_fva(
         "x0": 0,
         "x1": 1,
     }
-    max_score = max(
-        scores.get_column(metric_name).max(), scores_bench.get_column(metric_name).max()
+    all_scores = (
+        pl.concat(
+            [scores.get_column(metric_name), scores_bench.get_column(metric_name)]
+        )
+        .cast(pl.Float64)
+        .drop_nulls()
+        .to_list()
     )
-    min_score = min(
-        scores.get_column(metric_name).min(), scores_bench.get_column(metric_name).min()
-    )
+    max_score = max(all_scores)
+    min_score = min(all_scores)
 
     template = kwargs.pop("template", "plotly_white")
 

@@ -69,6 +69,10 @@ dev = [
   "pre-commit",
   { include-group = "doc" },
   { include-group = "test" },
+  { include-group = "typing" },
+]
+typing = [
+  "pyrefly",
 ]
 doc = [
   "jupyterlab",
@@ -140,6 +144,54 @@ required-imports = ["from __future__ import annotations"]
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.
 keep-runtime-typing = true
+
+[tool.pyrefly]
+project-includes = ["functime"]
+search-path = ["."]
+python-version = "3.12"
+ignore-missing-imports = ["functime._functime_rust", "lance"]
+
+# Gradual typing backlog: legacy v1.0 modules checked with `basic` until migrated.
+# All other modules (and new code in functime/_core, functime/sklearn) use full `default` checks.
+[[tool.pyrefly.sub-config]]
+matches = "**/functime/feature_extractors.py"
+preset = "basic"
+
+[[tool.pyrefly.sub-config]]
+matches = "**/functime/preprocessing.py"
+preset = "basic"
+
+[[tool.pyrefly.sub-config]]
+matches = "**/functime/backtesting.py"
+preset = "basic"
+
+[[tool.pyrefly.sub-config]]
+matches = "**/functime/evaluation.py"
+preset = "basic"
+
+[[tool.pyrefly.sub-config]]
+matches = "**/functime/base/forecaster.py"
+preset = "basic"
+
+[[tool.pyrefly.sub-config]]
+matches = "**/functime/forecasting/_ar.py"
+preset = "basic"
+
+[[tool.pyrefly.sub-config]]
+matches = "**/functime/forecasting/_regressors.py"
+preset = "basic"
+
+[[tool.pyrefly.sub-config]]
+matches = "**/functime/forecasting/elite.py"
+preset = "basic"
+
+[[tool.pyrefly.sub-config]]
+matches = "**/functime/forecasting/naive.py"
+preset = "basic"
+
+[[tool.pyrefly.sub-config]]
+matches = "**/functime/forecasting/snaive.py"
+preset = "basic"
 
 [tool.pytest.ini_options]
 addopts = [

@@ -50,7 +50,7 @@ class ANNRegressor:
                 pl.col(y.columns[-1]).alias("label"),
                 pl.concat_list(feat_cols)
                 .alias("emb")
-                .cast(pl.Array(width=n_dims, inner=pl.Float32)),
+                .cast(pl.Array(pl.Float32, shape=n_dims)),
             )
         )
         dataset = lance.write_dataset(df.to_arrow(), uri=self.uri, mode="overwrite")
@@ -70,6 +70,8 @@ class ANNRegressor:
 
     def predict(self, X: pl.DataFrame):
         dataset = self._dataset
+        if dataset is None:
+            raise ValueError("Model must be fitted before calling predict().")
         feat_cols = X.columns[2:]
         embs = (
             X.select(pl.concat_list(feat_cols).alias("emb")).get_column("emb").to_list()

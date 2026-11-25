@@ -12,8 +12,10 @@ from functime.forecasting._ar import fit_autoreg
 from functime.forecasting._regressors import GradientBoostedTreeRegressor
 
 
-def _enforce_label_constraint(y: pl.DataFrame, loss_function: str | None):
-    target_col = y.columns[-1]
+def _enforce_label_constraint[DF: (pl.DataFrame, pl.LazyFrame)](
+    y: DF, loss_function: str | None
+) -> DF:
+    target_col = y.collect_schema().names()[-1]
     if loss_function in ["Tweedie", "Poisson"]:
         # Fill values less than 0 with 0
         y = y.with_columns(

@@ -14,6 +14,7 @@ def _strip_freq_alias(freq: str) -> tuple[int, str]:
             offset_n = int(freq.rstrip(x))
             offset_alias = x
             return offset_n, offset_alias
+    raise ValueError(f"Offset {freq!r} not supported")
 
 
 def freq_to_sp(freq: str) -> list[int] | list[float]:

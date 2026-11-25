@@ -8,7 +8,7 @@ from functime.preprocessing import lag
 def _join_X_y(y: pl.LazyFrame, X: pl.LazyFrame) -> pl.LazyFrame:
     y_columns = y.collect_schema().names()
     X_columns = X.collect_schema().names()
-    on = set(y_columns[:2]) & set(X_columns[:2])
+    on = [col for col in y_columns[:2] if col in X_columns[:2]]
     if len(on) < 1:
         raise ValueError(
             "`X` must have at least one leading column identical to `y`'s"

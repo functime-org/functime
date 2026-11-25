@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
-from typing import Any, Literal
+from collections.abc import Mapping
+from typing import Any, Protocol
 
 import numpy as np
 import polars as pl
 from tqdm import trange
 
+from functime.base.forecaster import ForecastStrategy
 from functime.forecasting._reduction import (
     make_direct_reduction,
     make_reduction,
@@ -14,8 +15,12 @@ from functime.forecasting._reduction import (
 )
 
 
+class _RegressFn(Protocol):
+    def __call__(self, X: Any, y: Any) -> Any: ...
+
+
 def fit_recursive(
-    regress: Callable[[pl.LazyFrame, pl.LazyFrame], Any],
+    regress: _RegressFn,
     lags: int,
     y: pl.LazyFrame,
     X: pl.LazyFrame | None = None,
@@ -43,7 +48,7 @@ def fit_recursive(
 
 
 def fit_direct(
-    regress: Callable[[pl.LazyFrame, pl.LazyFrame], Any],
+    regress: _RegressFn,
     lags: int,
     max_horizons: int,
     y: pl.LazyFrame,
@@ -75,12 +80,12 @@ def fit_direct(
 
 
 def fit_autoreg(
-    regress: Callable[[pl.LazyFrame, pl.LazyFrame], Any],
+    regress: _RegressFn,
     lags: int,
     y: pl.DataFrame | pl.LazyFrame,
     X: pl.DataFrame | pl.LazyFrame | None = None,
     max_horizons: int | None = None,
-    strategy: Literal["direct", "recursive", "naive"] | None = None,
+    strategy: ForecastStrategy | None = None,
 ) -> Mapping[str, Any]:
     y = y.lazy()
     X = X.lazy() if X is not None else X

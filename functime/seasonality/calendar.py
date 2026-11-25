@@ -34,7 +34,7 @@ def add_calendar_effects(
         Returns calendar effects as columns of one-hot-encoded dummies.
     """
 
-    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+    def transform(X: pl.LazyFrame) -> dict[str, pl.LazyFrame]:
         time_col = pl.col(X.collect_schema().names()[1])
         X_new = X.with_columns(
             [
@@ -65,7 +65,7 @@ def add_holiday_effects(country_codes: list[str], as_dummies: bool = False):
         Returns calendar effects as columns of one-hot-encoded dummies.
     """
 
-    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+    def transform(X: pl.LazyFrame) -> dict[str, pl.LazyFrame]:
         # Get min and max timestamps
         time_col = X.collect_schema().names()[1]
         timestamps = (
@@ -120,9 +120,11 @@ def add_holiday_effects(country_codes: list[str], as_dummies: bool = False):
 
 def make_future_calendar_effects(
     idx: pl.DataFrame,
-    attrs: list[str],
+    attrs: list[
+        Literal["minute", "hour", "day", "weekday", "week", "month", "quarter", "year"]
+    ],
     fh: int,
-    freq: str | None = None,
+    freq: str,
 ):
     entity_col, time_col = idx.collect_schema().names()[:2]
     cutoffs = idx.group_by(entity_col).agg(pl.col(time_col).max().alias("low"))
@@ -140,7 +142,7 @@ def make_future_holiday_effects(
     idx: pl.DataFrame,
     country_codes: list[str],
     fh: int,
-    freq: str | None = None,
+    freq: str,
 ):
     entity_col, time_col = idx.collect_schema().names()[:2]
     cutoffs = idx.group_by(entity_col).agg(pl.col(time_col).max().alias("low"))

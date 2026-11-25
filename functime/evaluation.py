@@ -7,7 +7,7 @@ import polars as pl
 import polars.selectors as cs
 from scipy.stats import norm, normaltest
 
-from functime.base.metric import METRIC_TYPE
+from functime.base.metric import MetricFn
 from functime.metrics import (
     mae,
     mape,
@@ -35,7 +35,7 @@ def SORT_BY_TO_METRIC(y_train):
     }
 
 
-FORECAST_SORT_BY = Literal[
+type ForecastSortBy = Literal[
     # Summary statistics
     "mean",
     "median",
@@ -54,9 +54,9 @@ FORECAST_SORT_BY = Literal[
     "underforecast",
 ]
 
-RESIDUALS_SORT_BY = Literal["bias", "abs_bias", "normality", "autocorr"]
+type ResidualsSortBy = Literal["bias", "abs_bias", "normality", "autocorr"]
 
-FVA_SORT_BY = Literal["naive", "snaive", "linear", "linear_scaled"]
+type FVASortBy = Literal["naive", "snaive", "linear", "linear_scaled"]
 
 
 def acf_formula(x: pl.Expr, max_lags: int) -> list[pl.Expr]:
@@ -233,7 +233,7 @@ def _rank_entities(
 def rank_point_forecasts(
     y_true: pl.DataFrame,
     y_pred: pl.DataFrame,
-    sort_by: FORECAST_SORT_BY = "smape",
+    sort_by: ForecastSortBy = "smape",
     descending: bool = False,
 ) -> pl.DataFrame:
     """Sorts point forecasts in `y_pred` across entities / time-series by score.
@@ -276,7 +276,7 @@ def rank_point_forecasts(
 
 def rank_residuals(
     y_resids: pl.DataFrame,
-    sort_by: RESIDUALS_SORT_BY = "abs_bias",
+    sort_by: ResidualsSortBy = "abs_bias",
     descending: bool = False,
 ) -> pl.DataFrame:
     """Sorts point forecasts in `y_pred` across entities / time-series by score.
@@ -328,7 +328,7 @@ def rank_fva(
     y_true: pl.DataFrame,
     y_pred: pl.DataFrame,
     y_pred_bench: pl.DataFrame | None = None,
-    scoring: METRIC_TYPE | None = None,
+    scoring: MetricFn | None = None,
     descending: bool = False,
 ) -> pl.DataFrame:
     """Sorts point forecasts in `y_pred` across entities / time-series by score.

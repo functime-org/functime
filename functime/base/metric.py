@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from functools import wraps
+from typing import Any, Protocol
 
 import polars as pl
 
@@ -11,9 +12,17 @@ from functime.base.model import (
     _set_string_cache,
 )
 
-METRIC_TYPE = Callable[
-    [pl.LazyFrame | pl.DataFrame, pl.LazyFrame | pl.DataFrame], pl.DataFrame
-]
+
+class MetricFn(Protocol):
+    """Protocol for metric callables scoring predicted panels against targets."""
+
+    def __call__(
+        self,
+        y_true: pl.LazyFrame | pl.DataFrame,
+        y_pred: pl.LazyFrame | pl.DataFrame,
+        *args: Any,
+        **kwargs: Any,
+    ) -> pl.DataFrame: ...
 
 
 # Simple wrapper to collect y_true, y_pred if lazy

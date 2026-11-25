@@ -13,10 +13,11 @@ from functime.ranges import make_future_ranges
 
 # The parameters of the Model
 P = ParamSpec("P")
-# The return type of the estimator's curried function
-R = tuple[TypeVar("fit", bound=Callable), TypeVar("predict", bound=Callable)]
+FitFn = TypeVar("FitFn", bound=Callable)
+PredictFn = TypeVar("PredictFn", bound=Callable)
+type R = tuple[FitFn, PredictFn]
 
-FORECAST_STRATEGIES = Literal["direct", "recursive", "naive"] | None
+type ForecastStrategy = Literal["direct", "recursive", "naive"]
 DF_TYPE = pl.LazyFrame | pl.DataFrame
 
 
@@ -113,7 +114,7 @@ class Forecaster(Model):
         freq: str | None,
         lags: int,
         max_horizons: int | None = None,
-        strategy: FORECAST_STRATEGIES = None,
+        strategy: ForecastStrategy | None = None,
         target_transform: Transformer | list[Transformer] | None = None,
         feature_transform: Transformer | list[Transformer] | None = None,
         **kwargs,
