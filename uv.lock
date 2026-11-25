@@ -771,18 +771,6 @@ wheels = [
 ]
 
 [[package]]
-name = "flaml"
-version = "2.8.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a1/ff/4e36454a7952004cfff4e8050610157bad73a83ceb4e7ff0852cc62b22d6/flaml-2.8.0.tar.gz", hash = "sha256:0796e26b60d25f12cb7a42ea92e975422237be1959fb7727827c6ee4ed01cc6c", size = 324168, upload-time = "2026-11-06T07:19:47.003Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/26/97/c42da8db616b9fb5118d16d2210e15e1b412ff9b08ee7bc2f81257208d1a/flaml-2.8.0-py3-none-any.whl", hash = "sha256:ea798a55929d8d0381183d23255bfcb53da01a7829bbb18d674c637a27ecced4", size = 357060, upload-time = "2026-11-06T07:19:45.318Z" },
-]
-
-[[package]]
 name = "fonttools"
 version = "4.68.0"
 source = { registry = "https://pypi.org/simple" }
@@ -878,7 +866,6 @@ version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "cloudpickle" },
-    { name = "flaml" },
     { name = "holidays" },
     { name = "numpy" },
     { name = "polars" },
@@ -972,7 +959,6 @@ test = [
 requires-dist = [
     { name = "catboost", marker = "extra == 'cat'" },
     { name = "cloudpickle" },
-    { name = "flaml", specifier = ">=2.3.0" },
     { name = "functime", extras = ["ann", "tree", "plot"], marker = "extra == 'all'" },
     { name = "functime", extras = ["cat"], marker = "python_full_version < '3.15' and extra == 'tree'" },
     { name = "functime", extras = ["lgb", "xgb"], marker = "extra == 'tree'" },

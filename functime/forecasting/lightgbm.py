@@ -9,10 +9,7 @@ from lightgbm import train as lgb_train
 
 from functime.base import Forecaster
 from functime.forecasting._ar import fit_autoreg
-from functime.forecasting._regressors import (
-    FLAMLRegressor,
-    GradientBoostedTreeRegressor,
-)
+from functime.forecasting._regressors import GradientBoostedTreeRegressor
 
 
 def _prepare_kwargs(kwargs):
@@ -77,29 +74,6 @@ def _lightgbm(weight_transform: Callable | None = None, **kwargs):
     return regress
 
 
-def _flaml_lightgbm(**kwargs):
-    def regress(X: pl.DataFrame, y: pl.DataFrame):
-        custom_hp = kwargs.pop("custom_hp", {})
-        custom_lgbm_kwargs = (
-            {
-                param: value["domain"]
-                for param, value in custom_hp.get("lgbm", {}).items()
-            }
-            if "lgbm" in custom_hp
-            else {}
-        )
-        lgbm_kwargs = {
-            param: {"domain": value}
-            for param, value in _prepare_kwargs(custom_lgbm_kwargs).items()
-        }
-        regressor = FLAMLRegressor(
-            **kwargs, estimator_list=["lgbm"], custom_hp={"lgbm": lgbm_kwargs}
-        )
-        return regressor.fit(X=X, y=y)
-
-    return regress
-
-
 class lightgbm(Forecaster):
     """Autoregressive LightGBM forecaster."""
 
@@ -108,24 +82,6 @@ class lightgbm(Forecaster):
             _enforce_label_constraint, objective=self.kwargs.get("objective")
         )
         regress = _lightgbm(**self.kwargs)
-        return fit_autoreg(
-            regress=regress,
-            y=y_new,
-            X=X,
-            lags=self.lags,
-            max_horizons=self.max_horizons,
-            strategy=self.strategy,
-        )
-
-
-class flaml_lightgbm(Forecaster):
-    """Autoregressive FLAML LightGBM forecaster with automated lags and hyperparameter tuning."""
-
-    def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
-        y_new = y.pipe(
-            _enforce_label_constraint, objective=self.kwargs.get("objective")
-        )
-        regress = _flaml_lightgbm(**self.kwargs)
         return fit_autoreg(
             regress=regress,
             y=y_new,

@@ -2,7 +2,7 @@
 
 ## API Usage
 
-All individual forecasters (e.g. `lasso` / `xgboost`) have the same API. Use `**kwargs` to pass custom hyperparameters into the underlying regressor (e.g. sklearn's `LinearRegression` regressor in functime's `linear_model` forecaster). Forecasters with automated hyperparameter tuning (e.g. `auto_lasso` and `auto_xgboost`) follow a similar API design. View [API reference](../api-reference/forecasting.md) for details and supported global forecasters.
+All individual forecasters (e.g. `lasso` / `xgboost`) have the same API. Use `**kwargs` to pass custom hyperparameters into the underlying regressor (e.g. sklearn's `LinearRegression` regressor in functime's `linear_model` forecaster). View [API reference](../api-reference/forecasting.md) for details and supported global forecasters.
 
 `functime` also has the following benchmark models implemented as pure Polars queries.
 
@@ -384,90 +384,9 @@ y_pred = censored_model(lags=3, threshold=0.0, freq="1d")(
     y_pred = forecaster(y=y_train, X=X_train, fh=fh, X_future=X_test)
     ```
 
-## Automated Parameter Tuning
-
-Forecasters in [auto_forecasting](http://localhost:8000/ref/auto-forecasting/) automatically tune the number of lagged regressors and the model's hyperparameters (e.g. `alpha` for `Lasso`). Cross-validation, lags tuning, and model parameters tuning are performed simultaneously for maximum efficiency.
-
-### Optimal Lag Length
-
-`auto_{model}` forecasters automatically select the optimal number of lags via cross-validation.
-These forecasters conduct a search over possible models within `min_lags` and `max_lags`.
-The best model is the model with the lowest average RMSE (root mean squared error) across splits.
-
-```python
-from functime.forecasting import auto_linear_model
-
-# Fit then predict
-forecaster = auto_linear_model(min_lags=20, max_lags=24, freq="1mo")
-forecaster.fit(y=y_train, X=X_train)
-y_pred = forecaster.predict(fh=3, X=X_test)
-
-# Fit and predict
-y_pred = auto_linear_model(min_lags=20, max_lags=24, freq="1mo")(
-    y=y_train,
-    X=X_train,
-    X_future=X_test,
-    fh=3
-)
-```
-
-### Hyperparameter Tuning
-
-`auto_{model}` forecasters automatically select the optimal number of lags via cross-validation.
-These forecasters conduct a search over possible models within `min_lags` and `max_lags`.
-The best model is the model with the lowest average RMSE (root mean squared error) across splits.
-
-!!! tip "Sane Hyperparameter Defaults"
-
-    Sane defaults are used if `search_space` or `points_to_evaluate` are left as `None`.
-    `functime` specify default hyperparameters search spaces according to best-practices from industry, top Kaggle solutions, and research.
-
-`functime` uses [`FLAML`](https://microsoft.github.io/FLAML/docs/getting-started) under the hood to conduct hyperparameter tuning.
-
-```python
-from flaml import tune
-from functime.forecasting import auto_lightgbm
-
-# Specify search space, initial conditions, and time budget
-search_space = {
-    "reg_alpha": tune.loguniform(1e-08, 10.0),
-    "reg_lambda": tune.loguniform(1e-08, 10.0),
-    "num_leaves": tune.randint(
-        2, 2**max_depth if max_depth > 0 else 2**DEFAULT_TREE_DEPTH
-    ),
-    "colsample_bytree": tune.uniform(0.4, 1.0),
-    "subsample": tune.uniform(0.4, 1.0),
-    "subsample_freq": tune.randint(1, 7),
-    "min_child_samples": tune.qlograndint(5, 100, 5),
-}
-points_to_evaluate = [
-    {
-        "num_leaves": 31,
-        "colsample_bytree": 1.0,
-        "subsample": 1.0,
-        "min_child_samples": 20,
-    }
-]
-time_budget = 420
-
-# Fit model
-forecaster = auto_lightgbm(
-    freq="1mo',
-    min_lags=20,
-    max_lags=24,
-    time_budget=time_budget,
-    search_space=search_space,
-    points_to_evaluate=points_to_evaluate
-)
-forecaster.fit(y=y_train)
-
-# Get best lags and model hyperparameters
-best_params = forecaster.best_params
-```
-
 ## Backtesting
 
-Every `forecaster` and `auto_forecaster` has a `backtest` method.
+Every `forecaster` has a `backtest` method.
 `functime` supports both [`expanding_window_split`](../api-reference/cross-validation.md#functime.cross_validation.expanding_window_split)
 and [`sliding_window_split`](../api-reference/cross-validation.md#functime.cross_validation.sliding_window_split) for backtesting and cross-validation.
 
@@ -495,14 +414,14 @@ y_preds, y_resids = forecaster.backtest(
 
 ### Quantile Regression
 
-Supported by `LightGBM`, `XGBoost`, and `Catboost` forecasters and their automated equivalents.
+Supported by `LightGBM`, `XGBoost`, and `Catboost` forecasters.
 
 ```python
-from functime.forecasting import auto_lightgbm
+from functime.forecasting import lightgbm
 
 # Forecasts at 10th and 90th percentile
-y_pred_10 = auto_lightgbm(alpha=0.1, freq="1d")(y=y_train, fh=28)
-y_pred_90 = auto_lightgbm(alpha=0.9, freq="1d")(y=y_train, fh=28)
+y_pred_10 = lightgbm(lags=12, alpha=0.1, freq="1d")(y=y_train, fh=28)
+y_pred_90 = lightgbm(lags=12, alpha=0.9, freq="1d")(y=y_train, fh=28)
 ```
 
 ### Conformal Prediction

@@ -1,10 +1,9 @@
-import json
 from timeit import default_timer
 
 import polars as pl
 
 from functime.cross_validation import train_test_split
-from functime.forecasting import auto_linear_model, linear_model, naive, snaive
+from functime.forecasting import linear_model, naive, snaive
 from functime.metrics import smape
 from functime.preprocessing import scale
 from functime.seasonality import add_fourier_terms
@@ -12,9 +11,7 @@ from functime.seasonality import add_fourier_terms
 start_time = default_timer()
 
 # Load data
-y = pl.read_parquet(
-    "hf://datasets/functime-org/datasets/commodities.parquet"
-)
+y = pl.read_parquet("hf://datasets/functime-org/datasets/commodities.parquet")
 entity_col, time_col = y.columns[:2]
 X = y.select([entity_col, time_col]).pipe(add_fourier_terms(sp=12, K=6)).collect()
 
@@ -32,25 +29,20 @@ y_pred_naive = naive(freq="1mo")(y=y_train, fh=3)
 y_pred_snaive = snaive(freq="1mo", sp=12)(y=y_train, fh=3)
 
 
-# Univariate time-series fit with automated lags and hyperparameter tuning
-auto_forecaster = auto_linear_model(
-    freq=freq, test_size=test_size, min_lags=12, max_lags=18, n_splits=3, time_budget=3
-)
-auto_forecaster.fit(y=y_train)
+# Univariate time-series fit and predict
+lags = 12
+forecaster = linear_model(freq=freq, lags=lags)
+forecaster.fit(y=y_train)
 # Predict
-y_pred = auto_forecaster.predict(fh=test_size)
+y_pred = forecaster.predict(fh=test_size)
 # Score
 scores = smape(y_true=y_test, y_pred=y_pred)
 print("✅ Predictions (univariate):\n", y_pred.sort(entity_col))
 print("💯 Scores (univariate):\n", scores.sort("smape"))
 print("💯 Scores summary (univariate):\n", scores.select("smape").describe())
 
-# Retrieve best lags and hyperparameters
-best_params = auto_forecaster.best_params
-print(f"✨ Best parameters (y only):\n{json.dumps(best_params, indent=4)}")
-
 # Multivariate
-forecaster = linear_model(**best_params)
+forecaster = linear_model(freq=freq, lags=lags)
 forecaster.fit(y=y_train, X=X_train)
 # Predict
 y_pred = forecaster.predict(fh=test_size, X=X_test)
@@ -81,16 +73,15 @@ print("💯 Uplift:\n", uplift.sort("uplift", descending=True))
 print("💯 Proportion with uplift:", uplift.get_column("has_uplift").mean())
 
 # "Direct" strategy forecasting
-best_params["max_horizons"] = test_size  # Override max_horizons
-best_params["strategy"] = "direct"  # Override strategy
 # Predict using the "functional" API
-y_pred = linear_model(**best_params)(y=y_train, fh=test_size)
+y_pred = linear_model(freq=freq, lags=lags, max_horizons=test_size, strategy="direct")(
+    y=y_train, fh=test_size
+)
 
-# "Ensemble" strategy forecasting
-best_params["strategy"] = "ensemble"  # Override strategy
-
-# Backtesting
-y_preds = linear_model(**best_params).backtest(y=y_train, X=X_train)
+# "Ensemble" strategy forecasting and backtesting
+y_preds = linear_model(
+    freq=freq, lags=lags, max_horizons=test_size, strategy="ensemble"
+).backtest(y=y_train, X=X_train)
 print("✅ Backtests:", y_preds)
 
 # Forecast with target transforms and feature transforms

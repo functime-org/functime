@@ -25,7 +25,6 @@ Join us on [Discord](https://discord.com/invite/JKMrZKjEwN)!
 - **Battle-tested:** Machine learning algorithms that deliver real business impact and win competitions
 - **Exogenous features:** supported by every forecaster
 - **Backtesting** with expanding window and sliding window splitters
-- **Automated lags and hyperparameter tuning** using [`FLAML`](https://github.com/microsoft/FLAML)
 
 ## Getting Started
 
