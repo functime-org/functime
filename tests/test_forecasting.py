@@ -8,8 +8,6 @@ import polars as pl
 import pytest
 
 from functime.forecasting import (  # ann,
-    auto_elastic_net,
-    auto_lightgbm,
     censored_model,
     elastic_net,
     elite,
@@ -37,7 +35,6 @@ FORECASTERS_TO_TEST = [
     # ("catboost", lambda freq: catboost(lags=DEFAULT_LAGS, freq=freq, iterations=5)),
     # ("xgboost", lambda freq: xgboost(lags=DEFAULT_LAGS, freq=freq, num_boost_round=5)),
     # ("lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=5)),
-    # ("flaml_lgbm", lambda freq: flaml_lightgbm(lags=DEFAULT_LAGS, freq=freq, custom_hp={"lgbm": {"num_iterations": {"domain": 5}}})),
     # ("direct__lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=5, **DIRECT_KWARGS)),
     # ("ensemble__lgbm", lambda freq: lightgbm(lags=DEFAULT_LAGS, freq=freq, num_iterations=5, **ENSEMBLE_KWARGS)),
 ]
@@ -46,25 +43,6 @@ FORECASTERS_TO_TEST = [
 
 @pytest.fixture(params=FORECASTERS_TO_TEST, ids=lambda model: model[0])
 def forecaster(request):
-    return request.param[1]
-
-
-@pytest.fixture(
-    params=[
-        (
-            "auto_elastic_net",
-            lambda freq: auto_elastic_net(
-                test_size=1, freq=freq, min_lags=3, max_lags=6
-            ),
-        ),
-        (
-            "auto_lgbm",
-            lambda freq: auto_lightgbm(test_size=1, freq=freq, min_lags=3, max_lags=6),
-        ),
-    ],
-    ids=lambda model: model[0],
-)
-def auto_forecaster(request):
     return request.param[1]
 
 
@@ -77,25 +55,6 @@ def test_forecaster_cloudpickle():
         }
     )
     forecaster = elastic_net(freq="1i", lags=3).fit(y=y)
-    y_pred = forecaster.predict(fh=3)
-    pickle = cloudpickle.dumps(forecaster)
-    unpickled_forecaster = cloudpickle.loads(pickle)
-    assert (
-        smape(y_pred, unpickled_forecaster.predict(fh=3)).get_column("smape").sum()
-        < 0.001
-    )
-
-
-@pytest.mark.slow
-def test_auto_cloudpickle():
-    y = pl.DataFrame(
-        {
-            "entity": ["a"] * 12 + ["b"] * 12,
-            "time": list(range(12)) + list(range(12)),
-            "target": [i + np.random.normal() for i in range(24)],
-        }
-    )
-    forecaster = auto_elastic_net(freq="1i", min_lags=3, max_lags=6).fit(y=y)
     y_pred = forecaster.predict(fh=3)
     pickle = cloudpickle.dumps(forecaster)
     unpickled_forecaster = cloudpickle.loads(pickle)
@@ -132,14 +91,6 @@ def test_forecaster_on_m4(forecaster, m4_dataset):
     # _check_m4_score(y_test, y_pred)
 
 
-@pytest.mark.slow
-def test_auto_on_m4(auto_forecaster, m4_dataset):
-    y_train, y_test, fh, _ = m4_dataset
-    auto_forecaster(freq="1i")(y=y_train, fh=fh)
-    # _check_missing_values(y_train.lazy(), y_pred.lazy(), y_pred.columns[0])
-    # _check_m4_score(y_test, y_pred)
-
-
 @pytest.mark.multivariate
 def test_forecaster_on_m5(forecaster, m5_dataset, benchmark):
     """Run global models against the M5 (Walmart) competition dataset and check
@@ -150,16 +101,6 @@ def test_forecaster_on_m5(forecaster, m5_dataset, benchmark):
     # entity_col = y_pred.columns[0]
     # _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
     # _check_m5_score(y_test, y_pred, y_train)
-
-
-@pytest.mark.slow
-@pytest.mark.multivariate
-def test_auto_on_m5(auto_forecaster, m5_dataset):
-    y_train, X_train, y_test, X_test, fh, freq = m5_dataset
-    y_pred = auto_forecaster(freq=freq)(y=y_train, X=X_train, fh=fh, X_future=X_test)
-    # entity_col = y_pred.columns[0]
-    # _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
-    _check_m5_score(y_test, y_pred, y_train)
 
 
 def simple_regress(X: np.ndarray, y: np.ndarray):
@@ -207,7 +148,9 @@ def test_censored_model_on_m5(threshold, m5_dataset):
     # _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
     # Check score
     score = (
-        rmsse(y_test, y_pred.select(y_train.collect_schema().names()[:3]), y_train=y_train)
+        rmsse(
+            y_test, y_pred.select(y_train.collect_schema().names()[:3]), y_train=y_train
+        )
         .get_column("rmsse")
         .mean()
     )
@@ -222,13 +165,18 @@ def test_zero_inflated_model_on_m5(m5_dataset):
         lags=3, freq=freq, regress=simple_regress, classify=simple_classify
     )(y=y_train, X=X_train, fh=fh, X_future=X_test)
     # Check column names
-    assert y_pred.collect_schema().names() == [*y_train.collect_schema().names()[:3], "threshold_proba"]
+    assert y_pred.collect_schema().names() == [
+        *y_train.collect_schema().names()[:3],
+        "threshold_proba",
+    ]
     # # Check no missing time-series
     # entity_col = y_pred.columns[0]
     # _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
     # Check score
     score = (
-        rmsse(y_test, y_pred.select(y_train.collect_schema().names()[:3]), y_train=y_train)
+        rmsse(
+            y_test, y_pred.select(y_train.collect_schema().names()[:3]), y_train=y_train
+        )
         .get_column("rmsse")
         .mean()
     )
@@ -248,7 +196,9 @@ def test_elite_on_m4(m4_dataset, m4_freq_to_lags, m4_freq_to_sp):
     # Score
     elite_scores = smape_original(y_true=y_test, y_pred=y_pred)
     naive_scores = smape_original(y_true=y_test, y_pred=y_pred_naive)
-    scores = elite_scores.join(naive_scores, suffix="_naive", on=y_train.collect_schema().names()[0])
+    scores = elite_scores.join(
+        naive_scores, suffix="_naive", on=y_train.collect_schema().names()[0]
+    )
 
     # Compare scores (forecast value add)
     fva = (

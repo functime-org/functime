@@ -1,25 +1,17 @@
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable, Mapping
 from typing import Any, Literal
 
 import numpy as np
 import polars as pl
-from tqdm import tqdm, trange
+from tqdm import trange
 
-from functime.cross_validation import expanding_window_split
-from functime.forecasting._evaluate import evaluate
 from functime.forecasting._reduction import (
     make_direct_reduction,
     make_reduction,
     make_y_lag,
 )
-
-try:
-    from flaml.tune.sample import Domain
-except ImportError:
-    pass
 
 
 def fit_recursive(
@@ -113,101 +105,6 @@ def fit_autoreg(
         }
     else:
         raise ValueError(f"Cannot recognize `strategy` '{strategy}'")
-    return artifacts
-
-
-def fit_cv(
-    y: pl.LazyFrame,
-    forecaster_cls,
-    freq: str | None,
-    min_lags: int = 3,
-    max_lags: int = 12,
-    max_horizons: int | None = None,
-    strategy: Literal["direct", "recursive", "naive"] | None = None,
-    test_size: int = 1,
-    step_size: int = 1,
-    n_splits: int = 5,
-    time_budget: int = 5,
-    search_space: Mapping[str, Domain] | None = None,
-    points_to_evaluate: list[Mapping[str, Any]] | None = None,
-    low_cost_partial_config: Mapping[str, Any] | None = None,
-    num_samples: int = -1,
-    cv: Callable[..., Any] | None = None,
-    X: pl.LazyFrame | None = None,
-    **kwargs,
-) -> Mapping[str, Any]:
-    # TODO: Consolidate logging
-    logging.basicConfig(level=logging.INFO)
-
-    # Set defaults
-    strategy = strategy or "recursive"
-    # Prepare CV splits query plan i.e. LazyFrames
-    cv = cv or expanding_window_split(
-        test_size=test_size, n_splits=n_splits, step_size=step_size, eager=True
-    )
-    y_splits = cv(y)
-    X_splits = X if X is None else cv(X)
-
-    # Test each lag
-    best_lags = None
-    best_score = np.inf
-    best_params = None
-    scores_path = []
-    lags_path = list(range(min_lags, max_lags + 1))
-    scores_path = []
-    for lags in (pbar := tqdm(lags_path, desc=f"Evaluating n={min(lags_path)} lags")):
-        result = evaluate(
-            lags=lags,
-            n_splits=n_splits,
-            time_budget=time_budget,
-            points_to_evaluate=points_to_evaluate,
-            num_samples=num_samples,
-            low_cost_partial_config=low_cost_partial_config,
-            search_space=search_space,
-            test_size=test_size,
-            max_horizons=max_horizons,
-            strategy=strategy,
-            freq=freq,
-            forecaster_cls=forecaster_cls,
-            y_splits=y_splits,
-            X_splits=X_splits,
-            include_best_params=True,
-        )
-        assert isinstance(result, tuple)
-        score, params = result
-        scores_path.append(score)
-        if score < best_score:
-            best_score = score
-            best_lags = lags
-            best_params = params
-        pbar.set_description(
-            f"[Best round: lags={best_lags}, score={best_score:.2f}] Evaluating models with n={lags + 1} lags"
-        )
-
-    # Refit
-    best_params = best_params or {}
-    best_params = {
-        "freq": freq,
-        **best_params,
-        "max_horizons": max_horizons,
-        "strategy": strategy,
-        **kwargs,
-    }
-    best_params["lags"] = best_lags
-    logging.info("✅ Found `best_params` %s", best_params)
-    best_forecaster = forecaster_cls(**best_params)
-    best_forecaster.fit(y=y, X=X)
-    # Prepare artifacts
-    # TODO: Investigate ensembling across hyperparameter sets
-    # Ref: https://arxiv.org/abs/2006.13570
-    artifacts = {
-        **best_forecaster.state.artifacts,
-        "best_score": best_score,
-        "best_params": best_params,
-        "lags_path": lags_path,
-        "scores_path": scores_path,
-    }
-
     return artifacts
 
 

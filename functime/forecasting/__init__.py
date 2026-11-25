@@ -1,10 +1,3 @@
-from .automl import (
-    auto_elastic_net,
-    auto_knn,
-    auto_lasso,
-    auto_linear_model,
-    auto_ridge,
-)
 from .censored import censored_model, zero_inflated_model
 from .elite import elite
 from .knn import knn
@@ -27,13 +20,9 @@ except ImportError:
     ann = ImportError(msg)
 
 try:
-    from .automl import auto_lightgbm
-    from .lightgbm import flaml_lightgbm, lightgbm
+    from .lightgbm import lightgbm
 except ImportError:
-    msg = "Missing lightgbm extras: `pip install functime[lgb]`"
-    auto_lightgbm = ImportError(msg)
-    flaml_lightgbm = ImportError(msg)
-    lightgbm = ImportError(msg)
+    lightgbm = ImportError("Missing lightgbm extras: `pip install functime[lgb]`")
 
 try:
     from .catboost import catboost
@@ -48,18 +37,11 @@ except ImportError:
 
 __all__ = [
     "ann",
-    "auto_elastic_net",
-    "auto_knn",
-    "auto_lasso",
-    "auto_lightgbm",
-    "auto_linear_model",
-    "auto_ridge",
     "catboost",
     "censored_model",
     "elastic_net_cv",
     "elastic_net",
     "elite",
-    "flaml_lightgbm",
     "knn",
     "lasso_cv",
     "lasso",
