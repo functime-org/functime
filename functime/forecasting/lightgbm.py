@@ -24,7 +24,9 @@ def _prepare_kwargs(kwargs):
     return {**new_kwargs, **kwargs}
 
 
-def _enforce_label_constraint(y: pl.DataFrame, objective: str | None):
+def _enforce_label_constraint[DF: (pl.DataFrame, pl.LazyFrame)](
+    y: DF, objective: str | None
+) -> DF:
     target_col = y.collect_schema().names()[-1]
     if objective == "gamma":
         y = y.with_columns(

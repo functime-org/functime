@@ -38,6 +38,11 @@ format *path=".":
 lint *args=".":
     uv run --with ruff -- ruff check {{ args }}
 
+[group("Dev")]
+[doc("Type-check functime with pyrefly")]
+typecheck *args="functime":
+    uv run pyrefly check {{ args }}
+
 [group("Test")]
 [doc("Run the default test suite (benchmarks excluded)")]
 test *args="":

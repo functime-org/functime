@@ -6,7 +6,7 @@ import numpy as np
 import polars as pl
 
 from functime.base import Forecaster
-from functime.base.forecaster import FORECAST_STRATEGIES
+from functime.base.forecaster import ForecastStrategy
 from functime.conversion import X_to_numpy, y_to_numpy
 from functime.forecasting._ar import fit_autoreg
 from functime.forecasting._reduction import make_reduction
@@ -41,7 +41,7 @@ class censored_model(Forecaster):
         freq: str | None,
         lags: int,
         max_horizons: int | None = None,
-        strategy: FORECAST_STRATEGIES = None,
+        strategy: ForecastStrategy | None = None,
         threshold: float = 0.0,
         regress: Callable | None = None,
         classify: Callable | None = None,
@@ -101,7 +101,7 @@ class zero_inflated_model(censored_model):
         freq: str | None,
         lags: int,
         max_horizons: int | None = None,
-        strategy: FORECAST_STRATEGIES = None,
+        strategy: ForecastStrategy | None = None,
         regress: Callable | None = None,
         classify: Callable | None = None,
         **kwargs,

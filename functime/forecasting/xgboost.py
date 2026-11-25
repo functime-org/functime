@@ -13,8 +13,10 @@ from functime.forecasting._ar import fit_autoreg
 from functime.forecasting._regressors import GradientBoostedTreeRegressor
 
 
-def _enforce_label_constraint(y: pl.DataFrame, objective: str | None):
-    target_col = y.columns[-1]
+def _enforce_label_constraint[DF: (pl.DataFrame, pl.LazyFrame)](
+    y: DF, objective: str | None
+) -> DF:
+    target_col = y.collect_schema().names()[-1]
     if objective == "reg:gamma":
         y = y.with_columns(
             pl.when(pl.col(target_col) <= 0)

@@ -100,14 +100,14 @@ def score_forecast(
         smape,
         underforecast,
     ]
-    scores = [metric(y_true, y_pred) for metric in metrics]
-    scores = reduce(
-        lambda df1, df2: df1.lazy().join(
-            df2.lazy(), how="left", on=entity_col, maintain_order="left"
+    scores_list = [metric(y_true, y_pred) for metric in metrics]
+    joined = reduce(
+        lambda df1, df2: df1.join(
+            df2, how="left", on=entity_col, maintain_order="left"
         ),
-        scores,
+        [s.lazy() for s in scores_list],
     ).collect()
-    return scores
+    return joined
 
 
 def score_backtest(

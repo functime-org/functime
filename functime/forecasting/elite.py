@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from functools import partial
 from typing import Any, Literal
 
@@ -10,7 +10,7 @@ from sklearn.linear_model import LassoLarsIC
 from tqdm import tqdm
 
 from functime.base.forecaster import Forecaster
-from functime.base.metric import METRIC_TYPE
+from functime.base.metric import MetricFn
 from functime.conversion import X_to_numpy, y_to_numpy
 from functime.cross_validation import expanding_window_split
 from functime.forecasting.knn import knn
@@ -66,11 +66,11 @@ class elite(Forecaster):
         freq: str | None,
         lags: int,
         sp: int | None = None,
-        forecasters: Mapping[str, Forecaster] | None = None,
+        forecasters: Mapping[str, Callable[..., Forecaster]] | None = None,
         model_kwargs: Mapping[str, Mapping[str, Any]] | None = None,
         ensemble_strategy: Literal["lasso", "log_lasso", "mean"] = "mean",
         top_k: int | None = None,
-        scoring: METRIC_TYPE | None = None,
+        scoring: MetricFn | None = None,
         test_size: int | None = None,
         step_size: int | None = None,
         n_splits: int | None = None,
@@ -242,7 +242,10 @@ class elite(Forecaster):
         )
         cv_y_preds = {}
         schema = y.schema
-        forecasters = {**self.forecasters, "naive": naive}
+        forecasters: dict[str, Callable[..., Any]] = {
+            **self.forecasters,
+            "naive": naive,
+        }
         # NOTE: Parallelized version available in Cloud
         for model_name, forecaster_cls in (pbar := tqdm(forecasters.items())):
             pbar.set_description(f"Cross-validating [forecaster={model_name}]")

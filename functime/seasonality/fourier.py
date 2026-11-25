@@ -27,7 +27,7 @@ def add_fourier_terms(sp: int, K: int):
     if K > sp:
         raise ValueError("`K` must be less than `sp`")
 
-    def transform(X: pl.LazyFrame) -> pl.LazyFrame:
+    def transform(X: pl.LazyFrame) -> dict[str, pl.LazyFrame]:
         _cols = X.collect_schema().names()
         entity_col, time_col = _cols[:2]
         cos_terms = [

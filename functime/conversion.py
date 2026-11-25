@@ -109,7 +109,7 @@ def X_to_numpy(X: pl.DataFrame | pl.LazyFrame) -> np.ndarray:
     """
     return (
         X.lazy()
-        .drop(pl.nth([0, 1]))
+        .drop(X.collect_schema().names()[:2])
         .select(pl.all().cast(pl.Float32))
         .collect(engine="streaming")
         .to_numpy()

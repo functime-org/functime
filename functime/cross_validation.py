@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 import numpy as np
 import polars as pl
+import polars.selectors as cs
 
 __all__ = [
     "train_test_split",
@@ -23,8 +24,8 @@ __all__ = [
 
 @overload
 def train_test_split(
-    test_size: int | float = ...,
-    eager: Literal[True] = ...,
+    test_size: int | float,
+    eager: Literal[True],
 ) -> Callable[[PolarsFrame], tuple[pl.DataFrame, pl.DataFrame]]: ...
 
 
@@ -32,7 +33,7 @@ def train_test_split(
 def train_test_split(
     test_size: int | float = ...,
     eager: Literal[False] = ...,
-) -> Callable[[PolarsFrame], tuple[pl.DataFrame, pl.DataFrame]]: ...
+) -> Callable[[PolarsFrame], tuple[pl.LazyFrame, pl.LazyFrame]]: ...
 
 
 @overload
@@ -95,7 +96,7 @@ def train_test_split(
 def _splitter_train_test(
     X: PolarsFrame,
     test_size: int | float,
-    eager: Literal[True] = ...,
+    eager: Literal[True],
 ) -> tuple[pl.DataFrame, pl.DataFrame]: ...
 
 
@@ -144,16 +145,16 @@ def _splitter_train_test(
     train_split = (
         X.group_by(entity_col)
         .agg(pl.all().slice(offset=0, length=train_length))
-        .explode(pl.all().exclude(entity_col))
+        .explode(cs.exclude(entity_col))
     )
     test_split = (
         X.group_by(entity_col)
         .agg(pl.all().slice(offset=train_length, length=test_length))
-        .explode(pl.all().exclude(entity_col))
+        .explode(cs.exclude(entity_col))
     )
     if eager:
-        train_split, test_split = pl.collect_all([train_split, test_split])
-        return train_split, test_split
+        train_split_df, test_split_df = pl.collect_all([train_split, test_split])
+        return train_split_df, test_split_df
     return train_split, test_split
 
 
@@ -192,10 +193,14 @@ def expanding_window_split(
         the key represents the split number (1,2,...,n_splits) and the value is a tuple of LazyFrames.
     """
 
-    def split(X: pl.LazyFrame) -> pl.LazyFrame:
+    def split(
+        X: pl.LazyFrame,
+    ) -> (
+        Mapping[int, tuple[pl.LazyFrame, pl.LazyFrame]] | dict[int, list[pl.DataFrame]]
+    ):
         splits = _window_split(X, test_size, n_splits, step_size)
         if eager:
-            splits = {i: pl.collect_all(s) for i, s in splits.items()}
+            return {i: pl.collect_all(s) for i, s in splits.items()}
         return splits
 
     return split
@@ -241,10 +246,14 @@ def sliding_window_split(
         the key represents the split number (1,2,...,n_splits) and the value is a tuple of LazyFrames.
     """
 
-    def split(X: pl.LazyFrame) -> pl.LazyFrame:
+    def split(
+        X: pl.LazyFrame,
+    ) -> (
+        Mapping[int, tuple[pl.LazyFrame, pl.LazyFrame]] | dict[int, list[pl.DataFrame]]
+    ):
         splits = _window_split(X, test_size, n_splits, step_size, window_size)
         if eager:
-            splits = {i: pl.collect_all(s) for i, s in splits.items()}
+            return {i: pl.collect_all(s) for i, s in splits.items()}
         return splits
 
     return split
@@ -280,10 +289,10 @@ def _window_split(
     for i, train_test_expr in enumerate(train_test_exprs):
         train_expr, test_expr = train_test_expr
         train_split = (
-            X.group_by(entity_col).agg(train_expr).explode(pl.all().exclude(entity_col))
+            X.group_by(entity_col).agg(train_expr).explode(cs.exclude(entity_col))
         )
         test_split = (
-            X.group_by(entity_col).agg(test_expr).explode(pl.all().exclude(entity_col))
+            X.group_by(entity_col).agg(test_expr).explode(cs.exclude(entity_col))
         )
         splits[i] = train_split, test_split
     return splits
