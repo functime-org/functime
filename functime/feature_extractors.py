@@ -30,6 +30,7 @@ def _ricker(points: int, a: float) -> np.ndarray:
     gauss = np.exp(-xsq / (2 * wsq))
     return A * mod * gauss
 
+
 # from functime.feature_extractor import FeatureExtractor  # noqa: F401
 
 logger = logging.getLogger(__name__)

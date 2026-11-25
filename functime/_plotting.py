@@ -13,10 +13,9 @@ if TYPE_CHECKING:
     from collections.abc import Collection
     from typing import (
         ClassVar,
+        Self,
         TypedDict,
     )
-
-    from typing_extensions import Self
 
     class DefaultPalette(TypedDict):
         """Alias of functime deafult color palette.

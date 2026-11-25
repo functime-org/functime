@@ -6,7 +6,9 @@ import polars as pl
 from functime.base import metric
 
 
-def _score_probabilistic(y_true, y_pred_lower, y_pred_upper, formula: pl.Expr, alias: str):
+def _score_probabilistic(
+    y_true, y_pred_lower, y_pred_upper, formula: pl.Expr, alias: str
+):
     """Helper for probabilistic metrics that take lower/upper prediction intervals."""
     entity_col = y_true.columns[0]
     time_col = y_true.columns[1]
@@ -50,12 +52,18 @@ def crps(
 
     entity_col, time_col = y_true.columns[:2]
     actual = y_true.get_column(y_true.columns[-1]).to_numpy().astype(np.float64)
-    predicted = y_pred.rename({y_pred.columns[-1]: y_true.columns[-1]}).select(
-        [pl.col(col).cast(dtype) for col, dtype in y_true.schema.items()]
-    ).get_column(y_true.columns[-1]).to_numpy().astype(np.float64)
+    predicted = (
+        y_pred.rename({y_pred.columns[-1]: y_true.columns[-1]})
+        .select([pl.col(col).cast(dtype) for col, dtype in y_true.schema.items()])
+        .get_column(y_true.columns[-1])
+        .to_numpy()
+        .astype(np.float64)
+    )
 
     if y_pred_std is not None:
-        std = y_pred_std.get_column(y_pred_std.columns[-1]).to_numpy().astype(np.float64)
+        std = (
+            y_pred_std.get_column(y_pred_std.columns[-1]).to_numpy().astype(np.float64)
+        )
     else:
         std = np.ones_like(predicted)
 
@@ -102,8 +110,12 @@ def interval_coverage(
     actual_col = y_true.columns[-1]
 
     if y_pred_lower is not None and y_pred_upper is not None:
-        lower = y_pred_lower.rename({y_pred_lower.columns[-1]: "lower"}).select(entity_col, time_col, "lower")
-        upper = y_pred_upper.rename({y_pred_upper.columns[-1]: "upper"}).select(entity_col, time_col, "upper")
+        lower = y_pred_lower.rename({y_pred_lower.columns[-1]: "lower"}).select(
+            entity_col, time_col, "lower"
+        )
+        upper = y_pred_upper.rename({y_pred_upper.columns[-1]: "upper"}).select(
+            entity_col, time_col, "upper"
+        )
     elif "lower" in y_pred.columns and "upper" in y_pred.columns:
         lower = y_pred.select(entity_col, time_col, "lower")
         upper = y_pred.select(entity_col, time_col, "upper")
@@ -119,7 +131,10 @@ def interval_coverage(
         .join(upper, on=[entity_col, time_col], how="left")
         .group_by(entity_col)
         .agg(
-            ((pl.col("actual") >= pl.col("lower")) & (pl.col("actual") <= pl.col("upper")))
+            (
+                (pl.col("actual") >= pl.col("lower"))
+                & (pl.col("actual") <= pl.col("upper"))
+            )
             .mean()
             .alias("coverage")
         )
@@ -161,8 +176,12 @@ def winkler_score(
     actual_col = y_true.columns[-1]
 
     if y_pred_lower is not None and y_pred_upper is not None:
-        lower = y_pred_lower.rename({y_pred_lower.columns[-1]: "lower"}).select(entity_col, time_col, "lower")
-        upper = y_pred_upper.rename({y_pred_upper.columns[-1]: "upper"}).select(entity_col, time_col, "upper")
+        lower = y_pred_lower.rename({y_pred_lower.columns[-1]: "lower"}).select(
+            entity_col, time_col, "lower"
+        )
+        upper = y_pred_upper.rename({y_pred_upper.columns[-1]: "upper"}).select(
+            entity_col, time_col, "upper"
+        )
     elif "lower" in y_pred.columns and "upper" in y_pred.columns:
         lower = y_pred.select(entity_col, time_col, "lower")
         upper = y_pred.select(entity_col, time_col, "upper")

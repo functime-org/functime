@@ -178,7 +178,11 @@ def backtest(
             else:
                 # For non-autoregressive models (e.g. naive, snaive),
                 # compute naive residuals: y[t] - y[t-1]
-                _y_train_df = y_train.lazy().collect(engine="streaming") if isinstance(y_train, pl.LazyFrame) else y_train
+                _y_train_df = (
+                    y_train.lazy().collect(engine="streaming")
+                    if isinstance(y_train, pl.LazyFrame)
+                    else y_train
+                )
                 idx_cols = _y_train_df.columns[:2]
                 _target_col = _y_train_df.columns[-1]
                 y_resid = (
@@ -226,7 +230,11 @@ def backtest(
             )
         else:
             # For non-autoregressive models, compute naive residuals for the full data
-            _y_df = y.lazy().collect(engine="streaming") if isinstance(y, pl.LazyFrame) else y
+            _y_df = (
+                y.lazy().collect(engine="streaming")
+                if isinstance(y, pl.LazyFrame)
+                else y
+            )
             idx_cols = _y_df.columns[:2]
             _target_col = _y_df.columns[-1]
             y_resid = (
