@@ -93,44 +93,40 @@ def long_to_wide(
     return result
 
 
-def df_to_ndarray(df: pl.DataFrame) -> np.ndarray:
-    """Zero-copy spill-to-disk Polars DataFrame to numpy ndarray."""
-    return df.to_numpy()
+def X_to_numpy(X: pl.DataFrame | pl.LazyFrame) -> np.ndarray:
+    """Convert panel feature columns into a 2D ``np.float32`` ndarray.
 
+    Parameters
+    ----------
+    X : pl.DataFrame | pl.LazyFrame
+        Panel frame with leading entity and time columns followed by feature
+        columns.
 
-def X_to_numpy(X: pl.DataFrame) -> np.ndarray:
-    X_arr = (
+    Returns
+    -------
+    np.ndarray
+        2D ``np.float32`` NumPy feature matrix.
+    """
+    return (
         X.lazy()
         .drop(pl.nth([0, 1]))
         .select(pl.all().cast(pl.Float32))
-        .select(
-            pl.when(pl.all().is_infinite() | pl.all().is_nan())
-            .then(None)
-            .otherwise(pl.all())
-            .name.keep()
-        )
-        # TODO: Support custom group_by imputation
-        .fill_null(strategy="mean")  # Do not fill backward (data leak)
         .collect(engine="streaming")
-        .pipe(df_to_ndarray)
+        .to_numpy()
     )
-    return X_arr
 
 
 def y_to_numpy(y: pl.DataFrame) -> np.ndarray:
-    y_arr = (
-        y.lazy()
-        .select(pl.col(y.columns[-1]).cast(pl.Float32))
-        .select(
-            pl.when(pl.all().is_infinite() | pl.all().is_nan())
-            .then(None)
-            .otherwise(pl.all())
-            .name.keep()
-        )
-        # TODO: Support custom group_by imputation
-        .fill_null(strategy="mean")  # Do not fill backward (data leak)
-        .collect(engine="streaming")
-        .get_column(y.columns[-1])
-        .to_numpy()  # TODO: Cannot require zero-copy array?
-    )
-    return y_arr
+    """Convert the target column of a panel DataFrame into a 1D ``np.float32`` ndarray.
+
+    Parameters
+    ----------
+    y : pl.DataFrame
+        Panel DataFrame whose trailing column is the target series.
+
+    Returns
+    -------
+    np.ndarray
+        1D ``np.float32`` NumPy target vector.
+    """
+    return y.get_column(y.columns[-1]).cast(pl.Float32).to_numpy()
