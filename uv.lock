@@ -865,7 +865,6 @@ name = "functime"
 version = "1.0.0"
 source = { editable = "." }
 dependencies = [
-    { name = "cloudpickle" },
     { name = "holidays" },
     { name = "numpy" },
     { name = "polars" },
@@ -958,7 +957,6 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "catboost", marker = "extra == 'cat'" },
-    { name = "cloudpickle" },
     { name = "functime", extras = ["ann", "tree", "plot"], marker = "extra == 'all'" },
     { name = "functime", extras = ["cat"], marker = "python_full_version < '3.15' and extra == 'tree'" },
     { name = "functime", extras = ["lgb", "xgb"], marker = "extra == 'tree'" },

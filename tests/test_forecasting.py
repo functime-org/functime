@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
+import pickle
 
-import cloudpickle
 import numpy as np
 import polars as pl
 import pytest
@@ -46,7 +46,7 @@ def forecaster(request):
     return request.param[1]
 
 
-def test_forecaster_cloudpickle():
+def test_forecaster_pickle():
     y = pl.DataFrame(
         {
             "entity": ["a"] * 12 + ["b"] * 12,
@@ -56,14 +56,12 @@ def test_forecaster_cloudpickle():
     )
     forecaster = elastic_net(freq="1i", lags=3).fit(y=y)
     y_pred = forecaster.predict(fh=3)
-    pickle = cloudpickle.dumps(forecaster)
-    unpickled_forecaster = cloudpickle.loads(pickle)
+    serialized = pickle.dumps(forecaster)
+    unpickled_forecaster = pickle.loads(serialized)
     assert (
         smape(y_pred, unpickled_forecaster.predict(fh=3)).get_column("smape").sum()
         < 0.001
     )
-
-
 # def _check_missing_values(df_x: pl.LazyFrame, df_y: pl.LazyFrame, col: str):
 #     pl.testing.assert_series_equal(
 #         df_x.select(pl.col(col).unique()).collect().get_column(col).sort(),

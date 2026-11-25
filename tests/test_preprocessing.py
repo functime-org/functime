@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pickle
+import sys
+
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -13,6 +16,7 @@ from sklearn.preprocessing import PowerTransformer
 
 from functime.preprocessing import (
     boxcox,
+    deseasonalize_fourier,
     detrend,
     diff,
     fractional_diff,
@@ -278,6 +282,85 @@ def test_detrend(method, pd_X):
 
     X_inverted = X_new.pipe(transformer.invert).collect()
     assert_frame_equal(X_original, X_inverted, check_dtypes=False, rel_tol=1e-10)
+
+
+@pytest.mark.parametrize("robust", [False, True])
+def test_deseasonalize_fourier(robust, monkeypatch):
+    monkeypatch.setitem(sys.modules, "cloudpickle", None)
+
+    n_periods = 24
+    sp = 6
+    t = np.arange(n_periods)
+    X = pl.DataFrame(
+        {
+            "entity": ["a"] * n_periods + ["b"] * n_periods,
+            "time": list(range(n_periods)) * 2,
+            "target": np.concatenate(
+                [
+                    10.0 + 2.0 * np.sin(2 * np.pi * t / sp) + 0.1 * t,
+                    20.0 + 3.0 * np.cos(2 * np.pi * t / sp) - 0.05 * t,
+                ]
+            ),
+        }
+    )
+
+    transformer = deseasonalize_fourier(sp=sp, K=2, robust=robust)
+    X_deseas = X.pipe(transformer).collect()
+
+    regressors = transformer.state.artifacts["regressors"]
+    assert isinstance(regressors, dict)
+    assert set(regressors) == {"a", "b"}
+    assert all(not isinstance(reg, bytes) for reg in regressors.values())
+
+    X_seasonal = transformer.state.artifacts["X_seasonal"].collect()
+    X_reconstructed = (
+        X_deseas.sort(["entity", "time"])
+        .join(
+            X_seasonal.sort(["entity", "time"]),
+            on=["entity", "time"],
+            suffix="_seasonal",
+        )
+        .select(
+            [
+                "entity",
+                "time",
+                (pl.col("target") + pl.col("target_seasonal")).alias("target"),
+            ]
+        )
+    )
+    assert_frame_equal(
+        X_reconstructed,
+        X.sort(["entity", "time"]),
+        check_dtypes=False,
+        rel_tol=1e-10,
+    )
+
+    X_inverted = X_deseas.pipe(transformer.invert).collect()
+    assert_frame_equal(
+        X_inverted.sort(["entity", "time"]),
+        X.sort(["entity", "time"]),
+        check_dtypes=False,
+        rel_tol=1e-10,
+    )
+
+    unpickled_state = pickle.loads(pickle.dumps(transformer.state))
+    assert set(unpickled_state.artifacts["regressors"]) == {"a", "b"}
+    fourier_cols = unpickled_state.artifacts["fourier_cols"]
+    sample_fourier = np.ones((3, len(fourier_cols)))
+    for entity in ("a", "b"):
+        np.testing.assert_allclose(
+            unpickled_state.artifacts["regressors"][entity].predict(sample_fourier),
+            regressors[entity].predict(sample_fourier),
+        )
+
+    unpickled_transformer = pickle.loads(pickle.dumps(transformer))
+    X_unpickled_inverted = X_deseas.pipe(unpickled_transformer.invert).collect()
+    assert_frame_equal(
+        X_unpickled_inverted.sort(["entity", "time"]),
+        X.sort(["entity", "time"]),
+        check_dtypes=False,
+        rel_tol=1e-10,
+    )
 
 
 def pd_fractional_diff(df, d, thres):
