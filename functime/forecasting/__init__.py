@@ -1,3 +1,4 @@
+from ._naive import NaiveForecaster, SeasonalNaiveForecaster
 from .automl import (
     auto_elastic_net,
     auto_knn,
@@ -65,9 +66,11 @@ __all__ = [
     "lasso",
     "lightgbm",
     "linear_model",
+    "NaiveForecaster",
     "naive",
     "ridge_cv",
     "ridge",
+    "SeasonalNaiveForecaster",
     "snaive",
     "xgboost",
     "zero_inflated_model",

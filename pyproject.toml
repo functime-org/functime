@@ -30,9 +30,10 @@ dependencies = [
   "cloudpickle",
   "flaml>=2.3.0",
   "holidays",
+  "narwhals>=1.0",
   "numpy",
   "polars>=1.0",
-  "scikit-learn>=1.2.2",
+  "scikit-learn>=1.6",
   "scipy>=1.11",
   "tqdm",
 ]
