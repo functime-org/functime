@@ -42,7 +42,7 @@ pub fn cusum(inputs: &[Series], kwargs: CusumKwargs) -> PolarsResult<Series> {
     let mut obs: Vec<f64> = Vec::new();
     let warmup_period = kwargs.warmup_period;
 
-    for value in values.into_iter() {
+    for value in values.iter() {
         let warming_up = t < warmup_period;
         let warmup_end: bool = t == warmup_period;
         match (warming_up, warmup_end) {
@@ -89,5 +89,5 @@ pub fn cusum(inputs: &[Series], kwargs: CusumKwargs) -> PolarsResult<Series> {
             }
         }
     }
-    Ok(Series::from_vec("events", events))
+    Ok(Series::from_vec("events".into(), events))
 }
