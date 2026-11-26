@@ -9,7 +9,7 @@ name = "_functime_rust"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.21", features = ["abi3-py312", "extension-module"] }
-pyo3-polars = { version = "0.13", features = ["derive"] }
-serde = { version = "*", features = ["derive"] }
+pyo3 = { version = "0.29", features = ["abi3-py312", "extension-module"] }
+pyo3-polars = { version = "0.28", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
 hashbrown = { version = "0.14.2" }

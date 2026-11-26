@@ -5,6 +5,6 @@ use pyo3::prelude::*;
 
 #[pymodule]
 #[pyo3(name = "_functime_rust")]
-fn _functime_rust(_py: Python<'_>, _m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _functime_rust(_m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
