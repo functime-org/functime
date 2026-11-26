@@ -5,7 +5,16 @@ import importlib
 import inspect
 import math
 from collections.abc import Sequence
-from typing import Any, ClassVar, Literal, Self, cast
+from dataclasses import field
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Literal,
+    Self,
+    cast,
+    dataclass_transform,
+)
 
 import narwhals as nw
 import narwhals.dependencies as nwd
@@ -281,7 +290,12 @@ class _DataFrameTransformerMixin(
         return self._transform_df(df)
 
 
-class BaseTemporalTransformer(_DataFrameTransformerMixin):
+@dataclass_transform(eq_default=False, order_default=False, field_specifiers=(field,))
+class _TemporalParamsBase(_DataFrameTransformerMixin):
+    pass
+
+
+class BaseTemporalTransformer(_TemporalParamsBase):
     """Base class for scikit-learn-compatible temporal transformers.
 
     Operates uniformly across univariate time series (``entity_col=None``)
@@ -295,6 +309,9 @@ class BaseTemporalTransformer(_DataFrameTransformerMixin):
     entity_col : str or sequence of str or None, default=None
         Column name(s) identifying series entities, or ``None`` for univariate
         time series.
+    columns : sequence of str or None, default=None
+        Subset of target columns to transform. Defaults to all non-axis
+        columns when ``None``.
 
     Notes
     -----
@@ -320,18 +337,22 @@ class BaseTemporalTransformer(_DataFrameTransformerMixin):
     _allow_null_time: ClassVar[bool] = False
     _allow_null_entity: ClassVar[bool] = False
 
-    time_col: str
-    entity_col: str | Sequence[str] | None
-    entity_cols_: tuple[str, ...]
-    columns_: tuple[str, ...]
+    time_col: str = "time"
+    entity_col: str | Sequence[str] | None = None
+    columns: Sequence[str] | None = None
+    if TYPE_CHECKING:
+        entity_cols_: tuple[str, ...] = field(init=False)
+        columns_: tuple[str, ...] = field(init=False)
 
     def __init__(
         self,
         time_col: str = "time",
         entity_col: str | Sequence[str] | None = None,
+        columns: Sequence[str] | None = None,
     ) -> None:
         self.time_col = time_col
         self.entity_col = entity_col
+        self.columns = columns
 
     def fit(self, X: Any, y: Any = None) -> Self:
         """Fit the temporal transformer on an input DataFrame.
@@ -398,8 +419,50 @@ class BaseTemporalTransformer(_DataFrameTransformerMixin):
         self.feature_names_out_ = tuple(out_df.columns)
         return self._format_df_output(out_df, pandas_index=pandas_index)
 
+    def _is_invertible(self) -> bool:
+        return (
+            type(self)._inverse_transform_frame
+            is not BaseTemporalTransformer._inverse_transform_frame
+        )
+
+    @available_if(lambda self: self._is_invertible())
+    def inverse_transform(self, X: Any) -> Any:
+        """Invert the transformation using the fitted transformer state.
+
+        Parameters
+        ----------
+        X : DataFrame-like
+            Input Polars, Pandas, Arrow, or Narwhals DataFrame or LazyFrame.
+
+        Returns
+        -------
+        DataFrame
+            Reconstructed DataFrame in the configured container format.
+        """
+        check_is_fitted(self)
+        frame, pandas_index = self._validate_and_parse_frame(X, reset=False)
+        out_df = self._inverse_transform_frame(frame).collect()
+        return self._format_df_output(out_df, pandas_index=pandas_index)
+
     def _validate_params(self) -> None:
         validate_temporal_params(self.time_col, self.entity_col)
+        if self.columns is None:
+            return
+        if isinstance(self.columns, (str, bytes, bytearray)) or not isinstance(
+            self.columns, Sequence
+        ):
+            raise TypeError(
+                "`columns` must be a sequence of non-empty strings or None."
+            )
+        cols = tuple(self.columns)
+        if not cols:
+            raise ValueError(
+                "`columns` sequence cannot be empty; pass None to select all target columns."
+            )
+        if any(not isinstance(col, str) or not col for col in cols):
+            raise TypeError("All entries in `columns` must be non-empty strings.")
+        if len(set(cols)) != len(cols):
+            raise ValueError(f"Duplicate column names in `columns`: {cols}.")
 
     def _validate_and_parse_frame(
         self, X: Any, *, reset: bool
@@ -411,7 +474,7 @@ class BaseTemporalTransformer(_DataFrameTransformerMixin):
                 df,
                 time_col=self.time_col,
                 entity_col=self.entity_col,
-                columns=getattr(self, "columns", None),
+                columns=self.columns,
                 allow_null_time=self._allow_null_time,
                 allow_null_entity=self._allow_null_entity,
             )
@@ -435,6 +498,9 @@ class BaseTemporalTransformer(_DataFrameTransformerMixin):
         raise NotImplementedError
 
     def _transform_frame(self, frame: TemporalFrame) -> TemporalFrame:
+        raise NotImplementedError
+
+    def _inverse_transform_frame(self, frame: TemporalFrame) -> TemporalFrame:
         raise NotImplementedError
 
     def _fit_transform_frame(
