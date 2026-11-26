@@ -650,19 +650,24 @@ def cwt_coefficients(
 
 def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> MAP_EXPR:
     """
-    Calculates sum of squares over the whole series for `n_chunks` equally segmented parts of the time-series.
-    E.g. if n_chunks = 10, values are [0, 1, 2, 3, .. , 999], the first chunk will be [0, .. , 99].
+    Calculates the ratio of each segment's sum of squares to the sum of squares of the whole series.
+
+    The series is split into `n_chunks` contiguous segments whose sizes differ by at most one,
+    with the longer segments first (as in `numpy.array_split`). E.g. if n_chunks = 10 and values
+    are [0, 1, 2, 3, .. , 999], the first segment will be [0, .. , 99].
 
     Parameters
     ----------
-    x : list of float
-        The time-series to be segmented and analyzed.
+    x : pl.Expr | pl.Series
+        Input time-series.
     n_chunks : int, optional
-        The number of equally segmented parts to divide the time-series into. Default is 10.
+        The number of segments to divide the time-series into. Default is 10.
 
     Returns
     -------
-    list of float | Expr
+    Mapping[str, float] | Expr
+        Energy ratio for each segment, keyed `segment_0`, ..., `segment_{n_chunks - 1}`
+        (a struct for expressions). Ratios are NaN when the series has zero energy.
     """
     # Unlike Tsfresh,
     # We calculate all 1,2,3,...,n_chunk at once
