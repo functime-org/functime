@@ -29,7 +29,7 @@ requires-python = ">=3.12"
 dependencies = [
   "holidays",
   "numpy",
-  "polars>=1.0",
+  "polars>=1.25",
   "scikit-learn>=1.2.2",
   "scipy>=1.11",
   "tqdm",
@@ -84,6 +84,7 @@ doc = [
 test = [
   "pandas",
   "plotly",
+  "polars>=1.33",
   "pytest>=8.0.0",
   "pytest-cov>=5.0.0",
   "pytest-benchmark",
