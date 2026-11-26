@@ -14,6 +14,7 @@ from functime.feature_extractors import (
     absolute_maximum,
     absolute_sum_of_changes,
     approximate_entropy,
+    augmented_dickey_fuller,
     autocorrelation,
     benford_correlation,
     binned_entropy,
@@ -27,6 +28,8 @@ from functime.feature_extractors import (
     first_location_of_maximum,
     first_location_of_minimum,
     fourier_entropy,
+    friedrich_coefficients,
+    harmonic_mean,
     has_duplicate,
     has_duplicate_max,
     has_duplicate_min,
@@ -35,16 +38,19 @@ from functime.feature_extractors import (
     last_location_of_maximum,
     last_location_of_minimum,
     linear_trend,
+    longest_losing_streak,
     longest_streak_above,
     longest_streak_above_mean,
     longest_streak_below,
     longest_streak_below_mean,
+    longest_winning_streak,
     max_abs_change,
     mean_abs_change,
     mean_change,
     mean_n_absolute_max,
     mean_second_derivative_central,
     number_crossings,
+    number_cwt_peaks,
     number_peaks,
     percent_reoccurring_points,
     percent_reoccurring_values,
@@ -56,6 +62,7 @@ from functime.feature_extractors import (
     ratio_n_unique_to_length,
     root_mean_square,
     sample_entropy,
+    spkt_welch_density,
     streak_length_stats,
     sum_reoccurring_points,
     sum_reoccurring_values,
@@ -635,7 +642,7 @@ def test_cid_ce_nan_case(S, res, normalize):
         .collect(),
         pl.DataFrame(pl.Series("a", res)),
     )
-    np.isnan(cid_ce(pl.Series(S), normalize=normalize) == res[0])
+    assert np.isnan(cid_ce(pl.Series(S), normalize=normalize))
 
 
 @pytest.mark.parametrize(
@@ -1226,84 +1233,104 @@ def test_number_peaks(S, n, res):
     )
 
 
-def generate_ar1():
-    np.random.seed(42)
-    e = np.random.normal(0.1, 0.1, size=100)
-    m = 50
-    x = [0] * m
-    x[0] = 100
-    for i in range(1, m):
-        x[i] = x[i - 1] * 0.5 + e[i]
-    return pl.Series(x, dtype=pl.Float64)
-
-
+# Expected values computed with tsfresh 0.21.2
 @pytest.mark.parametrize(
-    "x, param, res",
+    "x, res",
+    [
+        (np.sin(np.arange(60) * 0.7) + 0.05 * np.arange(60), [6, 8, 8]),
+        (np.cos(np.arange(50) ** 1.5), [11, 12, 3]),
+    ],
+)
+def test_number_cwt_peaks(x, res):
+    assert [number_cwt_peaks(pl.Series(x), w) for w in (1, 3, 5)] == res
+    assert number_cwt_peaks(pl.col("a")) is NotImplemented
+
+
+# Expected values computed with statsmodels 0.15.0 `adfuller(x, maxlag=n_lags, autolag=None)`
+@pytest.mark.parametrize(
+    "x, res",
     [
         (
-            pl.Series(np.cumsum(np.random.uniform(size=100))),
-            [
-                {"autolag": "BIC", "attr": "teststat"},
-                {"autolag": "BIC", "attr": "pvalue"},
-                {"autolag": "BIC", "attr": "usedlag"},
-            ],
-            pl.DataFrame(
-                [
-                    [
-                        'attr_"teststat"__autolag_"BIC"',
-                        'attr_"pvalue"__autolag_"BIC"',
-                        'attr_"usedlag"__autolag_"BIC"',
-                    ],
-                    [0.037064, 0.961492, 0],
-                ],
-                schema=["index", "res"],
-            ),
+            np.cos(np.arange(50) ** 1.5),
+            [-8.716077053812528, -6.475201491266627, -5.006297463394606],
         ),
         (
-            generate_ar1(),
-            [
-                {"autolag": "AIC", "attr": "teststat"},
-                {"autolag": "AIC", "attr": "pvalue"},
-                {"autolag": "AIC", "attr": "usedlag"},
-            ],
-            pl.DataFrame(
-                [
-                    [
-                        'attr_"teststat"__autolag_"AIC"',
-                        'attr_"pvalue"__autolag_"AIC"',
-                        'attr_"usedlag"__autolag_"AIC"',
-                    ],
-                    [-595.259534, 0, 0],
-                ],
-                schema=["index", "res"],
-            ),
+            np.cumsum(np.sin(np.arange(60) ** 1.3)),
+            [-16.72253437150249, -19.31276374269003, -16.762902227736877],
         ),
     ],
 )
-def test_augmented_dickey_fuller(x, param, res):
-    # assert_frame_equal(augmented_dickey_fuller(x, param), res, atol=1e-7)
-    # res_linalg_error = (
-    #     augmented_dickey_fuller(x=pl.Series(np.repeat(np.nan, 100)), param=param)
-    #     .get_column("res")
-    #     .to_numpy()
-    # )
-    # assert all(np.isnan(res_linalg_error))
-    #
-    # res_value_error = (
-    #     augmented_dickey_fuller(x=pl.Series([]), param=param)
-    #     .get_column("res")
-    #     .to_numpy()
-    # )
-    # assert all(np.isnan(res_value_error))
-    #
-    # # Should return NaN if "attr" is unknown
-    # res_attr_error = (
-    #     augmented_dickey_fuller(x=x, param=[{"autolag": "AIC", "attr": ""}])
-    #     .get_column("res")
-    #     .to_numpy()
-    # )
-    # assert all(np.isnan(res_attr_error))
-    assert True
+def test_augmented_dickey_fuller(x, res):
+    np.testing.assert_allclose(
+        [augmented_dickey_fuller(pl.Series(x), n_lags=k) for k in (0, 1, 2)],
+        res,
+        rtol=1e-10,
+    )
+    assert augmented_dickey_fuller(pl.col("a"), n_lags=1) is NotImplemented
+
+
+# Expected values computed with tsfresh 0.21.2
+@pytest.mark.parametrize(
+    "x, res",
+    [
+        (
+            np.cos(np.arange(50) ** 1.5),
+            [
+                0.30485468941418586,
+                -0.09972167087017966,
+                -1.4429462829083646,
+                0.014371333820174343,
+            ],
+        ),
+        (
+            np.sin(np.arange(60) * 0.7) + 0.05 * np.arange(60),
+            [
+                -0.015626612099689876,
+                0.05805555376656677,
+                -0.13214252413979147,
+                0.18231552217127636,
+            ],
+        ),
+    ],
+)
+def test_friedrich_coefficients(x, res):
+    np.testing.assert_allclose(
+        friedrich_coefficients(pl.Series(x), polynomial_order=3, n_quantiles=10),
+        res,
+        rtol=1e-8,
+    )
+    assert friedrich_coefficients(pl.col("a")) is NotImplemented
+
+
+# Expected values computed with tsfresh 0.21.2
+@pytest.mark.parametrize(
+    "x, res",
+    [
+        (
+            np.cos(np.arange(50) ** 1.5),
+            [
+                0.017606669653960898,
+                0.027586105358294186,
+                0.02923641851668409,
+                0.1931926177175403,
+            ],
+        ),
+        (
+            np.sin(np.arange(60) * 0.7) + 0.05 * np.arange(60),
+            [
+                0.009437939317496166,
+                10.247976713253925,
+                0.5147982143017837,
+                0.03710271630247637,
+            ],
+        ),
+    ],
+)
+def test_spkt_welch_density(x, res):
+    np.testing.assert_allclose(
+        spkt_welch_density(pl.Series(x), n_coeffs=4), res, rtol=1e-10
+    )
+    assert spkt_welch_density(pl.col("a")) is NotImplemented
 
 
 @pytest.mark.parametrize(
@@ -1510,6 +1537,35 @@ def test_longest_streak_below(S, res):
 
 
 @pytest.mark.parametrize(
+    "S, win, loss",
+    [
+        ([1, 2, 3, 2, 3, 4, 5, 1], 3, 1),
+        ([5, 4, 3, 3, 2, 6], 1, 4),
+        # Flat steps count towards both streaks
+        ([3, 3, 3], 2, 2),
+        ([1], 0, 0),
+    ],
+)
+def test_longest_winning_losing_streak(S, win, loss):
+    assert longest_winning_streak(pl.Series(S)) == win
+    assert longest_losing_streak(pl.Series(S)) == loss
+    expected = pl.DataFrame({"win": [win], "loss": [loss]})
+    exprs = {
+        "win": longest_winning_streak(pl.col("a")).cast(pl.Int64),
+        "loss": longest_losing_streak(pl.col("a")).cast(pl.Int64),
+    }
+    assert_frame_equal(pl.DataFrame({"a": S}).select(**exprs), expected)
+    assert_frame_equal(pl.LazyFrame({"a": S}).select(**exprs).collect(), expected)
+    assert_frame_equal(
+        pl.DataFrame({"a": S}).select(
+            win=pl.col("a").ts.longest_winning_streak().cast(pl.Int64),
+            loss=pl.col("a").ts.longest_losing_streak().cast(pl.Int64),
+        ),
+        expected,
+    )
+
+
+@pytest.mark.parametrize(
     "S, res",
     [
         (list(range(100)), 1),
@@ -1564,6 +1620,26 @@ def test_range_over_mean_and_range(S, res):
         df.lazy().select(range_over_mean(pl.col(x.name))).collect(),
         pl.DataFrame({x.name: [res]}),
     )
+
+
+@pytest.mark.parametrize(
+    "S, res",
+    [
+        ([1, 2, 4], [12 / 7]),
+        ([2.0, 2.0, 2.0], [2.0]),
+        ([0.5, 1.0, 2.0, 4.0], [32 / 30]),
+    ],
+)
+def test_harmonic_mean(S, res):
+    assert_frame_equal(
+        pl.DataFrame({"a": S}).select(harmonic_mean(pl.col("a"))),
+        pl.DataFrame(pl.Series("a", res)),
+    )
+    assert_frame_equal(
+        pl.LazyFrame({"a": S}).select(pl.col("a").ts.harmonic_mean()).collect(),
+        pl.DataFrame(pl.Series("a", res)),
+    )
+    assert harmonic_mean(pl.Series(S)) == pytest.approx(res[0])
 
 
 @pytest.mark.parametrize(

@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import polars as pl
 import pytest
+from scipy import signal
 
 from functime.feature_extractors import (
     autoregressive_coefficients,
@@ -112,3 +113,20 @@ def test_expr_frac_diff_window_and_panel() -> None:
         df.select(pl.col("y").ts.frac_diff(d=0.5))
     with pytest.raises(ValueError, match="Only one of min_weight or window_size"):
         df.select(pl.col("y").ts.frac_diff(d=0.5, min_weight=1e-3, window_size=5))
+
+
+@pytest.mark.parametrize(
+    "method, scipy_type", [("linear", "linear"), ("mean", "constant")]
+)
+def test_expr_detrend_panel(method: str, scipy_type: str) -> None:
+    a = [1.0, 3.0, 2.0, 5.0, 4.0, 7.0]
+    b = [10.0, 8.0, 9.0, 4.0]
+    df = pl.DataFrame({"entity_id": ["a"] * 6 + ["b"] * 4, "y": a + b})
+    out = df.select(pl.col("y").ts.detrend(method).over("entity_id"))
+    expected = np.concatenate(
+        [signal.detrend(a, type=scipy_type), signal.detrend(b, type=scipy_type)]
+    )
+    np.testing.assert_allclose(out.get_column("y").to_numpy(), expected, atol=1e-12)
+
+    with pytest.raises(ValueError, match="Unknown detrend method"):
+        pl.col("y").ts.detrend("quadratic")
