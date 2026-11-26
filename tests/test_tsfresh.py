@@ -24,6 +24,8 @@ from functime.feature_extractors import (
     count_above_mean,
     count_below,
     count_below_mean,
+    energy_ratios,
+    fft_coefficients,
     first_location_of_maximum,
     first_location_of_minimum,
     fourier_entropy,
@@ -508,6 +510,12 @@ def test_autocorrelation_shortcut(S, res, n_lags):
         pl.DataFrame(pl.Series("literal", res)),
     )
     assert autocorrelation(pl.Series(S), n_lags=n_lags) == res[0]
+    assert_frame_equal(
+        pl.DataFrame({"a": S}).select(
+            autocorrelation(pl.col("a"), n_lags=n_lags).alias("acf")
+        ),
+        pl.DataFrame(pl.Series("acf", res)),
+    )
 
 
 @pytest.mark.parametrize(
@@ -717,6 +725,71 @@ def test_count_below_mean(S, res):
 
 
 @pytest.mark.parametrize(
+    "S, res, n_chunks",
+    [
+        # Segment sizes follow `np.array_split`: 3, 2, 2
+        ([1, 2, 3, 4, 5, 6, 7], [14 / 140, 41 / 140, 85 / 140], 3),
+        ([1.0] * 9, [1 / 3, 1 / 3, 1 / 3], 3),
+        (list(range(10)), [5 / 285, 50 / 285, 85 / 285, 145 / 285], 4),
+        ([1, 2], [1 / 5, 4 / 5, 0.0, 0.0], 4),
+        ([0, 0, 0], [np.nan, np.nan], 2),
+    ],
+)
+def test_energy_ratios(S, res, n_chunks):
+    expected = pl.DataFrame(
+        {f"segment_{i}": [v] for i, v in enumerate(res)},
+        schema=dict.fromkeys((f"segment_{i}" for i in range(len(res))), pl.Float64),
+    ).select(pl.struct(pl.all()).alias("a"))
+    assert_frame_equal(
+        pl.DataFrame({"a": S}).select(energy_ratios(pl.col("a"), n_chunks=n_chunks)),
+        expected,
+    )
+    assert_frame_equal(
+        pl.LazyFrame({"a": S})
+        .select(pl.col("a").ts.energy_ratios(n_chunks=n_chunks))
+        .collect(),
+        expected,
+    )
+    np.testing.assert_allclose(
+        list(energy_ratios(pl.Series(S), n_chunks=n_chunks).values()), res
+    )
+
+
+def test_energy_ratios_panel():
+    df = pl.DataFrame({"id": ["a"] * 7 + ["b"] * 2, "x": [1, 2, 3, 4, 5, 6, 7, 1, 2]})
+    result = (
+        df.group_by("id", maintain_order=True)
+        .agg(energy_ratios(pl.col("x"), n_chunks=3))
+        .unnest("x")
+    )
+    expected = pl.DataFrame(
+        {
+            "id": ["a", "b"],
+            "segment_0": [14 / 140, 1 / 5],
+            "segment_1": [41 / 140, 4 / 5],
+            "segment_2": [85 / 140, 0.0],
+        }
+    )
+    assert_frame_equal(result, expected)
+
+
+def test_energy_ratios_n_chunks():
+    with pytest.raises(ValueError, match="n_chunks"):
+        energy_ratios(pl.col("a"), n_chunks=0)
+
+
+def test_fft_coefficients():
+    S = [1.0, 2.0, 0.0, -1.0, 3.0, 2.0]
+    fft = np.fft.rfft(S)
+    res = fft_coefficients(pl.Series(S))
+    np.testing.assert_allclose(res["real"], fft.real)
+    np.testing.assert_allclose(res["imag"], fft.imag)
+    np.testing.assert_allclose(res["abs"], np.abs(fft))
+    np.testing.assert_allclose(res["angle"], np.angle(fft, deg=True))
+    assert fft_coefficients(pl.col("a")) is NotImplemented
+
+
+@pytest.mark.parametrize(
     "S, res",
     [
         ([1, 2, 1, 2, 1], [0.2]),
@@ -822,6 +895,10 @@ def test_has_duplicate_max(S, res):
         ([0, 1, 1, 0, 0, 1, 0, 0], [0.25], 0.3),
         ([0, 1, 1, 0, 0, 1, 0, 0], [0.375], 0.6),
         ([0, 1, 1, 0, 0, 1, 0, 0], [0.75], 0.9),
+        # `q` times the total mass is a whole number
+        ([1] * 10, [0.5], 0.5),
+        ([1, 3, 1, 3], [0.5], 0.5),
+        ([0, 0, 0], [np.nan], 0.5),
     ],
 )
 def test_index_mass_quantile(S, res, q):
@@ -833,7 +910,18 @@ def test_index_mass_quantile(S, res, q):
         pl.LazyFrame({"a": S}).select(index_mass_quantile(pl.col("a"), q)).collect(),
         pl.DataFrame(pl.Series("a", res)),
     )
-    assert index_mass_quantile(pl.Series(S), q) == res[0]
+    np.testing.assert_equal(index_mass_quantile(pl.Series(S), q), res[0])
+    np.testing.assert_equal(
+        index_mass_quantile(pl.Series(S, dtype=pl.Float64), q), res[0]
+    )
+
+
+def test_index_mass_quantile_panel():
+    df = pl.DataFrame({"id": ["a"] * 4 + ["b"] * 3, "x": [1, 3, 1, 3, 0, 0, 0]})
+    result = df.group_by("id", maintain_order=True).agg(
+        index_mass_quantile(pl.col("x"), 0.5)
+    )
+    assert_frame_equal(result, pl.DataFrame({"id": ["a", "b"], "x": [0.5, np.nan]}))
 
 
 @pytest.mark.parametrize(
