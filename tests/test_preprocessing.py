@@ -204,6 +204,29 @@ def test_scale(pd_X):
     assert_frame_equal(X_original, X, check_dtypes=False)
 
 
+@pytest.mark.parametrize(
+    "use_mean,use_std,expected",
+    [(True, True, [-2.0, 3.0]), (True, False, [-20.0, 3.0]), (False, True, [0.0, 5.0])],
+)
+def test_scale_transform_new(use_mean, use_std, expected):
+    # Per-entity mean and std: a -> (2, 1), b -> (20, 10)
+    X = pl.DataFrame(
+        {
+            "entity": ["a"] * 3 + ["b"] * 3,
+            "time": [1, 2, 3] * 2,
+            "x": [1.0, 2.0, 3.0, 10.0, 20.0, 30.0],
+        }
+    )
+    transformer = scale(use_mean=use_mean, use_std=use_std)
+    X_new = transformer(X).collect()
+    # On the data it was fitted on, `transform_new` reproduces `transform`
+    assert_frame_equal(transformer.transform_new(X).collect(), X_new)
+    # New data is scaled with the fitted statistics, not its own
+    X_future = pl.DataFrame({"entity": ["b", "a"], "time": [4, 4], "x": [0.0, 5.0]})
+    result = transformer.transform_new(X_future).collect()
+    assert_frame_equal(result, X_future.with_columns(x=pl.Series(expected)))
+
+
 @pytest.mark.parametrize("sp", [1])
 def test_diff(pd_X, sp):
     entity_col, time_col = pd_X.index.names
