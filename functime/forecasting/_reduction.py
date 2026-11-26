@@ -63,15 +63,16 @@ def make_direct_reduction(
     return X_y_final
 
 
-def make_y_lag(X_y: pl.DataFrame, target_col: str, lags: int):
-    entity_col, time_col = X_y.collect_schema().names()[:2]
+def make_y_lag(y: pl.LazyFrame, lags: int) -> pl.LazyFrame:
+    # Built from `y` rather than the reduced frame, whose last row holds lags that
+    # are already one step behind the first forecast
+    y_columns = y.collect_schema().names()
+    entity_col, time_col = y_columns[:2]
+    target_col = y_columns[-1]
     y_lag = (
-        X_y.lazy()
-        .sort([entity_col, time_col])
-        .select([entity_col, time_col, pl.col(rf"^{target_col}__lag_(\d+)$")])
+        y.sort([entity_col, time_col])
         .group_by(entity_col, maintain_order=True)
-        .agg(pl.all().tail(lags))
-        .collect(engine="streaming")
-        .lazy()
+        .agg(pl.col(time_col).last(), pl.col(target_col).tail(lags))
+        .filter(pl.col(target_col).list.len() == lags)
     )
     return y_lag
