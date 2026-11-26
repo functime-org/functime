@@ -228,11 +228,11 @@ def augmented_dickey_fuller(x: TIME_SERIES_T, n_lags: int) -> float:
         y = data_x.drop_in_place("0").to_numpy(allow_copy=False)
         data_x = data_x.to_numpy()  # to NumPy matrix
 
-        coeffs, resids, _, _ = lstsq(data_x, y, cond=None)
-        mse = np.sum(resids**2) / (length - data_x.shape[1])
-        ys = data_x[:, 0] - np.mean(data_x[:, 0])
-        ss = np.dot(ys, ys)
-        stderr = np.sqrt(mse / ss)
+        coeffs, _, _, _ = lstsq(data_x, y, cond=None)
+        resids = y - data_x @ coeffs
+        mse = np.dot(resids, resids) / (length - data_x.shape[1])
+        # The standard error must account for the lagged differences and constant
+        stderr = np.sqrt(mse * np.linalg.pinv(data_x.T @ data_x)[0, 0])
         return coeffs[0] / stderr
     else:
         logger.info(
@@ -769,8 +769,10 @@ def friedrich_coefficients(
             x.alias("signal")
             .to_frame()
             .lazy()
+            # As in tsfresh, pair each value with the change that follows it
+            .with_columns(pl.col("signal").diff().shift(-1).alias("delta"))
+            .slice(0, x.len() - 1)
             .with_columns(
-                pl.col("signal").diff().alias("delta"),
                 pl.col("signal")
                 .qcut(
                     quantiles=n_quantiles,
@@ -1577,7 +1579,7 @@ def spkt_welch_density(x: TIME_SERIES_T, n_coeffs: int | None = None) -> LIST_EX
             last_idx = len(x)
         else:
             last_idx = n_coeffs
-        _, pxx = welch(x, nperseg=min(len(x), 256))
+        _, pxx = welch(x.to_numpy(), nperseg=min(len(x), 256))
         return pxx[:last_idx]
     else:
         logger.info(
@@ -2342,7 +2344,7 @@ class FeatureExtractor:
 
         if method == "linear":
             N = self._expr.count()
-            x = pl.int_range(0, N, dtype=pl.Float64, eager=False)
+            x = pl.int_range(0, N, eager=False).cast(pl.Float64)
             coeff = pl.cov(self._expr, x) / x.var()
             const = self._expr.mean() - coeff * (N - 1) / 2
             return self._expr - x * coeff - const
