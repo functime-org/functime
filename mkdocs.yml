@@ -53,6 +53,7 @@ nav:
     - Seasonality: user-guide/seasonality.md
   - Developer Guides:
     - Custom Forecasters and Transformers: developer-guide/develop.md
+    - Custom Transformers (v2 Design): developer-guide/transformers.md
     - Contributing: developer-guide/contributing.md
   - Tutorials:
     - Preprocessing: notebooks/preprocessing.ipynb
