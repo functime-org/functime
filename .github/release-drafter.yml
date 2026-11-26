@@ -14,30 +14,24 @@ autolabeler:
     title:
       # Example: feat!: ...
       - '/^(build|chore|ci|depr|docs|feat|fix|perf|refactor|release|test)(\(.*\))?\!\: /'
-  - label: build
-    title:
-      - '/^build/'
-  - label: deprecation
-    title:
-      - '/^depr/'
   - label: internal
     title:
-      - '/^(chore|ci|refactor|test)/'
-  - label: documentation
+      - '/^(build|chore|ci|test)/'
+  - label: refactor
+    title:
+      - '/^refactor/'
+  - label: docs
     title:
       - '/^docs/'
   - label: enhancement
     title:
       - '/^feat/'
-  - label: fix
+  - label: bug
     title:
       - '/^fix/'
-  - label: performance
+  - label: perf
     title:
       - '/^perf/'
-  - label: release
-    title:
-      - '/^release/'
 
 name-template: 'v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
@@ -48,28 +42,26 @@ template: |
   $CONTRIBUTORS
 
 categories:
-  - title: 🏆 Highlights
-    labels:
-      - highlight
   - title: 💥 Breaking changes
     labels:
       - breaking
-  - title: ⚠️ Deprecations
-    labels:
-      - deprecation
   - title: 🚀 Performance improvements
     labels:
-      - performance
+      - perf
   - title: ✨ Enhancements
     labels:
       - enhancement
   - title: 🐞 Bug fixes
     labels:
-      - fix
-  - title: 🛠️ Other improvements
+      - bug
+  - title: ♻️ Refactors
     labels:
-      - build
-      - documentation
+      - refactor
+  - title: 📝 Documentation
+    labels:
+      - docs
+  - title: 🛠️ Internal
+    labels:
       - internal
 
 version-resolver:
