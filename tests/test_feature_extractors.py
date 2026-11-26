@@ -22,6 +22,10 @@ def test_cwt(length: int, widths: tuple, n_coefficients: int) -> None:
     assert len(out) == min(n_coefficients, length) * len(widths)
 
 
+def test_cwt_expr_not_implemented() -> None:
+    assert cwt_coefficients(pl.col("x")) is NotImplemented
+
+
 def test_autoregressive_coefficients_recovery() -> None:
     rng = np.random.default_rng(42)
     n = 200
