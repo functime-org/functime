@@ -648,7 +648,7 @@ def cwt_coefficients(
         return NotImplemented
 
 
-def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
+def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> MAP_EXPR:
     """
     Calculates sum of squares over the whole series for `n_chunks` equally segmented parts of the time-series.
     E.g. if n_chunks = 10, values are [0, 1, 2, 3, .. , 999], the first chunk will be [0, .. , 99].
