@@ -263,7 +263,7 @@ def autocorrelation(x: TIME_SERIES_T, n_lags: int) -> FLOAT_EXPR:
     if n_lags < 0:
         raise ValueError("Input `n_lags` must be >= 0")
     elif n_lags == 0:
-        return 1.0
+        return pl.lit(1.0) if isinstance(x, pl.Expr) else 1.0
 
     mean = x.mean()
     var = x.var(ddof=0)
@@ -645,40 +645,51 @@ def cwt_coefficients(
             "Expression version of cwt_coefficients is not yet implemented due to "
             "technical difficulty regarding Polars Expression Plugins."
         )
-        NotImplemented
+        return NotImplemented
 
 
-def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
+def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> MAP_EXPR:
     """
-    Calculates sum of squares over the whole series for `n_chunks` equally segmented parts of the time-series.
-    E.g. if n_chunks = 10, values are [0, 1, 2, 3, .. , 999], the first chunk will be [0, .. , 99].
+    Calculates the ratio of each segment's sum of squares to the sum of squares of the whole series.
+
+    The series is split into `n_chunks` contiguous segments whose sizes differ by at most one,
+    with the longer segments first (as in `numpy.array_split`). E.g. if n_chunks = 10 and values
+    are [0, 1, 2, 3, .. , 999], the first segment will be [0, .. , 99].
 
     Parameters
     ----------
-    x : list of float
-        The time-series to be segmented and analyzed.
+    x : pl.Expr | pl.Series
+        Input time-series.
     n_chunks : int, optional
-        The number of equally segmented parts to divide the time-series into. Default is 10.
+        The number of segments to divide the time-series into. Default is 10.
 
     Returns
     -------
-    list of float | Expr
+    Mapping[str, float] | Expr
+        Energy ratio for each segment, keyed `segment_0`, ..., `segment_{n_chunks - 1}`
+        (a struct for expressions). Ratios are NaN when the series has zero energy.
     """
-    # Unlike Tsfresh,
-    # We calculate all 1,2,3,...,n_chunk at once
+    if n_chunks < 1:
+        raise ValueError("Input `n_chunks` must be >= 1")
     if isinstance(x, pl.Series):
-        r = x.len() % n_chunks
-        if r == 0:
-            y = x.pow(2)
-        else:
-            y = x.pow(2).extend_constant(0, n_chunks - r)
-        seg_sum = y.reshape((n_chunks, -1)).list.sum()
-        return (seg_sum / seg_sum.sum()).to_list()
-    else:
-        r = x.count().mod(n_chunks)
-        y = x.pow(2).append(pl.repeat(0, n=r.eq(0).not_() * (pl.lit(n_chunks) - r)))
-        seg_sum = y.reshape((n_chunks, -1)).list.sum()
-        return (seg_sum / seg_sum.sum()).implode()
+        return x.to_frame("x").select(energy_ratios(pl.col("x"), n_chunks)).item()
+
+    # Unlike tsfresh, we calculate the ratios of all segments at once
+    n = x.len().cast(pl.Int64)
+    size, n_longer = n // n_chunks, n % n_chunks
+    idx = pl.int_range(0, n)
+    boundary = n_longer * (size + 1)
+    segment = (
+        pl.when(idx < boundary)
+        .then(idx // (size + 1))
+        .otherwise(n_longer + (idx - boundary) // size)
+    )
+    energy = x.cast(pl.Float64).pow(2)
+    total = energy.sum()
+    return pl.struct(
+        (energy.filter(segment == i).sum() / total).alias(f"segment_{i}")
+        for i in range(n_chunks)
+    ).name.keep()
 
 
 def first_location_of_maximum(x: TIME_SERIES_T) -> FLOAT_EXPR:
@@ -863,20 +874,21 @@ def index_mass_quantile(x: TIME_SERIES_T, q: float) -> FLOAT_EXPR:
     Returns
     -------
     float | Expr
+        NaN when the series is all zeros.
     """
-    x_cumsum = x.abs().cum_sum().set_sorted()
+    # Search sorted is sensitive to dtype, so search over floats in both cases
+    x_cumsum = x.abs().cast(pl.Float64).cum_sum().set_sorted()
     if isinstance(x, pl.Series):
-        if x.dtype.is_integer():
-            idx = x_cumsum.search_sorted(int(q * x_cumsum[-1]) + 1, "left")
-        else:  # Search sorted is sensitive to dtype.
-            idx = x_cumsum.search_sorted(q * x_cumsum[-1], "left")
+        if x_cumsum[-1] == 0:
+            return np.nan
+        idx = x_cumsum.search_sorted(q * x_cumsum[-1], "left")
         return (idx + 1) / x.len()
     else:
-        # In lazy case we have to cast, which kind of wasts some time, but this is on
-        # par with the old implementation. Use max here because... believe it or not
-        # max (with fast track because I did set_sorted()) is faster than .last() ???
-        idx = x_cumsum.cast(pl.Float64).search_sorted(q * x_cumsum.max(), "left")
-        return (idx + 1) / x.len()
+        # Use max here because... believe it or not max (with fast track because
+        # I did set_sorted()) is faster than .last() ???
+        total = x_cumsum.max()
+        idx = x_cumsum.search_sorted(q * total, "left").first()
+        return pl.when(total != 0).then((idx + 1) / x.len()).otherwise(np.nan)
 
 
 def large_standard_deviation(x: TIME_SERIES_T, ratio: float = 0.25) -> BOOL_EXPR:
@@ -1949,18 +1961,22 @@ def fft_coefficients(x: TIME_SERIES_T) -> MAP_LIST_EXPR:
     Returns
     -------
     dict of list of floats | Expr
+        The `real` and `imag` parts, the `abs` magnitude, and the `angle` in degrees of each coefficient.
     """
-
-    fft = np.fft.rfft(x.to_numpy(allow_copy=False))
-    real = fft.real
-    imag = fft.imag
-    angle = np.arctan2(real, imag)
-    deg_angle = angle * 180 / np.pi
-    return {
-        "real": fft.real.tolist(),
-        "imag": fft.imag.tolist(),
-        "angle": deg_angle.tolist(),
-    }
+    if isinstance(x, pl.Series):
+        fft = np.fft.rfft(x.to_numpy(allow_copy=False))
+        return {
+            "real": fft.real.tolist(),
+            "imag": fft.imag.tolist(),
+            "abs": np.abs(fft).tolist(),
+            "angle": np.angle(fft, deg=True).tolist(),
+        }
+    else:
+        logger.info(
+            "Expression version of fft_coefficients is not yet implemented due to "
+            "technical difficulty regarding Polars Expression Plugins."
+        )
+        return NotImplemented
 
 
 @pl.api.register_expr_namespace("ts")
@@ -2159,17 +2175,17 @@ class FeatureExtractor:
 
     def energy_ratios(self, n_chunks: int = 10) -> pl.Expr:
         """
-        Calculates sum of squares over the whole series for `n_chunks` equally segmented parts of the time-series.
-        All ratios for all chunks will be returned at once.
+        Calculates the ratio of each segment's sum of squares to the sum of squares of the whole series.
+        All ratios for all segments will be returned at once.
 
         Parameters
         ----------
         n_chunks : int, optional
-            The number of equally segmented parts to divide the time-series into. Default is 10.
+            The number of segments to divide the time-series into. Default is 10.
 
         Returns
         -------
-        An expression of the output
+        An expression of the output: a struct with fields `segment_0`, ..., `segment_{n_chunks - 1}`
         """
         return energy_ratios(self._expr, n_chunks)
 
