@@ -271,13 +271,13 @@ class Forecaster(Model):
                     pl.col(target_col).list.last(),
                 ]
             )
+        # Future ranges are built as Datetime(us), so restore the input time dtype
+        y_pred = y_pred.with_columns(pl.col(time_col).cast(schema[time_col]))
 
         # Invert target transforms
         if self.target_transform is not None:
             for transf in reversed(self.fitted_target_transform):
-                y_pred = y_pred.with_columns(
-                    pl.col(time_col).cast(schema[time_col])
-                ).pipe(transf.invert)
+                y_pred = y_pred.pipe(transf.invert)
         y_pred = y_pred.lazy().collect().pipe(self._reset_string_cache)
         return y_pred
 

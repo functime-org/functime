@@ -135,7 +135,7 @@ def test_ljung_box(commodities_dataset):
         ("median", ["Sugar, EU", "Sugar, world", "Sugar, US"]),
         ("std", ["Chicken", "Sugar, EU", "Sugar, world"]),
         ("cv", ["Chicken", "Palm kernel oil", "Soybeans"]),
-        ("smape", ["Lamb", "Soybeans", "Sawnwood, Malaysian"]),
+        ("smape", ["Soybeans", "Groundnut oil", "Lamb"]),
     ],
 )
 def test_rank_forecasts(commodities_dataset, commodities_forecast, sort_by, top_3):
@@ -152,7 +152,7 @@ def test_rank_backtests(commodities_dataset, commodities_backtest):
     y_preds, _ = commodities_backtest
     entity_col = y_train.columns[0]
     ranks = rank_point_forecasts(y_pred=y_preds, y_true=y_train, sort_by="smape")
-    expected = ["Logs, Cameroon", "Sawnwood, Cameroon", "Plywood"]
+    expected = ["Logs, Cameroon", "Tobacco, US import u.v.", "Plywood"]
     print(ranks)
     assert ranks.get_column(entity_col).head(3).to_list() == expected
 
@@ -184,6 +184,6 @@ def test_rank_fva(commodities_dataset, commodities_forecast):
     print(ranks)
     assert ranks.get_column(entity_col).head(3).to_list() == [
         "Phosphate rock",
+        "Coconut oil",
         "Palm kernel oil",
-        "Tin",
     ]

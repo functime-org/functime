@@ -39,10 +39,10 @@ def fit_recursive(
     # 2. Fit
     fitted_regressor = regress(X=X_final, y=y_final)
     # 3. Collect artifacts
-    y_lag = make_y_lag(X_y_final, target_col=y_columns[-1], lags=lags)
     artifacts = {
         "regressor": fitted_regressor,
-        "y_lag": y_lag.collect(engine="streaming"),
+        "lags": lags,
+        "y_lag": make_y_lag(y, lags=lags).collect(engine="streaming"),
     }
     return artifacts
 
@@ -69,12 +69,10 @@ def fit_direct(
         fitted_regressor = regress(X=X_final, y=y_final)
         fitted_regressors.append(fitted_regressor)
     # 3. Collect artifacts
-    y_lag = make_y_lag(
-        X_y_final, target_col=y.collect_schema().names()[-1], lags=lags + max_horizons
-    )
     artifacts = {
         "regressors": fitted_regressors,
-        "y_lag": y_lag.collect(engine="streaming"),
+        "lags": lags,
+        "y_lag": make_y_lag(y, lags=lags).collect(engine="streaming"),
     }
     return artifacts
 
@@ -127,16 +125,22 @@ def predict_recursive(
         artifacts = state.artifacts["recursive"]
     regressor = artifacts["regressor"]
     entity_col = state.entity
+    time_col = state.time
+    target_col = state.target
     y_lag: pl.DataFrame = artifacts["y_lag"].sort(entity_col).set_sorted(entity_col)
     if X is not None:
         X = X.group_by(entity_col).agg(pl.all()).sort(entity_col).set_sorted(entity_col)
 
-    lag_cols = y_lag.columns[2:]
-    lead_col = lag_cols[0]
+    lag_cols = [f"{target_col}__lag_{j}" for j in range(1, artifacts["lags"] + 1)]
 
     def _get_x_y_slice(y_lag: pl.DataFrame, i: int):
         x_y_slice = y_lag.select(
-            [entity_col, pl.all().exclude(entity_col).list.get(-1)]
+            entity_col,
+            time_col,
+            *(
+                pl.col(target_col).list.get(-j).alias(col)
+                for j, col in enumerate(lag_cols, start=1)
+            ),
         )
         if X is not None:
             x = X.select([entity_col, pl.all().exclude(entity_col).list.get(i)])
@@ -157,15 +161,9 @@ def predict_recursive(
             y_pred_i, weights_i = y_pred_i
             weights[i] = weights_i
         # 3. Update AR structure
-        y_shifted = [
-            pl.col(lag_cols[i]).alias(lag_cols[i + 1])
-            for i in range(0, len(lag_cols) - 1)
-        ]
-        y_new = pl.col(lead_col).list.concat(pl.Series(y_pred_i))
-        y_lag = y_lag.with_columns([y_new, *y_shifted])
+        y_lag = y_lag.with_columns(pl.col(target_col).list.concat(pl.Series(y_pred_i)))
 
-    pred_cols = [entity_col, pl.col(lead_col).list.tail(fh).alias(state.target)]
-    y_pred = y_lag.select(pred_cols)
+    y_pred = y_lag.select(entity_col, pl.col(target_col).list.tail(fh))
 
     if is_censored:
         weights = pl.DataFrame(np.stack(weights, axis=1).astype(np.float32)).select(
@@ -199,7 +197,7 @@ def predict_direct(state, fh: int, X: pl.DataFrame | None = None) -> pl.DataFram
     y_lag: pl.DataFrame = artifacts["y_lag"].sort(entity_col).set_sorted(entity_col)
     if X is not None:
         X = X.group_by(entity_col).agg(pl.all()).sort(entity_col).set_sorted(entity_col)
-    lags = (y_lag.width - 1) - max_horizons
+    lags = artifacts["lags"]
 
     n_entities = len(y_lag)
     y_pred = np.empty((n_entities, fh))
@@ -207,9 +205,13 @@ def predict_direct(state, fh: int, X: pl.DataFrame | None = None) -> pl.DataFram
     weights = np.zeros((fh, n_entities)) if is_censored else None
 
     for i in range(fh):
-        selected_lags = range(i + 1, lags + i)
-        lag_cols = [pl.col(f"{target_col}__lag_{j}").list.get(i) for j in selected_lags]
-        x = y_lag.select([entity_col, pl.col(time_col).list.get(i), *lag_cols])
+        # Horizon i + 1 was fit on lags i + 1, ..., lags + i, so its first lag
+        # is the last observed value
+        lag_cols = [
+            pl.col(target_col).list.get(-1 - j).alias(f"{target_col}__lag_{i + 1 + j}")
+            for j in range(lags)
+        ]
+        x = y_lag.select([entity_col, time_col, *lag_cols])
         if X is not None:
             x_slice = X.select([entity_col, pl.col(regressor_cols).list.get(i)])
             x = x.join(x_slice, on=entity_col, how="left", maintain_order="left")
