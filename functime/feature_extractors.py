@@ -645,7 +645,7 @@ def cwt_coefficients(
             "Expression version of cwt_coefficients is not yet implemented due to "
             "technical difficulty regarding Polars Expression Plugins."
         )
-        NotImplemented
+        return NotImplemented
 
 
 def energy_ratios(x: TIME_SERIES_T, n_chunks: int = 10) -> LIST_EXPR:
