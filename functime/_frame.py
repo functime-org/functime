@@ -221,26 +221,20 @@ class TemporalFrame:
         left = self.lf
         right = stats_df.lazy()
 
-        join_keys: list[str] = []
-        temp_keys: list[str] = []
+        join_keys = list(self.entity_cols)
+        string_casts: list[str] = []
         for col in self.entity_cols:
             left_dtype = left_schema[col]
             right_dtype = stats_df.schema[col]
             if left_dtype == right_dtype:
-                join_keys.append(col)
-            elif _is_string_like(left_dtype) and _is_string_like(right_dtype):
-                # Join via temporary String keys so the input entity column preserves its original dtype.
-                tmp = nw.generate_temporary_column_name(
-                    n_bytes=8,
-                    columns=[*left_names, *right_names, *join_keys, *temp_keys],
-                    prefix=f"__ft_join_{col}_",
-                )
-                left = left.with_columns(pl.col(col).cast(pl.String).alias(tmp))
-                right = right.with_columns(pl.col(col).cast(pl.String).alias(tmp)).drop(
-                    col
-                )
-                join_keys.append(tmp)
-                temp_keys.append(tmp)
+                continue
+            if _is_string_like(left_dtype) and _is_string_like(right_dtype):
+                # Cast the one-row-per-entity state to the input dtype so the join runs on the
+                # input's physical codes and the input column keeps its dtype. Under strict=False
+                # a state key that is not a category of the input becomes null; such a key cannot
+                # occur in the input, so dropping it leaves the join result unchanged.
+                right = right.with_columns(pl.col(col).cast(left_dtype, strict=False))
+                string_casts.append(col)
             elif left_dtype.is_integer() and right_dtype.is_integer():
                 key = stats_df.get_column(col)
                 # Out-of-range keys would become null under strict=False and silently drop out of the join.
@@ -249,11 +243,13 @@ class TemporalFrame:
                         f"State keys in entity column {col!r} ({right_dtype}) do not fit the input dtype {left_dtype}."
                     )
                 right = right.with_columns(pl.col(col).cast(left_dtype))
-                join_keys.append(col)
             else:
                 raise TypeError(
                     f"Incompatible dtypes for entity column {col!r}: input has {left_dtype}, state has {right_dtype}."
                 )
+
+        if string_casts:
+            right = right.drop_nulls(string_casts)
 
         if handle_unknown == "error":
             unseen = (
@@ -269,8 +265,6 @@ class TemporalFrame:
                 )
 
         joined = left.join(right, on=join_keys, how="left", maintain_order="left")
-        if temp_keys:
-            joined = joined.drop(temp_keys)
         return replace(self, lf=joined)
 
     def collect(self) -> pl.DataFrame:
@@ -484,11 +478,12 @@ _VALID_HANDLE_UNKNOWN: tuple[str, ...] = ("global", "identity", "null", "error")
 
 
 def _is_string_like(dtype: pl.DataType) -> bool:
-    return (
-        dtype == pl.String
-        or dtype == pl.Categorical
-        or isinstance(dtype, (pl.Categorical, pl.Enum))
-    )
+    # isinstance, not ==: a Categorical with a named pl.Categories namespace compares unequal to pl.Categorical.
+    return dtype == pl.String or isinstance(dtype, (pl.Categorical, pl.Enum))
+
+
+def _is_supported_entity_dtype(dtype: pl.DataType) -> bool:
+    return _is_string_like(dtype) or dtype.is_integer()
 
 
 def _raise_on_state_collisions(
@@ -510,16 +505,22 @@ def _validate_schema_and_targets(
     allow_null_time: bool,
     allow_null_entity: bool,
 ) -> tuple[str, ...]:
-    col_names = (
-        raw_frame.columns
+    schema = (
+        raw_frame.schema
         if isinstance(raw_frame, pl.DataFrame)
-        else raw_frame.collect_schema().names()
+        else raw_frame.collect_schema()
     )
+    col_names = schema.names()
     missing = [col for col in (*entity_cols, time_col) if col not in col_names]
     if missing:
         raise ValueError(
             f"Missing required temporal/entity column(s) {missing} in DataFrame columns {col_names}."
         )
+    for col in entity_cols:
+        if not _is_supported_entity_dtype(schema[col]):
+            raise TypeError(
+                f"`entity_col` ({col!r}) has unsupported dtype {schema[col]}; expected String, Categorical, Enum, or an integer dtype."
+            )
     if isinstance(raw_frame, pl.DataFrame):
         if raw_frame.height == 0:
             raise ValueError(
