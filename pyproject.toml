@@ -31,7 +31,7 @@ dependencies = [
   "narwhals>=2.22",
   "numpy",
   "polars>=1.25",
-  "scikit-learn>=1.2.2",
+  "scikit-learn>=1.6",
   "scipy>=1.11",
   "tqdm",
   "typing_extensions>=4.16",

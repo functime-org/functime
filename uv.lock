@@ -980,7 +980,7 @@ requires-dist = [
     { name = "pyarrow", marker = "extra == 'ann'" },
     { name = "pyarrow", marker = "extra == 'xgb'" },
     { name = "pylance", marker = "extra == 'ann'" },
-    { name = "scikit-learn", specifier = ">=1.2.2" },
+    { name = "scikit-learn", specifier = ">=1.6" },
     { name = "scipy", specifier = ">=1.11" },
     { name = "tqdm" },
     { name = "typing-extensions", specifier = ">=4.16" },
