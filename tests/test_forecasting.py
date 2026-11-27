@@ -140,7 +140,10 @@ def test_censored_model_on_m5(threshold, m5_dataset):
         classify=simple_classify,
     )(y=y_train, X=X_train, fh=fh, X_future=X_test)
     # Check column names
-    assert y_pred.collect_schema().names() == [*y_train.collect_schema().names()[:3]]
+    assert y_pred.collect_schema().names() == [
+        *y_train.collect_schema().names()[:3],
+        "threshold_proba",
+    ]
     # # Check no missing time-series
     # entity_col = y_pred.columns[0]
     # _check_missing_values(y_train.lazy(), y_pred.lazy(), entity_col)
