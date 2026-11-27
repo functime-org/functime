@@ -448,3 +448,33 @@ def test_temporal_regressor_mixin_tags_and_mro() -> None:
     assert tags.input_tags.string is True
     assert tags.input_tags.allow_nan is True
     assert clone(reg).get_params() == {"entity_col": "series_id", "time_col": "ds"}
+
+
+def test_fit_feature_names_match_fit_transform_and_failed_core_fit_unfits() -> None:
+    df_panel, _, _ = _make_sample_frames()
+
+    class _AddsColumn(_DummyTemporalTransformer):
+        def _fit_frame(self, frame, y=None):  # type: ignore[no-untyped-def]
+            self.offset_ = 1.0
+
+        def _transform_frame(self, frame):  # type: ignore[no-untyped-def]
+            return frame.with_lazy(frame.lf.with_columns(pl.lit(1.0).alias("new")))
+
+        _fit_transform_frame = BaseTemporalTransformer._fit_transform_frame
+
+    via_fit = _AddsColumn(time_col="time", entity_col="id").fit(df_panel)
+    via_fit_transform = _AddsColumn(time_col="time", entity_col="id")
+    out = via_fit_transform.fit_transform(df_panel)
+    assert list(via_fit.get_feature_names_out()) == out.columns
+    assert list(via_fit_transform.get_feature_names_out()) == out.columns
+
+    class _FailingFit(_DummyTemporalTransformer):
+        def _fit_frame(self, frame, y=None):  # type: ignore[no-untyped-def]
+            raise RuntimeError("boom")
+
+    for method in ("fit", "fit_transform"):
+        est = _FailingFit(time_col="time", entity_col="id")
+        with pytest.raises(RuntimeError, match="boom"):
+            getattr(est, method)(df_panel)
+        with pytest.raises(NotFittedError):
+            est.transform(df_panel)

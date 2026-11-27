@@ -6,8 +6,10 @@ from dataclasses import dataclass, replace
 from enum import IntEnum
 from typing import Any, Literal, cast
 
-import narwhals as nw
+# Use narwhals.stable.v2 for API stability across versions, while keeping
+# narwhals.dependencies/typing so top-level narwhals and v1/v2 containers are all accepted.
 import narwhals.dependencies as nwd
+import narwhals.stable.v2 as nw
 import numpy as np
 import polars as pl
 from narwhals.typing import IntoFrame
@@ -43,13 +45,21 @@ class TemporalFrame:
         cls,
         data: TemporalFrame | Any,
         *,
-        time_col: str,
+        time_col: str | None = None,
         entity_col: str | Sequence[str] | None = None,
         columns: Sequence[str] | None = None,
         allow_null_time: bool = False,
         allow_null_entity: bool = False,
         assume_sorted: bool = False,
     ) -> TemporalFrame:
+        if isinstance(data, cls):
+            # Re-wrapping must not silently drop the frame's own axes (e.g. demote a panel to univariate).
+            time_col = data.time_col if time_col is None else time_col
+            entity_col = (
+                (data.entity_cols or None) if entity_col is None else entity_col
+            )
+        elif time_col is None:
+            raise TypeError("`time_col` is required unless `data` is a TemporalFrame.")
         entity_cols = validate_temporal_params(time_col, entity_col)
         if isinstance(data, cls):
             target_cols = _validate_schema_and_targets(
@@ -180,6 +190,7 @@ class TemporalFrame:
                 )
             if stats_df.width == 0:
                 return self
+            _raise_on_state_collisions(stats_df.columns, self.columns)
             out = self.lf.with_columns(
                 [
                     pl.lit(stats_df.get_column(col).item(0))
@@ -193,6 +204,20 @@ class TemporalFrame:
         left_schema = self.lf.collect_schema()
         left_names = list(left_schema.names())
         right_names = list(stats_df.columns)
+        missing_keys = [col for col in self.entity_cols if col not in right_names]
+        if missing_keys:
+            raise ValueError(
+                f"State DataFrame is missing entity column(s) {missing_keys}."
+            )
+        _raise_on_state_collisions(
+            [col for col in right_names if col not in self.entity_cols], left_names
+        )
+        # Duplicate state keys would fan out input rows in the left join.
+        n_dup = stats_df.select(self.entity_cols).is_duplicated().sum()
+        if n_dup:
+            raise ValueError(
+                f"State DataFrame has {n_dup} row(s) with duplicate entity keys; expected one row per entity."
+            )
         left = self.lf
         right = stats_df.lazy()
 
@@ -217,7 +242,13 @@ class TemporalFrame:
                 join_keys.append(tmp)
                 temp_keys.append(tmp)
             elif left_dtype.is_integer() and right_dtype.is_integer():
-                right = right.with_columns(pl.col(col).cast(left_dtype, strict=False))
+                key = stats_df.get_column(col)
+                # Out-of-range keys would become null under strict=False and silently drop out of the join.
+                if key.cast(left_dtype, strict=False).null_count() > key.null_count():
+                    raise TypeError(
+                        f"State keys in entity column {col!r} ({right_dtype}) do not fit the input dtype {left_dtype}."
+                    )
+                right = right.with_columns(pl.col(col).cast(left_dtype))
                 join_keys.append(col)
             else:
                 raise TypeError(
@@ -272,12 +303,14 @@ def temporal_transform(
         def wrapper(
             data: TemporalFrame | Any,
             *,
-            time_col: str = "time",
+            time_col: str | None = None,
             entity_col: str | Sequence[str] | None = None,
             columns: Sequence[str] | None = None,
             assume_sorted: bool = False,
             **kwargs: Any,
         ) -> pl.LazyFrame:
+            if time_col is None and not isinstance(data, TemporalFrame):
+                time_col = "time"
             tf = TemporalFrame.parse(
                 data,
                 time_col=time_col,
@@ -321,7 +354,10 @@ def to_polars_lazy(data: Any) -> pl.LazyFrame:
     if isinstance(nw_frame, nw.LazyFrame):
         if nw_frame.implementation is nw.Implementation.POLARS:
             return nw_frame.to_native()
-        return nw_frame.collect().to_polars().lazy()
+        # Non-Polars lazy backends (e.g. DuckDB, Dask, Ibis) must materialize;
+        # backend="polars" avoids intermediate PyArrow/Pandas conversions where supported.
+        return nw_frame.collect(backend="polars").to_polars().lazy()
+    _validate_no_meaningful_index(nw_frame)
     return nw_frame.to_polars().lazy()
 
 
@@ -333,20 +369,29 @@ def coerce_target_series(y: Any, n_rows: int, name: str = "target") -> pl.Series
     if isinstance(y, pl.Series):
         series = y.rename(name)
     elif nwd.is_into_series(y):
-        series = nw.from_native(y, series_only=True).to_polars().rename(name)
+        nw_series = nw.from_native(y, series_only=True)
+        _validate_no_meaningful_index(nw_series)
+        series = nw_series.to_polars().rename(name)
     elif is_frame_like(y):
-        df = to_polars_lazy(y).collect()
-        if df.width != 1:
+        lf = to_polars_lazy(y)
+        width = lf.collect_schema().len()
+        if width != 1:
             raise ValueError(
-                f"Expected a 1-column DataFrame for y; got {df.width} columns."
+                f"Expected a 1-column DataFrame for y; got {width} columns."
             )
-        series = df.get_column(df.columns[0]).rename(name)
+        series = lf.collect().to_series().rename(name)
     else:
         arr = np.asarray(y)
         if arr.ndim != 1:
+            # (n, 1) column vectors are coerced with a DataConversionWarning in the scikit-learn wrapper layer (column_or_1d(..., warn=True)), not here.
             raise ValueError(f"Expected a 1D target array; got shape {arr.shape}.")
         series = pl.Series(name, arr)
 
+    if series.dtype == pl.Object:
+        # Object columns pass construction but fail later inside most Polars expressions.
+        raise TypeError(
+            "Target has an unsupported object dtype; cast y to a numeric or string dtype first."
+        )
     if len(series) != n_rows:
         raise ValueError(
             f"Target length ({len(series)}) does not match X row count ({n_rows})."
@@ -390,7 +435,14 @@ def detect_sort_state(
             ).item()
         )
         return SortState.ENTITY_TIME_SORTED if ok else SortState.UNKNOWN
-    ok = bool(df.select(pl.col(time_col).is_sorted().over(entity_cols).all()).item())
+    # Expr.is_sorted is Polars >= 2.0 only; the shift comparison keeps the declared 1.x floor working.
+    ok = bool(
+        df.select(
+            (pl.col(time_col) >= pl.col(time_col).shift(1).over(entity_cols))
+            .fill_null(True)
+            .all()
+        ).item()
+    )
     return SortState.CHRONOLOGICAL if ok else SortState.UNKNOWN
 
 
@@ -455,6 +507,16 @@ def _is_string_like(dtype: pl.DataType) -> bool:
     )
 
 
+def _raise_on_state_collisions(
+    state_cols: Sequence[str], input_cols: Sequence[str]
+) -> None:
+    clashes = [col for col in state_cols if col in input_cols]
+    if clashes:
+        raise ValueError(
+            f"State column(s) {clashes} already exist in the input; rename them to avoid overwriting data."
+        )
+
+
 def _validate_schema_and_targets(
     raw_frame: pl.DataFrame | pl.LazyFrame,
     *,
@@ -489,9 +551,36 @@ def _validate_schema_and_targets(
     index_set = set(entity_cols) | {time_col}
     if columns is None:
         return tuple(col for col in col_names if col not in index_set)
+    if isinstance(columns, str):
+        raise TypeError("`columns` must be a sequence of column names, not a str.")
     unknown = [col for col in columns if col not in col_names]
     if unknown:
         raise ValueError(
             f"Specified column(s) {unknown} not found in DataFrame columns {col_names}."
         )
+    axis_overlap = [col for col in columns if col in index_set]
+    if axis_overlap:
+        raise ValueError(
+            f"`columns` cannot include the time or entity column(s) {axis_overlap}."
+        )
+    if len(set(columns)) != len(columns):
+        raise ValueError(f"Duplicate column names in `columns`: {tuple(columns)}.")
     return tuple(columns)
+
+
+def _validate_no_meaningful_index(nw_obj: nw.DataFrame[Any] | nw.Series[Any]) -> None:
+    idx = nw.maybe_get_index(nw_obj)
+    if idx is None:
+        return
+    nlevels = getattr(idx, "nlevels", 1)
+    name = getattr(idx, "name", None)
+    dtype_kind = getattr(getattr(idx, "dtype", None), "kind", None)
+    if nlevels > 1 or name is not None or dtype_kind not in ("i", "u"):
+        names = getattr(idx, "names", None)
+        detail = f" (names={list(names)!r})" if names is not None else ""
+        raise ValueError(
+            f"Pandas-like {type(nw_obj.to_native()).__name__} has a meaningful "
+            f"{type(idx).__name__}{detail} "
+            "that would be dropped on conversion. Call `df.reset_index()` before "
+            "passing it to functime."
+        )

@@ -342,6 +342,63 @@ def test_join_state_univariate_panel_dtypes_and_handle_unknown() -> None:
         )
 
 
+def test_join_state_rejects_ambiguous_state() -> None:
+    df = pl.DataFrame({"id": ["a", "b"], "t": [1, 1], "y": [1.0, 2.0]})
+    tf = TemporalFrame.parse(df, time_col="t", entity_col="id")
+
+    with pytest.raises(ValueError, match="duplicate entity keys"):
+        tf.join_state(pl.DataFrame({"id": ["a", "a", "b"], "offset": [1.0, 2.0, 3.0]}))
+    with pytest.raises(ValueError, match="already exist"):
+        tf.join_state(pl.DataFrame({"id": ["a", "b"], "y": [0.0, 0.0]}))
+    with pytest.raises(ValueError, match="missing entity"):
+        tf.join_state(pl.DataFrame({"offset": [1.0]}))
+
+    uni = TemporalFrame.parse(df.drop("id"), time_col="t")
+    with pytest.raises(ValueError, match="already exist"):
+        uni.join_state(pl.DataFrame({"y": [0.0]}))
+
+    df_i8 = pl.DataFrame(
+        {"id": pl.Series([1, 2], dtype=pl.Int8), "t": [1, 1], "y": [1.0, 2.0]}
+    )
+    with pytest.raises(TypeError, match="do not fit"):
+        TemporalFrame.parse(df_i8, time_col="t", entity_col="id").join_state(
+            pl.DataFrame({"id": pl.Series([1, 300], dtype=pl.Int64), "o": [0.0, 0.0]})
+        )
+
+
+def test_parse_reuses_temporal_frame_axes() -> None:
+    df = pl.DataFrame({"id": [1, 1, 2, 2], "date": [1, 2, 1, 2], "y": [3, 4, 5, 6]})
+    tf = TemporalFrame.parse(df, time_col="date", entity_col="id")
+
+    reparsed = TemporalFrame.parse(tf)
+    assert (reparsed.time_col, reparsed.entity_cols) == ("date", ("id",))
+    assert reparsed.target_cols == ("y",)
+
+    with pytest.raises(TypeError, match="time_col"):
+        TemporalFrame.parse(df)
+
+    uni = TemporalFrame.parse(TemporalFrame.parse(df.drop("id"), time_col="date"))
+    assert uni.entity_cols == ()
+
+    @temporal_transform(chronological=True)
+    def cum_sum(cols: Sequence[str]) -> list[pl.Expr]:
+        return [pl.col(c).cum_sum() for c in cols]
+
+    expected = [3, 7, 5, 11]
+    assert cum_sum(tf).collect().get_column("y").to_list() == expected
+    assert cum_sum(tf, time_col="date").collect().get_column("y").to_list() == expected
+    assert cum_sum(tf).collect().get_column("id").to_list() == [1, 1, 2, 2]
+
+
+def test_parse_rejects_axis_or_duplicate_columns() -> None:
+    df = pl.DataFrame({"id": ["a"], "t": [1], "y": [1.0]})
+    for bad in (["t", "y"], ["id"], ["y", "y"]):
+        with pytest.raises(ValueError, match="columns"):
+            TemporalFrame.parse(df, time_col="t", entity_col="id", columns=bad)
+    with pytest.raises(TypeError, match="sequence"):
+        TemporalFrame.parse(df, time_col="t", entity_col="id", columns="y")
+
+
 def test_temporal_transform_always_returns_lazyframe_and_preserves_plan() -> None:
     @temporal_transform(chronological=True)
     def diff_op(columns: Sequence[str], *, order: int = 1) -> list[pl.Expr]:

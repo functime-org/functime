@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import contextlib
 import functools
 import importlib
 import inspect
 import math
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import field
 from typing import (
     TYPE_CHECKING,
@@ -118,11 +119,12 @@ class _FunctimeHTMLReprMixin:
             name: _format_param_value(out[name])
             for name in (*non_default_params, *default_params)
         }
+        # estimator_class/doc_link were added to ParamsDict after scikit-learn 1.7.
+        extra = {"estimator_class": self.__class__, "doc_link": doc_link}
         return _ParamsDict(
             params=formatted,
             non_default=tuple(non_default_params),
-            estimator_class=self.__class__,
-            doc_link=doc_link,
+            **{k: v for k, v in extra.items() if k in _PARAMS_DICT_KWARGS},
         )
 
 
@@ -370,11 +372,15 @@ class BaseTemporalTransformer(_TemporalParamsBase):
             The fitted estimator instance.
         """
         self._validate_params()
-        frame, _ = self._validate_and_parse_frame(X, reset=True)
-        self.__dict__.pop("feature_names_out_", None)
-        self._fit_frame(frame, y)
-        if "feature_names_out_" not in self.__dict__:
-            self.feature_names_out_ = tuple(frame.columns)
+        with _clear_fitted_state_on_error(self):
+            frame, _ = self._validate_and_parse_frame(X, reset=True)
+            self.__dict__.pop("feature_names_out_", None)
+            self._fit_frame(frame, y)
+            if "feature_names_out_" not in self.__dict__:
+                # Resolve from the lazy output schema so fit() agrees with fit_transform() for column-adding cores.
+                self.feature_names_out_ = tuple(
+                    self._transform_frame(frame).lf.collect_schema().names()
+                )
         return self
 
     def transform(self, X: Any) -> Any:
@@ -413,10 +419,11 @@ class BaseTemporalTransformer(_TemporalParamsBase):
             Transformed output in the configured container format.
         """
         self._validate_params()
-        frame, pandas_index = self._validate_and_parse_frame(X, reset=True)
-        self.__dict__.pop("feature_names_out_", None)
-        out_df = self._fit_transform_frame(frame, y).collect()
-        self.feature_names_out_ = tuple(out_df.columns)
+        with _clear_fitted_state_on_error(self):
+            frame, pandas_index = self._validate_and_parse_frame(X, reset=True)
+            self.__dict__.pop("feature_names_out_", None)
+            out_df = self._fit_transform_frame(frame, y).collect()
+            self.feature_names_out_ = tuple(out_df.columns)
         return self._format_df_output(out_df, pandas_index=pandas_index)
 
     def _is_invertible(self) -> bool:
@@ -556,7 +563,13 @@ def _coerce_nonempty_polars_df(X: Any) -> tuple[pl.DataFrame, Any]:
 
     pandas_index = _capture_pandas_index(X)
     # Eagerly convert LazyFrame/Narwhals inputs before validate_data so feature names are always recorded.
-    df = X if isinstance(X, pl.DataFrame) else to_polars_lazy(X).collect()
+    if isinstance(X, pl.DataFrame):
+        df = X
+    elif pandas_index is not None:
+        # The index is restored on output, so the core's dropped-index guard does not apply here.
+        df = nw.from_native(X, eager_only=True).to_polars()
+    else:
+        df = to_polars_lazy(X).collect()
     if df.height == 0:
         raise ValueError(
             f"Found DataFrame with 0 sample(s) (shape={df.shape}) while a minimum of 1 is required."
@@ -566,6 +579,19 @@ def _coerce_nonempty_polars_df(X: Any) -> tuple[pl.DataFrame, Any]:
             f"Found DataFrame with 0 feature(s) (shape={df.shape}) while a minimum of 1 is required."
         )
     return df, pandas_index
+
+
+@contextlib.contextmanager
+def _clear_fitted_state_on_error(estimator: Any) -> Iterator[None]:
+    try:
+        yield
+    except BaseException:
+        # A partially fitted estimator would pass check_is_fitted and fail later with AttributeError.
+        for attr in [
+            k for k in vars(estimator) if k.endswith("_") and not k.startswith("_")
+        ]:
+            delattr(estimator, attr)
+        raise
 
 
 def _capture_pandas_index(X: Any) -> Any:
@@ -738,6 +764,11 @@ def _load_params_dict() -> Any:
 
 _VisualBlock: Any = _load_visual_block()
 _ParamsDict: Any = _load_params_dict()
+_PARAMS_DICT_KWARGS: frozenset[str] = (
+    frozenset(inspect.signature(_ParamsDict).parameters)
+    if _ParamsDict is not None
+    else frozenset()
+)
 # Pyrefly's bundled scikit-learn stubs predate 1.6 tags/validate_data APIs.
 _InputTags: Any = cast(Any, _sk_utils).InputTags
 _TargetTags: Any = cast(Any, _sk_utils).TargetTags
