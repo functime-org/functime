@@ -866,11 +866,13 @@ version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "holidays" },
+    { name = "narwhals" },
     { name = "numpy" },
     { name = "polars" },
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "tqdm" },
+    { name = "typing-extensions" },
 ]
 
 [package.optional-dependencies]
@@ -970,6 +972,7 @@ requires-dist = [
     { name = "holidays" },
     { name = "kaleido", marker = "extra == 'plot'", specifier = "==0.2.1" },
     { name = "lightgbm", marker = "extra == 'lgb'" },
+    { name = "narwhals", specifier = ">=2.22" },
     { name = "numpy" },
     { name = "pandas", marker = "extra == 'plot'" },
     { name = "plotly", marker = "extra == 'plot'" },
@@ -980,6 +983,7 @@ requires-dist = [
     { name = "scikit-learn", specifier = ">=1.2.2" },
     { name = "scipy", specifier = ">=1.11" },
     { name = "tqdm" },
+    { name = "typing-extensions", specifier = ">=4.16" },
     { name = "xgboost", marker = "extra == 'xgb'" },
 ]
 provides-extras = ["plot", "cat", "lgb", "xgb", "ann", "tree", "all"]

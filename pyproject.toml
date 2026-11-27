@@ -28,11 +28,13 @@ classifiers = [
 requires-python = ">=3.12"
 dependencies = [
   "holidays",
+  "narwhals>=2.22",
   "numpy",
   "polars>=1.25",
   "scikit-learn>=1.2.2",
   "scipy>=1.11",
   "tqdm",
+  "typing_extensions>=4.16",
 ]
 
 [project.optional-dependencies]
