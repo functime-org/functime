@@ -490,7 +490,13 @@ def _coerce_nonempty_polars_df(X: Any) -> tuple[pl.DataFrame, Any]:
 
     pandas_index = _capture_pandas_index(X)
     # Eagerly convert LazyFrame/Narwhals inputs before validate_data so feature names are always recorded.
-    df = X if isinstance(X, pl.DataFrame) else to_polars_lazy(X).collect()
+    if isinstance(X, pl.DataFrame):
+        df = X
+    elif pandas_index is not None:
+        # The index is restored on output, so the core's dropped-index guard does not apply here.
+        df = nw.from_native(X, eager_only=True).to_polars()
+    else:
+        df = to_polars_lazy(X).collect()
     if df.height == 0:
         raise ValueError(
             f"Found DataFrame with 0 sample(s) (shape={df.shape}) while a minimum of 1 is required."
