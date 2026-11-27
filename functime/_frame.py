@@ -271,6 +271,15 @@ class TemporalFrame:
         return self.lf.collect()
 
 
+@dataclass(frozen=True, slots=True)
+class TemporalTransformSpec:
+    expr_fn: Callable[..., Sequence[pl.Expr]]
+    chronological: bool = False
+    needs_time_col: bool = False
+    allow_null_time: bool = False
+    allow_null_entity: bool = False
+
+
 def temporal_transform(
     *,
     chronological: bool = False,
@@ -313,6 +322,13 @@ def temporal_transform(
             return tf.with_exprs(exprs, chronological=chronological).lf
 
         cast(Any, wrapper).expr_fn = expr_fn
+        cast(Any, wrapper)._temporal_spec = TemporalTransformSpec(
+            expr_fn=expr_fn,
+            chronological=chronological,
+            needs_time_col=needs_time_col,
+            allow_null_time=allow_null_time,
+            allow_null_entity=allow_null_entity,
+        )
         return wrapper
 
     return decorator
