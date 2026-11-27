@@ -107,11 +107,12 @@ class CensoredRegressor:
         self,
         threshold: int | float,
         regress,
-        predict_proba,
+        classify,
     ):
         self.threshold = threshold
         self.regress = regress
-        self.predict_proba = predict_proba
+        self.classify = classify
+        self.classifier = None
         self.regressors = None
 
     @property
@@ -122,6 +123,15 @@ class CensoredRegressor:
         idx_cols = X.columns[:2]
         target_col = y.columns[-1]
         threshold = self.threshold
+        # Fit the classifier on the same features as the regressors, so that
+        # each direct horizon predicts its own threshold probability
+        y_above = y.with_columns(
+            pl.when(pl.col(target_col) > threshold)
+            .then(1)
+            .otherwise(0)
+            .alias(target_col)
+        )
+        self.classifier = self.classify(X=X_to_numpy(X), y=y_to_numpy(y_above))
         X_y_above = X.join(y, on=idx_cols).filter(pl.col(target_col) > threshold)
         y_above = X_y_above.select([*idx_cols, target_col])
         X_above = X_y_above.select(pl.all().exclude(target_col))
@@ -140,7 +150,7 @@ class CensoredRegressor:
         return self
 
     def predict(self, X: pl.DataFrame) -> np.ndarray:
-        weights = self.predict_proba(X_to_numpy(X))
+        weights = self.classifier.predict_proba(X_to_numpy(X))
         regress_above, regress_below = self.regressors
         y_pred = weights[:, 1] * regress_above.predict(X_to_numpy(X))
         if abs(self.threshold) > 0:
