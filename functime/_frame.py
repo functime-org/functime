@@ -351,13 +351,14 @@ def coerce_target_series(y: Any, n_rows: int, name: str = "target") -> pl.Series
         _validate_no_meaningful_index(nw_series)
         series = nw_series.to_polars().rename(name)
     elif is_frame_like(y):
-        lf = to_polars_lazy(y)
-        width = lf.collect_schema().len()
+        # Check width on the schema so wide non-Polars lazy inputs fail before materializing.
+        nw_y = nw.from_native(y)
+        width = len(nw_y.collect_schema())
         if width != 1:
             raise ValueError(
                 f"Expected a 1-column DataFrame for y; got {width} columns."
             )
-        series = lf.collect().to_series().rename(name)
+        series = to_polars_lazy(nw_y).collect().to_series().rename(name)
     else:
         arr = np.asarray(y)
         if arr.ndim != 1:
@@ -365,10 +366,12 @@ def coerce_target_series(y: Any, n_rows: int, name: str = "target") -> pl.Series
             raise ValueError(f"Expected a 1D target array; got shape {arr.shape}.")
         series = pl.Series(name, arr)
 
-    if series.dtype == pl.Object:
-        # Object columns pass construction but fail later inside most Polars expressions.
+    if not _is_supported_target_dtype(series.dtype):
+        # Allowlist rather than denylist: nested, temporal, Null and Object targets fail later
+        # inside Polars expressions with unrelated errors.
         raise TypeError(
-            "Target has an unsupported object dtype; cast y to a numeric or string dtype first."
+            f"Target has unsupported dtype {series.dtype}; expected a numeric, String, "
+            "Categorical or Enum dtype."
         )
     if len(series) != n_rows:
         raise ValueError(
@@ -551,6 +554,10 @@ def _validate_schema_and_targets(
     if len(set(columns)) != len(columns):
         raise ValueError(f"Duplicate column names in `columns`: {tuple(columns)}.")
     return tuple(columns)
+
+
+def _is_supported_target_dtype(dtype: pl.DataType) -> bool:
+    return dtype.is_numeric() or isinstance(dtype, (pl.String, pl.Categorical, pl.Enum))
 
 
 def _validate_no_meaningful_index(nw_obj: nw.DataFrame[Any] | nw.Series[Any]) -> None:

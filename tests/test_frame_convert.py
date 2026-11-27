@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from datetime import date
 
 import narwhals as nw
 import narwhals.stable.v2 as nw_v2
@@ -198,8 +199,22 @@ def test_coerce_target_series() -> None:
     with pytest.raises(ValueError, match="does not match"):
         coerce_target_series([1, 2], 3)
 
-    with pytest.raises(TypeError, match="object dtype"):
-        coerce_target_series(np.array([1, object()], dtype=object), 2)
+    for bad in (
+        np.array([1, object()], dtype=object),
+        pl.Series([[1], [2]]),
+        pl.Series([date(2024, 1, 1)] * 2),
+        pl.Series([None, None]),
+        pl.Series([{"a": 1}] * 2),
+        pl.Series([True, False]),
+    ):
+        with pytest.raises(TypeError, match="unsupported dtype"):
+            coerce_target_series(bad, 2)
+    for ok in (
+        pl.Series(["a", "b"]),
+        pl.Series(["a", "b"], dtype=pl.Categorical),
+        pl.Series(["a", "b"], dtype=pl.Enum(["a", "b"])),
+    ):
+        assert coerce_target_series(ok, 2).dtype == ok.dtype
 
 
 def test_coerce_target_series_rejects_meaningful_pandas_index() -> None:
