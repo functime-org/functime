@@ -100,10 +100,7 @@ This allows Polars to [optimize the whole query](https://pola-rs.github.io/polar
 from functime.preprocessing import boxcox, impute
 
 # Use df.pipe to chain operations together
-X_new: pl.LazyFrame = (
-    X.pipe(boxcox(method="mle"))
-    .pipe(detrend(method="linear"))
-)
+X_new: pl.LazyFrame = X.pipe(boxcox(method="mle")).pipe(detrend(method="linear"))
 # Call .collect to execute query
 X_new: pl.DataFrame = X_new.collect(streaming=True)
 ```

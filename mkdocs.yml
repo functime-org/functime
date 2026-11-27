@@ -37,7 +37,11 @@ markdown_extensions:
   - pymdownx.details
   - pymdownx.inlinehilite
   - pymdownx.snippets
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.tabbed:
@@ -53,6 +57,7 @@ nav:
     - Seasonality: user-guide/seasonality.md
   - Developer Guides:
     - Custom Forecasters and Transformers: developer-guide/develop.md
+    - Custom Transformers (v2 Design): developer-guide/transformers.md
     - Contributing: developer-guide/contributing.md
   - Tutorials:
     - Preprocessing: notebooks/preprocessing.ipynb

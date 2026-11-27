@@ -77,11 +77,36 @@ def m4_freq_to_lags():
 
 @pytest.fixture(
     params=[
-        ("1d", 14, f"{HF_DATASET_BASE}/m4/1d_train.parquet", f"{HF_DATASET_BASE}/m4/1d_test.parquet"),
-        ("1w", 13, f"{HF_DATASET_BASE}/m4/1w_train.parquet", f"{HF_DATASET_BASE}/m4/1w_test.parquet"),
-        ("1mo", 18, f"{HF_DATASET_BASE}/m4/1mo_train.parquet", f"{HF_DATASET_BASE}/m4/1mo_test.parquet"),
-        ("3mo", 8, f"{HF_DATASET_BASE}/m4/3mo_train.parquet", f"{HF_DATASET_BASE}/m4/3mo_test.parquet"),
-        ("1y", 6, f"{HF_DATASET_BASE}/m4/1y_train.parquet", f"{HF_DATASET_BASE}/m4/1y_test.parquet"),
+        (
+            "1d",
+            14,
+            f"{HF_DATASET_BASE}/m4/1d_train.parquet",
+            f"{HF_DATASET_BASE}/m4/1d_test.parquet",
+        ),
+        (
+            "1w",
+            13,
+            f"{HF_DATASET_BASE}/m4/1w_train.parquet",
+            f"{HF_DATASET_BASE}/m4/1w_test.parquet",
+        ),
+        (
+            "1mo",
+            18,
+            f"{HF_DATASET_BASE}/m4/1mo_train.parquet",
+            f"{HF_DATASET_BASE}/m4/1mo_test.parquet",
+        ),
+        (
+            "3mo",
+            8,
+            f"{HF_DATASET_BASE}/m4/3mo_train.parquet",
+            f"{HF_DATASET_BASE}/m4/3mo_test.parquet",
+        ),
+        (
+            "1y",
+            6,
+            f"{HF_DATASET_BASE}/m4/1y_train.parquet",
+            f"{HF_DATASET_BASE}/m4/1y_test.parquet",
+        ),
     ],
     ids=lambda x: f"freq_{x[0]}-fh_{x[1]}",
     scope="module",
@@ -116,8 +141,8 @@ def m4_dataset(request):
     y_test = update_test_time_ranges(y_train, y_test)
 
     # Check m4 dataset RAM usage
-    logging.info("y_train mem: %s", f'{y_train.estimated_size("mb"):.4f} mb')
-    logging.info("y_test mem: %s", f'{y_test.estimated_size("mb"):.4f} mb')
+    logging.info("y_train mem: %s", f"{y_train.estimated_size('mb'):.4f} mb")
+    logging.info("y_test mem: %s", f"{y_test.estimated_size('mb'):.4f} mb")
     # Preview
     logging.info("y_train preview: %s", y_train)
     logging.info("y_test preview: %s", y_test)
@@ -277,10 +302,10 @@ def m5_dataset():
         X_test = X_test.filter(pl.col(entity_col).is_in(top_sellers))
 
     # Check m5 dataset RAM usage
-    logging.info("y_train mem: %s", f'{y_train.estimated_size("mb"):.4f} mb')
-    logging.info("X_train mem: %s", f'{X_train.estimated_size("mb"):.4f} mb')
-    logging.info("y_test mem: %s", f'{y_test.estimated_size("mb"):.4f} mb')
-    logging.info("X_test mem: %s", f'{X_test.estimated_size("mb"):.4f} mb')
+    logging.info("y_train mem: %s", f"{y_train.estimated_size('mb'):.4f} mb")
+    logging.info("X_train mem: %s", f"{X_train.estimated_size('mb'):.4f} mb")
+    logging.info("y_test mem: %s", f"{y_test.estimated_size('mb'):.4f} mb")
+    logging.info("X_test mem: %s", f"{X_test.estimated_size('mb'):.4f} mb")
 
     # Preview
     logging.info("y_train preview: %s", y_train)
