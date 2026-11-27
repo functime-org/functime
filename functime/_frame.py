@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-import narwhals as nw
+# Use narwhals.stable.v2 for API stability across versions, while keeping
+# narwhals.dependencies/typing so top-level narwhals and v1/v2 containers are all accepted.
 import narwhals.dependencies as nwd
+import narwhals.stable.v2 as nw
 import numpy as np
 import polars as pl
 from narwhals.typing import IntoFrame
@@ -24,7 +26,10 @@ def to_polars_lazy(data: Any) -> pl.LazyFrame:
     if isinstance(nw_frame, nw.LazyFrame):
         if nw_frame.implementation is nw.Implementation.POLARS:
             return nw_frame.to_native()
-        return nw_frame.collect().to_polars().lazy()
+        # Non-Polars lazy backends (e.g. DuckDB, Dask, Ibis) must materialize;
+        # backend="polars" avoids intermediate PyArrow/Pandas conversions where supported.
+        return nw_frame.collect(backend="polars").to_polars().lazy()
+    _validate_no_meaningful_index(nw_frame)
     return nw_frame.to_polars().lazy()
 
 
@@ -47,6 +52,7 @@ def coerce_target_series(y: Any, n_rows: int, name: str = "target") -> pl.Series
     else:
         arr = np.asarray(y)
         if arr.ndim != 1:
+            # sklearn (n, 1) DataConversionWarning/coercion belongs in functime.sklearn via column_or_1d(..., warn=True).
             raise ValueError(f"Expected a 1D target array; got shape {arr.shape}.")
         series = pl.Series(name, arr)
 
@@ -55,3 +61,20 @@ def coerce_target_series(y: Any, n_rows: int, name: str = "target") -> pl.Series
             f"Target length ({len(series)}) does not match X row count ({n_rows})."
         )
     return series
+
+
+def _validate_no_meaningful_index(nw_frame: nw.DataFrame[Any]) -> None:
+    idx = nw.maybe_get_index(nw_frame)
+    if idx is None:
+        return
+    nlevels = getattr(idx, "nlevels", 1)
+    name = getattr(idx, "name", None)
+    dtype_kind = getattr(getattr(idx, "dtype", None), "kind", None)
+    if nlevels > 1 or name is not None or dtype_kind not in ("i", "u"):
+        names = getattr(idx, "names", None)
+        detail = f" (names={list(names)!r})" if names is not None else ""
+        raise ValueError(
+            f"Pandas-like DataFrame has a meaningful {type(idx).__name__}{detail} "
+            "that would be dropped on conversion. Call `df.reset_index()` before "
+            "passing it to functime."
+        )
