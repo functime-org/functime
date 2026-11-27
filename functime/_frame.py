@@ -41,14 +41,17 @@ def coerce_target_series(y: Any, n_rows: int, name: str = "target") -> pl.Series
     if isinstance(y, pl.Series):
         series = y.rename(name)
     elif nwd.is_into_series(y):
-        series = nw.from_native(y, series_only=True).to_polars().rename(name)
+        nw_series = nw.from_native(y, series_only=True)
+        _validate_no_meaningful_index(nw_series)
+        series = nw_series.to_polars().rename(name)
     elif is_frame_like(y):
-        df = to_polars_lazy(y).collect()
-        if df.width != 1:
+        lf = to_polars_lazy(y)
+        width = lf.collect_schema().len()
+        if width != 1:
             raise ValueError(
-                f"Expected a 1-column DataFrame for y; got {df.width} columns."
+                f"Expected a 1-column DataFrame for y; got {width} columns."
             )
-        series = df.get_column(df.columns[0]).rename(name)
+        series = lf.collect().to_series().rename(name)
     else:
         arr = np.asarray(y)
         if arr.ndim != 1:
@@ -56,6 +59,11 @@ def coerce_target_series(y: Any, n_rows: int, name: str = "target") -> pl.Series
             raise ValueError(f"Expected a 1D target array; got shape {arr.shape}.")
         series = pl.Series(name, arr)
 
+    if series.dtype == pl.Object:
+        # Object columns pass construction but fail later inside most Polars expressions.
+        raise TypeError(
+            "Target has an unsupported object dtype; cast y to a numeric or string dtype first."
+        )
     if len(series) != n_rows:
         raise ValueError(
             f"Target length ({len(series)}) does not match X row count ({n_rows})."
@@ -63,8 +71,8 @@ def coerce_target_series(y: Any, n_rows: int, name: str = "target") -> pl.Series
     return series
 
 
-def _validate_no_meaningful_index(nw_frame: nw.DataFrame[Any]) -> None:
-    idx = nw.maybe_get_index(nw_frame)
+def _validate_no_meaningful_index(nw_obj: nw.DataFrame[Any] | nw.Series[Any]) -> None:
+    idx = nw.maybe_get_index(nw_obj)
     if idx is None:
         return
     nlevels = getattr(idx, "nlevels", 1)
@@ -74,7 +82,8 @@ def _validate_no_meaningful_index(nw_frame: nw.DataFrame[Any]) -> None:
         names = getattr(idx, "names", None)
         detail = f" (names={list(names)!r})" if names is not None else ""
         raise ValueError(
-            f"Pandas-like DataFrame has a meaningful {type(idx).__name__}{detail} "
+            f"Pandas-like {type(nw_obj.to_native()).__name__} has a meaningful "
+            f"{type(idx).__name__}{detail} "
             "that would be dropped on conversion. Call `df.reset_index()` before "
             "passing it to functime."
         )

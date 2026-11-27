@@ -198,6 +198,23 @@ def test_coerce_target_series() -> None:
     with pytest.raises(ValueError, match="does not match"):
         coerce_target_series([1, 2], 3)
 
+    with pytest.raises(TypeError, match="object dtype"):
+        coerce_target_series(np.array([1, object()], dtype=object), 2)
+
+
+def test_coerce_target_series_rejects_meaningful_pandas_index() -> None:
+    dates = pd.date_range("2024-01-01", periods=2)
+    for bad in (
+        pd.Series([1.0, 2.0], index=dates),
+        pd.Series([1.0, 2.0], index=pd.Index([1, 2], name="time")),
+        nw_v2.from_native(pd.Series([1.0, 2.0], index=dates), series_only=True),
+    ):
+        with pytest.raises(ValueError, match="reset_index"):
+            coerce_target_series(bad, 2)
+
+    shuffled = pd.Series([1.0, 2.0, 3.0]).sort_values(ascending=False)
+    assert coerce_target_series(shuffled, 3).to_list() == [3.0, 2.0, 1.0]
+
 
 def test_frame_module_has_no_sklearn_or_pandas_dependency() -> None:
     proc = subprocess.run(
