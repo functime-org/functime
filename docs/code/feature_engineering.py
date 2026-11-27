@@ -4,9 +4,7 @@ import polars as pl
 from functime.feature_extractors import binned_entropy
 
 # Load commodities price data
-y = pl.read_parquet(
-    "hf://datasets/functime-org/datasets/commodities.parquet"
-)
+y = pl.read_parquet("hf://datasets/functime-org/datasets/commodities.parquet")
 
 # Get column names ("commodity_type", "time", "price")
 entity_col, time_col, value_col = y.columns

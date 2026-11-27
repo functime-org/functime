@@ -76,7 +76,9 @@ north_america_holidays = add_holiday_effects(country_codes=["US", "CA"])
 X_new = X.pipe(north_america_holidays).collect()
 
 # Returns X with one-hot encoded holidays (e.g. "holiday__US_christmas)
-north_america_holidays = add_holiday_effects(country_codes=["US", "CA"], as_dummies=True)
+north_america_holidays = add_holiday_effects(
+    country_codes=["US", "CA"], as_dummies=True
+)
 X_new = X.pipe(north_america_holidays).collect()
 ```
 

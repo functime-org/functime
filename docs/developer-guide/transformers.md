@@ -107,7 +107,7 @@ from collections.abc import Sequence
 
 import polars as pl
 
-from functime._core.transforms import temporal_transform
+from functime._frame import temporal_transform
 from functime.sklearn import BaseTemporalTransformer, sklearn_transformer
 
 
@@ -203,7 +203,8 @@ from sklearn.pipeline import make_pipeline
 exprs = log_return.expr_fn(["sales"], lag=7)
 lf.with_columns([expr.over("store_id", order_by="date") for expr in exprs])
 
-# 2. Lazy DataFrame / LazyFrame piping (.pipe) — works on Polars, Pandas, Arrow, Narwhals
+# 2. Lazy DataFrame / LazyFrame piping (.pipe) — works on Polars, Pandas, Narwhals;
+#    containers without .pipe (e.g. pyarrow.Table) call it directly: log_return(table, ...)
 lf_out = df.pipe(log_return, time_col="date", entity_col="store_id", lag=7)
 df_out = lf_out.collect()
 

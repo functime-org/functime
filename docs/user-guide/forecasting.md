@@ -18,7 +18,7 @@ Want to go straight into code? Run through every forecasting example with the fo
 ??? tip "`quickstart.py`"
 
     ```python
-    --8<-- "docs/code/quickstart.py"
+    --8 < --"docs/code/quickstart.py"
     ```
 
 ## Prepare Data
@@ -35,11 +35,7 @@ from functime.seasonality import add_calendar_effects
 # Load data
 y = pl.read_parquet("hf://datasets/functime-org/datasets/commodities.parquet")
 entity_col, time_col = y.columns[:2]
-X = (
-    y.select([entity_col, time_col])
-    .pipe(add_calendar_effects(["month"]))
-    .collect()
-)
+X = y.select([entity_col, time_col]).pipe(add_calendar_effects(["month"])).collect()
 
 # Train-test splits
 test_size = 3
@@ -85,10 +81,7 @@ scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
     from functime.preprocessing import boxcox, impute
 
     # Use df.pipe to chain operations together
-    X_splits: pl.LazyFrame = (
-        X.pipe(boxcox(method="mle"))
-        .pipe(impute(method="linear"))
-    )
+    X_splits: pl.LazyFrame = X.pipe(boxcox(method="mle")).pipe(impute(method="linear"))
     # Call .collect to execute query
     X_new = X_splits.collect()
     ```
@@ -98,12 +91,7 @@ scores = mase(y_true=y_test, y_pred=y_pred, y_train=y_train)
     ```python
     from functime.forecasting import linear_model
 
-    y_pred = linear_model(lags=24, freq="1mo")(
-        y=y_train,
-        fh=28,
-        X=X_train,
-        X_future=X_test
-    )
+    y_pred = linear_model(lags=24, freq="1mo")(y=y_train, fh=28, X=X_train, X_future=X_test)
     ```
 
 !!! warning "functime is lazy"
@@ -248,7 +236,9 @@ from functime.forecasting import linear_model
 from functime.preprocessing import diff, scale, boxcox
 
 # Apply first differences
-forecaster = linear_model(freq="1mo", lags=12, target_transform=diff(order=1, fill_strategy="backward"))
+forecaster = linear_model(
+    freq="1mo", lags=12, target_transform=diff(order=1, fill_strategy="backward")
+)
 
 # Or local standardization
 forecaster = linear_model(freq="1mo", lags=12, target_transform=scale())
@@ -260,10 +250,7 @@ forecaster = linear_model(freq="1mo", lags=12, target_transform=boxcox())
 forecaster = linear_model(
     freq="1mo",
     lags=12,
-    target_transform=[
-        diff(order=1, fill_strategy="backward"),
-        boxcox()
-    ]
+    target_transform=[diff(order=1, fill_strategy="backward"), boxcox()],
 )
 ```
 
@@ -276,16 +263,14 @@ from functime.preprocessing import roll
 
 # Include Fourier terms to model complex seasonality
 forecaster = linear_model(
-    freq="1mo",
-    lags=12,
-    feature_transform=add_fourier_terms(sp=12, K=3)
+    freq="1mo", lags=12, feature_transform=add_fourier_terms(sp=12, K=3)
 )
 
 # Create moving average features on exogenous regressors!
 forecaster = linear_model(
     freq="1mo",
     lags=12,
-    feature_transform=roll(window_sizes=[6, 12], stats=["mean", "std"], freq="1mo")
+    feature_transform=roll(window_sizes=[6, 12], stats=["mean", "std"], freq="1mo"),
 )
 
 # Or include both Fourier terms and lags!
@@ -294,8 +279,8 @@ forecaster = linear_model(
     lags=12,
     feature_transform=[
         add_fourier_terms(sp=12, K=3),
-        roll(window_sizes=[6, 12], stats=["mean", "std"], freq="1mo")
-    ]
+        roll(window_sizes=[6, 12], stats=["mean", "std"], freq="1mo"),
+    ],
 )
 ```
 
@@ -308,7 +293,7 @@ forecaster = linear_model(
     freq="1mo",
     lags=12,
     target_transform=scale(),
-    feature_transform=add_fourier_terms(sp=12, K=3)
+    feature_transform=add_fourier_terms(sp=12, K=3),
 )
 ```
 
@@ -343,8 +328,12 @@ Most real-world datasets in e-commerce and logistics contain zeros in the target
 from functime.forecasting import censored_model
 
 # Load the M5 competition Walmart dataset
-y_train = pl.read_parquet("hf://datasets/functime-org/datasets/m5/y_train_sample.parquet")
-X_train = pl.read_parquet("hf://datasets/functime-org/datasets/m5/X_train_sample.parquet")
+y_train = pl.read_parquet(
+    "hf://datasets/functime-org/datasets/m5/y_train_sample.parquet"
+)
+X_train = pl.read_parquet(
+    "hf://datasets/functime-org/datasets/m5/X_train_sample.parquet"
+)
 
 # Fit-predict given threshold = 0.0
 y_pred = censored_model(lags=3, threshold=0.0, freq="1d")(
@@ -404,7 +393,7 @@ y_preds, y_resids = forecaster.backtest(
     strategy="expanding",
     # Raises ValueError if drop_short=False and there are
     # entities with insufficient length for cross-validation
-    drop_short=True
+    drop_short=True,
 )
 ```
 
@@ -438,9 +427,6 @@ y_preds, y_resids = forecaster.backtest(y=y_train, X=X_train)
 # Requires forecast (y_pred), backtest values (y_preds),
 # and residuals from backtest (y_resid)
 y_pred_quantiles = conformalize(
-    y_pred=y_pred,
-    y_preds=y_preds,
-    y_resids=y_resids,
-    alphas=[0.1, 0.9]
+    y_pred=y_pred, y_preds=y_preds, y_resids=y_resids, alphas=[0.1, 0.9]
 )
 ```

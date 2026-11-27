@@ -77,6 +77,7 @@ Applies optimized Yeo-Johnson transform for each time-series. This transform is 
 
 ```python
 from functime.preprocessing import yeojohnson
+
 transformer = yeojohnson()
 X_new = X.pipe(transformer).collect()
 X_original = transformer.invert(X_new)
@@ -105,10 +106,6 @@ from functime.preprocessing import roll
 # The following code generates moving averages (MA10, MA30 and MA60)
 # and moving sums for a panel dataset of daily time-series.
 
-transformer = roll(
-    window_sizes=[10, 30, 60],
-    stats=["mean", "sum"],
-    freq="1d"
-)
+transformer = roll(window_sizes=[10, 30, 60], stats=["mean", "sum"], freq="1d")
 X_new = X.pipe(transformer).collect()
 ```
