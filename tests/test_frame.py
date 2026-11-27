@@ -377,6 +377,9 @@ def test_parse_reuses_temporal_frame_axes() -> None:
     with pytest.raises(TypeError, match="time_col"):
         TemporalFrame.parse(df)
 
+    uni = TemporalFrame.parse(TemporalFrame.parse(df.drop("id"), time_col="date"))
+    assert uni.entity_cols == ()
+
     @temporal_transform(chronological=True)
     def cum_sum(cols: Sequence[str]) -> list[pl.Expr]:
         return [pl.col(c).cum_sum() for c in cols]
