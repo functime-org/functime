@@ -1,6 +1,6 @@
 # Agent & Contributor Guidelines
 
-See [`ROADMAP.md`](ROADMAP.md) for architecture and the `v1.x` → `v2.0` migration path.
+See [`ROADMAP.md`](ROADMAP.md) for architecture and the `v1.x` → `v2.0` migration path, and [`GLOSSARY.md`](GLOSSARY.md) for the project's ubiquitous domain language.
 
 ## Architecture Principles
 
