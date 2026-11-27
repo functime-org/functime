@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import inspect
 from collections.abc import Callable
 from typing import Any, TypeVar, cast, get_origin
@@ -8,6 +9,11 @@ import polars as pl
 
 from functime._frame import TemporalFrame, TemporalTransformSpec
 from functime.sklearn._base import BaseTemporalTransformer
+
+try:
+    _annotationlib: Any = importlib.import_module("annotationlib")
+except ImportError:  # Python < 3.14
+    _annotationlib = None
 
 _T = TypeVar("_T", bound=BaseTemporalTransformer)
 _BASE_PARAM_NAMES: frozenset[str] = frozenset({"time_col", "entity_col", "columns"})
@@ -115,7 +121,7 @@ def _extract_params(
     ]
 
     for klass in mro_classes:
-        annotations = klass.__dict__.get("__annotations__", {})
+        annotations = _own_annotations(klass)
         for name, ann in annotations.items():
             if name.startswith("_") or name.endswith("_"):
                 continue
@@ -143,6 +149,16 @@ def _extract_params(
     params = [(name, ann, default) for name, (ann, default) in collected.items()]
     extra_names = tuple(name for name in collected if name not in _BASE_PARAM_NAMES)
     return params, extra_names
+
+
+def _own_annotations(klass: type) -> dict[str, Any]:
+    # Python 3.14 (PEP 649/749) evaluates class annotations lazily, so they are absent
+    # from klass.__dict__ unless the module uses `from __future__ import annotations`.
+    if _annotationlib is not None:
+        return _annotationlib.get_annotations(
+            klass, format=_annotationlib.Format.FORWARDREF
+        )
+    return inspect.get_annotations(klass)
 
 
 def _build_init(
@@ -312,16 +328,13 @@ def _wire_stateful_transform(
 
     if "_temporal_regime" not in cls.__dict__:
         cls._temporal_regime = getattr(core_cls, "_temporal_regime", "row_stateful")
-    if (
-        "_allow_null_time" not in cls.__dict__
-        and "_allow_null_time" in core_cls.__dict__
+    # hasattr (not core_cls.__dict__) so flags inherited from a core base class are honoured.
+    if "_allow_null_time" not in cls.__dict__ and hasattr(core_cls, "_allow_null_time"):
+        cls._allow_null_time = bool(core_cls._allow_null_time)
+    if "_allow_null_entity" not in cls.__dict__ and hasattr(
+        core_cls, "_allow_null_entity"
     ):
-        cls._allow_null_time = bool(getattr(core_cls, "_allow_null_time", False))
-    if (
-        "_allow_null_entity" not in cls.__dict__
-        and "_allow_null_entity" in core_cls.__dict__
-    ):
-        cls._allow_null_entity = bool(getattr(core_cls, "_allow_null_entity", False))
+        cls._allow_null_entity = bool(core_cls._allow_null_entity)
 
     def _fit_core(
         self: BaseTemporalTransformer, frame: TemporalFrame, y: Any = None
