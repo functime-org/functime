@@ -110,10 +110,14 @@ just benchmark
 - **AI & LLM disclosure:** Using AI coding agents / LLMs is welcome, but contributors remain fully accountable for understanding and validating everything they submit, and **LLM/agent usage must be disclosed** in the PR.
 - **PR description:**
   - Start with **Why**: explain the problem being solved and the goal of the PR.
-  - Include a **Change** section with a quick **before/after demonstration** so reviewers can immediately verify the effect of the PR — for example:
-    - A copy-pasteable Python snippet with its output showing before/after API usage or behavior,
-    - A short video or screenshot showing what happens before and after (especially for bug fixes, HTML reprs, or visual/interactive changes), or
-    - A concise behavior diff or benchmark comparison where relevant.
+  - Include a **Change** section with a quick **before/after demonstration** so reviewers can immediately verify the effect of the PR:
+    - **Default for code, API, or logic changes:** a self-contained, copy-pasteable Python snippet with its output showing before/after usage or behavior (or a concise behavior/benchmark diff).
+    - **Visual or interactive changes:** attach screenshots or short videos (e.g., for HTML reprs, plots, notebook/UI fixes, or CLI recordings via `vhs`) alongside runnable code when applicable — never replacing copy-pasteable snippets for API changes.
+    - **Attaching media via GitHub CLI (`gh >= 2.99`):** pass `--attach` on `gh pr create`, `gh pr edit`, or `gh pr comment` (supports PNG, JPEG, GIF, WebP, SVG, MP4, MOV, WebM). Matching local links in `--body` / `--body-file` (such as `![alt](./demo.png)`) are rewritten automatically in place:
+      ```bash
+      gh pr create --body-file body.md --attach './demo.png#Before/after HTML repr'
+      gh pr edit <PR> --body-file body.md --attach './demo.mp4'
+      ```
   - Include a **Risk Assessment** summary/table covering **Blast Radius**, **Door Type** (one-way vs. two-way door), and **Merge Risk** so reviewers can calibrate review depth.
   - Skip file-by-file change lists (reviewers read the diff for that) and "ran tests locally" sections (local checks are baseline, and lint/type/test checks run automatically in pre-commit and CI).
 - **Stacked PRs:** Use `gh stack` to manage stacked PRs; do not embed manual stack tables or cross-PR lists in PR descriptions.
