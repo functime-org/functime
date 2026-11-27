@@ -15,13 +15,6 @@ See [`ROADMAP.md`](ROADMAP.md) for architecture and the `v1.x` → `v2.0` migrat
 - **Comments explain *why*, never *what*:** Comment only non-obvious invariants, edge cases, or Polars/`scikit-learn` workarounds. Remove redundant narrating comments.
 - **Minimal dependencies:** Never add unapproved core dependencies. Keep Rust/external Polars plugins optional.
 
-## Issues, PRs & AI Disclosure
+## Issues & Pull Requests
 
-- **Issue first:** Open an issue before submitting a PR to discuss features or design changes — and include a minimal reproducible example (**reprex**) for bug reports. Unsolicited PRs without a linked issue may be closed.
-- **Accountability & AI disclosure:** Using AI coding agents / LLMs is welcome, but it does not reduce individual contributor accountability. Contributors are responsible for understanding and validating everything they submit, and **LLM/agent usage must be disclosed** in the PR.
-- **Stacked PRs:** Use `gh stack` to manage stacked PRs. Never embed manual stack tables or cross-PR lists in PR descriptions.
-- **PR descriptions:**
-  - Start with **Why**: the current problem and the goal of the PR.
-  - Include a section showing the **Change** (e.g., before/after API usage, behavior diff, or benchmark results).
-  - Do **not** write file-by-file change lists — reviewers read the diff for that.
-  - **Never** include a "Verification / ran tests locally" section — running tests locally is a baseline expectation, and lint/type/test checks are enforced deterministically by pre-commit and CI.
+When opening an issue or pull request, read and follow [`CONTRIBUTING.md`](CONTRIBUTING.md#opening-a-pull-request).

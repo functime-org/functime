@@ -104,6 +104,20 @@ just benchmark
 6. Commit your changes with clear commit messages
 7. Push to your fork and submit a pull request
 
+## Opening a Pull Request
+
+- **Issue first:** Open an issue before submitting a PR to discuss features or design changes, and include a minimal reproducible example (**reprex**) for bug reports. Unsolicited PRs without a linked issue may be closed.
+- **AI & LLM disclosure:** Using AI coding agents / LLMs is welcome, but contributors remain fully accountable for understanding and validating everything they submit, and **LLM/agent usage must be disclosed** in the PR.
+- **PR description:**
+  - Start with **Why**: explain the problem being solved and the goal of the PR.
+  - Include a **Change** section with a quick **before/after demonstration** so reviewers can immediately verify the effect of the PR — for example:
+    - A copy-pasteable Python snippet with its output showing before/after API usage or behavior,
+    - A short video or screenshot showing what happens before and after (especially for bug fixes, HTML reprs, or visual/interactive changes), or
+    - A concise behavior diff or benchmark comparison where relevant.
+  - Include a **Risk Assessment** summary/table covering **Blast Radius**, **Door Type** (one-way vs. two-way door), and **Merge Risk** so reviewers can calibrate review depth.
+  - Skip file-by-file change lists (reviewers read the diff for that) and "ran tests locally" sections (local checks are baseline, and lint/type/test checks run automatically in pre-commit and CI).
+- **Stacked PRs:** Use `gh stack` to manage stacked PRs; do not embed manual stack tables or cross-PR lists in PR descriptions.
+
 ## Code Style
 
 functime uses:
