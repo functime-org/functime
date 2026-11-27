@@ -337,7 +337,7 @@ For example, if `max_horizons = 12`, then twelve forecasters are fitted in total
 
 ## Censored Forecasts
 
-Most real-world datasets in e-commerce and logistics contain zeros in the target variable: e.g. periods with no sales. To address this problem, `functime` implements the `censored_model` forecaster, which trains a binary classifier and two forecasters. The binary classifier predicts the probability that a forecast falls above or below a certain threshold (e.g. zero). The final forecast is a weighted average of the above and below threshold forecasters.
+Most real-world datasets in e-commerce and logistics contain zeros in the target variable: e.g. periods with no sales. To address this problem, `functime` implements the `censored_model` forecaster, which trains a binary classifier and two forecasters. The binary classifier predicts the probability that a forecast falls above or below a certain threshold (e.g. zero). The final forecast is a weighted average of the above and below threshold forecasters. The forecasts include a `threshold_proba` column with the probability that each forecast falls above the threshold.
 
 ```python
 from functime.forecasting import censored_model

@@ -201,7 +201,7 @@ def predict_direct(state, fh: int, X: pl.DataFrame | None = None) -> pl.DataFram
 
     n_entities = len(y_lag)
     y_pred = np.empty((n_entities, fh))
-    is_censored = getattr(regressors[0], "predict_proba", None)
+    is_censored = getattr(regressors[0], "is_censored", False)
     weights = np.zeros((fh, n_entities)) if is_censored else None
 
     for i in range(fh):
@@ -230,7 +230,7 @@ def predict_direct(state, fh: int, X: pl.DataFrame | None = None) -> pl.DataFram
         .select([entity_col, target_col])
     )
     if is_censored:
-        weights = pl.DataFrame(np.stack(weights, axis=1).astype()).select(
+        weights = pl.DataFrame(np.stack(weights, axis=1).astype(np.float32)).select(
             pl.concat_list(pl.all()).alias("threshold_proba")
         )
         y_pred = pl.concat([y_pred, weights], how="horizontal")
@@ -260,22 +260,24 @@ def predict_autoreg(
     elif strategy == "direct":
         y_pred = predict_direct(**predict_kwargs)
     elif strategy == "ensemble":
-        target_col = state.target
-        y_pred_rec = predict_recursive(**predict_kwargs).rename(
-            {target_col: "recursive"}
-        )
-        y_pred_dir = predict_direct(**predict_kwargs).rename({target_col: "direct"})
+        y_pred_rec = predict_recursive(**predict_kwargs)
+        y_pred_dir = predict_direct(**predict_kwargs)
+        # Average the forecasts, and the threshold probabilities of censored models
+        value_cols = y_pred_rec.columns[1:]
         y_pred = (
-            y_pred_rec.join(y_pred_dir, on=state.entity, maintain_order="left")
-            .explode(["recursive", "direct"])
+            y_pred_rec.join(
+                y_pred_dir, on=state.entity, suffix="__direct", maintain_order="left"
+            )
+            .explode([*value_cols, *(f"{col}__direct" for col in value_cols)])
             .select(
-                [
-                    state.entity,
-                    ((pl.col("recursive") + pl.col("direct")) / 2).alias(target_col),
-                ]
+                state.entity,
+                *(
+                    ((pl.col(col) + pl.col(f"{col}__direct")) / 2).alias(col)
+                    for col in value_cols
+                ),
             )
             .group_by(state.entity, maintain_order=True)
-            .agg(target_col)
+            .agg(value_cols)
         )
     else:
         raise ValueError(f"Cannot recognize `strategy` '{strategy}'")

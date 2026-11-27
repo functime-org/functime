@@ -255,29 +255,42 @@ class Forecaster(Model):
             )
 
         y_pred_vals = predict_autoreg(self.state, fh=fh, X=X)
+        # Censored models also forecast the probability of exceeding the threshold
+        value_cols = [time_col, target_col]
+        if "threshold_proba" in y_pred_vals.columns:
+            value_cols.append("threshold_proba")
         # BUG: Exploding list[date] errogenously casts
         # into integer series but only for LazyFrame explode
         y_pred = y_pred_vals.join(
             future_ranges, on=entity_col, how="left", maintain_order="left"
-        ).select([entity_col, time_col, target_col])
+        ).select([entity_col, *value_cols])
         if fh > 1:
             y_pred = y_pred.explode(pl.all().exclude(entity_col))
         else:
             # BUG: Cannot explode list[date] and list[f32] with only single element
             # Raises: exploded columns must have matching element counts
-            y_pred = y_pred.with_columns(
-                [
-                    pl.col(time_col).list.last(),
-                    pl.col(target_col).list.last(),
-                ]
-            )
+            y_pred = y_pred.with_columns(pl.col(value_cols).list.last())
         # Future ranges are built as Datetime(us), so restore the input time dtype
         y_pred = y_pred.with_columns(pl.col(time_col).cast(schema[time_col]))
 
         # Invert target transforms
         if self.target_transform is not None:
+            # Inversion applies to the forecasts only, not the probabilities
+            y_proba = y_pred.drop(target_col) if len(value_cols) > 2 else None
+            y_pred = y_pred.select(entity_col, time_col, target_col)
             for transf in reversed(self.fitted_target_transform):
                 y_pred = y_pred.pipe(transf.invert)
+            if y_proba is not None:
+                y_pred = (
+                    y_pred.lazy()
+                    .collect()
+                    .join(
+                        y_proba,
+                        on=[entity_col, time_col],
+                        how="left",
+                        maintain_order="left",
+                    )
+                )
         y_pred = y_pred.lazy().collect().pipe(self._reset_string_cache)
         return y_pred
 

@@ -53,7 +53,8 @@ def conformalize(
     schema = y_pred.schema
     y_preds = pl.concat(
         [
-            y_pred,
+            # Drop extra forecast columns (e.g. censored models' threshold_proba)
+            y_pred.select(entity_col, time_col, target_col),
             y_preds.select(
                 [
                     entity_col,
