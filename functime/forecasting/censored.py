@@ -7,9 +7,7 @@ import polars as pl
 
 from functime.base import Forecaster
 from functime.base.forecaster import ForecastStrategy
-from functime.conversion import X_to_numpy, y_to_numpy
 from functime.forecasting._ar import fit_autoreg
-from functime.forecasting._reduction import make_reduction
 from functime.forecasting._regressors import CensoredRegressor
 
 
@@ -34,6 +32,8 @@ class censored_model(Forecaster):
 
     Two separate forecasters are fit above and below a certain threshold.
     The forecasts are then combined using a binary classifier where: {0: "below_threshold", 1: "above_threshold"}.
+    Forecasts include a `threshold_proba` column with the classifier's probability that each
+    forecast is above the threshold.
     """
 
     def __init__(
@@ -55,42 +55,23 @@ class censored_model(Forecaster):
         )
 
     def _fit(self, y: pl.LazyFrame, X: pl.LazyFrame | None = None):
-        # 1. Fit classifier
-        target_col = y.collect_schema().names()[-1]
-        X_y_final = (
-            make_reduction(lags=self.lags, y=y, X=X)
-            .with_columns(
-                pl.when(pl.col(target_col) > self.threshold)
-                .then(1)
-                .otherwise(0)
-                .alias(target_col)
+        def regress(X: pl.DataFrame, y: pl.DataFrame) -> CensoredRegressor:
+            # A new regressor per call, so each direct horizon keeps its own fit
+            censored_regressor = CensoredRegressor(
+                threshold=self.threshold,
+                regress=self.regress,
+                classify=self.classify,
             )
-            .lazy()
-        )
-        X_final, y_final = pl.collect_all(
-            [
-                X_y_final.select(pl.all().exclude(target_col)),
-                X_y_final.select([*X_y_final.collect_schema().names()[:2], target_col]),
-            ]
-        )
-        fitted_classifier = self.classify(X=X_to_numpy(X_final), y=y_to_numpy(y_final))
-        # 2. Fit forecast model on non-zeros
-        censored_regressor = CensoredRegressor(
-            threshold=self.threshold,
-            regress=self.regress,
-            predict_proba=fitted_classifier.predict_proba,
-        )
-        forecast_artifacts = fit_autoreg(
-            regress=censored_regressor.fit,
+            return censored_regressor.fit(X=X, y=y)
+
+        return fit_autoreg(
+            regress=regress,
             lags=self.lags,
             y=y,
             X=X,
             max_horizons=self.max_horizons,
             strategy=self.strategy,
         )
-        # 3. Collect artifacts
-        artifacts = {"classifier": fitted_classifier, **forecast_artifacts}
-        return artifacts
 
 
 class zero_inflated_model(censored_model):
