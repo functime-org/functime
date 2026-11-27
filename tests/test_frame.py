@@ -366,6 +366,111 @@ def test_join_state_rejects_ambiguous_state() -> None:
         )
 
 
+_ENTITY_DTYPES = {
+    "String": pl.String,
+    "Categorical": pl.Categorical,
+    "Categorical[ns]": pl.Categorical(pl.Categories("functime_test_ns")),
+    "Enum": pl.Enum(["a", "b", "c"]),
+    "Int32": pl.Int32,
+}
+
+
+def _entity_series(values: list[str], dtype: pl.DataType) -> pl.Series:
+    if dtype.is_integer():
+        return pl.Series([ord(v) for v in values], dtype=dtype)
+    return pl.Series(values, dtype=dtype)
+
+
+@pytest.mark.parametrize("input_dtype", _ENTITY_DTYPES.values(), ids=_ENTITY_DTYPES)
+@pytest.mark.parametrize("state_dtype", _ENTITY_DTYPES.values(), ids=_ENTITY_DTYPES)
+def test_join_state_across_entity_dtypes(
+    input_dtype: pl.DataType, state_dtype: pl.DataType
+) -> None:
+    df = pl.DataFrame(
+        {
+            "id": _entity_series(["b", "c", "a", "b"], input_dtype),
+            "t": [1, 1, 1, 2],
+            "y": [1.0, 2.0, 3.0, 4.0],
+        }
+    )
+    # "c" is unseen at fit time.
+    stats = pl.DataFrame(
+        {"id": _entity_series(["a", "b"], state_dtype), "mu": [10.0, 20.0]}
+    )
+    tf = TemporalFrame.parse(df, time_col="t", entity_col="id")
+    if input_dtype.is_integer() != state_dtype.is_integer():
+        with pytest.raises(TypeError, match="Incompatible dtypes"):
+            tf.join_state(stats)
+        return
+
+    out = tf.join_state(stats).collect()
+    assert out.schema["id"] == input_dtype
+    assert out.columns == ["id", "t", "y", "mu"]
+    assert out.get_column("mu").to_list() == [20.0, None, 10.0, 20.0]
+    with pytest.raises(ValueError, match="unseen entity key"):
+        tf.join_state(stats, handle_unknown="error")
+
+
+def test_join_state_enum_with_different_categories() -> None:
+    fitted = pl.Enum(["a", "b", "z"])
+    stats = pl.DataFrame(
+        {"id": pl.Series(["a", "b", "z"], dtype=fitted), "mu": [1.0, 2.0, 3.0]}
+    )
+    # Predict-time Enum adds "new" and drops the fitted "z": neither may break the join.
+    predict = pl.Enum(["new", "b", "a"])
+    df = pl.DataFrame(
+        {
+            "id": pl.Series(["new", "a", "b"], dtype=predict),
+            "t": [1, 1, 1],
+            "y": [0.0] * 3,
+        }
+    )
+    tf = TemporalFrame.parse(df, time_col="t", entity_col="id")
+    out = tf.join_state(stats).collect()
+    assert out.schema["id"] == predict
+    assert out.get_column("mu").to_list() == [None, 1.0, 2.0]
+
+    known = TemporalFrame.parse(df.slice(1), time_col="t", entity_col="id")
+    assert known.join_state(stats, handle_unknown="error").collect().height == 2
+
+
+def test_join_state_multi_entity_mixed_dtypes() -> None:
+    df = pl.DataFrame(
+        {
+            "store": pl.Series(["s1", "s1", "s2"], dtype=pl.Enum(["s1", "s2"])),
+            "item": pl.Series([1, 2, 1], dtype=pl.Int16),
+            "t": [1, 1, 1],
+            "y": [0.0] * 3,
+        }
+    )
+    stats = pl.DataFrame(
+        {
+            "store": ["s1", "s2", "s9"],
+            "item": pl.Series([1, 1, 1], dtype=pl.Int64),
+            "mu": [1.0, 2.0, 9.0],
+        }
+    )
+    out = (
+        TemporalFrame.parse(df, time_col="t", entity_col=["store", "item"])
+        .join_state(stats)
+        .collect()
+    )
+    assert out.schema["store"] == df.schema["store"]
+    assert out.schema["item"] == pl.Int16
+    assert out.get_column("mu").to_list() == [1.0, None, 2.0]
+
+
+@pytest.mark.parametrize(
+    "dtype", [pl.Float64, pl.Boolean, pl.Date, pl.List(pl.String)], ids=str
+)
+def test_parse_rejects_unsupported_entity_dtype(dtype: pl.DataType) -> None:
+    df = pl.DataFrame({"id": pl.Series([None], dtype=dtype), "t": [1], "y": [1.0]})
+    with pytest.raises(TypeError, match="unsupported dtype"):
+        TemporalFrame.parse(df, time_col="t", entity_col="id", allow_null_entity=True)
+    with pytest.raises(TypeError, match="unsupported dtype"):
+        TemporalFrame.parse(df.lazy(), time_col="t", entity_col="id")
+
+
 def test_parse_reuses_temporal_frame_axes() -> None:
     df = pl.DataFrame({"id": [1, 1, 2, 2], "date": [1, 2, 1, 2], "y": [3, 4, 5, 6]})
     tf = TemporalFrame.parse(df, time_col="date", entity_col="id")
