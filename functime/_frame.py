@@ -55,7 +55,9 @@ class TemporalFrame:
         if isinstance(data, cls):
             # Re-wrapping must not silently drop the frame's own axes (e.g. demote a panel to univariate).
             time_col = data.time_col if time_col is None else time_col
-            entity_col = data.entity_cols if entity_col is None else entity_col
+            entity_col = (
+                (data.entity_cols or None) if entity_col is None else entity_col
+            )
         elif time_col is None:
             raise TypeError("`time_col` is required unless `data` is a TemporalFrame.")
         entity_cols = validate_temporal_params(time_col, entity_col)
